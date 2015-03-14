@@ -24,7 +24,7 @@ func RandomBytes(size int) []byte {
 		panic(err)
 	}
 	if l != size {
-		panic("generated rand too short")
+		panic("Generated random sequence is too short.")
 	}
 	return nonce
 }
@@ -162,7 +162,7 @@ func (bew *BtnEncryptWriteCloser) Write(p []byte) (int, error) {
 			}
 		}
 		if bew.frameEncryptor.CapacityLeft() == 0 {
-			panic("flushFrame should brought back capacity")
+			panic("flushFrame should have brought back capacity")
 		}
 	}
 
