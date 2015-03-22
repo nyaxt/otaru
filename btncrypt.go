@@ -20,13 +20,8 @@ const (
 
 func RandomBytes(size int) []byte {
 	nonce := make([]byte, size)
-	var l int
-	l, err := rand.Read(nonce)
-	if err != nil {
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		panic(err)
-	}
-	if l != size {
-		panic("Generated random sequence is too short.")
 	}
 	return nonce
 }
@@ -226,7 +221,7 @@ func (bdr *BtnDecryptReader) decryptNextFrame() error {
 	fmt.Printf("frameLen: %d, encryptedFrameLen: %d\n", frameLen, encryptedFrameLen)
 
 	bdr.encrypted = bdr.encrypted[:encryptedFrameLen]
-	if _, err := bdr.src.Read(bdr.encrypted); err != nil {
+	if _, err := io.ReadFull(bdr.src, bdr.encrypted); err != nil {
 		return err
 	}
 
@@ -270,6 +265,10 @@ func (bdr *BtnDecryptReader) Read(p []byte) (int, error) {
 	return n, nil
 }
 
+func (bdr *BtnDecryptReader) HasReadAll() bool {
+	return bdr.lenRead == bdr.lenTotal
+}
+
 func Decrypt(key, envelope []byte, lenTotal int) ([]byte, error) {
 	bdr, err := NewBtnDecryptReader(bytes.NewReader(envelope), key, lenTotal)
 	if err != nil {
@@ -277,8 +276,7 @@ func Decrypt(key, envelope []byte, lenTotal int) ([]byte, error) {
 	}
 
 	ret := make([]byte, lenTotal)
-	if n, err := bdr.Read(ret); err != nil {
-		fmt.Printf("read n: %d\n", n)
+	if _, err := io.ReadFull(bdr, ret); err != nil {
 		return nil, err
 	}
 	return ret, err

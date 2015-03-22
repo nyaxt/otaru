@@ -3,10 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
 	"github.com/nyaxt/otaru"
+)
+
+var (
+	Key = []byte("0123456789abcdef")
 )
 
 func help() {
@@ -35,12 +40,12 @@ func put(fromurl, tourl string) error {
 		return err
 	}
 
-	cw := otaru.NewChunkWriter(w, []byte("0123456789abcdef"))
+	cw := otaru.NewChunkWriter(w, Key)
 	defer cw.Close()
 
 	// FIXME: split file into multiple chunks
-	cw.WriteHeader(&otaru.ChunkHeader{
-		PayloadLen:   fromsize,
+	cw.WriteHeaderAndPrologue(&otaru.ChunkPrologue{
+		PayloadLen:   int(fromsize), // FIXME
 		OrigFilename: fromurl,
 		OrigOffset:   0,
 	})
@@ -62,6 +67,30 @@ func put(fromurl, tourl string) error {
 	return nil
 }
 
+func get(fromurl string) error {
+	bs := &otaru.FileBlobStore{}
+	r, err := bs.OpenReader("testblob.dat")
+	if err != nil {
+		return fmt.Errorf("Blob open failed: %v", err)
+	}
+
+	cr := otaru.NewChunkReader(r, Key)
+	if err := cr.ReadHeader(); err != nil {
+		return fmt.Errorf("Failed to read header: %v", err)
+	}
+	if err := cr.ReadPrologue(); err != nil {
+		return fmt.Errorf("Failed to read prologue: %v", err)
+	}
+	content := make([]byte, cr.Length())
+	if _, err := io.ReadFull(cr, content); err != nil {
+		return fmt.Errorf("Failed to read chunk content: %v", err)
+	}
+
+	fmt.Printf("Content: %v\n", string(content))
+
+	return nil
+}
+
 func main() {
 	flag.Parse()
 
@@ -69,6 +98,7 @@ func main() {
 	if len(args) == 1 {
 		// get cmd
 		log.Printf("Get: %v", args[0])
+		get(args[0])
 	} else if len(args) == 2 {
 		log.Printf("Put: %v -> %v", args[0], args[1])
 		if err := put(args[0], args[1]); err != nil {
