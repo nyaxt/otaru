@@ -118,7 +118,7 @@ func NewBtnEncryptWriteCloser(dst io.Writer, key []byte, lenTotal int) (*BtnEncr
 	return bew, nil
 }
 
-func intMin(a, b int) int {
+func IntMin(a, b int) int {
 	if a < b {
 		return a
 	}
@@ -144,7 +144,7 @@ func (bew *BtnEncryptWriteCloser) Write(p []byte) (int, error) {
 
 	left := p
 	for len(left) > 0 {
-		framePayloadLen := intMin(bew.frameEncryptor.CapacityLeft(), len(p))
+		framePayloadLen := IntMin(bew.frameEncryptor.CapacityLeft(), len(p))
 		framePayload := left[:framePayloadLen]
 		if _, err := bew.frameEncryptor.Write(framePayload); err != nil {
 			panic(err)
@@ -221,7 +221,7 @@ func NewBtnDecryptReader(src io.Reader, key []byte, lenTotal int) (*BtnDecryptRe
 }
 
 func (bdr *BtnDecryptReader) decryptNextFrame() error {
-	frameLen := intMin(bdr.lenTotal-bdr.lenRead, BtnFrameMaxPayload)
+	frameLen := IntMin(bdr.lenTotal-bdr.lenRead, BtnFrameMaxPayload)
 	encryptedFrameLen := BtnEncryptedFrameSize(bdr.gcm, frameLen)
 	fmt.Printf("frameLen: %d, encryptedFrameLen: %d\n", frameLen, encryptedFrameLen)
 
@@ -259,7 +259,7 @@ func (bdr *BtnDecryptReader) Read(p []byte) (int, error) {
 			panic("decryptNextFrame should have decrypted something and placed it on the buf")
 		}
 
-		consumeLen := intMin(len(bdr.unread), len(left))
+		consumeLen := IntMin(len(bdr.unread), len(left))
 		copy(left[:consumeLen], bdr.unread[:consumeLen])
 		bdr.unread = bdr.unread[consumeLen:]
 		left = left[consumeLen:]

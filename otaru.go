@@ -63,12 +63,12 @@ func GetGCloudTokenCached() (*oauth2.Token, error) {
 }
 
 func UpdateGCloudTokenCache(token *oauth2.Token) {
-	json, err := json.Marshal(token)
+	tjson, err := json.Marshal(token)
 	if err != nil {
 		log.Fatalf("Serializing token failed: %v", err)
 	}
 
-	if err = ioutil.WriteFile(*tokenCacheFile, json, 0600); err != nil {
+	if err = ioutil.WriteFile(*tokenCacheFile, tjson, 0600); err != nil {
 		log.Printf("Writing token cache failed: %v", err)
 	}
 }
