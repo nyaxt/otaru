@@ -85,7 +85,7 @@ func (f *frameEncryptor) Flush() ([]byte, error) {
 
 	f.encrypted = f.gcm.Seal(f.encrypted, nonce, f.b.Bytes(), nil)
 	if len(f.encrypted) != BtnEncryptedFrameSize(f.gcm, f.Written()) {
-		log.Panicf("EncryptedFrameSize mismatch. expected: %d, actual: %", BtnEncryptedFrameSize(f.gcm, f.Written()), len(f.encrypted))
+		log.Panicf("EncryptedFrameSize mismatch. expected: %d, actual: %v", BtnEncryptedFrameSize(f.gcm, f.Written()), len(f.encrypted))
 	}
 	f.b.Reset()
 	return f.encrypted, nil
