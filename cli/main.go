@@ -51,17 +51,26 @@ func put(fromurl, tourl string) error {
 	})
 
 	buf := make([]byte, otaru.BtnFrameMaxPayload)
-	nr, err := fromfile.Read(buf)
-	if err != nil {
-		return fmt.Errorf("Failed to read: %v", err)
+	for {
+		nr, err := fromfile.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return fmt.Errorf("Failed to read: %v", err)
+		}
+
+		nw, err := cw.Write(buf[:nr])
+		if err != nil {
+			return fmt.Errorf("Failed to write: %v", err)
+		}
+		if nw != nr {
+			return fmt.Errorf("Incomplete write")
+		}
 	}
 
-	nw, err := cw.Write(buf[:nr])
-	if err != nil {
-		return fmt.Errorf("Failed to write: %v", err)
-	}
-	if nw != nr {
-		return fmt.Errorf("Incomplete write")
+	if err := cw.Close(); err != nil {
+		return err
 	}
 
 	return nil
@@ -81,24 +90,41 @@ func get(fromurl string) error {
 	if err := cr.ReadPrologue(); err != nil {
 		return fmt.Errorf("Failed to read prologue: %v", err)
 	}
-	content := make([]byte, cr.Length())
-	if _, err := io.ReadFull(cr, content); err != nil {
-		return fmt.Errorf("Failed to read chunk content: %v", err)
-	}
+	buf := make([]byte, otaru.BtnFrameMaxPayload)
+	unreadLen := cr.Length()
+	for unreadLen > 0 {
+		nr, err := cr.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Unexpected EOF reached.")
+			}
+			return fmt.Errorf("Failed to read chunk content: %v", err)
+		}
+		unreadLen -= nr
 
-	fmt.Printf("Content: %v\n", string(content))
+		nw, err := os.Stdout.Write(buf[:nr])
+		if err != nil {
+			return err
+		}
+		if nw != nr {
+			return fmt.Errorf("Unexpected partial write")
+		}
+	}
 
 	return nil
 }
 
 func main() {
 	flag.Parse()
+	log.SetOutput(os.Stderr)
 
 	args := flag.Args()
 	if len(args) == 1 {
 		// get cmd
 		log.Printf("Get: %v", args[0])
-		get(args[0])
+		if err := get(args[0]); err != nil {
+			log.Fatalf("Get err: %v", err)
+		}
 	} else if len(args) == 2 {
 		log.Printf("Put: %v -> %v", args[0], args[1])
 		if err := put(args[0], args[1]); err != nil {

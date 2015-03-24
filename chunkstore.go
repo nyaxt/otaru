@@ -8,6 +8,10 @@ import (
 	"os"
 )
 
+const (
+	MaxMarshaledPrologueLength = 4096
+)
+
 type BlobStore interface {
 	OpenWriter(blobpath string) (io.WriteCloser, error)
 	OpenReader(blobpath string) (io.ReadCloser, error)
@@ -35,6 +39,7 @@ type ChunkWriter struct {
 	bew           *BtnEncryptWriteCloser
 	wroteHeader   bool
 	wroteEpilogue bool
+	lenTotal      int
 }
 
 func NewChunkWriter(w io.WriteCloser, key []byte) *ChunkWriter {
@@ -54,8 +59,9 @@ func (cw *ChunkWriter) WriteHeaderAndPrologue(p *ChunkPrologue) error {
 	if err != nil {
 		return fmt.Errorf("Serializing header failed: %v", err)
 	}
+	cw.lenTotal = p.PayloadLen
 
-	if len(pjson) > 4096 {
+	if len(pjson) > MaxMarshaledPrologueLength {
 		panic("marshaled prologue too long!")
 	}
 	prologueLength := uint16(len(pjson))
@@ -94,25 +100,16 @@ func (cw *ChunkWriter) Write(p []byte) (int, error) {
 		return 0, errors.New("Header is not yet written to chunk")
 	}
 
-	unwritten := p
-	for len(unwritten) > 0 {
-		if cw.bew == nil || cw.bew.CapacityLeft() == 0 {
-			if cw.bew != nil {
-				cw.bew.Close()
-			}
-			framelen := len(p) // FIXME: This should be calculated from cw.CapacityLeft
-			var err error
-			cw.bew, err = NewBtnEncryptWriteCloser(cw.w, cw.key, framelen)
-			if err != nil {
-				return 0, fmt.Errorf("Failed to initialize frame encryptor: %v", err)
-			}
+	if cw.bew == nil {
+		var err error
+		cw.bew, err = NewBtnEncryptWriteCloser(cw.w, cw.key, cw.lenTotal)
+		if err != nil {
+			return 0, fmt.Errorf("Failed to initialize frame encryptor: %v", err)
 		}
+	}
 
-		wlen := IntMin(cw.bew.CapacityLeft(), len(p))
-		if _, err := cw.bew.Write(unwritten[:wlen]); err != nil {
-			return 0, fmt.Errorf("Failed to write encrypted frame: %v", err)
-		}
-		unwritten = unwritten[wlen:]
+	if _, err := cw.bew.Write(p); err != nil {
+		return 0, fmt.Errorf("Failed to write encrypted frame: %v", err)
 	}
 
 	return len(p), nil

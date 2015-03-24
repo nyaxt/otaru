@@ -8,7 +8,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -218,7 +217,7 @@ func NewBtnDecryptReader(src io.Reader, key []byte, lenTotal int) (*BtnDecryptRe
 func (bdr *BtnDecryptReader) decryptNextFrame() error {
 	frameLen := IntMin(bdr.lenTotal-bdr.lenRead, BtnFrameMaxPayload)
 	encryptedFrameLen := BtnEncryptedFrameSize(bdr.gcm, frameLen)
-	fmt.Printf("frameLen: %d, encryptedFrameLen: %d\n", frameLen, encryptedFrameLen)
+	// fmt.Printf("frameLen: %d, encryptedFrameLen: %d\n", frameLen, encryptedFrameLen)
 
 	bdr.encrypted = bdr.encrypted[:encryptedFrameLen]
 	if _, err := io.ReadFull(bdr.src, bdr.encrypted); err != nil {
@@ -239,12 +238,15 @@ func (bdr *BtnDecryptReader) decryptNextFrame() error {
 }
 
 func (bdr *BtnDecryptReader) Read(p []byte) (int, error) {
+	nr := IntMin(len(p), bdr.lenTotal-bdr.lenRead)
+	left := p[:nr]
+
+	if nr == 0 {
+		return 0, io.EOF
+	}
+
 	n := 0
-	left := p
 	for len(left) > 0 {
-		if bdr.lenRead+len(left) > bdr.lenTotal {
-			return 0, errors.New("Attempted to read more than lenTotal")
-		}
 		if len(bdr.unread) == 0 {
 			if err := bdr.decryptNextFrame(); err != nil {
 				return n, err
