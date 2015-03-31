@@ -2,6 +2,7 @@ package intn
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 )
 
@@ -22,6 +23,12 @@ func Test_FindLRIndex(t *testing.T) {
 
 	// 0    10    20    30    40    50    60    70    80    90    ..  INT_MAX
 	//       [  0 ]      [  1 ]      [  2 ]      [  3 ]
+
+	//                      40[  ]45
+	l, r = ps.FindLRIndex(CreateTestPatch(40, 5))
+	if l != 1 || r != 1 {
+		t.Errorf("Expected (1, 1) but got (%d, %d)", l, r)
+	}
 	//   5[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]85
 	l, r = ps.FindLRIndex(CreateTestPatch(5, 80))
 	if l != 0 || r != 3 {
@@ -58,10 +65,11 @@ func Test_FindLRIndex(t *testing.T) {
 		t.Errorf("Expected (0, 0) but got (%d, %d)", l, r)
 	}
 
+	//       [  0 ]      [  1 ]      [  2 ]      [  3 ]
 	//              25[  ]30
 	l, r = ps.FindLRIndex(CreateTestPatch(25, 5))
-	if l != 1 || r != 1 {
-		t.Errorf("Expected (1, 1) but got (%d, %d)", l, r)
+	if l != 1 || r != 0 {
+		t.Errorf("Expected (1, 0) but got (%d, %d)", l, r)
 	}
 
 	//                    35[]36
@@ -130,6 +138,14 @@ func TestReplace_SingleElem(t *testing.T) {
 	}
 }
 
+func PatchesToOffsetArrayForTesting(ps Patches) []int {
+	ret := make([]int, len(ps))
+	for i, p := range ps {
+		ret[i] = p.Offset
+	}
+	return ret
+}
+
 func TestMerge_AppendLast(t *testing.T) {
 	ps := Patches{PatchSentinel}
 
@@ -144,4 +160,83 @@ func TestMerge_AppendLast(t *testing.T) {
 		t.Errorf("Fail")
 	}
 
+	ps = ps.Merge(CreateTestPatch(20, 5))
+	if len(ps) != 3 {
+		t.Errorf("Invalid len: %d, expected: 3", len(ps))
+	}
+	if ps[0].Offset != 10 {
+		t.Errorf("Fail")
+	}
+	if ps[1].Offset != 20 {
+		t.Errorf("Fail")
+	}
+	if ps[2].Offset != PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
+
+	ps = ps.Merge(CreateTestPatch(25, 10))
+	if ps[0].Offset != 10 {
+		t.Errorf("Fail")
+	}
+	if ps[1].Offset != 20 {
+		t.Errorf("Fail")
+	}
+	if len(ps[1].P) != 15 {
+		t.Errorf("Fail")
+	}
+	if ps[2].Offset != PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
+}
+
+func TestMerge_Prepend(t *testing.T) {
+	ps := Patches{
+		CreateTestPatch(10, 5),
+		PatchSentinel,
+	}
+
+	ps = ps.Merge(CreateTestPatch(0, 3))
+	if len(ps) != 3 {
+		t.Errorf("Invalid len: %d, expected: 3", len(ps))
+	}
+	if ps[0].Offset != 0 {
+		t.Errorf("Fail")
+	}
+	if ps[1].Offset != 10 {
+		t.Errorf("Fail")
+	}
+	if ps[2].Offset != PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
+
+	fmt.Printf("aaaaa!!!\n")
+	ps = ps.Merge(CreateTestPatch(5, 5))
+	fmt.Printf("ps: %v\n", ps)
+	if ps[0].Offset != 0 {
+		t.Errorf("Fail")
+	}
+	if ps[1].Offset != 5 {
+		t.Errorf("Fail")
+	}
+	if len(ps[1].P) != 10 {
+		t.Errorf("Fail")
+	}
+	if bytes.Equal(ps[1].P, []byte{5, 5, 5, 5, 5, 10, 10, 10, 10, 10}) {
+		t.Errorf("Fail")
+	}
+	if ps[2].Offset != PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
+}
+
+func TestMerge_FullOverwrite(t *testing.T) {
+	// FIXME
+}
+
+func TestMerge_PartialOverwrite(t *testing.T) {
+	// FIXME
+}
+
+func TestMerge_FillHole(t *testing.T) {
+	// FIXME
 }

@@ -1,6 +1,7 @@
 package intn
 
 import (
+	"fmt"
 	"math"
 )
 
@@ -25,7 +26,7 @@ func (ps Patches) FindLRIndex(newp Patch) (int, int) {
 	lefti := 0
 	for {
 		patch := ps[lefti]
-		if newp.Left() < patch.Right() {
+		if newp.Left() <= patch.Right() {
 			break
 		}
 
@@ -38,7 +39,7 @@ func (ps Patches) FindLRIndex(newp Patch) (int, int) {
 	righti := lefti
 	for {
 		patch := ps[righti]
-		if newp.Right() < patch.Left() {
+		if newp.Right() <= patch.Left() {
 			break
 		}
 
@@ -61,10 +62,14 @@ func (ps Patches) Replace(lefti, righti int, newp Patch) Patches {
 
 func (ps Patches) Merge(newp Patch) Patches {
 	lefti, righti := ps.FindLRIndex(newp)
+	fmt.Printf("newp: %v li, ri (%d, %d)\n", newp, lefti, righti)
 
+	psl := ps[lefti]
 	if lefti > righti {
-		// [lefti-1]          [lefti]
-		//            [newp]
+		//  [lefti-1]          [lefti]
+		//             [newp]
+
+		fmt.Printf("Insert!!!\n")
 
 		// Insert newp @ index lefti
 		newps := append(ps, PatchSentinel)
@@ -73,17 +78,19 @@ func (ps Patches) Merge(newp Patch) Patches {
 		return newps
 	}
 
-	psl := ps[lefti]
+	psr := ps[righti]
 	if newp.Left() > psl.Left() {
+		fmt.Printf("Merge L !!!\n")
 		//    [lefti] ...
 		//       [<------newp---...
 
 		// Modify newp to include ps[lefti]
 		newp.P = append(psl.P[:newp.Left()-psl.Left()], newp.P...)
+		newp.Offset = psl.Offset
 	}
 
-	psr := ps[righti]
 	if psr.Right() > newp.Right() {
+		fmt.Printf("Merge R !!!\n")
 		//            ... [righti]
 		//         ---newp--->]
 
