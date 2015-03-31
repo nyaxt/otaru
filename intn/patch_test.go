@@ -2,7 +2,6 @@ package intn
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 )
 
@@ -175,16 +174,19 @@ func TestMerge_AppendLast(t *testing.T) {
 	}
 
 	ps = ps.Merge(CreateTestPatch(25, 10))
+	if len(ps) != 4 {
+		t.Errorf("Invalid len: %d, expected: 4", len(ps))
+	}
 	if ps[0].Offset != 10 {
 		t.Errorf("Fail")
 	}
 	if ps[1].Offset != 20 {
 		t.Errorf("Fail")
 	}
-	if len(ps[1].P) != 15 {
+	if ps[2].Offset != 25 {
 		t.Errorf("Fail")
 	}
-	if ps[2].Offset != PatchSentinel.Offset {
+	if ps[3].Offset != PatchSentinel.Offset {
 		t.Errorf("Fail")
 	}
 }
@@ -209,34 +211,115 @@ func TestMerge_Prepend(t *testing.T) {
 		t.Errorf("Fail")
 	}
 
-	fmt.Printf("aaaaa!!!\n")
 	ps = ps.Merge(CreateTestPatch(5, 5))
-	fmt.Printf("ps: %v\n", ps)
 	if ps[0].Offset != 0 {
 		t.Errorf("Fail")
 	}
 	if ps[1].Offset != 5 {
 		t.Errorf("Fail")
 	}
-	if len(ps[1].P) != 10 {
+	if ps[2].Offset != 10 {
 		t.Errorf("Fail")
 	}
-	if bytes.Equal(ps[1].P, []byte{5, 5, 5, 5, 5, 10, 10, 10, 10, 10}) {
-		t.Errorf("Fail")
-	}
-	if ps[2].Offset != PatchSentinel.Offset {
+	if ps[3].Offset != PatchSentinel.Offset {
 		t.Errorf("Fail")
 	}
 }
 
 func TestMerge_FullOverwrite(t *testing.T) {
-	// FIXME
+	ps := Patches{
+		CreateTestPatch(10, 5),
+		CreateTestPatch(20, 5),
+		CreateTestPatch(30, 5),
+		PatchSentinel,
+	}
+
+	ps = ps.Merge(CreateTestPatch(5, 40))
+	if len(ps) != 2 {
+		t.Errorf("Invalid len: %d, expected: 2", len(ps))
+	}
+	if ps[0].Offset != 5 {
+		t.Errorf("Fail")
+	}
+	if len(ps[0].P) != 40 {
+		t.Errorf("Fail")
+	}
+	if ps[1].Offset != PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
 }
 
 func TestMerge_PartialOverwrite(t *testing.T) {
-	// FIXME
+	ps := Patches{
+		CreateTestPatch(10, 5),
+		CreateTestPatch(20, 5),
+		CreateTestPatch(30, 5),
+		PatchSentinel,
+	}
+
+	ps = ps.Merge(CreateTestPatch(23, 10))
+	if len(ps) != 5 {
+		t.Errorf("Invalid len: %d, expected: 5", len(ps))
+	}
+	if ps[0].Offset != 10 {
+		t.Errorf("Fail")
+	}
+	if len(ps[0].P) != 5 {
+		t.Errorf("Fail")
+	}
+	if ps[1].Offset != 20 {
+		t.Errorf("Fail")
+	}
+	if len(ps[1].P) != 3 {
+		t.Errorf("Fail")
+	}
+	if ps[2].Offset != 23 {
+		t.Errorf("Fail")
+	}
+	if len(ps[2].P) != 10 {
+		t.Errorf("Fail")
+	}
+	if ps[3].Offset != 33 {
+		t.Errorf("Fail")
+	}
+	if len(ps[3].P) != 2 {
+		t.Errorf("Fail")
+	}
+	if ps[4].Offset != PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
 }
 
 func TestMerge_FillHole(t *testing.T) {
-	// FIXME
+	ps := Patches{
+		CreateTestPatch(10, 10),
+		CreateTestPatch(30, 10),
+		PatchSentinel,
+	}
+
+	ps = ps.Merge(CreateTestPatch(20, 10))
+	if len(ps) != 4 {
+		t.Errorf("Invalid len: %d, expected: 4", len(ps))
+	}
+	if ps[0].Offset != 10 {
+		t.Errorf("Fail")
+	}
+	if len(ps[0].P) != 10 {
+		t.Errorf("Fail")
+	}
+	if ps[1].Offset != 20 {
+		t.Errorf("Fail")
+	}
+	if len(ps[1].P) != 10 {
+		t.Errorf("Fail")
+	}
+	if ps[2].Offset != 30 {
+		t.Errorf("Fail")
+	}
+	if len(ps[2].P) != 10 {
+		t.Errorf("Fail")
+	}
+	if ps[3].Offset != PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
 }

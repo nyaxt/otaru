@@ -1,7 +1,7 @@
 package intn
 
 import (
-	"fmt"
+	// "fmt"
 	"math"
 )
 
@@ -62,40 +62,47 @@ func (ps Patches) Replace(lefti, righti int, newp Patch) Patches {
 
 func (ps Patches) Merge(newp Patch) Patches {
 	lefti, righti := ps.FindLRIndex(newp)
-	fmt.Printf("newp: %v li, ri (%d, %d)\n", newp, lefti, righti)
+	// fmt.Printf("newp: %v li, ri (%d, %d)\n", newp, lefti, righti)
 
-	psl := ps[lefti]
+	if lefti < len(ps)-1 {
+		psl := &ps[lefti]
+		if newp.Left() > ps[lefti].Left() {
+			// fmt.Printf("Trim L !!!\n")
+			//    [lefti] ...
+			//       [<------newp---...
+
+			// Trim ps[lefti]
+			psl.P = psl.P[:newp.Left()-psl.Left()]
+			if len(psl.P) != 0 {
+				lefti++
+			}
+		}
+	}
+
+	if righti >= 0 {
+		psr := &ps[righti]
+		if psr.Right() > newp.Right() {
+			// fmt.Printf("Trim R !!!\n")
+			//            ... [righti]
+			//         ---newp--->]
+
+			// Trim ps[righti]
+			psr.P = psr.P[newp.Right()-psr.Left():]
+			psr.Offset = newp.Right()
+			if len(psr.P) != 0 {
+				righti--
+			}
+		}
+	}
+
 	if lefti > righti {
-		//  [lefti-1]          [lefti]
-		//             [newp]
-
-		fmt.Printf("Insert!!!\n")
+		// fmt.Printf("Insert!!!\n")
 
 		// Insert newp @ index lefti
 		newps := append(ps, PatchSentinel)
 		copy(newps[lefti+1:], newps[lefti:])
 		newps[lefti] = newp
 		return newps
-	}
-
-	psr := ps[righti]
-	if newp.Left() > psl.Left() {
-		fmt.Printf("Merge L !!!\n")
-		//    [lefti] ...
-		//       [<------newp---...
-
-		// Modify newp to include ps[lefti]
-		newp.P = append(psl.P[:newp.Left()-psl.Left()], newp.P...)
-		newp.Offset = psl.Offset
-	}
-
-	if psr.Right() > newp.Right() {
-		fmt.Printf("Merge R !!!\n")
-		//            ... [righti]
-		//         ---newp--->]
-
-		// Modify newp to include ps[righti]
-		newp.P = append(newp.P, psr.P[psr.Right()-newp.Left():]...)
 	}
 
 	// Insert newp replacing ps[lefti:righti]
