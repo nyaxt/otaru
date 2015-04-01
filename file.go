@@ -4,6 +4,20 @@ import (
 	"github.com/nyaxt/otaru/intn"
 )
 
+// PReader implements positioned read
+type PReader interface {
+	PRead(offset int, p []byte) error
+}
+
+type ZeroFillPReader struct{}
+
+func (ZeroFillPReader) PRead(offset int, p []byte) error {
+	for i := range p {
+		p[i] = 0
+	}
+	return nil
+}
+
 type FileChunk struct {
 	Offset   int
 	Length   int
@@ -83,6 +97,52 @@ func (wc *FileWriteCache) PWrite(offset int, p []byte) error {
 	return nil
 }
 
+func (wc *FileWriteCache) PReadThrough(offset int, p []byte, r PReader) error {
+
+	nr := len(p)
+	remo := offset
+	remp := p
+
+	for _, patch := range wc.ps {
+		if nr <= 0 {
+			return nil
+		}
+
+		if remo > patch.Right() {
+			continue
+		}
+
+		if remo < patch.Left() {
+			fallbackLen := IntMin(nr, patch.Left()-remo)
+
+			if err := r.PRead(remo, remp[:fallbackLen]); err != nil {
+				return err
+			}
+
+			remp = remp[fallbackLen:]
+			nr -= fallbackLen
+			remo += fallbackLen
+		}
+
+		if nr <= 0 {
+			return nil
+		}
+
+		applyOffset := remo - patch.Offset
+		applyLen := IntMin(len(patch.P)-applyOffset, nr)
+		copy(remp[:applyLen], patch.P[applyOffset:])
+
+		remp = remp[applyLen:]
+		nr -= applyLen
+		remo += applyLen
+	}
+
+	if err := r.PRead(remo, remp); err != nil {
+		return err
+	}
+	return nil
+}
+
 type FileSystem struct {
 	*INodeDB
 	lastID INodeID
@@ -132,5 +192,6 @@ func (h *FileHandle) PWrite(offset int, p []byte) error {
 	return h.wc.PWrite(offset, p)
 }
 
-// func PRead(f File, offset int, p []byte) error
-//   trivial
+func (h *FileHandle) PRead(offset int, p []byte) error {
+	return h.wc.PReadThrough(offset, p, ZeroFillPReader{})
+}
