@@ -22,6 +22,10 @@ type Patches []Patch
 
 var PatchSentinel = Patch{Offset: math.MaxInt64}
 
+func NewPatches() Patches {
+	return Patches{PatchSentinel}
+}
+
 func (ps Patches) FindLRIndex(newp Patch) (int, int) {
 	lefti := 0
 	for {

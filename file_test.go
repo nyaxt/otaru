@@ -6,7 +6,14 @@ import (
 
 func TestFile(t *testing.T) {
 	fs := NewFileSystem()
-	f := fs.CreateFile("hello.txt")
+	h, err := fs.CreateFile("hello.txt")
+	if err != nil {
+		t.Errorf("CreateFile failed")
+		return
+	}
 
-	f.PWrite(0, []byte("hello world!\n"))
+	err = h.PWrite(0, []byte("hello world!\n"))
+	if err != nil {
+		t.Errorf("PWrite failed")
+	}
 }

@@ -1,7 +1,7 @@
 package otaru
 
 import (
-	"math"
+	"github.com/nyaxt/otaru/intn"
 )
 
 type FileChunk struct {
@@ -50,8 +50,8 @@ type FileNode struct {
 
 func NewFileNode(id INodeID, origpath string) *FileNode {
 	return &FileNode{
-		INodeCommon{INodeID: id, INodeType: FileNodeT},
-		OrigPath: origpath,
+		INodeCommon: INodeCommon{INodeID: id, INodeType: FileNodeT},
+		OrigPath:    origpath,
 	}
 }
 
@@ -61,7 +61,7 @@ type INodeDB struct {
 
 func NewINodeDB() *INodeDB {
 	return &INodeDB{
-		nodes: make(map[InodeId]INode),
+		nodes: make(map[INodeID]INode),
 	}
 }
 
@@ -70,48 +70,31 @@ func (idb *INodeDB) Get(id INodeID) INode {
 }
 
 type FileWriteCache struct {
-	intn.Patches
+	ps intn.Patches
 }
 
 func NewFileWriteCache() *FileWriteCache {
-	return &FileWriteCache{Patches: Patches{patchSentinel}}
+	return &FileWriteCache{ps: intn.NewPatches()}
 }
 
 func (wc *FileWriteCache) PWrite(offset int, p []byte) error {
-	if len(p) == 0 {
-		return nil
-	}
-
-	/*
-	  for i, patch := range wc.patches {
-	    pleft := patch.offset
-	    if right < pleft {
-	      //         <patch>
-	      // <new>
-
-	      // insert new patch at index i
-	      wc.patches = append(wc.patches, patchSentinel)
-	      copy(wc.patches[i+1:], wc.patches[i:])
-	      wc.patches[i] = patch{offset: remo, p: remp}
-	      return nil
-	    }
-	  }
-	*/
-	panic("should not be reached!")
+	newp := intn.Patch{Offset: offset, P: p}
+	wc.ps = wc.ps.Merge(newp)
+	return nil
 }
 
 type FileSystem struct {
 	*INodeDB
 	lastID INodeID
 
-	wcmap map[INodeID]*WriteCache
+	wcmap map[INodeID]*FileWriteCache
 }
 
 func NewFileSystem() *FileSystem {
 	return &FileSystem{
 		INodeDB: NewINodeDB(),
 		lastID:  0,
-		wcmap:   make(map[INodeID]*WriteCache),
+		wcmap:   make(map[INodeID]*FileWriteCache),
 	}
 }
 
@@ -134,7 +117,7 @@ func (fs *FileSystem) CreateFile(otarupath string) (*FileHandle, error) {
 	id := fs.NewINodeID()
 	n := NewFileNode(id, otarupath)
 	wc := fs.getOrCreateFileWriteCache(id)
-	h := &FileHandle{fs: fs, n: n}
+	h := &FileHandle{fs: fs, n: n, wc: wc}
 
 	return h, nil
 }
@@ -151,5 +134,3 @@ func (h *FileHandle) PWrite(offset int, p []byte) error {
 
 // func PRead(f File, offset int, p []byte) error
 //   trivial
-// func PWrite(f File, offset int, p []byte) error
-//   ???
