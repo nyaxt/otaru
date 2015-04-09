@@ -14,8 +14,9 @@ const (
 type ChunkHeader struct {
 	Format             byte
 	FrameEncapsulation byte
-	PrologueLength     uint16
-	EpilogueLength     uint16
+	// FIXME: use fixed sized pro/epi to make this seekable
+	PrologueLength uint16
+	EpilogueLength uint16
 }
 
 func (h ChunkHeader) MarshalBinary() ([]byte, error) {

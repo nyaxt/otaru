@@ -112,13 +112,6 @@ func NewBtnEncryptWriteCloser(dst io.Writer, key []byte, lenTotal int) (*BtnEncr
 	return bew, nil
 }
 
-func IntMin(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func (bew *BtnEncryptWriteCloser) flushFrame() error {
 	frame, err := bew.frameEncryptor.Flush()
 	if err != nil {

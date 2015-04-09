@@ -27,6 +27,50 @@ func (f *FileBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
 	return os.Open(blobpath)
 }
 
+type BlobHandle interface {
+	RandomAccessIO
+	io.Closer
+}
+
+type RandomAccessBlobStore interface {
+	Open(blobpath string) (BlobHandle, error)
+}
+
+type FileRandomAccessBlobStore struct{}
+
+type fileBlobHandle struct {
+	fp *os.File
+}
+
+func (h fileBlobHandle) PRead(offset int64, p []byte) error {
+	if _, err := h.fp.Seek(offset, os.SEEK_SET); err != nil {
+		return err
+	}
+	if _, err := io.ReadFull(h.fp, p); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (h fileBlobHandle) PWrite(offset int64, p []byte) error {
+	if _, err := h.fp.WriteAt(p, offset); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (h fileBlobHandle) Close() error {
+	return h.fp.Close()
+}
+
+func (f *FileBlobStore) Open(blobpath string) (BlobHandle, error) {
+	fp, err := os.OpenFile(blobpath, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return nil, err
+	}
+	return &fileBlobHandle{fp}, nil
+}
+
 type ChunkPrologue struct {
 	PayloadLen   int
 	OrigFilename string
@@ -232,4 +276,30 @@ func (cr *ChunkReader) Read(p []byte) (int, error) {
 
 	nr, err := cr.bdr.Read(p)
 	return nr, err
+}
+
+type ChunkIO struct {
+	bh  RandomAccessIO
+	key []byte
+
+	// FIXME: fn *FileNode or something for header debug info
+}
+
+func NewChunkIO(bh RandomAccessIO, key []byte) *ChunkIO {
+	return &ChunkIO{
+		bh:  bh,
+		key: key,
+	}
+}
+
+func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
+	return errors.New("Not Implemented")
+}
+
+func (ch *ChunkIO) PRead(offset int64, p []byte) error {
+	return errors.New("Not Implemented")
+}
+
+func (ch *ChunkIO) Close() error {
+	return errors.New("Not Implemented")
 }

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func CreateTestPatch(o, l int) Patch {
+func CreateTestPatch(o int64, l int) Patch {
 	return Patch{Offset: o, P: bytes.Repeat([]byte{byte(o)}, l)}
 }
 
@@ -137,8 +137,8 @@ func TestReplace_SingleElem(t *testing.T) {
 	}
 }
 
-func PatchesToOffsetArrayForTesting(ps Patches) []int {
-	ret := make([]int, len(ps))
+func PatchesToOffsetArrayForTesting(ps Patches) []int64 {
+	ret := make([]int64, len(ps))
 	for i, p := range ps {
 		ret[i] = p.Offset
 	}

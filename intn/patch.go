@@ -6,16 +6,16 @@ import (
 )
 
 type Patch struct {
-	Offset int
+	Offset int64
 	P      []byte
 }
 
-func (p Patch) Left() int {
+func (p Patch) Left() int64 {
 	return p.Offset
 }
 
-func (p Patch) Right() int {
-	return p.Offset + len(p.P)
+func (p Patch) Right() int64 {
+	return p.Offset + int64(len(p.P))
 }
 
 type Patches []Patch

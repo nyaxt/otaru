@@ -4,23 +4,9 @@ import (
 	"github.com/nyaxt/otaru/intn"
 )
 
-// PReader implements positioned read
-type PReader interface {
-	PRead(offset int, p []byte) error
-}
-
-type ZeroFillPReader struct{}
-
-func (ZeroFillPReader) PRead(offset int, p []byte) error {
-	for i := range p {
-		p[i] = 0
-	}
-	return nil
-}
-
 type FileChunk struct {
-	Offset   int
-	Length   int
+	Offset   int64
+	Length   int64
 	BlobPath string
 }
 
@@ -91,15 +77,14 @@ func NewFileWriteCache() *FileWriteCache {
 	return &FileWriteCache{ps: intn.NewPatches()}
 }
 
-func (wc *FileWriteCache) PWrite(offset int, p []byte) error {
+func (wc *FileWriteCache) PWrite(offset int64, p []byte) error {
 	newp := intn.Patch{Offset: offset, P: p}
 	wc.ps = wc.ps.Merge(newp)
 	return nil
 }
 
-func (wc *FileWriteCache) PReadThrough(offset int, p []byte, r PReader) error {
-
-	nr := len(p)
+func (wc *FileWriteCache) PReadThrough(offset int64, p []byte, r PReader) error {
+	nr := int64(len(p))
 	remo := offset
 	remp := p
 
@@ -113,7 +98,7 @@ func (wc *FileWriteCache) PReadThrough(offset int, p []byte, r PReader) error {
 		}
 
 		if remo < patch.Left() {
-			fallbackLen := IntMin(nr, patch.Left()-remo)
+			fallbackLen := Int64Min(nr, patch.Left()-remo)
 
 			if err := r.PRead(remo, remp[:fallbackLen]); err != nil {
 				return err
@@ -129,7 +114,7 @@ func (wc *FileWriteCache) PReadThrough(offset int, p []byte, r PReader) error {
 		}
 
 		applyOffset := remo - patch.Offset
-		applyLen := IntMin(len(patch.P)-applyOffset, nr)
+		applyLen := Int64Min(int64(len(patch.P))-applyOffset, nr)
 		copy(remp[:applyLen], patch.P[applyOffset:])
 
 		remp = remp[applyLen:]
@@ -188,10 +173,10 @@ type FileHandle struct {
 	wc *FileWriteCache
 }
 
-func (h *FileHandle) PWrite(offset int, p []byte) error {
+func (h *FileHandle) PWrite(offset int64, p []byte) error {
 	return h.wc.PWrite(offset, p)
 }
 
-func (h *FileHandle) PRead(offset int, p []byte) error {
+func (h *FileHandle) PRead(offset int64, p []byte) error {
 	return h.wc.PReadThrough(offset, p, ZeroFillPReader{})
 }
