@@ -2,7 +2,6 @@ package otaru
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"testing"
 )
@@ -26,18 +25,14 @@ func TestEncrypt_Short(t *testing.T) {
 }
 
 func TestEncrypt_Long(t *testing.T) {
-	fmt.Printf("TestEncrypt_Long\n")
-
 	key := []byte("0123456789abcdef")
 	payload := RandomBytes(1024 * 1024)
 
-	fmt.Printf("TestEncrypt_Long Encrypt!\n")
 	envelope, err := Encrypt(key, payload)
 	if err != nil {
 		t.Errorf("Failed to encrypt: %v", err)
 	}
 
-	fmt.Printf("TestEncrypt_Long Decrypt!\n")
 	plain, err := Decrypt(key, envelope, len(payload))
 	if err != nil {
 		t.Errorf("Failed to decrypt: %v", err)

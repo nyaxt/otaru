@@ -35,6 +35,14 @@ func genTestData(l int) []byte {
 	return ret
 }
 
+func negateBits(p []byte) []byte {
+	ret := make([]byte, len(p))
+	for i, x := range p {
+		ret[i] = 0xff ^ x
+	}
+	return ret
+}
+
 func Test_genTestData(t *testing.T) {
 	td := genTestData(5)
 	if !bytes.Equal(td, []byte{0, 0, 0, 0, 0xab}) {
@@ -163,5 +171,51 @@ func TestChunkIO_Write_UpdateHello(t *testing.T) {
 		t.Errorf("failed to Close ChunkIO: %v", err)
 		return
 	}
+}
 
+func TestChunkIO_Write_Update1MB(t *testing.T) {
+	td := genTestData(1024*1024 + 123)
+	b := genFrameByChunkWriter(t, td)
+	if b == nil {
+		return
+	}
+	testbh := TestBlobHandle{b}
+	cio := NewChunkIO(testbh, testCipher())
+
+	// Full update
+	td2 := negateBits(td)
+	if err := cio.PWrite(0, td2); err != nil {
+		t.Errorf("failed to PWrite into ChunkIO: %v", err)
+		return
+	}
+	readtgt := make([]byte, len(td))
+	if err := cio.PRead(0, readtgt); err != nil {
+		t.Errorf("failed to PRead from ChunkIO: %v", err)
+		return
+	}
+	if !bytes.Equal(readtgt, td2) {
+		t.Errorf("Read content invalid")
+		return
+	}
+
+	// Partial update
+	if err := cio.PWrite(1012345, td[1012345:1012345+321]); err != nil {
+		t.Errorf("failed to PWrite into ChunkIO: %v", err)
+		return
+	}
+	td3 := make([]byte, len(td2))
+	copy(td3, td2)
+	copy(td3[1012345:1012345+321], td[1012345:1012345+321])
+	if err := cio.PRead(0, readtgt); err != nil {
+		t.Errorf("failed to PRead from ChunkIO: %v", err)
+		return
+	}
+	if !bytes.Equal(readtgt, td3) {
+		t.Errorf("Read content invalid")
+		return
+	}
+	if err := cio.Close(); err != nil {
+		t.Errorf("failed to Close ChunkIO: %v", err)
+		return
+	}
 }

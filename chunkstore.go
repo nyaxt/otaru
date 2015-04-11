@@ -312,12 +312,13 @@ func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 
 	p := make([]byte, framePayloadLen)
 	if _, err := io.ReadFull(bdr, p); err != nil {
-		return nil, fmt.Errorf("Failed to decrypt frame: %v", err)
+		return nil, fmt.Errorf("Failed to decrypt frame idx: %d, err: %v", i, err)
 	}
 	if !bdr.HasReadAll() {
 		panic("Incomplete frame read")
 	}
 
+	fmt.Printf("Read content frame idx: %d\n", i)
 	return &decryptedContentFrame{P: p, Offset: offset}, nil
 }
 
@@ -331,12 +332,13 @@ func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
 		return fmt.Errorf("Failed to create BtnEncryptWriteCloser: %v", err)
 	}
 	if _, err := bew.Write(f.P); err != nil {
-		return fmt.Errorf("Failed to decrypt frame: %v", err)
+		return fmt.Errorf("Failed to encrypt frame: %v", err)
 	}
 	if err := bew.Close(); err != nil {
 		return fmt.Errorf("Failed to Close BtnEncryptWriteCloser: %v", err)
 	}
 
+	fmt.Printf("Wrote content frame idx: %d\n", i)
 	return nil
 }
 

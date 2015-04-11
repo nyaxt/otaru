@@ -122,11 +122,16 @@ func NewBtnEncryptWriteCloser(dst io.Writer, c Cipher, lenTotal int) (*BtnEncryp
 }
 
 func (bew *BtnEncryptWriteCloser) flushFrame() error {
+	if bew.frameEncryptor.Written() == 0 {
+		// Don't emit a frame with empty payload
+		return nil
+	}
+
 	frame, err := bew.frameEncryptor.Flush()
 	if err != nil {
 		return err
 	}
-	fmt.Printf("emit frame %d\n", len(frame))
+	// fmt.Printf("emit frame %d\n", len(frame))
 	if _, err := bew.dst.Write(frame); err != nil {
 		return err
 	}
