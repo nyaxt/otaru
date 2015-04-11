@@ -9,8 +9,8 @@ func TestChunkHeader_MarshalBinary(t *testing.T) {
 	h := ChunkHeader{
 		Format:             0x01,
 		FrameEncapsulation: 0x02,
-		PrologueLength:     0xabcd,
-		EpilogueLength:     0x4321,
+		PrologueLen:        0xabcd,
+		EpilogueLen:        0x4321,
 		PayloadLen:         0xdeadbeef,
 	}
 	b, err := h.MarshalBinary()
@@ -41,11 +41,11 @@ func TestChunkHeader_UnmarshalBinary(t *testing.T) {
 	if h.FrameEncapsulation != 0x02 {
 		t.Errorf("Failed to unmarshal FrameEncapsulation")
 	}
-	if h.PrologueLength != 0xabcd {
-		t.Errorf("Failed to unmarshal PrologueLength")
+	if h.PrologueLen != 0xabcd {
+		t.Errorf("Failed to unmarshal PrologueLen")
 	}
-	if h.EpilogueLength != 0x4321 {
-		t.Errorf("Failed to unmarshal EpilogueLength")
+	if h.EpilogueLen != 0x4321 {
+		t.Errorf("Failed to unmarshal EpilogueLen")
 	}
 }
 

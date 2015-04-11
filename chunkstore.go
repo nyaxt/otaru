@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	ContentFramePayloadLength  = BtnFrameMaxPayload
-	MaxMarshaledPrologueLength = 65000
+	ContentFramePayloadLength = BtnFrameMaxPayload
+	MaxMarshaledPrologueLen   = 65000
 )
 
 type ChunkPrologue struct {
@@ -41,15 +41,15 @@ func WriteHeaderAndPrologue(w io.Writer, c Cipher, p *ChunkPrologue) error {
 	if err != nil {
 		return fmt.Errorf("Serializing header failed: %v", err)
 	}
-	if len(pjson) > MaxMarshaledPrologueLength {
+	if len(pjson) > MaxMarshaledPrologueLen {
 		panic("marshaled prologue too long!")
 	}
 
 	hdr := ChunkHeader{
 		Format:             0x01,
 		FrameEncapsulation: 0x01,
-		PrologueLength:     uint16(len(pjson)),
-		EpilogueLength:     0,
+		PrologueLen:        uint16(len(pjson)),
+		EpilogueLen:        0,
 	}
 	bhdr, err := hdr.MarshalBinary()
 	if err != nil {
@@ -170,12 +170,12 @@ func (cr *ChunkReader) ReadPrologue() error {
 		return errors.New("Tried to read prologue before reading header.")
 	}
 
-	bdr, err := NewBtnDecryptReader(cr.r, cr.c, int(cr.header.PrologueLength))
+	bdr, err := NewBtnDecryptReader(cr.r, cr.c, int(cr.header.PrologueLen))
 	if err != nil {
 		return err
 	}
 
-	mpro := make([]byte, cr.header.PrologueLength)
+	mpro := make([]byte, cr.header.PrologueLen)
 	if _, err := io.ReadFull(bdr, mpro); err != nil {
 		return fmt.Errorf("Failed to read prologue frame: %v", err)
 	}
@@ -266,12 +266,12 @@ func (ch *ChunkIO) readPrologue() error {
 	}
 
 	rd := &OffsetReader{ch.bh, MarshaledChunkHeaderLength}
-	bdr, err := NewBtnDecryptReader(rd, ch.c, int(ch.header.PrologueLength))
+	bdr, err := NewBtnDecryptReader(rd, ch.c, int(ch.header.PrologueLen))
 	if err != nil {
 		return err
 	}
 
-	mpro := make([]byte, ch.header.PrologueLength)
+	mpro := make([]byte, ch.header.PrologueLen)
 	if _, err := io.ReadFull(bdr, mpro); err != nil {
 		return fmt.Errorf("Failed to read prologue frame: %v", err)
 	}
@@ -288,7 +288,7 @@ func (ch *ChunkIO) readPrologue() error {
 }
 
 func (ch *ChunkIO) encryptedFrameOffset(i int) int {
-	o := MarshaledChunkHeaderLength + ch.c.EncryptedFrameSize(int(ch.header.PrologueLength))
+	o := MarshaledChunkHeaderLength + ch.c.EncryptedFrameSize(int(ch.header.PrologueLen))
 
 	encryptedFrameSize := ch.c.EncryptedFrameSize(ContentFramePayloadLength)
 	o += encryptedFrameSize * i
