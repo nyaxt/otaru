@@ -11,18 +11,25 @@ func TestChunkHeader_MarshalBinary(t *testing.T) {
 		FrameEncapsulation: 0x02,
 		PrologueLength:     0xabcd,
 		EpilogueLength:     0x4321,
+		PayloadLen:         0xdeadbeef,
 	}
 	b, err := h.MarshalBinary()
 	if err != nil {
 		t.Errorf("MarshalBinary failed: %v", err)
 	}
-	if !bytes.Equal(b, []byte{0x05, 0xa6, 0x01, 0x02, 0xcd, 0xab, 0x21, 0x43}) {
+	if !bytes.Equal(b, []byte{
+		0x05, 0xa6, 0x01, 0x02, 0xcd, 0xab, 0x21, 0x43,
+		0xef, 0xbe, 0xad, 0xde,
+	}) {
 		t.Errorf("Unexpected ChunkHeader bytestream: %v", b)
 	}
 }
 
 func TestChunkHeader_UnmarshalBinary(t *testing.T) {
-	b := []byte{0x05, 0xa6, 0x01, 0x02, 0xcd, 0xab, 0x21, 0x43}
+	b := []byte{
+		0x05, 0xa6, 0x01, 0x02, 0xcd, 0xab, 0x21, 0x43,
+		0xef, 0xbe, 0xad, 0xde,
+	}
 	var h ChunkHeader
 	if err := h.UnmarshalBinary(b); err != nil {
 		t.Errorf("UnmarshalBinary failed: %v", err)
