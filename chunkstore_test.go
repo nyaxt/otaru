@@ -7,7 +7,7 @@ import (
 
 var (
 	Key        = []byte("0123456789abcdef")
-	HelloWorld = []byte("hello, world")
+	HelloWorld = []byte("Hello, world")
 )
 
 func testCipher() Cipher {
@@ -135,16 +135,33 @@ func TestChunkIO_Read_1MB(t *testing.T) {
 	}
 }
 
-func TestChunkIO_Write(t *testing.T) {
-	testbh := TestBlobHandle{make([]byte, 1024*1024)}
+func TestChunkIO_Write_UpdateHello(t *testing.T) {
+	b := genFrameByChunkWriter(t, HelloWorld)
+	if b == nil {
+		return
+	}
+	testbh := TestBlobHandle{b}
 	cio := NewChunkIO(testbh, testCipher())
 
-	if err := cio.PWrite(0, []byte("Hello, world")); err != nil {
+	upd := []byte("testin write")
+	if err := cio.PWrite(0, upd); err != nil {
 		t.Errorf("failed to PWrite to ChunkIO: %v", err)
 		return
 	}
+
+	readtgt := make([]byte, len(upd))
+	if err := cio.PRead(0, readtgt); err != nil {
+		t.Errorf("failed to PRead from ChunkIO: %v", err)
+		return
+	}
+	if !bytes.Equal(readtgt, upd) {
+		t.Errorf("Read content invalid")
+		return
+	}
+
 	if err := cio.Close(); err != nil {
 		t.Errorf("failed to Close ChunkIO: %v", err)
 		return
 	}
+
 }

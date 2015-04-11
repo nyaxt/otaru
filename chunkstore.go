@@ -236,10 +236,6 @@ func NewChunkIO(bh RandomAccessIO, c Cipher) *ChunkIO {
 	}
 }
 
-func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
-	return errors.New("Not Implemented")
-}
-
 func (ch *ChunkIO) readHeader() error {
 	if ch.didReadHeader {
 		return errors.New("Already read header.")
@@ -325,7 +321,26 @@ func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 	return &decryptedContentFrame{P: p, Offset: offset}, nil
 }
 
-func (ch *ChunkIO) PRead(offset int64, p []byte) error {
+func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
+	// the offset of the start of the frame in blob
+	blobOffset := ch.encryptedFrameOffset(i)
+
+	wr := &OffsetWriter{ch.bh, int64(blobOffset)}
+	bew, err := NewBtnEncryptWriteCloser(wr, ch.c, len(f.P))
+	if err != nil {
+		return fmt.Errorf("Failed to create BtnEncryptWriteCloser: %v", err)
+	}
+	if _, err := bew.Write(f.P); err != nil {
+		return fmt.Errorf("Failed to decrypt frame: %v", err)
+	}
+	if err := bew.Close(); err != nil {
+		return fmt.Errorf("Failed to Close BtnEncryptWriteCloser: %v", err)
+	}
+
+	return nil
+}
+
+func (ch *ChunkIO) ensurePrologue() error {
 	if !ch.didReadPrologue {
 		if !ch.didReadHeader {
 			if err := ch.readHeader(); err != nil {
@@ -335,6 +350,14 @@ func (ch *ChunkIO) PRead(offset int64, p []byte) error {
 		if err := ch.readPrologue(); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (ch *ChunkIO) PRead(offset int64, p []byte) error {
+	if err := ch.ensurePrologue(); err != nil {
+		return err
 	}
 
 	if offset < 0 || math.MaxInt32 < offset {
@@ -359,6 +382,44 @@ func (ch *ChunkIO) PRead(offset int64, p []byte) error {
 		return ch.PRead(offset+int64(n), p[n:])
 	}
 	return nil
+}
+
+func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
+	if err := ch.ensurePrologue(); err != nil {
+		return err
+	}
+
+	if offset < 0 || math.MaxInt32 < offset {
+		return fmt.Errorf("Offset out of range: %d", offset)
+	}
+	offset32 := int(offset)
+
+	// read the encrypted frame
+	i := offset32 / BtnFrameMaxPayload
+	f, err := ch.readContentFrame(i)
+	if err != nil {
+		return err
+	}
+
+	// modify the payload
+	inframeOffset := offset32 - f.Offset
+	if inframeOffset < 0 {
+		panic("ASSERT: inframeOffset must be non-negative here")
+	}
+	n := IntMin(len(p), len(f.P)-inframeOffset)
+	copy(f.P[inframeOffset:], p[:n])
+
+	// writeback the updated encrypted frame
+	if err := ch.writeContentFrame(i, f); err != nil {
+		return fmt.Errorf("failed to write back the encrypted frame: %v", err)
+	}
+
+	if n < len(p) {
+		return ch.PWrite(offset+int64(n), p[n:])
+	}
+	return nil
+
+	return errors.New("Not Implemented")
 }
 
 func (ch *ChunkIO) Close() error {
