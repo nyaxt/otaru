@@ -14,7 +14,6 @@ const (
 )
 
 type ChunkPrologue struct {
-	PayloadLen   int
 	OrigFilename string
 	OrigOffset   int64
 }
@@ -36,7 +35,7 @@ func NewChunkWriter(w io.Writer, c Cipher) *ChunkWriter {
 	}
 }
 
-func WriteHeaderAndPrologue(w io.Writer, c Cipher, p *ChunkPrologue) error {
+func WriteHeaderAndPrologue(w io.Writer, c Cipher, payloadLen int, p *ChunkPrologue) error {
 	pjson, err := json.Marshal(p)
 	if err != nil {
 		return fmt.Errorf("Serializing header failed: %v", err)
@@ -45,11 +44,15 @@ func WriteHeaderAndPrologue(w io.Writer, c Cipher, p *ChunkPrologue) error {
 		panic("marshaled prologue too long!")
 	}
 
+	if payloadLen > math.MaxInt32 {
+		return fmt.Errorf("PayloadLen too long: %d", payloadLen)
+	}
 	hdr := ChunkHeader{
-		Format:             0x01,
+		Format:             0x02,
 		FrameEncapsulation: 0x01,
 		PrologueLen:        uint16(len(pjson)),
 		EpilogueLen:        0,
+		PayloadLen:         uint32(payloadLen),
 	}
 	bhdr, err := hdr.MarshalBinary()
 	if err != nil {
@@ -72,13 +75,13 @@ func WriteHeaderAndPrologue(w io.Writer, c Cipher, p *ChunkPrologue) error {
 	return nil
 }
 
-func (cw *ChunkWriter) WriteHeaderAndPrologue(p *ChunkPrologue) error {
+func (cw *ChunkWriter) WriteHeaderAndPrologue(payloadLen int, p *ChunkPrologue) error {
 	if cw.wroteHeader {
 		return errors.New("Already wrote header")
 	}
 
-	cw.lenTotal = p.PayloadLen
-	if err := WriteHeaderAndPrologue(cw.w, cw.c, p); err != nil {
+	cw.lenTotal = payloadLen
+	if err := WriteHeaderAndPrologue(cw.w, cw.c, payloadLen, p); err != nil {
 		return err
 	}
 	cw.wroteHeader = true
@@ -200,7 +203,7 @@ func (cr *ChunkReader) Prologue() ChunkPrologue {
 
 // Length returns length of content.
 func (cr *ChunkReader) Length() int {
-	return cr.prologue.PayloadLen
+	return int(cr.header.PayloadLen)
 }
 
 func (cr *ChunkReader) Read(p []byte) (int, error) {
@@ -305,7 +308,7 @@ func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 	// the frame carries a part of the content at offset
 	offset := i * BtnFrameMaxPayload
 	// payload length of the encrypted frame
-	framePayloadLen := IntMin(ContentFramePayloadLength, ch.prologue.PayloadLen-offset)
+	framePayloadLen := IntMin(ContentFramePayloadLength, int(ch.header.PayloadLen)-offset)
 
 	// the offset of the start of the frame in blob
 	blobOffset := ch.encryptedFrameOffset(i)
@@ -373,7 +376,7 @@ func (ch *ChunkIO) PRead(offset int64, p []byte) error {
 	}
 
 	if offset < 0 || math.MaxInt32 < offset {
-		return fmt.Errorf("Offset out of range: %d", offset)
+		return fmt.Errorf("Offset out of int32 range: %d", offset)
 	}
 	offset32 := int(offset)
 
@@ -382,15 +385,19 @@ func (ch *ChunkIO) PRead(offset int64, p []byte) error {
 	if err != nil {
 		return err
 	}
-
 	inframeOffset := offset32 - f.Offset
 	if inframeOffset < 0 {
 		panic("ASSERT: inframeOffset must be non-negative here")
 	}
+	if inframeOffset >= len(f.P) {
+		return fmt.Errorf("Attempted to read beyond written size: %d. inframeOffset: %d, framePayloadLen: %d", offset, inframeOffset, len(f.P))
+	}
+
 	n := IntMin(len(p), len(f.P)-inframeOffset)
 	copy(p[:n], f.P[inframeOffset:])
 
 	if n < len(p) {
+		fmt.Printf("read %d bytes for off %d len %d, continuing on off %d len %d\n", n, offset, len(p), offset+int64(n), len(p[n:]))
 		return ch.PRead(offset+int64(n), p[n:])
 	}
 	return nil
@@ -418,6 +425,9 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 	if inframeOffset < 0 {
 		panic("ASSERT: inframeOffset must be non-negative here")
 	}
+
+	// FIXME: may need to expand the buffer here
+
 	n := IntMin(len(p), len(f.P)-inframeOffset)
 	copy(f.P[inframeOffset:], p[:n])
 

@@ -59,11 +59,10 @@ func genFrameByChunkWriter(t *testing.T, p []byte) []byte {
 	buf := new(bytes.Buffer)
 	cw := NewChunkWriter(buf, testCipher())
 
-	err := cw.WriteHeaderAndPrologue(&ChunkPrologue{
-		PayloadLen:   len(p),
-		OrigFilename: "testframe.dat",
-		OrigOffset:   0,
-	})
+	err := cw.WriteHeaderAndPrologue(
+		len(p),
+		&ChunkPrologue{OrigFilename: "testframe.dat", OrigOffset: 0},
+	)
 	if err != nil {
 		t.Errorf("Failed to write chunk header: %v", err)
 		return nil

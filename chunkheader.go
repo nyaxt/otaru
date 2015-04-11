@@ -2,6 +2,8 @@ package otaru
 
 import (
 	"errors"
+	"fmt"
+	"math"
 )
 
 const (
@@ -20,6 +22,10 @@ type ChunkHeader struct {
 }
 
 func (h ChunkHeader) MarshalBinary() ([]byte, error) {
+	if h.PayloadLen > math.MaxInt32 {
+		return nil, fmt.Errorf("payload length too big: %d", h.PayloadLen)
+	}
+
 	b := make([]byte, MarshaledChunkHeaderLength)
 	b[0] = ChunkSignatureMagic1
 	b[1] = ChunkSignatureMagic2

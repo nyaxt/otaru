@@ -11,7 +11,7 @@ func TestChunkHeader_MarshalBinary(t *testing.T) {
 		FrameEncapsulation: 0x02,
 		PrologueLen:        0xabcd,
 		EpilogueLen:        0x4321,
-		PayloadLen:         0xdeadbeef,
+		PayloadLen:         0x0dedbeef,
 	}
 	b, err := h.MarshalBinary()
 	if err != nil {
@@ -19,7 +19,7 @@ func TestChunkHeader_MarshalBinary(t *testing.T) {
 	}
 	if !bytes.Equal(b, []byte{
 		0x05, 0xa6, 0x01, 0x02, 0xcd, 0xab, 0x21, 0x43,
-		0xef, 0xbe, 0xad, 0xde,
+		0xef, 0xbe, 0xed, 0x0d,
 	}) {
 		t.Errorf("Unexpected ChunkHeader bytestream: %v", b)
 	}
@@ -28,7 +28,7 @@ func TestChunkHeader_MarshalBinary(t *testing.T) {
 func TestChunkHeader_UnmarshalBinary(t *testing.T) {
 	b := []byte{
 		0x05, 0xa6, 0x01, 0x02, 0xcd, 0xab, 0x21, 0x43,
-		0xef, 0xbe, 0xad, 0xde,
+		0xef, 0xbe, 0xed, 0x0d,
 	}
 	var h ChunkHeader
 	if err := h.UnmarshalBinary(b); err != nil {
@@ -47,10 +47,13 @@ func TestChunkHeader_UnmarshalBinary(t *testing.T) {
 	if h.EpilogueLen != 0x4321 {
 		t.Errorf("Failed to unmarshal EpilogueLen")
 	}
+	if h.PayloadLen != 0x0dedbeef {
+		t.Errorf("Failed to unmarshal PayloadLen")
+	}
 }
 
 func TestChunkHeader_UnmarshalBinary_BadMagic(t *testing.T) {
-	b := []byte{0xba, 0xad, 0x01, 0x02, 0xcd, 0xab, 0x21, 0x43}
+	b := []byte{0xba, 0xad, 0x01, 0x02, 0xcd, 0xab, 0x21, 0x43, 0x01, 0x02, 0x03, 0x04}
 	var h ChunkHeader
 	if err := h.UnmarshalBinary(b); err == nil {
 		t.Errorf("UnmarshalBinary passed on bad magic!", err)

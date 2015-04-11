@@ -49,11 +49,13 @@ func put(fromurl, tourl string) error {
 	defer cw.Close()
 
 	// FIXME: split file into multiple chunks
-	cw.WriteHeaderAndPrologue(&otaru.ChunkPrologue{
-		PayloadLen:   int(fromsize), // FIXME
-		OrigFilename: fromurl,
-		OrigOffset:   0,
-	})
+	cw.WriteHeaderAndPrologue(
+		int(fromsize), // FIXME
+		&otaru.ChunkPrologue{
+			OrigFilename: fromurl,
+			OrigOffset:   0,
+		},
+	)
 
 	buf := make([]byte, otaru.BtnFrameMaxPayload)
 	for {
