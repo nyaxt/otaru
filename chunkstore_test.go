@@ -87,7 +87,7 @@ func TestChunkIO_Read_HelloWorld(t *testing.T) {
 	if b == nil {
 		return
 	}
-	testbh := TestBlobHandle{b}
+	testbh := &TestBlobHandle{b}
 	cio := NewChunkIO(testbh, testCipher())
 
 	readtgt := make([]byte, len(HelloWorld))
@@ -112,7 +112,7 @@ func TestChunkIO_Read_1MB(t *testing.T) {
 	if b == nil {
 		return
 	}
-	testbh := TestBlobHandle{b}
+	testbh := &TestBlobHandle{b}
 	cio := NewChunkIO(testbh, testCipher())
 
 	// Full read
@@ -148,7 +148,7 @@ func TestChunkIO_Write_UpdateHello(t *testing.T) {
 	if b == nil {
 		return
 	}
-	testbh := TestBlobHandle{b}
+	testbh := &TestBlobHandle{b}
 	cio := NewChunkIO(testbh, testCipher())
 
 	upd := []byte("testin write")
@@ -179,7 +179,7 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 	if b == nil {
 		return
 	}
-	testbh := TestBlobHandle{b}
+	testbh := &TestBlobHandle{b}
 	cio := NewChunkIO(testbh, testCipher())
 
 	// Full update
@@ -217,5 +217,36 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 	if err := cio.Close(); err != nil {
 		t.Errorf("failed to Close ChunkIO: %v", err)
 		return
+	}
+}
+
+func TestChunkIO_Write_NewHello_MatchChunkWriter(t *testing.T) {
+	exp := genFrameByChunkWriter(t, HelloWorld)
+	if exp == nil {
+		return
+	}
+
+	testbh := &TestBlobHandle{}
+	cio := NewChunkIO(testbh, testCipher())
+	if err := cio.PWrite(0, HelloWorld); err != nil {
+		t.Errorf("failed to PWrite to ChunkIO: %v", err)
+		return
+	}
+	readtgt := make([]byte, len(HelloWorld))
+	if err := cio.PRead(0, readtgt); err != nil {
+		t.Errorf("failed to PRead from ChunkIO: %v", err)
+		return
+	}
+	if !bytes.Equal(readtgt, HelloWorld) {
+		t.Errorf("Read content invalid")
+		return
+	}
+	if err := cio.Close(); err != nil {
+		t.Errorf("failed to Close ChunkIO: %v", err)
+		return
+	}
+
+	if !bytes.Equal(testbh.Buf, exp) {
+		t.Errorf("Chunk written by ChunkIO and ChunkWriter don't match")
 	}
 }

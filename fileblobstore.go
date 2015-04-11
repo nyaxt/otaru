@@ -38,6 +38,11 @@ func (h fileBlobHandle) PWrite(offset int64, p []byte) error {
 	return nil
 }
 
+func (h fileBlobHandle) Size() int64 {
+	panic("Not Implemented")
+	return 0
+}
+
 func (h fileBlobHandle) Close() error {
 	return h.fp.Close()
 }

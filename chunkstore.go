@@ -36,13 +36,7 @@ func NewChunkWriter(w io.Writer, c Cipher) *ChunkWriter {
 	}
 }
 
-func (cw *ChunkWriter) WriteHeaderAndPrologue(p *ChunkPrologue) error {
-	if cw.wroteHeader {
-		return errors.New("Already wrote header")
-	}
-
-	cw.lenTotal = p.PayloadLen
-
+func WriteHeaderAndPrologue(w io.Writer, c Cipher, p *ChunkPrologue) error {
 	pjson, err := json.Marshal(p)
 	if err != nil {
 		return fmt.Errorf("Serializing header failed: %v", err)
@@ -61,11 +55,11 @@ func (cw *ChunkWriter) WriteHeaderAndPrologue(p *ChunkPrologue) error {
 	if err != nil {
 		return fmt.Errorf("Failed to marshal ChunkHeader: %v", err)
 	}
-	if _, err := cw.w.Write(bhdr); err != nil {
+	if _, err := w.Write(bhdr); err != nil {
 		return fmt.Errorf("Header write failed: %v", err)
 	}
 
-	bew, err := NewBtnEncryptWriteCloser(cw.w, cw.c, len(pjson))
+	bew, err := NewBtnEncryptWriteCloser(w, c, len(pjson))
 	if err != nil {
 		return fmt.Errorf("Failed to initialize frame encryptor: %v", err)
 	}
@@ -75,7 +69,18 @@ func (cw *ChunkWriter) WriteHeaderAndPrologue(p *ChunkPrologue) error {
 	if err := bew.Close(); err != nil {
 		return fmt.Errorf("Prologue frame close failed: %v", err)
 	}
+	return nil
+}
 
+func (cw *ChunkWriter) WriteHeaderAndPrologue(p *ChunkPrologue) error {
+	if cw.wroteHeader {
+		return errors.New("Already wrote header")
+	}
+
+	cw.lenTotal = p.PayloadLen
+	if err := WriteHeaderAndPrologue(cw.w, cw.c, p); err != nil {
+		return err
+	}
 	cw.wroteHeader = true
 	return nil
 }
@@ -215,8 +220,9 @@ func (cr *ChunkReader) Read(p []byte) (int, error) {
 	return nr, err
 }
 
+// ChunkIO provides RandomAccessIO for blobchunk
 type ChunkIO struct {
-	bh RandomAccessIO
+	bh BlobHandle
 	c  Cipher
 
 	// FIXME: fn *FileNode or something for header debug info
@@ -227,7 +233,7 @@ type ChunkIO struct {
 	prologue        ChunkPrologue
 }
 
-func NewChunkIO(bh RandomAccessIO, c Cipher) *ChunkIO {
+func NewChunkIO(bh BlobHandle, c Cipher) *ChunkIO {
 	return &ChunkIO{
 		bh:              bh,
 		c:               c,
@@ -344,6 +350,10 @@ func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
 
 func (ch *ChunkIO) ensurePrologue() error {
 	if !ch.didReadPrologue {
+		if ch.bh.Size() == 0 {
+			return fmt.Errorf("FIXME: write header/prologue")
+		}
+
 		if !ch.didReadHeader {
 			if err := ch.readHeader(); err != nil {
 				return err

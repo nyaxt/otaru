@@ -12,6 +12,7 @@ type BlobStore interface {
 
 type BlobHandle interface {
 	RandomAccessIO
+	Size() int64
 	io.Closer
 }
 
@@ -19,7 +20,7 @@ type TestBlobHandle struct {
 	Buf []byte
 }
 
-func (bh TestBlobHandle) PRead(offset int64, p []byte) error {
+func (bh *TestBlobHandle) PRead(offset int64, p []byte) error {
 	if offset < 0 || int64(len(bh.Buf)) < offset+int64(len(p)) {
 		return fmt.Errorf("offset out of bound. buf len: %d while given offset: %d and len: %p", len(bh.Buf), offset, len(p))
 	}
@@ -28,13 +29,17 @@ func (bh TestBlobHandle) PRead(offset int64, p []byte) error {
 	return nil
 }
 
-func (bh TestBlobHandle) PWrite(offset int64, p []byte) error {
+func (bh *TestBlobHandle) PWrite(offset int64, p []byte) error {
 	if offset < 0 || int64(len(bh.Buf)) < offset+int64(len(p)) {
 		return fmt.Errorf("offset out of bound. buf len: %d while given offset: %d and len: %p", len(bh.Buf), offset, len(p))
 	}
 
 	copy(bh.Buf[offset:], p)
 	return nil
+}
+
+func (bh *TestBlobHandle) Size() int64 {
+	return int64(len(bh.Buf))
 }
 
 func (TestBlobHandle) Close() error {
