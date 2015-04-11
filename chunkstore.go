@@ -9,10 +9,8 @@ import (
 )
 
 const (
-	PayloadOffset              = 1024
 	ContentFramePayloadLength  = BtnFrameMaxPayload
-	MaxEncryptedPrologueLength = PayloadOffset - MarshaledChunkHeaderLength
-	MaxMarshaledPrologueLength = 1000
+	MaxMarshaledPrologueLength = 65000
 )
 
 type ChunkPrologue struct {
@@ -45,9 +43,19 @@ func (cw *ChunkWriter) WriteHeaderAndPrologue(p *ChunkPrologue) error {
 
 	cw.lenTotal = p.PayloadLen
 
+	pjson, err := json.Marshal(p)
+	if err != nil {
+		return fmt.Errorf("Serializing header failed: %v", err)
+	}
+	if len(pjson) > MaxMarshaledPrologueLength {
+		panic("marshaled prologue too long!")
+	}
+
 	hdr := ChunkHeader{
 		Format:             0x01,
 		FrameEncapsulation: 0x01,
+		PrologueLength:     uint16(len(pjson)),
+		EpilogueLength:     0,
 	}
 	bhdr, err := hdr.MarshalBinary()
 	if err != nil {
@@ -57,22 +65,11 @@ func (cw *ChunkWriter) WriteHeaderAndPrologue(p *ChunkPrologue) error {
 		return fmt.Errorf("Header write failed: %v", err)
 	}
 
-	pjson, err := json.Marshal(p)
-	if err != nil {
-		return fmt.Errorf("Serializing header failed: %v", err)
-	}
-	if len(pjson) > MaxMarshaledPrologueLength {
-		panic("marshaled prologue too long!")
-	}
-	bew, err := NewBtnEncryptWriteCloser(cw.w, cw.c, MaxMarshaledPrologueLength)
+	bew, err := NewBtnEncryptWriteCloser(cw.w, cw.c, len(pjson))
 	if err != nil {
 		return fmt.Errorf("Failed to initialize frame encryptor: %v", err)
 	}
 	if _, err := bew.Write(pjson); err != nil {
-		return fmt.Errorf("Prologue frame write failed: %v", err)
-	}
-	zeros := make([]byte, MaxMarshaledPrologueLength-len(pjson))
-	if _, err := bew.Write(zeros); err != nil {
 		return fmt.Errorf("Prologue frame write failed: %v", err)
 	}
 	if err := bew.Close(); err != nil {
@@ -168,12 +165,12 @@ func (cr *ChunkReader) ReadPrologue() error {
 		return errors.New("Tried to read prologue before reading header.")
 	}
 
-	bdr, err := NewBtnDecryptReader(cr.r, cr.c, int(MaxMarshaledPrologueLength))
+	bdr, err := NewBtnDecryptReader(cr.r, cr.c, int(cr.header.PrologueLength))
 	if err != nil {
 		return err
 	}
 
-	mpro := make([]byte, MaxMarshaledPrologueLength)
+	mpro := make([]byte, cr.header.PrologueLength)
 	if _, err := io.ReadFull(bdr, mpro); err != nil {
 		return fmt.Errorf("Failed to read prologue frame: %v", err)
 	}
@@ -267,12 +264,12 @@ func (ch *ChunkIO) readPrologue() error {
 	}
 
 	rd := &OffsetReader{ch.bh, MarshaledChunkHeaderLength}
-	bdr, err := NewBtnDecryptReader(rd, ch.c, int(MaxMarshaledPrologueLength))
+	bdr, err := NewBtnDecryptReader(rd, ch.c, int(ch.header.PrologueLength))
 	if err != nil {
 		return err
 	}
 
-	mpro := make([]byte, MaxMarshaledPrologueLength)
+	mpro := make([]byte, ch.header.PrologueLength)
 	if _, err := io.ReadFull(bdr, mpro); err != nil {
 		return fmt.Errorf("Failed to read prologue frame: %v", err)
 	}
@@ -286,6 +283,46 @@ func (ch *ChunkIO) readPrologue() error {
 
 	ch.didReadPrologue = true
 	return nil
+}
+
+func (ch *ChunkIO) encryptedFrameOffset(i int) int {
+	o := MarshaledChunkHeaderLength + ch.c.EncryptedFrameSize(int(ch.header.PrologueLength))
+
+	encryptedFrameSize := ch.c.EncryptedFrameSize(ContentFramePayloadLength)
+	o += encryptedFrameSize * i
+
+	return o
+}
+
+type decryptedContentFrame struct {
+	P      []byte
+	Offset int
+}
+
+func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
+	// the frame carries a part of the content at offset
+	offset := i * BtnFrameMaxPayload
+	// payload length of the encrypted frame
+	framePayloadLen := IntMin(ContentFramePayloadLength, ch.prologue.PayloadLen-offset)
+
+	// the offset of the start of the frame in blob
+	blobOffset := ch.encryptedFrameOffset(i)
+
+	rd := &OffsetReader{ch.bh, int64(blobOffset)}
+	bdr, err := NewBtnDecryptReader(rd, ch.c, framePayloadLen)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create BtnDecryptReader: %v", err)
+	}
+
+	p := make([]byte, framePayloadLen)
+	if _, err := io.ReadFull(bdr, p); err != nil {
+		return nil, fmt.Errorf("Failed to decrypt frame: %v", err)
+	}
+	if !bdr.HasReadAll() {
+		panic("Incomplete frame read")
+	}
+
+	return &decryptedContentFrame{P: p, Offset: offset}, nil
 }
 
 func (ch *ChunkIO) PRead(offset int64, p []byte) error {
@@ -305,31 +342,25 @@ func (ch *ChunkIO) PRead(offset int64, p []byte) error {
 	}
 	offset32 := int(offset)
 
-	encryptedContentFrameSize := ch.c.EncryptedFrameSize(ContentFramePayloadLength)
-
-	payloadOffset := offset32 / encryptedContentFrameSize
-	payloadLen := ch.prologue.PayloadLen
-
-	frameOffset := PayloadOffset + payloadOffset
-	frameLen := IntMin(ContentFramePayloadLength, payloadLen-payloadOffset)
-
-	rd := &OffsetReader{ch.bh, int64(frameOffset)}
-	bdr, err := NewBtnDecryptReader(rd, ch.c, frameLen)
+	i := offset32 / BtnFrameMaxPayload
+	f, err := ch.readContentFrame(i)
 	if err != nil {
-		return fmt.Errorf("Failed to create BtnDecryptReader: %v", err)
+		return err
 	}
 
-	decrypted := make([]byte, frameLen)
-	if _, err := io.ReadFull(bdr, decrypted); err != nil {
-		return fmt.Errorf("Failed to decrypt frame: %v", err)
+	inframeOffset := offset32 - f.Offset
+	if inframeOffset < 0 {
+		panic("ASSERT: inframeOffset must be non-negative here")
 	}
-	if !bdr.HasReadAll() {
-		panic("Incomplete frame read")
-	}
+	n := IntMin(len(p), len(f.P)-inframeOffset)
+	copy(p[:n], f.P[inframeOffset:])
 
-	return errors.New("Not Implemented")
+	if n < len(p) {
+		return ch.PRead(offset+int64(n), p[n:])
+	}
+	return nil
 }
 
 func (ch *ChunkIO) Close() error {
-	return errors.New("Not Implemented")
+	return nil
 }

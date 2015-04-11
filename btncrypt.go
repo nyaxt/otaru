@@ -140,7 +140,7 @@ func (bew *BtnEncryptWriteCloser) Write(p []byte) (int, error) {
 
 	left := p
 	for len(left) > 0 {
-		framePayloadLen := IntMin(bew.frameEncryptor.CapacityLeft(), len(p))
+		framePayloadLen := IntMin(bew.frameEncryptor.CapacityLeft(), len(left))
 		framePayload := left[:framePayloadLen]
 		if _, err := bew.frameEncryptor.Write(framePayload); err != nil {
 			panic(err)
