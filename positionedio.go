@@ -23,3 +23,17 @@ type RandomAccessIO interface {
 	PReader
 	PWriter
 }
+
+type OffsetReader struct {
+	PReader
+	Offset int64
+}
+
+func (r *OffsetReader) Read(p []byte) (int, error) {
+	if err := r.PReader.PRead(r.Offset, p); err != nil {
+		return 0, err
+	}
+
+	r.Offset += int64(len(p))
+	return len(p), nil
+}

@@ -39,20 +39,34 @@ func gcmFromKey(key []byte) (cipher.AEAD, error) {
 	return gcm, nil
 }
 
-func BtnEncryptedFrameSize(gcm cipher.AEAD, payloadLen int) int {
-	return gcm.NonceSize() + payloadLen + gcm.Overhead()
+type Cipher struct {
+	gcm cipher.AEAD
+}
+
+func NewCipher(key []byte) (Cipher, error) {
+	gcm, err := gcmFromKey(key)
+	if err != nil {
+		return Cipher{}, err
+	}
+
+	return Cipher{gcm: gcm}, nil
+}
+
+func (c Cipher) EncryptedFrameSize(payloadLen int) int {
+	return c.gcm.NonceSize() + payloadLen + c.gcm.Overhead()
 }
 
 type frameEncryptor struct {
-	gcm       cipher.AEAD
+	c         Cipher
 	b         bytes.Buffer
 	encrypted []byte
 }
 
-func newFrameEncryptor(gcm cipher.AEAD) *frameEncryptor {
+func newFrameEncryptor(c Cipher) *frameEncryptor {
+	lenEncrypted := c.EncryptedFrameSize(BtnFrameMaxPayload)
 	return &frameEncryptor{
-		gcm:       gcm,
-		encrypted: make([]byte, 0, BtnEncryptedFrameSize(gcm, BtnFrameMaxPayload)),
+		c:         c,
+		encrypted: make([]byte, 0, lenEncrypted),
 	}
 }
 
@@ -77,14 +91,14 @@ func (f *frameEncryptor) Flush() ([]byte, error) {
 		return nil, fmt.Errorf("frame payload size exceeding max len: %d > %d", f.Written(), BtnFrameMaxPayload)
 	}
 
-	nonce := RandomBytes(f.gcm.NonceSize())
+	nonce := RandomBytes(f.c.gcm.NonceSize())
 
 	f.encrypted = f.encrypted[:len(nonce)]
 	copy(f.encrypted, nonce)
 
-	f.encrypted = f.gcm.Seal(f.encrypted, nonce, f.b.Bytes(), nil)
-	if len(f.encrypted) != BtnEncryptedFrameSize(f.gcm, f.Written()) {
-		log.Panicf("EncryptedFrameSize mismatch. expected: %d, actual: %v", BtnEncryptedFrameSize(f.gcm, f.Written()), len(f.encrypted))
+	f.encrypted = f.c.gcm.Seal(f.encrypted, nonce, f.b.Bytes(), nil)
+	if len(f.encrypted) != f.c.EncryptedFrameSize(f.Written()) {
+		log.Panicf("EncryptedFrameSize mismatch. expected: %d, actual: %v", f.c.EncryptedFrameSize(f.Written()), len(f.encrypted))
 	}
 	f.b.Reset()
 	return f.encrypted, nil
@@ -97,17 +111,12 @@ type BtnEncryptWriteCloser struct {
 	*frameEncryptor
 }
 
-func NewBtnEncryptWriteCloser(dst io.Writer, key []byte, lenTotal int) (*BtnEncryptWriteCloser, error) {
-	gcm, err := gcmFromKey(key)
-	if err != nil {
-		return nil, err
-	}
-
+func NewBtnEncryptWriteCloser(dst io.Writer, c Cipher, lenTotal int) (*BtnEncryptWriteCloser, error) {
 	bew := &BtnEncryptWriteCloser{
 		dst:            dst,
 		lenTotal:       lenTotal,
 		lenWritten:     0,
-		frameEncryptor: newFrameEncryptor(gcm),
+		frameEncryptor: newFrameEncryptor(c),
 	}
 	return bew, nil
 }
@@ -165,8 +174,13 @@ func (bew *BtnEncryptWriteCloser) Close() error {
 }
 
 func Encrypt(key, plain []byte) ([]byte, error) {
+	c, err := NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
 	var b bytes.Buffer
-	bew, err := NewBtnEncryptWriteCloser(&b, key, len(plain))
+	bew, err := NewBtnEncryptWriteCloser(&b, c, len(plain))
 	if err != nil {
 		return nil, err
 	}
@@ -179,10 +193,9 @@ func Encrypt(key, plain []byte) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// FIXME: add seek
 type BtnDecryptReader struct {
 	src       io.Reader
-	gcm       cipher.AEAD
+	c         Cipher
 	lenTotal  int
 	lenRead   int
 	decrypted []byte
@@ -190,26 +203,21 @@ type BtnDecryptReader struct {
 	encrypted []byte
 }
 
-func NewBtnDecryptReader(src io.Reader, key []byte, lenTotal int) (*BtnDecryptReader, error) {
-	gcm, err := gcmFromKey(key)
-	if err != nil {
-		return nil, err
-	}
-
+func NewBtnDecryptReader(src io.Reader, c Cipher, lenTotal int) (*BtnDecryptReader, error) {
 	bdr := &BtnDecryptReader{
 		src:       src,
-		gcm:       gcm,
+		c:         c,
 		lenTotal:  lenTotal,
 		lenRead:   0,
 		decrypted: make([]byte, 0, BtnFrameMaxPayload),
-		encrypted: make([]byte, 0, BtnEncryptedFrameSize(gcm, BtnFrameMaxPayload)),
+		encrypted: make([]byte, 0, c.EncryptedFrameSize(BtnFrameMaxPayload)),
 	}
 	return bdr, nil
 }
 
 func (bdr *BtnDecryptReader) decryptNextFrame() error {
 	frameLen := IntMin(bdr.lenTotal-bdr.lenRead, BtnFrameMaxPayload)
-	encryptedFrameLen := BtnEncryptedFrameSize(bdr.gcm, frameLen)
+	encryptedFrameLen := bdr.c.EncryptedFrameSize(frameLen)
 	// fmt.Printf("frameLen: %d, encryptedFrameLen: %d\n", frameLen, encryptedFrameLen)
 
 	bdr.encrypted = bdr.encrypted[:encryptedFrameLen]
@@ -217,12 +225,13 @@ func (bdr *BtnDecryptReader) decryptNextFrame() error {
 		return err
 	}
 
-	nonce := bdr.encrypted[:bdr.gcm.NonceSize()]
-	ciphertext := bdr.encrypted[bdr.gcm.NonceSize():]
+	nonceSize := bdr.c.gcm.NonceSize()
+	nonce := bdr.encrypted[:nonceSize]
+	ciphertext := bdr.encrypted[nonceSize:]
 
 	var err error
 	bdr.decrypted = bdr.decrypted[:0]
-	if bdr.decrypted, err = bdr.gcm.Open(bdr.decrypted, nonce, ciphertext, nil); err != nil {
+	if bdr.decrypted, err = bdr.c.gcm.Open(bdr.decrypted, nonce, ciphertext, nil); err != nil {
 		return err
 	}
 	bdr.unread = bdr.decrypted
@@ -265,7 +274,12 @@ func (bdr *BtnDecryptReader) HasReadAll() bool {
 }
 
 func Decrypt(key, envelope []byte, lenTotal int) ([]byte, error) {
-	bdr, err := NewBtnDecryptReader(bytes.NewReader(envelope), key, lenTotal)
+	c, err := NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	bdr, err := NewBtnDecryptReader(bytes.NewReader(envelope), c, lenTotal)
 	if err != nil {
 		return nil, err
 	}

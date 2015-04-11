@@ -63,8 +63,14 @@ func TestBtnEncryptWriter_WriteAtOnce(t *testing.T) {
 	//payload := RandomBytes(1024 * 1024)
 	payload := []byte("short string")
 
+	c, err := NewCipher(key)
+	if err != nil {
+		t.Errorf("Failed to create Cipher")
+		return
+	}
+
 	var b bytes.Buffer
-	bew, err := NewBtnEncryptWriteCloser(&b, key, len(payload))
+	bew, err := NewBtnEncryptWriteCloser(&b, c, len(payload))
 	if err != nil {
 		t.Errorf("Failed to create BtnEncryptWriter: %v", err)
 	}
@@ -88,8 +94,14 @@ func TestBtnEncryptWriter_PartialWrite(t *testing.T) {
 	key := []byte("0123456789abcdef")
 	payload := RandomBytes(1024 * 1024)
 
+	c, err := NewCipher(key)
+	if err != nil {
+		t.Errorf("Failed to create Cipher")
+		return
+	}
+
 	var b bytes.Buffer
-	bew, err := NewBtnEncryptWriteCloser(&b, key, len(payload))
+	bew, err := NewBtnEncryptWriteCloser(&b, c, len(payload))
 	if err != nil {
 		t.Errorf("Failed to create BtnEncryptWriter: %v", err)
 	}

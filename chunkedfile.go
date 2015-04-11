@@ -11,12 +11,11 @@ const (
 type ChunkedFileIO struct {
 	bs RandomAccessBlobStore
 	fn *FileNode
-
-	key []byte
+	c  Cipher
 }
 
-func NewChunkedFileIO(bs RandomAccessBlobStore, fn *FileNode, key []byte) *ChunkedFileIO {
-	return &ChunkedFileIO{bs: bs, fn: fn, key: key}
+func NewChunkedFileIO(bs RandomAccessBlobStore, fn *FileNode, c Cipher) *ChunkedFileIO {
+	return &ChunkedFileIO{bs: bs, fn: fn, c: c}
 }
 
 func GenerateNewBlobPath() string {
@@ -38,7 +37,7 @@ func (io *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		if err != nil {
 			return err
 		}
-		cw := NewChunkIO(bh, io.key)
+		cw := NewChunkIO(bh, io.c)
 
 		coffset := remo - c.Offset
 		part := remp

@@ -40,7 +40,12 @@ func put(fromurl, tourl string) error {
 		return err
 	}
 
-	cw := otaru.NewChunkWriter(w, Key)
+	c, err := otaru.NewCipher(Key)
+	if err != nil {
+		return err
+	}
+
+	cw := otaru.NewChunkWriter(w, c)
 	defer cw.Close()
 
 	// FIXME: split file into multiple chunks
@@ -83,7 +88,12 @@ func get(fromurl string) error {
 		return fmt.Errorf("Blob open failed: %v", err)
 	}
 
-	cr := otaru.NewChunkReader(r, Key)
+	c, err := otaru.NewCipher(Key)
+	if err != nil {
+		return err
+	}
+
+	cr := otaru.NewChunkReader(r, c)
 	if err := cr.ReadHeader(); err != nil {
 		return fmt.Errorf("Failed to read header: %v", err)
 	}
