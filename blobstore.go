@@ -23,7 +23,7 @@ type TestBlobHandle struct {
 
 func (bh *TestBlobHandle) PRead(offset int64, p []byte) error {
 	if offset < 0 || int64(len(bh.Buf)) < offset+int64(len(p)) {
-		return fmt.Errorf("offset out of bound. buf len: %d while given offset: %d and len: %p", len(bh.Buf), offset, len(p))
+		return fmt.Errorf("PRead offset out of bound. buf len: %d while given offset: %d and len: %d", len(bh.Buf), offset, len(p))
 	}
 
 	copy(p, bh.Buf[offset:])
@@ -32,7 +32,7 @@ func (bh *TestBlobHandle) PRead(offset int64, p []byte) error {
 
 func (bh *TestBlobHandle) PWrite(offset int64, p []byte) error {
 	if offset < 0 || math.MaxInt32 < offset+int64(len(p)) {
-		return fmt.Errorf("offset out of bound. buf len: %d while given offset: %d and len: %p", len(bh.Buf), offset, len(p))
+		return fmt.Errorf("PWrite offset out of bound. buf len: %d while given offset: %d and len: %d", len(bh.Buf), offset, len(p))
 	}
 	if int64(len(bh.Buf)) < offset+int64(len(p)) {
 		newsize := offset + int64(len(p))

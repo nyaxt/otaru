@@ -11,6 +11,8 @@ const (
 	ChunkSignatureMagic2 = 0xa6 // a ru
 
 	MarshaledChunkHeaderLength = 12
+
+	MaxChunkPayloadLen = math.MaxInt32
 )
 
 type ChunkHeader struct {
@@ -22,7 +24,7 @@ type ChunkHeader struct {
 }
 
 func (h ChunkHeader) MarshalBinary() ([]byte, error) {
-	if h.PayloadLen > math.MaxInt32 {
+	if h.PayloadLen > MaxChunkPayloadLen {
 		return nil, fmt.Errorf("payload length too big: %d", h.PayloadLen)
 	}
 

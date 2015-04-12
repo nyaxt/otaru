@@ -2,6 +2,7 @@ package otaru
 
 import (
 	"bytes"
+	"io"
 	"testing"
 )
 
@@ -219,12 +220,7 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 	}
 }
 
-func TestChunkIO_Write_NewHello_MatchChunkWriter(t *testing.T) {
-	exp := genFrameByChunkWriter(t, HelloWorld)
-	if exp == nil {
-		return
-	}
-
+func Test_ChunkIOWrite_NewHello_ChunkReaderRead(t *testing.T) {
 	testbh := &TestBlobHandle{}
 	cio := NewChunkIO(testbh, testCipher())
 	if err := cio.PWrite(0, HelloWorld); err != nil {
@@ -245,7 +241,25 @@ func TestChunkIO_Write_NewHello_MatchChunkWriter(t *testing.T) {
 		return
 	}
 
-	if !bytes.Equal(testbh.Buf, exp) {
-		t.Errorf("Chunk written by ChunkIO and ChunkWriter don't match")
+	cr := NewChunkReader(bytes.NewBuffer(testbh.Buf), testCipher())
+	if err := cr.ReadHeader(); err != nil {
+		t.Errorf("failed to read header: %v", err)
+		return
+	}
+	if err := cr.ReadPrologue(); err != nil {
+		t.Errorf("failed to read prologue: %v", err)
+		return
+	}
+	if cr.Length() != len(HelloWorld) {
+		t.Errorf("failed to recover payload len")
+	}
+	readtgt2 := make([]byte, len(HelloWorld))
+	if _, err := io.ReadFull(cr, readtgt2); err != nil {
+		t.Errorf("failed to Read from ChunkReader: %v", err)
+		return
+	}
+	if !bytes.Equal(readtgt2, HelloWorld) {
+		t.Errorf("Read content invalid")
+		return
 	}
 }

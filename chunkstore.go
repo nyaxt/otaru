@@ -124,7 +124,7 @@ func (cw *ChunkWriter) Close() error {
 }
 
 type ChunkReader struct {
-	r io.ReadCloser
+	r io.Reader
 	c Cipher
 
 	bdr *BtnDecryptReader
@@ -137,7 +137,7 @@ type ChunkReader struct {
 	lenTotal int
 }
 
-func NewChunkReader(r io.ReadCloser, c Cipher) *ChunkReader {
+func NewChunkReader(r io.Reader, c Cipher) *ChunkReader {
 	return &ChunkReader{
 		r: r, c: c,
 		didReadHeader: false, didReadPrologue: false,
@@ -282,6 +282,26 @@ func (ch *ChunkIO) readHeader() error {
 
 func (ch *ChunkIO) PayloadLen() int {
 	return int(ch.header.PayloadLen)
+}
+
+func (ch *ChunkIO) expandLengthBy(by int) error {
+	if by < 0 {
+		panic("Tried to expand by negative length")
+	}
+
+	if by == 0 {
+		return nil
+	}
+
+	len64 := int64(ch.PayloadLen())
+	if len64+int64(by) > MaxChunkPayloadLen {
+		return fmt.Errorf("Payload length out of range. Current: %d += %d", len64, by)
+	}
+
+	ch.header.PayloadLen = uint32(ch.PayloadLen() + by)
+	ch.needsHeaderUpdate = true
+
+	return nil
 }
 
 func (ch *ChunkIO) readPrologue() error {
@@ -448,6 +468,8 @@ func (ch *ChunkIO) PRead(offset int64, p []byte) error {
 }
 
 func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
+	fmt.Printf("PWrite: offset %d, len %d\n", offset, len(p))
+
 	if err := ch.ensurePrologue(); err != nil {
 		return err
 	}
@@ -463,7 +485,7 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 	remp := p
 
 	if remo > ch.PayloadLen() {
-		// if expanding, zero fill content frames up to write start point
+		// if expanding, zero fill content frames up to write offset
 
 		zfoff := ch.PayloadLen()
 		zflen := remo - ch.PayloadLen()
@@ -518,21 +540,22 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 		fOffset := i * ContentFramePayloadLength
 
 		var f *decryptedContentFrame
-		if fOffset != remo {
-			// read the existing frame to update
-			f, err := ch.readContentFrame(i)
+		if remo == ch.PayloadLen() && fOffset == remo {
+			fmt.Printf("PWrite: Preparing new frame to append\n")
+			f = &decryptedContentFrame{
+				P:           make([]byte, 0, ContentFramePayloadLength),
+				Offset:      fOffset,
+				IsLastFrame: true,
+			}
+		} else {
+			fmt.Printf("PWrite: Read existing frame %d to append/update\n", i)
+			var err error
+			f, err = ch.readContentFrame(i)
 			if err != nil {
 				return err
 			}
 			if fOffset != f.Offset {
 				panic("fOffset != f.Offset")
-			}
-		} else {
-			// prepare new frame to append
-			f = &decryptedContentFrame{
-				P:           make([]byte, 0, ContentFramePayloadLength),
-				Offset:      fOffset,
-				IsLastFrame: true,
 			}
 		}
 
@@ -544,39 +567,58 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 
 		n := len(remp)
 		valid := len(f.P) - inframeOffset // valid payload after offset
-		if len(remp) > valid {
-			if f.IsLastFrame {
-				// expand the last frame as needed
-				newSize := inframeOffset + n
-				if newSize > ContentFramePayloadLength {
-					f.IsLastFrame = false
-					newSize = ContentFramePayloadLength
-				}
-				f.P = f.P[:newSize]
-			} else {
-				// punt the remaining to next frame if non-lastframe
-				n = valid
+		if len(remp) > valid && f.IsLastFrame {
+			// expand the last frame as needed
+			newSize := inframeOffset + n
+			if newSize > ContentFramePayloadLength {
+				f.IsLastFrame = false
+				newSize = ContentFramePayloadLength
 			}
-		}
 
-		copy(f.P[inframeOffset:], remp[:n])
+			fmt.Printf("PWrite: Expanding the last frame from %d to %d\n", len(f.P), newSize)
+
+			expandLen := newSize - len(f.P)
+			if err := ch.expandLengthBy(expandLen); err != nil {
+				return err
+			}
+
+			f.P = f.P[:newSize]
+			valid = newSize - inframeOffset
+		}
+		if valid == 0 {
+			panic("Inf loop")
+		}
+		n = IntMin(n, valid)
+
+		copy(f.P[inframeOffset:inframeOffset+n], remp)
 
 		// writeback the updated encrypted frame
 		if err := ch.writeContentFrame(i, f); err != nil {
 			return fmt.Errorf("failed to write back the encrypted frame: %v", err)
 		}
-		fmt.Printf("wrote  %d bytes for off %d len %d\n", n, offset, len(remp))
+		fmt.Printf("wrote %d bytes for off %d len %d\n", n, offset, len(remp))
 
 		remo += n
 		remp = remp[n:]
+	}
+
+	return nil
+}
+
+func (ch *ChunkIO) Flush() error {
+	if ch.needsHeaderUpdate {
+		bhdr, err := ch.header.MarshalBinary()
+		if err != nil {
+			return fmt.Errorf("Failed to marshal ChunkHeader: %v", err)
+		}
+		if err := ch.bh.PWrite(0, bhdr); err != nil {
+			return fmt.Errorf("Header write failed: %v", err)
+		}
+		ch.needsHeaderUpdate = false
 	}
 	return nil
 }
 
 func (ch *ChunkIO) Close() error {
-	if ch.needsHeaderUpdate {
-		return fmt.Errorf("FIXME: do header update!!!")
-	}
-
-	return nil
+	return ch.Flush()
 }
