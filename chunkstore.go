@@ -13,6 +13,10 @@ const (
 	MaxMarshaledPrologueLen   = 65000
 )
 
+var (
+	ZeroContent = make([]byte, ContentFramePayloadLength)
+)
+
 type ChunkPrologue struct {
 	OrigFilename string
 	OrigOffset   int64
@@ -234,6 +238,8 @@ type ChunkIO struct {
 	header          ChunkHeader
 	didReadPrologue bool
 	prologue        ChunkPrologue
+
+	needsHeaderUpdate bool
 }
 
 func NewChunkIO(bh BlobHandle, c Cipher) *ChunkIO {
@@ -242,7 +248,18 @@ func NewChunkIO(bh BlobHandle, c Cipher) *ChunkIO {
 		c:               c,
 		didReadHeader:   false,
 		didReadPrologue: false,
+		prologue: ChunkPrologue{
+			OrigFilename: "<unknown>",
+			OrigOffset:   -1,
+		},
+		needsHeaderUpdate: false,
 	}
+}
+
+func NewChunkIOWithMetadata(bh BlobHandle, c Cipher, initPro ChunkPrologue) *ChunkIO {
+	ch := NewChunkIO(bh, c)
+	ch.prologue = initPro
+	return ch
 }
 
 func (ch *ChunkIO) readHeader() error {
@@ -261,6 +278,10 @@ func (ch *ChunkIO) readHeader() error {
 
 	ch.didReadHeader = true
 	return nil
+}
+
+func (ch *ChunkIO) PayloadLen() int {
+	return int(ch.header.PayloadLen)
 }
 
 func (ch *ChunkIO) readPrologue() error {
@@ -302,13 +323,22 @@ func (ch *ChunkIO) encryptedFrameOffset(i int) int {
 type decryptedContentFrame struct {
 	P      []byte
 	Offset int
+
+	IsLastFrame bool
 }
 
 func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 	// the frame carries a part of the content at offset
-	offset := i * BtnFrameMaxPayload
+	offset := i * ContentFramePayloadLength
+
 	// payload length of the encrypted frame
-	framePayloadLen := IntMin(ContentFramePayloadLength, int(ch.header.PayloadLen)-offset)
+	framePayloadLen := ContentFramePayloadLength
+	isLastFrame := false
+	distToLast := ch.PayloadLen() - offset
+	if distToLast <= ContentFramePayloadLength {
+		framePayloadLen = distToLast
+		isLastFrame = true
+	}
 
 	// the offset of the start of the frame in blob
 	blobOffset := ch.encryptedFrameOffset(i)
@@ -319,7 +349,7 @@ func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 		return nil, fmt.Errorf("Failed to create BtnDecryptReader: %v", err)
 	}
 
-	p := make([]byte, framePayloadLen)
+	p := make([]byte, framePayloadLen, ContentFramePayloadLength)
 	if _, err := io.ReadFull(bdr, p); err != nil {
 		return nil, fmt.Errorf("Failed to decrypt frame idx: %d, err: %v", i, err)
 	}
@@ -328,7 +358,10 @@ func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 	}
 
 	fmt.Printf("Read content frame idx: %d\n", i)
-	return &decryptedContentFrame{P: p, Offset: offset}, nil
+	return &decryptedContentFrame{
+		P: p, Offset: offset,
+		IsLastFrame: isLastFrame,
+	}, nil
 }
 
 func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
@@ -354,7 +387,10 @@ func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
 func (ch *ChunkIO) ensurePrologue() error {
 	if !ch.didReadPrologue {
 		if ch.bh.Size() == 0 {
-			return fmt.Errorf("FIXME: write header/prologue")
+			w := &OffsetWriter{ch.bh, 0}
+			if err := WriteHeaderAndPrologue(w, ch.c, 0, &ch.prologue); err != nil {
+				return fmt.Errorf("Failed to init header/prologue: %v", err)
+			}
 		}
 
 		if !ch.didReadHeader {
@@ -378,27 +414,35 @@ func (ch *ChunkIO) PRead(offset int64, p []byte) error {
 	if offset < 0 || math.MaxInt32 < offset {
 		return fmt.Errorf("Offset out of int32 range: %d", offset)
 	}
-	offset32 := int(offset)
 
-	i := offset32 / BtnFrameMaxPayload
-	f, err := ch.readContentFrame(i)
-	if err != nil {
-		return err
-	}
-	inframeOffset := offset32 - f.Offset
-	if inframeOffset < 0 {
-		panic("ASSERT: inframeOffset must be non-negative here")
-	}
-	if inframeOffset >= len(f.P) {
-		return fmt.Errorf("Attempted to read beyond written size: %d. inframeOffset: %d, framePayloadLen: %d", offset, inframeOffset, len(f.P))
-	}
+	remo := int(offset)
+	remp := p
+	for len(remp) > 0 {
+		i := remo / ContentFramePayloadLength
+		f, err := ch.readContentFrame(i)
+		if err != nil {
+			return err
+		}
+		inframeOffset := remo - f.Offset
+		if inframeOffset < 0 {
+			panic("ASSERT: inframeOffset must be non-negative here")
+		}
 
-	n := IntMin(len(p), len(f.P)-inframeOffset)
-	copy(p[:n], f.P[inframeOffset:])
+		n := len(remp)
+		valid := len(f.P) - inframeOffset // valid payload after offset
+		if len(remp) > valid {
+			if f.IsLastFrame {
+				return fmt.Errorf("Attempted to read beyond written size: %d. inframeOffset: %d, framePayloadLen: %d", offset, inframeOffset, len(f.P))
+			}
 
-	if n < len(p) {
-		fmt.Printf("read %d bytes for off %d len %d, continuing on off %d len %d\n", n, offset, len(p), offset+int64(n), len(p[n:]))
-		return ch.PRead(offset+int64(n), p[n:])
+			n = valid
+		}
+
+		copy(remp[:n], f.P[inframeOffset:])
+		fmt.Printf("read %d bytes for off %d len %d\n", n, offset, len(remp))
+
+		remo += n
+		remp = remp[n:]
 	}
 	return nil
 }
@@ -408,42 +452,131 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 		return err
 	}
 
+	if len(p) == 0 {
+		return nil
+	}
 	if offset < 0 || math.MaxInt32 < offset {
 		return fmt.Errorf("Offset out of range: %d", offset)
 	}
-	offset32 := int(offset)
 
-	// read the encrypted frame
-	i := offset32 / BtnFrameMaxPayload
-	f, err := ch.readContentFrame(i)
-	if err != nil {
-		return err
+	remo := int(offset)
+	remp := p
+
+	if remo > ch.PayloadLen() {
+		// if expanding, zero fill content frames up to write start point
+
+		zfoff := ch.PayloadLen()
+		zflen := remo - ch.PayloadLen()
+
+		for zflen > 0 {
+			i := zfoff / ContentFramePayloadLength
+			fOffset := i * ContentFramePayloadLength
+
+			var f *decryptedContentFrame
+
+			inframeOffset := zfoff - fOffset
+			if inframeOffset > 0 {
+				// zero fill last of existing content frame
+
+				// read the frame
+				var err error
+				f, err = ch.readContentFrame(i)
+				if err != nil {
+					return err
+				}
+				if fOffset != f.Offset {
+					panic("fOffset != f.Offset")
+				}
+
+				// zero fill the last
+				f.P = f.P[:ContentFramePayloadLength]
+				j := inframeOffset
+				for j < ContentFramePayloadLength {
+					f.P[j] = 0
+					j++
+				}
+			} else {
+				// FIXME: maybe skip writing pure 0 frame.
+				//        Old sambad writes a byte of the end of the file instead of ftruncate, which is a nightmare in the current impl.
+
+				f = &decryptedContentFrame{
+					P:           ZeroContent,
+					Offset:      fOffset,
+					IsLastFrame: false,
+				}
+			}
+
+			// writeback the frame
+			if err := ch.writeContentFrame(i, f); err != nil {
+				return fmt.Errorf("failed to write back the encrypted frame: %v", err)
+			}
+		}
 	}
 
-	// modify the payload
-	inframeOffset := offset32 - f.Offset
-	if inframeOffset < 0 {
-		panic("ASSERT: inframeOffset must be non-negative here")
-	}
+	for len(remp) > 0 {
+		i := remo / ContentFramePayloadLength
+		fOffset := i * ContentFramePayloadLength
 
-	// FIXME: may need to expand the buffer here
+		var f *decryptedContentFrame
+		if fOffset != remo {
+			// read the existing frame to update
+			f, err := ch.readContentFrame(i)
+			if err != nil {
+				return err
+			}
+			if fOffset != f.Offset {
+				panic("fOffset != f.Offset")
+			}
+		} else {
+			// prepare new frame to append
+			f = &decryptedContentFrame{
+				P:           make([]byte, 0, ContentFramePayloadLength),
+				Offset:      fOffset,
+				IsLastFrame: true,
+			}
+		}
 
-	n := IntMin(len(p), len(f.P)-inframeOffset)
-	copy(f.P[inframeOffset:], p[:n])
+		// modify the payload
+		inframeOffset := remo - f.Offset
+		if inframeOffset < 0 {
+			panic("ASSERT: inframeOffset must be non-negative here")
+		}
 
-	// writeback the updated encrypted frame
-	if err := ch.writeContentFrame(i, f); err != nil {
-		return fmt.Errorf("failed to write back the encrypted frame: %v", err)
-	}
+		n := len(remp)
+		valid := len(f.P) - inframeOffset // valid payload after offset
+		if len(remp) > valid {
+			if f.IsLastFrame {
+				// expand the last frame as needed
+				newSize := inframeOffset + n
+				if newSize > ContentFramePayloadLength {
+					f.IsLastFrame = false
+					newSize = ContentFramePayloadLength
+				}
+				f.P = f.P[:newSize]
+			} else {
+				// punt the remaining to next frame if non-lastframe
+				n = valid
+			}
+		}
 
-	if n < len(p) {
-		return ch.PWrite(offset+int64(n), p[n:])
+		copy(f.P[inframeOffset:], remp[:n])
+
+		// writeback the updated encrypted frame
+		if err := ch.writeContentFrame(i, f); err != nil {
+			return fmt.Errorf("failed to write back the encrypted frame: %v", err)
+		}
+		fmt.Printf("wrote  %d bytes for off %d len %d\n", n, offset, len(remp))
+
+		remo += n
+		remp = remp[n:]
 	}
 	return nil
-
-	return errors.New("Not Implemented")
 }
 
 func (ch *ChunkIO) Close() error {
+	if ch.needsHeaderUpdate {
+		return fmt.Errorf("FIXME: do header update!!!")
+	}
+
 	return nil
 }
