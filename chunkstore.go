@@ -491,14 +491,34 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 		zflen := remo - ch.PayloadLen()
 
 		for zflen > 0 {
+			fmt.Printf("zfoff: %d, zflen: %d\n", zfoff, zflen)
 			i := zfoff / ContentFramePayloadLength
 			fOffset := i * ContentFramePayloadLength
 
 			var f *decryptedContentFrame
 
 			inframeOffset := zfoff - fOffset
-			if inframeOffset > 0 {
-				// zero fill last of existing content frame
+			if zfoff == ch.PayloadLen() && inframeOffset == 0 {
+				fmt.Printf("PWrite: write new zero fill frame")
+
+				// FIXME: maybe skip writing pure 0 frame.
+				//        Old sambad writes a byte of the end of the file instead of ftruncate, which is a nightmare in the current impl.
+
+				n := IntMin(zflen, ContentFramePayloadLength)
+
+				f = &decryptedContentFrame{
+					P:           ZeroContent[:n],
+					Offset:      fOffset,
+					IsLastFrame: false,
+				}
+
+				zfoff += n
+				zflen -= n
+				ch.expandLengthBy(n)
+				fmt.Printf(" len: %d\n", n)
+			} else {
+				n := IntMin(zflen, ContentFramePayloadLength-inframeOffset)
+				fmt.Printf("PWrite: zero fill last of existing content frame. len: %d f.P[%d:%d] = 0\n", n, inframeOffset, inframeOffset+n)
 
 				// read the frame
 				var err error
@@ -510,28 +530,24 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 					panic("fOffset != f.Offset")
 				}
 
-				// zero fill the last
-				f.P = f.P[:ContentFramePayloadLength]
-				j := inframeOffset
-				for j < ContentFramePayloadLength {
-					f.P[j] = 0
+				// expand & zero fill
+				f.P = f.P[:inframeOffset+n]
+				j := 0
+				for j < n {
+					f.P[inframeOffset+j] = 0
 					j++
 				}
-			} else {
-				// FIXME: maybe skip writing pure 0 frame.
-				//        Old sambad writes a byte of the end of the file instead of ftruncate, which is a nightmare in the current impl.
 
-				f = &decryptedContentFrame{
-					P:           ZeroContent,
-					Offset:      fOffset,
-					IsLastFrame: false,
-				}
+				zfoff += n
+				zflen -= n
+				ch.expandLengthBy(n)
 			}
 
 			// writeback the frame
 			if err := ch.writeContentFrame(i, f); err != nil {
 				return fmt.Errorf("failed to write back the encrypted frame: %v", err)
 			}
+
 		}
 	}
 

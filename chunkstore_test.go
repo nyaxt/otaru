@@ -263,3 +263,73 @@ func Test_ChunkIOWrite_NewHello_ChunkReaderRead(t *testing.T) {
 		return
 	}
 }
+
+func checkZero(t *testing.T, p []byte, off int, length int) {
+	i := 0
+	for i < length {
+		if p[off+i] != 0 {
+			t.Errorf("Given slice non-0 at idx: %d", off+i)
+		}
+		i++
+	}
+}
+
+func Test_ChunkIOWrite_ZeroFillPadding(t *testing.T) {
+	testbh := &TestBlobHandle{}
+	cio := NewChunkIO(testbh, testCipher())
+
+	// [ zero ][ hello ]
+	//    10      12
+	if err := cio.PWrite(10, HelloWorld); err != nil {
+		t.Errorf("failed to PWrite to ChunkIO: %v", err)
+		return
+	}
+	readtgt := make([]byte, len(HelloWorld))
+	if err := cio.PRead(10, readtgt); err != nil {
+		t.Errorf("failed to PRead from ChunkIO: %v", err)
+		return
+	}
+	if !bytes.Equal(readtgt, HelloWorld) {
+		t.Errorf("Read content invalid")
+		return
+	}
+	readtgt2 := make([]byte, 10+len(HelloWorld))
+	if err := cio.PRead(0, readtgt2); err != nil {
+		t.Errorf("failed to PRead from ChunkIO: %v", err)
+		return
+	}
+	checkZero(t, readtgt2, 0, 10)
+	if !bytes.Equal(readtgt2[10:10+12], HelloWorld) {
+		t.Errorf("Read content invalid: hello1 %v != %v", readtgt2[10:10+12], HelloWorld)
+		return
+	}
+
+	// [ zero ][ hello ][ zero ][ hello ]
+	//    10      12      512k      12
+	if err := cio.PWrite(10+12+512*1024, HelloWorld); err != nil {
+		t.Errorf("failed to PWrite to ChunkIO: %v", err)
+		return
+	}
+	readtgt3 := make([]byte, 10+12+512*1024+12)
+	if err := cio.PRead(0, readtgt3); err != nil {
+		t.Errorf("failed to PRead from ChunkIO: %v", err)
+		return
+	}
+	checkZero(t, readtgt3, 0, 10)
+	checkZero(t, readtgt3, 10+12, 512*1024)
+	if !bytes.Equal(readtgt3[10:10+12], HelloWorld) {
+		t.Errorf("Read content invalid: hello1")
+		return
+	}
+	if !bytes.Equal(readtgt3[10+12+512*1024:10+12+512*1024+12], HelloWorld) {
+		t.Errorf("Read content invalid: hello2")
+		return
+	}
+
+	if err := cio.Close(); err != nil {
+		t.Errorf("failed to Close ChunkIO: %v", err)
+		return
+	}
+}
+
+// TEST: 上書きしつつ後ろに飛び出すケース
