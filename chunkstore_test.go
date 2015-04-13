@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	Key        = []byte("0123456789abcdef")
-	HelloWorld = []byte("Hello, world")
+	Key          = []byte("0123456789abcdef")
+	HelloWorld   = []byte("Hello, world")
+	HogeFugaPiyo = []byte("hogefugapiyo")
 )
 
 func testCipher() Cipher {
@@ -332,4 +333,42 @@ func Test_ChunkIOWrite_ZeroFillPadding(t *testing.T) {
 	}
 }
 
-// TEST: 上書きしつつ後ろに飛び出すケース
+func Test_ChunkIOWrite_OverflowUpdate(t *testing.T) {
+	testbh := &TestBlobHandle{}
+	cio := NewChunkIO(testbh, testCipher())
+	if err := cio.PWrite(0, HelloWorld); err != nil {
+		t.Errorf("failed to PWrite to ChunkIO: %v", err)
+		return
+	}
+	if err := cio.PWrite(7, HogeFugaPiyo); err != nil {
+		t.Errorf("failed to PWrite to ChunkIO: %v", err)
+		return
+	}
+	if err := cio.Close(); err != nil {
+		t.Errorf("failed to Close ChunkIO: %v", err)
+		return
+	}
+
+	cr := NewChunkReader(bytes.NewBuffer(testbh.Buf), testCipher())
+	if err := cr.ReadHeader(); err != nil {
+		t.Errorf("failed to read header: %v", err)
+		return
+	}
+	if err := cr.ReadPrologue(); err != nil {
+		t.Errorf("failed to read prologue: %v", err)
+		return
+	}
+	exp := []byte("Hello, hogefugapiyo")
+	if cr.Length() != len(exp) {
+		t.Errorf("failed to recover payload len")
+	}
+	readtgt := make([]byte, len(exp))
+	if _, err := io.ReadFull(cr, readtgt); err != nil {
+		t.Errorf("failed to Read from ChunkReader: %v", err)
+		return
+	}
+	if !bytes.Equal(readtgt, exp) {
+		t.Errorf("Read content invalid")
+		return
+	}
+}
