@@ -2,10 +2,9 @@ package otaru
 
 import (
 	"io"
+	"log"
 	"os"
 )
-
-type FileRandomAccessBlobStore struct{}
 
 type FileBlobStore struct{}
 
@@ -39,8 +38,12 @@ func (h fileBlobHandle) PWrite(offset int64, p []byte) error {
 }
 
 func (h fileBlobHandle) Size() int64 {
-	panic("Not Implemented")
-	return 0
+	fi, err := h.fp.Stat()
+	if err != nil {
+		log.Fatalf("Stat failed: %v", err)
+	}
+
+	return fi.Size()
 }
 
 func (h fileBlobHandle) Close() error {

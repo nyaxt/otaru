@@ -10,6 +10,14 @@ type FileChunk struct {
 	BlobPath string
 }
 
+func (fc FileChunk) Left() int64 {
+	return fc.Offset
+}
+
+func (fc FileChunk) Right() int64 {
+	return fc.Offset + fc.Length
+}
+
 type INodeID uint32
 
 type INodeType int

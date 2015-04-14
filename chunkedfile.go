@@ -1,7 +1,8 @@
 package otaru
 
 import (
-//	"github.com/nyaxt/otaru/intn"
+	//	"github.com/nyaxt/otaru/intn"
+	"fmt"
 )
 
 const (
@@ -22,10 +23,7 @@ func GenerateNewBlobPath() string {
 	return "fixme"
 }
 
-// FIXME: make this WriteV(ps intn.Patches)
-func (io *ChunkedFileIO) PWrite(offset int64, p []byte) error {
-	fn := io.fn
-
+func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 	remo := offset
 	remp := p
 	if len(remp) == 0 {
@@ -33,40 +31,43 @@ func (io *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 	}
 
 	writeToChunk := func(c *FileChunk, maxChunkLen int64) error {
-		bh, err := io.bs.Open(c.BlobPath)
+		bh, err := cfio.bs.Open(c.BlobPath)
 		if err != nil {
 			return err
 		}
-		cw := NewChunkIO(bh, io.c)
+		cw := NewChunkIO(bh, cfio.c)
 
-		coffset := remo - c.Offset
+		coff := remo - c.Offset
 		part := remp
-		right := coffset + int64(len(remp))
+		right := coff + int64(len(remp))
 		if right > maxChunkLen {
 			part = part[:maxChunkLen-right]
 		}
-		if err := cw.PWrite(coffset, part); err != nil {
+		if err := cw.PWrite(coff, part); err != nil {
 			return err
 		}
 		if err := cw.Close(); err != nil {
 			return err
 		}
+		c.Length = int64(cw.PayloadLen())
 
 		remo += int64(len(part))
 		remp = remp[len(part):]
 		return nil
 	}
 
+	fn := cfio.fn
+
 	i := 0
 	for i < len(fn.Chunks) {
 		c := &fn.Chunks[i]
-		if c.Offset > remo {
+		if c.Left() > remo {
 			// Insert a new chunk @ i
 			newo := remo / ChunkSplitSize * ChunkSplitSize
 			maxlen := int64(ChunkSplitSize)
 			if i > 0 {
 				prev := fn.Chunks[i-1]
-				pright := prev.Offset + prev.Length
+				pright := prev.Right()
 				if newo < pright {
 					maxlen -= pright - newo
 					newo = pright
@@ -74,8 +75,8 @@ func (io *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 			}
 			if i < len(fn.Chunks)-1 {
 				next := fn.Chunks[i+1]
-				if newo+maxlen > next.Offset {
-					maxlen = next.Offset - newo
+				if newo+maxlen > next.Left() {
+					maxlen = next.Left() - newo
 				}
 			}
 
@@ -94,7 +95,7 @@ func (io *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 			continue
 		}
 
-		if remo >= c.Offset+c.Length {
+		if remo >= c.Right() {
 			continue
 		}
 
@@ -102,8 +103,8 @@ func (io *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		maxlen := int64(ChunkSplitSize)
 		if i < len(fn.Chunks)-1 {
 			next := fn.Chunks[i+1]
-			if c.Offset+maxlen > next.Offset {
-				maxlen = next.Offset - c.Offset
+			if c.Left()+maxlen > next.Left() {
+				maxlen = next.Left() - c.Left()
 			}
 		}
 		if err := writeToChunk(c, maxlen); err != nil {
@@ -121,7 +122,7 @@ func (io *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 
 		if len(fn.Chunks) > 0 {
 			last := fn.Chunks[len(fn.Chunks)-1]
-			lastRight := last.Offset + last.Length
+			lastRight := last.Right()
 			if newo < lastRight {
 				maxlen -= lastRight - newo
 				newo = lastRight
@@ -137,4 +138,62 @@ func (io *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 	}
 
 	return nil
+}
+
+func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
+	remo := offset
+	remp := p
+
+	if offset < 0 {
+		return fmt.Errorf("negative offset %d given", offset)
+	}
+
+	cs := cfio.fn.Chunks
+	fmt.Printf("Chunks: %v\n", cs)
+	for i := 0; i < len(cs) && len(remp) > 0; i++ {
+		c := cs[i]
+		if c.Left() > remo+int64(len(remp)) {
+			break
+		}
+		if c.Right() <= remo {
+			continue
+		}
+
+		coff := remo - c.Left()
+		if coff < 0 {
+			// Fill gap with zero
+			n := Int64Min(int64(len(remp)), -coff)
+			for j := int64(0); j < n; j++ {
+				remp[j] = 0
+			}
+			remo += n
+			coff = 0
+			if len(remp) == 0 {
+				return nil
+			}
+		}
+
+		bh, err := cfio.bs.Open(c.BlobPath)
+		if err != nil {
+			return err
+		}
+		cw := NewChunkIO(bh, cfio.c)
+
+		n := Int64Min(int64(len(p)), c.Length-coff)
+		if err := cw.PRead(coff, remp[:n]); err != nil {
+			return err
+		}
+		if err := cw.Close(); err != nil {
+			return err
+		}
+
+		remo += n
+		remp = remp[n:]
+
+		if len(remp) == 0 {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("Attempt to read over file size by %d", len(remp))
 }
