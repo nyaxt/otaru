@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
 	"fmt"
 	"io"
 	"log"
@@ -16,14 +15,6 @@ import (
 const (
 	BtnFrameMaxPayload = 256 * 1024
 )
-
-func RandomBytes(size int) []byte {
-	nonce := make([]byte, size)
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		panic(err)
-	}
-	return nonce
-}
 
 func gcmFromKey(key []byte) (cipher.AEAD, error) {
 	block, err := aes.NewCipher(key)

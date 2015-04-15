@@ -19,8 +19,12 @@ func NewChunkedFileIO(bs RandomAccessBlobStore, fn *FileNode, c Cipher) *Chunked
 	return &ChunkedFileIO{bs: bs, fn: fn, c: c}
 }
 
-func GenerateNewBlobPath() string {
-	return "fixme"
+func (cfio *ChunkedFileIO) newFileChunk(newo int64) (FileChunk, error) {
+	bpath, err := GenerateNewBlobPath(cfio.bs)
+	if err != nil {
+		return FileChunk{}, err
+	}
+	return FileChunk{Offset: newo, Length: 0, BlobPath: bpath}, nil
 }
 
 func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
@@ -80,7 +84,10 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 				}
 			}
 
-			newc := FileChunk{Offset: newo, Length: 0, BlobPath: GenerateNewBlobPath()}
+			newc, err := cfio.newFileChunk(newo)
+			if err != nil {
+				return err
+			}
 			fn.Chunks = append(fn.Chunks, FileChunk{})
 			copy(fn.Chunks[i+1:], fn.Chunks[i:])
 			fn.Chunks[i] = newc
@@ -129,7 +136,10 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 			}
 		}
 
-		newc := FileChunk{Offset: newo, Length: 0, BlobPath: GenerateNewBlobPath()}
+		newc, err := cfio.newFileChunk(newo)
+		if err != nil {
+			return err
+		}
 		if err := writeToChunk(&newc, maxlen); err != nil {
 			return err
 		}
@@ -196,4 +206,12 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 	}
 
 	return fmt.Errorf("Attempt to read over file size by %d", len(remp))
+}
+
+func (cfio *ChunkedFileIO) Size() int64 {
+	cs := cfio.fn.Chunks
+	if len(cs) == 0 {
+		return 0
+	}
+	return cs[len(cs)-1].Right()
 }
