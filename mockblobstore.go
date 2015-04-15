@@ -3,7 +3,7 @@ package otaru
 type MockBlobStoreOperation struct {
 	Type      rune
 	Offset    int64
-	Length    int64
+	Length    int
 	FirstByte byte
 }
 
@@ -20,10 +20,19 @@ func NewMockBlobHandle() *MockBlobHandle {
 }
 
 func (bh *MockBlobHandle) PRead(offset int64, p []byte) error {
+	if len(p) == 0 {
+		return nil
+	}
+	bh.Log = append(bh.Log, MockBlobStoreOperation{'R', offset, len(p), p[0]})
 	return nil
 }
 
 func (bh *MockBlobHandle) PWrite(offset int64, p []byte) error {
+	if len(p) == 0 {
+		return nil
+	}
+	bh.Log = append(bh.Log, MockBlobStoreOperation{'W', offset, len(p), p[0]})
+
 	right := offset + int64(len(p))
 	if right > bh.PayloadLen {
 		bh.PayloadLen = right

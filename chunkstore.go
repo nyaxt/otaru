@@ -280,6 +280,10 @@ func (ch *ChunkIO) readHeader() error {
 	return nil
 }
 
+func (ch *ChunkIO) Size() int64 {
+	return int64(ch.PayloadLen())
+}
+
 func (ch *ChunkIO) PayloadLen() int {
 	return int(ch.header.PayloadLen)
 }

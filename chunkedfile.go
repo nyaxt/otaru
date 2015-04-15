@@ -13,10 +13,19 @@ type ChunkedFileIO struct {
 	bs RandomAccessBlobStore
 	fn *FileNode
 	c  Cipher
+
+	newChunkIO func(BlobHandle, Cipher) BlobHandle
 }
 
 func NewChunkedFileIO(bs RandomAccessBlobStore, fn *FileNode, c Cipher) *ChunkedFileIO {
-	return &ChunkedFileIO{bs: bs, fn: fn, c: c}
+	return &ChunkedFileIO{
+		bs: bs, fn: fn, c: c,
+		newChunkIO: func(bh BlobHandle, c Cipher) BlobHandle { return NewChunkIO(bh, c) },
+	}
+}
+
+func (cfio *ChunkedFileIO) OverrideNewChunkIOForTesting(newChunkIO func(BlobHandle, Cipher) BlobHandle) {
+	cfio.newChunkIO = newChunkIO
 }
 
 func (cfio *ChunkedFileIO) newFileChunk(newo int64) (FileChunk, error) {
@@ -24,7 +33,9 @@ func (cfio *ChunkedFileIO) newFileChunk(newo int64) (FileChunk, error) {
 	if err != nil {
 		return FileChunk{}, err
 	}
-	return FileChunk{Offset: newo, Length: 0, BlobPath: bpath}, nil
+	fc := FileChunk{Offset: newo, Length: 0, BlobPath: bpath}
+	fmt.Printf("new chunk %v\n", fc)
+	return fc, nil
 }
 
 func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
@@ -39,7 +50,7 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		if err != nil {
 			return err
 		}
-		cw := NewChunkIO(bh, cfio.c)
+		cio := cfio.newChunkIO(bh, cfio.c)
 
 		coff := remo - c.Offset
 		part := remp
@@ -47,13 +58,13 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		if right > maxChunkLen {
 			part = part[:maxChunkLen-right]
 		}
-		if err := cw.PWrite(coff, part); err != nil {
+		if err := cio.PWrite(coff, part); err != nil {
 			return err
 		}
-		if err := cw.Close(); err != nil {
+		if err := cio.Close(); err != nil {
 			return err
 		}
-		c.Length = int64(cw.PayloadLen())
+		c.Length = int64(cio.Size())
 
 		remo += int64(len(part))
 		remp = remp[len(part):]
@@ -62,8 +73,7 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 
 	fn := cfio.fn
 
-	i := 0
-	for i < len(fn.Chunks) {
+	for i := 0; i < len(fn.Chunks); i++ {
 		c := &fn.Chunks[i]
 		if c.Left() > remo {
 			// Insert a new chunk @ i
@@ -159,7 +169,7 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 	}
 
 	cs := cfio.fn.Chunks
-	fmt.Printf("Chunks: %v\n", cs)
+	// fmt.Printf("Chunks: %v\n", cs)
 	for i := 0; i < len(cs) && len(remp) > 0; i++ {
 		c := cs[i]
 		if c.Left() > remo+int64(len(remp)) {
@@ -187,13 +197,13 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 		if err != nil {
 			return err
 		}
-		cw := NewChunkIO(bh, cfio.c)
+		cio := cfio.newChunkIO(bh, cfio.c)
 
 		n := Int64Min(int64(len(p)), c.Length-coff)
-		if err := cw.PRead(coff, remp[:n]); err != nil {
+		if err := cio.PRead(coff, remp[:n]); err != nil {
 			return err
 		}
-		if err := cw.Close(); err != nil {
+		if err := cio.Close(); err != nil {
 			return err
 		}
 

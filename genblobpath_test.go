@@ -1,7 +1,6 @@
 package otaru
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -27,7 +26,6 @@ func TestGenerateNewBlobPath_Unique(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("bs dump: %v\n", bs)
 	if len(bs.Paths) != n {
 		t.Errorf("Expected %d unique entries, but found %d entries", n, len(bs.Paths))
 	}
