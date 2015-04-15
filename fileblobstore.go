@@ -1,20 +1,12 @@
 package otaru
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"path"
 )
-
-type FileBlobStore struct{}
-
-func (f *FileBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
-	return os.Create(blobpath)
-}
-
-func (f *FileBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
-	return os.Open(blobpath)
-}
 
 type fileBlobHandle struct {
 	fp *os.File
@@ -50,10 +42,39 @@ func (h fileBlobHandle) Close() error {
 	return h.fp.Close()
 }
 
+type FileBlobStore struct {
+	Base string
+}
+
+func NewFileBlobStore(base string) (*FileBlobStore, error) {
+	base = path.Clean(base)
+
+	fi, err := os.Stat(base)
+	if err != nil {
+		return nil, fmt.Errorf("Fstat base \"%s\" failed: %v", base, err)
+	}
+	if !fi.Mode().IsDir() {
+		return nil, fmt.Errorf("Specified base \"%s\" is not a directory")
+	}
+
+	return &FileBlobStore{base}, nil
+}
+
 func (f *FileBlobStore) Open(blobpath string) (BlobHandle, error) {
-	fp, err := os.OpenFile(blobpath, os.O_RDWR|os.O_CREATE, 0644)
+	realpath := path.Join(f.Base, blobpath)
+	fp, err := os.OpenFile(realpath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
 	}
 	return &fileBlobHandle{fp}, nil
+}
+
+func (f *FileBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
+	realpath := path.Join(f.Base, blobpath)
+	return os.Create(realpath)
+}
+
+func (f *FileBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
+	realpath := path.Join(f.Base, blobpath)
+	return os.Open(realpath)
 }

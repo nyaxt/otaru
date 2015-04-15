@@ -34,7 +34,10 @@ func put(fromurl, tourl string) error {
 	// FIXME: handle unsized file / non-file (e.g. pipe)
 	fromsize := fromstat.Size()
 
-	bs := &otaru.FileBlobStore{}
+	bs, err := otaru.NewFileBlobStore(".")
+	if err != nil {
+		return err
+	}
 	w, err := bs.OpenWriter("testblob.dat")
 	if err != nil {
 		return err
@@ -84,7 +87,10 @@ func put(fromurl, tourl string) error {
 }
 
 func get(fromurl string) error {
-	bs := &otaru.FileBlobStore{}
+	bs, err := otaru.NewFileBlobStore(".")
+	if err != nil {
+		return err
+	}
 	r, err := bs.OpenReader("testblob.dat")
 	if err != nil {
 		return fmt.Errorf("Blob open failed: %v", err)
