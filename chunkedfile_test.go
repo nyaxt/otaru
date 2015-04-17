@@ -65,13 +65,13 @@ func TestChunkedFileIO_SingleChunk(t *testing.T) {
 		return
 	}
 	if fn.Chunks[0].Offset != 0 {
-		t.Errorf("Chunk at wierd offset: %d", fn.Chunks[1].Offset)
+		t.Errorf("Chunk at invalid offset: %d", fn.Chunks[1].Offset)
 	}
 	bh := bs.Paths[fn.Chunks[0].BlobPath]
 	if bh.Log[0].Offset != 123 {
 		t.Errorf("Chunk write at invalid offset: %d", bh.Log[0].Offset)
 	}
-	if bh.Log[0].Offset != 456 {
+	if bh.Log[1].Offset != 456 {
 		t.Errorf("Chunk write at invalid offset: %d", bh.Log[0].Offset)
 	}
 }
@@ -98,14 +98,14 @@ func TestChunkedFileIO_MultiChunk(t *testing.T) {
 		return
 	}
 	if fn.Chunks[0].Offset != 0 {
-		t.Errorf("Chunk at wierd offset: %d", fn.Chunks[1].Offset)
+		t.Errorf("Chunk at invalid offset: %d", fn.Chunks[1].Offset)
 	}
 	bh := bs.Paths[fn.Chunks[0].BlobPath]
 	if bh.Log[0].Offset != 123 {
 		t.Errorf("Chunk write at invalid offset: %d", bh.Log[0].Offset)
 	}
 	if fn.Chunks[1].Offset != ChunkSplitSize {
-		t.Errorf("Split chunk at wierd offset: %d", fn.Chunks[1].Offset)
+		t.Errorf("Split chunk at invalid offset: %d", fn.Chunks[1].Offset)
 	}
 	bh = bs.Paths[fn.Chunks[1].BlobPath]
 	if bh.Log[0].Offset != 12345 {
@@ -117,5 +117,5 @@ func TestChunkedFileIO_MultiChunk(t *testing.T) {
 		return
 	}
 	bh = bs.Paths[fn.Chunks[1].BlobPath]
-	fmt.Printf("? %v\n", bh.Log[1])
+	fmt.Printf("? %+v\n", bh.Log[1])
 }

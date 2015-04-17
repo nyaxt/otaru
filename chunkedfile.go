@@ -53,12 +53,11 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		cio := cfio.newChunkIO(bh, cfio.c)
 
 		coff := remo - c.Offset
-		part := remp
-		right := coff + int64(len(remp))
-		if right > maxChunkLen {
-			part = part[:maxChunkLen-right]
+		n := IntMin(len(remp), int(maxChunkLen-coff))
+		if n < 0 {
+			return nil
 		}
-		if err := cio.PWrite(coff, part); err != nil {
+		if err := cio.PWrite(coff, remp[:n]); err != nil {
 			return err
 		}
 		if err := cio.Close(); err != nil {
@@ -66,8 +65,8 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		}
 		c.Length = int64(cio.Size())
 
-		remo += int64(len(part))
-		remp = remp[len(part):]
+		remo += int64(n)
+		remp = remp[n:]
 		return nil
 	}
 
@@ -109,10 +108,6 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 				return nil
 			}
 
-			continue
-		}
-
-		if remo >= c.Right() {
 			continue
 		}
 
