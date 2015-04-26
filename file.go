@@ -77,6 +77,11 @@ func (idb *INodeDB) Get(id INodeID) INode {
 	return idb.nodes[id]
 }
 
+const (
+	FileWriteCacheMaxPatches         = 32
+	FileWriteCacheMaxPatchContentLen = 256 * 1024
+)
+
 type FileWriteCache struct {
 	ps intn.Patches
 }
@@ -133,6 +138,36 @@ func (wc *FileWriteCache) PReadThrough(offset int64, p []byte, r PReader) error 
 	if err := r.PRead(remo, remp); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (wc *FileWriteCache) ContentLen() int64 {
+	l := int64(0)
+	for _, p := range wc.ps {
+		l += int64(len(p.P))
+	}
+	return l
+}
+
+func (wc *FileWriteCache) NeedsFlush() bool {
+	if len(wc.ps) > FileWriteCacheMaxPatches {
+		return true
+	}
+	if wc.ContentLen() > FileWriteCacheMaxPatchContentLen {
+		return true
+	}
+
+	return false
+}
+
+func (wc *FileWriteCache) Flush(bh BlobHandle) error {
+	for _, p := range wc.ps {
+		if err := bh.PWrite(p.Offset, p.P); err != nil {
+			return err
+		}
+	}
+	wc.ps = wc.ps[:0]
+
 	return nil
 }
 
@@ -201,9 +236,23 @@ func (fs *FileSystem) CreateFile(otarupath string) (*FileHandle, error) {
 }
 
 func (h *FileHandle) PWrite(offset int64, p []byte) error {
-	return h.wc.PWrite(offset, p)
+	if err := h.wc.PWrite(offset, p); err != nil {
+		return err
+	}
+
+	if h.wc.NeedsFlush() {
+		if err := h.wc.Flush(h.cfio); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (h *FileHandle) PRead(offset int64, p []byte) error {
-	return h.wc.PReadThrough(offset, p, ZeroFillPReader{})
+	return h.wc.PReadThrough(offset, p, h.cfio)
+}
+
+func (h *FileHandle) Flush() error {
+	return h.wc.Flush(h.cfio)
 }
