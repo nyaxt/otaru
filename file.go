@@ -140,14 +140,27 @@ type FileSystem struct {
 	*INodeDB
 	lastID INodeID
 
+	bs RandomAccessBlobStore
+	c  Cipher
+
+	newChunkedFileIO func(bs RandomAccessBlobStore, fn *FileNode, c Cipher) BlobHandle
+
 	wcmap map[INodeID]*FileWriteCache
 }
 
-func NewFileSystem() *FileSystem {
+func NewFileSystem(bs RandomAccessBlobStore, c Cipher) *FileSystem {
 	return &FileSystem{
 		INodeDB: NewINodeDB(),
 		lastID:  0,
-		wcmap:   make(map[INodeID]*FileWriteCache),
+
+		bs: bs,
+		c:  c,
+
+		newChunkedFileIO: func(bs RandomAccessBlobStore, fn *FileNode, c Cipher) BlobHandle {
+			return NewChunkedFileIO(bs, fn, c)
+		},
+
+		wcmap: make(map[INodeID]*FileWriteCache),
 	}
 }
 
@@ -166,19 +179,25 @@ func (fs *FileSystem) getOrCreateFileWriteCache(id INodeID) *FileWriteCache {
 	return wc
 }
 
+func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(RandomAccessBlobStore, *FileNode, Cipher) BlobHandle) {
+	fs.newChunkedFileIO = newChunkedFileIO
+}
+
+type FileHandle struct {
+	fs   *FileSystem
+	n    *FileNode
+	wc   *FileWriteCache
+	cfio BlobHandle
+}
+
 func (fs *FileSystem) CreateFile(otarupath string) (*FileHandle, error) {
 	id := fs.NewINodeID()
 	n := NewFileNode(id, otarupath)
 	wc := fs.getOrCreateFileWriteCache(id)
-	h := &FileHandle{fs: fs, n: n, wc: wc}
+	cfio := fs.newChunkedFileIO(fs.bs, n, fs.c)
+	h := &FileHandle{fs: fs, n: n, wc: wc, cfio: cfio}
 
 	return h, nil
-}
-
-type FileHandle struct {
-	fs *FileSystem
-	n  *FileNode
-	wc *FileWriteCache
 }
 
 func (h *FileHandle) PWrite(offset int64, p []byte) error {

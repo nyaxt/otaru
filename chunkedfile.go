@@ -76,6 +76,8 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		c := &fn.Chunks[i]
 		if c.Left() > remo {
 			// Insert a new chunk @ i
+
+			// try best to align offset at ChunkSplitSize
 			newo := remo / ChunkSplitSize * ChunkSplitSize
 			maxlen := int64(ChunkSplitSize)
 			if i > 0 {
@@ -219,4 +221,8 @@ func (cfio *ChunkedFileIO) Size() int64 {
 		return 0
 	}
 	return cs[len(cs)-1].Right()
+}
+
+func (cfio *ChunkedFileIO) Close() error {
+	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"reflect"
 	"testing"
 )
 
@@ -117,5 +118,7 @@ func TestChunkedFileIO_MultiChunk(t *testing.T) {
 		return
 	}
 	bh = bs.Paths[fn.Chunks[1].BlobPath]
-	fmt.Printf("? %+v\n", bh.Log[1])
+	if !reflect.DeepEqual(bh.Log[1], MockBlobStoreOperation{'W', 0, 7, HelloWorld[5]}) {
+		fmt.Printf("? %+v\n", bh.Log[1])
+	}
 }

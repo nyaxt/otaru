@@ -6,7 +6,8 @@ import (
 )
 
 func TestFileWriteRead(t *testing.T) {
-	fs := NewFileSystem()
+	bs := testFileBlobStore()
+	fs := NewFileSystem(bs, testCipher())
 	h, err := fs.CreateFile("hello.txt")
 	if err != nil {
 		t.Errorf("CreateFile failed")
