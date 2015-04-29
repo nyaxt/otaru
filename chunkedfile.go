@@ -227,5 +227,16 @@ func (cfio *ChunkedFileIO) Close() error {
 }
 
 func (cfio *ChunkedFileIO) Truncate(size int64) {
-	panic("implement!")
+	chunks := cfio.fn.Chunks
+
+	for i := len(chunks) - 1; i >= 0; i-- {
+		if chunks[i].Left() >= size {
+			// drop the chunk
+			continue
+		}
+
+		cfio.fn.Chunks = chunks[:i+1]
+		return
+	}
+	cfio.fn.Chunks = []FileChunk{}
 }

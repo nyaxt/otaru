@@ -61,6 +61,7 @@ type FileNode struct {
 func NewFileNode(id INodeID, origpath string) *FileNode {
 	return &FileNode{
 		INodeCommon: INodeCommon{INodeID: id, INodeType: FileNodeT},
+		Size:        0,
 		OrigPath:    origpath,
 	}
 }
@@ -260,6 +261,11 @@ func (h *FileHandle) PWrite(offset int64, p []byte) error {
 		}
 	}
 
+	right := offset + int64(len(p))
+	if right > h.n.Size {
+		h.n.Size = right
+	}
+
 	return nil
 }
 
@@ -272,7 +278,6 @@ func (h *FileHandle) Flush() error {
 }
 
 func (h *FileHandle) Size() int64 {
-	// Int64Max(h.wc.Right(), h.cfio.Size())
 	return h.n.Size
 }
 
@@ -281,9 +286,11 @@ func (h *FileHandle) Truncate(newsize int64) error {
 		h.n.Size = newsize
 		return nil
 	}
+
 	if newsize < h.n.Size {
 		h.wc.Truncate(newsize)
 		h.cfio.Truncate(newsize)
+		h.n.Size = newsize
 	}
 	return nil
 }
