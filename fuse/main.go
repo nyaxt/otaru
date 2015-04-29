@@ -95,7 +95,54 @@ func (fh FileHandle) Flush(ctx context.Context, req *fuse.FlushRequest) error {
 	return nil
 }
 
-var hogeFH FileHandle
+type Dir struct {
+	dh *otaru.DirHandle
+}
+
+func (d Dir) Attr(a *fuse.Attr) {
+	a.Inode = uint64(d.dh.INodeID())
+	a.Mode = os.ModeDir | 0777
+}
+
+func (d Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	return nil, fuse.ENOENT
+}
+
+/*
+func (d Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (Node, Handle, error) {
+  d.dh.Create(
+
+  return n, h, nil
+}
+*/
+
+func (d Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+	entries := d.dh.Entries()
+
+	fentries := make([]fuse.Dirent, 0, len(entries))
+	for _, e := range entries {
+		t := fuse.DT_File // FIXME!!!
+
+		fentries = append(fentries, fuse.Dirent{
+			Inode: uint64(e.INodeID),
+			Name:  e.Name,
+			Type:  t,
+		})
+	}
+	return fentries, nil
+}
+
+type FileSystem struct {
+	ofs *otaru.FileSystem
+}
+
+func (fs FileSystem) Root() (fs.Node, error) {
+	rootdir, err := fs.ofs.OpenDir()
+	if err != nil {
+		log.Fatalf("Failed to open rootdir: %v", err)
+	}
+	return Dir{rootdir}, nil
+}
 
 func main() {
 	flag.Usage = Usage
@@ -117,18 +164,20 @@ func main() {
 		return
 	}
 	ofs := otaru.NewFileSystem(bs, Cipher)
-	h, err := ofs.CreateFile("hello.txt")
-	if err != nil {
-		log.Fatalf("CreateFile failed: %v", err)
-		return
-	}
+	/*
+		h, err := ofs.CreateFile("hello.txt")
+		if err != nil {
+			log.Fatalf("CreateFile failed: %v", err)
+			return
+		}
 
-	err = h.PWrite(0, []byte("hello world!\n"))
-	if err != nil {
-		log.Fatalf("PWrite failed: %v", err)
-	}
+		err = h.PWrite(0, []byte("hello world!\n"))
+		if err != nil {
+			log.Fatalf("PWrite failed: %v", err)
+		}
 
-	hogeFH = FileHandle{h}
+		hogeFH = FileHandle{h}
+	*/
 
 	log.Printf("arg: %v", flag.Args())
 	if flag.NArg() != 1 {
@@ -148,7 +197,7 @@ func main() {
 	}
 	defer c.Close()
 
-	err = fs.Serve(c, FS{})
+	err = fs.Serve(c, FileSystem{ofs})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -158,34 +207,4 @@ func main() {
 	if err := c.MountError; err != nil {
 		log.Fatal(err)
 	}
-}
-
-// FS implements the hello world file system.
-type FS struct{}
-
-func (FS) Root() (fs.Node, error) {
-	return Dir{}, nil
-}
-
-// Dir implements both Node and Handle for the root directory.
-type Dir struct{}
-
-func (Dir) Attr(a *fuse.Attr) {
-	a.Inode = 1
-	a.Mode = os.ModeDir | 0555
-}
-
-func (Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	if name == "hello" {
-		return hogeFH, nil
-	}
-	return nil, fuse.ENOENT
-}
-
-var dirDirs = []fuse.Dirent{
-	{Inode: 2, Name: "hello", Type: fuse.DT_File},
-}
-
-func (Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-	return dirDirs, nil
 }

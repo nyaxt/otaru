@@ -1,6 +1,8 @@
 package otaru
 
 import (
+	"fmt"
+
 	"github.com/nyaxt/otaru/intn"
 )
 
@@ -24,7 +26,7 @@ type INodeType int
 
 const (
 	FileNodeT = iota
-	DirectoryNodeT
+	DirNodeT
 	// SymlinkNode
 )
 
@@ -36,6 +38,10 @@ type INode interface {
 type INodeCommon struct {
 	INodeID
 	INodeType
+
+	// OrigPath contains filepath passed to first create and does not necessary follow "rename" operations.
+	// To be used for recovery/debug purposes only
+	OrigPath string
 }
 
 func (n INodeCommon) ID() INodeID {
@@ -48,36 +54,86 @@ func (n INodeCommon) Type() INodeType {
 
 type FileNode struct {
 	INodeCommon
-
-	Size int64
-
-	// OrigPath contains filepath passed to first create and does not necessary follow "rename" operations.
-	// To be used for recovery/debug purposes only
-	OrigPath string
-
+	Size   int64
 	Chunks []FileChunk
 }
 
-func NewFileNode(id INodeID, origpath string) *FileNode {
-	return &FileNode{
-		INodeCommon: INodeCommon{INodeID: id, INodeType: FileNodeT},
-		Size:        0,
-		OrigPath:    origpath,
+func NewFileNode(db *INodeDB, origpath string) *FileNode {
+	id := db.GenerateNewID()
+	fn := &FileNode{
+		INodeCommon: INodeCommon{
+			INodeID:   id,
+			INodeType: FileNodeT,
+			OrigPath:  origpath,
+		},
+		Size: 0,
 	}
+	db.PutMustSucceed(fn)
+	return fn
+}
+
+type DirNodeEntry struct {
+	INodeID
+	Name string
+}
+
+type DirNode struct {
+	INodeCommon
+	Entries []DirNodeEntry
+}
+
+func NewDirNode(db *INodeDB, origpath string) *DirNode {
+	id := db.GenerateNewID()
+	dn := &DirNode{
+		INodeCommon: INodeCommon{
+			INodeID:   id,
+			INodeType: DirNodeT,
+			OrigPath:  origpath,
+		},
+	}
+	db.PutMustSucceed(dn)
+	return dn
 }
 
 type INodeDB struct {
-	nodes map[INodeID]INode
+	nodes  map[INodeID]INode
+	lastID INodeID
 }
 
 func NewINodeDB() *INodeDB {
 	return &INodeDB{
-		nodes: make(map[INodeID]INode),
+		nodes:  make(map[INodeID]INode),
+		lastID: 0,
+	}
+}
+
+func (idb *INodeDB) Put(n INode) error {
+	_, ok := idb.nodes[n.ID()]
+	if ok {
+		return fmt.Errorf("INodeID collision: %v", n)
+	}
+	idb.nodes[n.ID()] = n
+	return nil
+}
+
+func (idb *INodeDB) PutMustSucceed(n INode) {
+	if err := idb.Put(n); err != nil {
+		panic(fmt.Sprintf("Failed to put node: %v", err))
 	}
 }
 
 func (idb *INodeDB) Get(id INodeID) INode {
-	return idb.nodes[id]
+	node := idb.nodes[id]
+	if node.ID() != id {
+		panic("INodeDB is corrupt!")
+	}
+	return node
+}
+
+func (idb *INodeDB) GenerateNewID() INodeID {
+	id := idb.lastID + 1
+	idb.lastID = id
+	return id
 }
 
 const (
@@ -199,7 +255,7 @@ type FileSystem struct {
 }
 
 func NewFileSystem(bs RandomAccessBlobStore, c Cipher) *FileSystem {
-	return &FileSystem{
+	fs := &FileSystem{
 		INodeDB: NewINodeDB(),
 		lastID:  0,
 
@@ -212,12 +268,13 @@ func NewFileSystem(bs RandomAccessBlobStore, c Cipher) *FileSystem {
 
 		wcmap: make(map[INodeID]*FileWriteCache),
 	}
-}
 
-func (fs *FileSystem) NewINodeID() INodeID {
-	id := fs.lastID + 1
-	fs.lastID = id
-	return id
+	rootdir := NewDirNode(fs.INodeDB, "/")
+	if rootdir.ID() != 1 {
+		panic("rootdir must have INodeID 1")
+	}
+
+	return fs
 }
 
 func (fs *FileSystem) getOrCreateFileWriteCache(id INodeID) *FileWriteCache {
@@ -233,6 +290,31 @@ func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(R
 	fs.newChunkedFileIO = newChunkedFileIO
 }
 
+type DirHandle struct {
+	fs *FileSystem
+	n  *DirNode
+}
+
+func (fs *FileSystem) OpenDir() (*DirHandle, error) {
+	rootnode := fs.INodeDB.Get(1)
+	rootdir := rootnode.(*DirNode)
+
+	h := &DirHandle{fs: fs, n: rootdir}
+	return h, nil
+}
+
+func (dh *DirHandle) FileSystem() *FileSystem {
+	return dh.fs
+}
+
+func (dh *DirHandle) INodeID() INodeID {
+	return dh.n.ID()
+}
+
+func (dh *DirHandle) Entries() []DirNodeEntry {
+	return dh.n.Entries
+}
+
 type FileHandle struct {
 	fs   *FileSystem
 	n    *FileNode
@@ -241,9 +323,8 @@ type FileHandle struct {
 }
 
 func (fs *FileSystem) CreateFile(otarupath string) (*FileHandle, error) {
-	id := fs.NewINodeID()
-	n := NewFileNode(id, otarupath)
-	wc := fs.getOrCreateFileWriteCache(id)
+	n := NewFileNode(fs.INodeDB, otarupath)
+	wc := fs.getOrCreateFileWriteCache(n.ID())
 	cfio := fs.newChunkedFileIO(fs.bs, n, fs.c)
 	h := &FileHandle{fs: fs, n: n, wc: wc, cfio: cfio}
 
