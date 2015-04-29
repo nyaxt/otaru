@@ -1,7 +1,6 @@
 package otaru
 
 import (
-	//	"github.com/nyaxt/otaru/intn"
 	"fmt"
 )
 
@@ -225,4 +224,8 @@ func (cfio *ChunkedFileIO) Size() int64 {
 
 func (cfio *ChunkedFileIO) Close() error {
 	return nil
+}
+
+func (cfio *ChunkedFileIO) Truncate(size int64) {
+	panic("implement!")
 }

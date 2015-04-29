@@ -49,6 +49,8 @@ func (n INodeCommon) Type() INodeType {
 type FileNode struct {
 	INodeCommon
 
+	Size int64
+
 	// OrigPath contains filepath passed to first create and does not necessary follow "rename" operations.
 	// To be used for recovery/debug purposes only
 	OrigPath string
@@ -171,6 +173,18 @@ func (wc *FileWriteCache) Flush(bh BlobHandle) error {
 	return nil
 }
 
+func (wc *FileWriteCache) Right() int64 {
+	if len(wc.ps) == 0 {
+		return 0
+	}
+
+	return wc.ps[0].Right()
+}
+
+func (wc *FileWriteCache) Truncate(size int64) {
+	wc.ps = wc.ps.Truncate(size)
+}
+
 type FileSystem struct {
 	*INodeDB
 	lastID INodeID
@@ -255,4 +269,21 @@ func (h *FileHandle) PRead(offset int64, p []byte) error {
 
 func (h *FileHandle) Flush() error {
 	return h.wc.Flush(h.cfio)
+}
+
+func (h *FileHandle) Size() int64 {
+	// Int64Max(h.wc.Right(), h.cfio.Size())
+	return h.n.Size
+}
+
+func (h *FileHandle) Truncate(newsize int64) error {
+	if newsize > h.n.Size {
+		h.n.Size = newsize
+		return nil
+	}
+	if newsize < h.n.Size {
+		h.wc.Truncate(newsize)
+		h.cfio.Truncate(newsize)
+	}
+	return nil
 }

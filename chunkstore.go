@@ -284,6 +284,10 @@ func (ch *ChunkIO) Size() int64 {
 	return int64(ch.PayloadLen())
 }
 
+func (ch *ChunkIO) Truncate(size int64) {
+	panic("FIXME: implement!")
+}
+
 func (ch *ChunkIO) PayloadLen() int {
 	return int(ch.header.PayloadLen)
 }

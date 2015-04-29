@@ -323,3 +323,53 @@ func TestMerge_FillHole(t *testing.T) {
 		t.Errorf("Fail")
 	}
 }
+
+func TestTruncate(t *testing.T) {
+	ps := Patches{
+		CreateTestPatch(10, 10),
+		CreateTestPatch(30, 10),
+		PatchSentinel,
+	}
+
+	ps = ps.Truncate(50)
+	if ps[2].Offset != PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
+
+	ps = ps.Truncate(40)
+	if ps[2].Offset != PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
+
+	ps = ps.Truncate(35)
+	if ps[2].Offset != PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
+	if len(ps[1].P) != 5 {
+		t.Errorf("Fail")
+	}
+
+	ps = ps.Truncate(20)
+	if ps[1].Offset != PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
+	if len(ps[0].P) != 10 {
+		t.Errorf("Fail")
+	}
+
+	ps = ps.Truncate(15)
+	if ps[1].Offset != PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
+	if len(ps[0].P) != 5 {
+		t.Errorf("Fail")
+	}
+
+	ps = ps.Truncate(10)
+	if ps[0].Offset != PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
+	if len(ps) != 1 {
+		t.Errorf("Fail")
+	}
+}

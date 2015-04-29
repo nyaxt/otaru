@@ -112,3 +112,21 @@ func (ps Patches) Merge(newp Patch) Patches {
 	// Insert newp replacing ps[lefti:righti]
 	return ps.Replace(lefti, righti, newp)
 }
+
+func (ps Patches) Truncate(size int64) Patches {
+	for i := len(ps) - 1; i >= 0; i-- {
+		p := &ps[i]
+
+		if p.Left() >= size {
+			// drop the patch
+			continue
+		}
+
+		if p.Right() > size {
+			p.P = p.P[:size-p.Left()]
+		}
+		return append(ps[:i+1], PatchSentinel)
+	}
+
+	return NewPatches()
+}

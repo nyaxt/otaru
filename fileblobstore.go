@@ -38,6 +38,12 @@ func (h fileBlobHandle) Size() int64 {
 	return fi.Size()
 }
 
+func (h fileBlobHandle) Truncate(size int64) {
+	if err := h.fp.Truncate(size); err != nil {
+		log.Fatalf("os.File.Truncate failed: %v", err)
+	}
+}
+
 func (h fileBlobHandle) Close() error {
 	return h.fp.Close()
 }

@@ -44,6 +44,10 @@ func (bh *MockBlobHandle) Size() int64 {
 	return bh.PayloadLen
 }
 
+func (bh *MockBlobHandle) Truncate(size int64) {
+	bh.PayloadLen = size
+}
+
 func (bh *MockBlobHandle) Close() error {
 	return nil
 }

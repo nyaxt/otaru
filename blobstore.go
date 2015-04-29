@@ -14,6 +14,7 @@ type BlobStore interface {
 type BlobHandle interface {
 	RandomAccessIO
 	Size() int64
+	Truncate(int64)
 	io.Closer
 }
 
@@ -43,6 +44,12 @@ func (bh *TestBlobHandle) PWrite(offset int64, p []byte) error {
 
 	copy(bh.Buf[offset:], p)
 	return nil
+}
+
+func (bh *TestBlobHandle) Truncate(size int64) {
+	if size < int64(len(bh.Buf)) {
+		bh.Buf = bh.Buf[:int(size)]
+	}
 }
 
 func (bh *TestBlobHandle) Size() int64 {
