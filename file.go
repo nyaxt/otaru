@@ -329,19 +329,23 @@ func (dh *DirHandle) Entries() map[string]INodeID {
 	return dh.n.Entries
 }
 
-func (dh *DirHandle) CreateFile(name string) (*FileHandle, error) {
+// FIXME
+func (dh *DirHandle) Path() string {
+	return ""
+}
+
+func (dh *DirHandle) CreateFile(name string) (INodeID, error) {
 	_, ok := dh.n.Entries[name]
 	if ok {
-		return nil, EEXIST
+		return 0, EEXIST
 	}
 
-	fh, err := dh.fs.CreateFile(name)
-	if err != nil {
-		return nil, err
-	}
+	fullorigpath := fmt.Sprintf("%s/%s", dh.Path(), name)
+	n := NewFileNode(dh.fs.INodeDB, fullorigpath)
 
-	dh.n.Entries[name] = fh.n.ID()
-	return fh, nil
+	id := n.ID()
+	dh.n.Entries[name] = id
+	return id, nil
 }
 
 // FIXME: Multiple FileHandle may exist for same file at once. Support it!
@@ -356,16 +360,6 @@ func (fs *FileSystem) openFileNode(n *FileNode) (*FileHandle, error) {
 	wc := fs.getOrCreateFileWriteCache(n.ID())
 	cfio := fs.newChunkedFileIO(fs.bs, n, fs.c)
 	h := &FileHandle{fs: fs, n: n, wc: wc, cfio: cfio}
-	return h, nil
-}
-
-// FIXME: make this priv.
-func (fs *FileSystem) CreateFile(origpath string) (*FileHandle, error) {
-	n := NewFileNode(fs.INodeDB, origpath)
-	h, err := fs.openFileNode(n)
-	if err != nil {
-		return nil, err
-	}
 	return h, nil
 }
 

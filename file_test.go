@@ -2,15 +2,16 @@ package otaru
 
 import (
 	"bytes"
+	"os"
 	"testing"
 )
 
 func TestFileWriteRead(t *testing.T) {
 	bs := testFileBlobStore()
 	fs := NewFileSystem(bs, testCipher())
-	h, err := fs.CreateFile("hello.txt")
+	h, err := fs.OpenFileFullPath("/hello.txt", os.O_CREATE, 0666)
 	if err != nil {
-		t.Errorf("CreateFile failed")
+		t.Errorf("CreateFile failed: %v", err)
 		return
 	}
 

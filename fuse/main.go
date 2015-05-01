@@ -105,6 +105,7 @@ func (fh FileHandle) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -159,15 +160,17 @@ func (d DirNode) Lookup(ctx context.Context, name string) (fs.Node, error) {
 }
 
 func (d DirNode) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
-	h, err := d.dh.CreateFile(req.Name) // req.Flags req.Mode
+	id, err := d.dh.CreateFile(req.Name) // req.Flags req.Mode
 	if err != nil {
 		return nil, nil, err
 	}
 
-	fn := FileNode{d.dh.FileSystem(), h.ID()}
-	fh := FileHandle{h}
+	h, err := d.dh.FileSystem().OpenFile(id)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	return fn, fh, nil
+	return FileNode{d.dh.FileSystem(), id}, FileHandle{h}, nil
 }
 
 func (d DirNode) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
