@@ -4,6 +4,8 @@ import (
 	"fmt"
 )
 
+type INodeID uint32
+
 type INodeDB struct {
 	nodes  map[INodeID]INode
 	lastID INodeID
