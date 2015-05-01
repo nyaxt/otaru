@@ -220,7 +220,7 @@ func main() {
 		log.Fatalf("NewFileBlobStore failed: %v", err)
 		return
 	}
-	ofs := otaru.NewFileSystem(bs, Cipher)
+	ofs := otaru.NewFileSystemEmpty(bs, Cipher)
 
 	log.Printf("arg: %v", flag.Args())
 	if flag.NArg() != 1 {

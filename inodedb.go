@@ -11,7 +11,7 @@ type INodeDB struct {
 	lastID INodeID
 }
 
-func NewINodeDB() *INodeDB {
+func NewINodeDBEmpty() *INodeDB {
 	return &INodeDB{
 		nodes:  make(map[INodeID]INode),
 		lastID: 0,

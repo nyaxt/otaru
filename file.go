@@ -131,9 +131,9 @@ type FileSystem struct {
 	wcmap map[INodeID]*FileWriteCache
 }
 
-func NewFileSystem(bs RandomAccessBlobStore, c Cipher) *FileSystem {
+func newFileSystemCommon(idb *INodeDB, bs RandomAccessBlobStore, c Cipher) *FileSystem {
 	fs := &FileSystem{
-		INodeDB: NewINodeDB(),
+		INodeDB: idb,
 		lastID:  0,
 
 		bs: bs,
@@ -146,12 +146,46 @@ func NewFileSystem(bs RandomAccessBlobStore, c Cipher) *FileSystem {
 		wcmap: make(map[INodeID]*FileWriteCache),
 	}
 
-	rootdir := NewDirNode(fs.INodeDB, "/")
+	return fs
+}
+
+func NewFileSystemEmpty(bs RandomAccessBlobStore, c Cipher) *FileSystem {
+	idb := NewINodeDBEmpty()
+	rootdir := NewDirNode(idb, "/")
 	if rootdir.ID() != 1 {
 		panic("rootdir must have INodeID 1")
 	}
 
-	return fs
+	return newFileSystemCommon(idb, bs, c)
+}
+
+const (
+	INodeDBSnapshotBlobpath = "INODEDB_SNAPSHOT"
+)
+
+func LoadINodeDBFromBlobStore(bs RandomAccessBlobStore, c Cipher) (*INodeDB, error) {
+	raw, err := bs.Open(INodeDBSnapshotBlobpath)
+	if err != nil {
+		return nil, err
+	}
+
+	cio := NewChunkIO(raw, c)
+	r := &OffsetReader{cio, 0}
+	idb, err := DeserializeINodeDBSnapshot(r)
+	if err != nil {
+		return nil, err
+	}
+
+	return idb, nil
+}
+
+func NewFileSystemFromSnapshot(bs RandomAccessBlobStore, c Cipher) (*FileSystem, error) {
+	idb, err := LoadINodeDBFromBlobStore(bs, c)
+	if err != nil {
+		return nil, err
+	}
+
+	return newFileSystemCommon(idb, bs, c), nil
 }
 
 func (fs *FileSystem) getOrCreateFileWriteCache(id INodeID) *FileWriteCache {

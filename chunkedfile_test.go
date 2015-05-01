@@ -22,7 +22,7 @@ func testFileBlobStore() *FileBlobStore {
 }
 
 func TestChunkedFileIO_FileBlobStore(t *testing.T) {
-	fn := NewFileNode(NewINodeDB(), "hoge/fuga.txt")
+	fn := NewFileNode(NewINodeDBEmpty(), "hoge/fuga.txt")
 	fbs := testFileBlobStore()
 	cfio := NewChunkedFileIO(fbs, fn, testCipher())
 
@@ -45,7 +45,7 @@ func TestChunkedFileIO_FileBlobStore(t *testing.T) {
 }
 
 func TestChunkedFileIO_SingleChunk(t *testing.T) {
-	fn := NewFileNode(NewINodeDB(), "piyo.txt")
+	fn := NewFileNode(NewINodeDBEmpty(), "piyo.txt")
 	bs := NewMockBlobStore()
 	cfio := NewChunkedFileIO(bs, fn, testCipher())
 
@@ -78,7 +78,7 @@ func TestChunkedFileIO_SingleChunk(t *testing.T) {
 }
 
 func TestChunkedFileIO_MultiChunk(t *testing.T) {
-	fn := NewFileNode(NewINodeDB(), "piyo.txt")
+	fn := NewFileNode(NewINodeDBEmpty(), "piyo.txt")
 	bs := NewMockBlobStore()
 	cfio := NewChunkedFileIO(bs, fn, testCipher())
 

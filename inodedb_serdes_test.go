@@ -9,7 +9,7 @@ import (
 )
 
 func TestINodeDB_SerializeSnapshot(t *testing.T) {
-	idb := NewINodeDB()
+	idb := NewINodeDBEmpty()
 	NewDirNode(idb, "/")
 	NewFileNode(idb, "/hoge.txt")
 	NewFileNode(idb, "/fuga.txt")

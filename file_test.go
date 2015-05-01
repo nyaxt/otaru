@@ -8,7 +8,7 @@ import (
 
 func TestFileWriteRead(t *testing.T) {
 	bs := testFileBlobStore()
-	fs := NewFileSystem(bs, testCipher())
+	fs := NewFileSystemEmpty(bs, testCipher())
 	h, err := fs.OpenFileFullPath("/hello.txt", os.O_CREATE, 0666)
 	if err != nil {
 		t.Errorf("CreateFile failed: %v", err)
