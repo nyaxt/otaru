@@ -2,8 +2,15 @@ package otaru
 
 import (
 	"fmt"
+	"syscall"
 
 	"github.com/nyaxt/otaru/intn"
+)
+
+const (
+	ENOENT  = syscall.Errno(syscall.ENOENT)
+	ENOTDIR = syscall.Errno(syscall.ENOTDIR)
+	EEXIST  = syscall.Errno(syscall.EEXIST)
 )
 
 type FileChunk struct {
@@ -72,14 +79,9 @@ func NewFileNode(db *INodeDB, origpath string) *FileNode {
 	return fn
 }
 
-type DirNodeEntry struct {
-	INodeID
-	Name string
-}
-
 type DirNode struct {
 	INodeCommon
-	Entries []DirNodeEntry
+	Entries map[string]INodeID
 }
 
 func NewDirNode(db *INodeDB, origpath string) *DirNode {
@@ -90,6 +92,7 @@ func NewDirNode(db *INodeDB, origpath string) *DirNode {
 			INodeType: DirNodeT,
 			OrigPath:  origpath,
 		},
+		Entries: make(map[string]INodeID),
 	}
 	db.PutMustSucceed(dn)
 	return dn
@@ -124,6 +127,11 @@ func (idb *INodeDB) PutMustSucceed(n INode) {
 
 func (idb *INodeDB) Get(id INodeID) INode {
 	node := idb.nodes[id]
+
+	if node == nil {
+		return nil
+	}
+
 	if node.ID() != id {
 		panic("INodeDB is corrupt!")
 	}
@@ -295,11 +303,17 @@ type DirHandle struct {
 	n  *DirNode
 }
 
-func (fs *FileSystem) OpenDir() (*DirHandle, error) {
-	rootnode := fs.INodeDB.Get(1)
-	rootdir := rootnode.(*DirNode)
+func (fs *FileSystem) OpenDir(id INodeID) (*DirHandle, error) {
+	node := fs.INodeDB.Get(id)
+	if node == nil {
+		return nil, ENOENT
+	}
+	if node.Type() != DirNodeT {
+		return nil, ENOTDIR
+	}
+	dirnode := node.(*DirNode)
 
-	h := &DirHandle{fs: fs, n: rootdir}
+	h := &DirHandle{fs: fs, n: dirnode}
 	return h, nil
 }
 
@@ -307,14 +321,30 @@ func (dh *DirHandle) FileSystem() *FileSystem {
 	return dh.fs
 }
 
-func (dh *DirHandle) INodeID() INodeID {
+func (dh *DirHandle) ID() INodeID {
 	return dh.n.ID()
 }
 
-func (dh *DirHandle) Entries() []DirNodeEntry {
+func (dh *DirHandle) Entries() map[string]INodeID {
 	return dh.n.Entries
 }
 
+func (dh *DirHandle) CreateFile(name string) (*FileHandle, error) {
+	_, ok := dh.n.Entries[name]
+	if ok {
+		return nil, EEXIST
+	}
+
+	fh, err := dh.fs.CreateFile(name)
+	if err != nil {
+		return nil, err
+	}
+
+	dh.n.Entries[name] = fh.n.ID()
+	return fh, nil
+}
+
+// FIXME: Multiple FileHandle may exist for same file at once. Support it!
 type FileHandle struct {
 	fs   *FileSystem
 	n    *FileNode
@@ -322,13 +352,76 @@ type FileHandle struct {
 	cfio BlobHandle
 }
 
-func (fs *FileSystem) CreateFile(otarupath string) (*FileHandle, error) {
-	n := NewFileNode(fs.INodeDB, otarupath)
+func (fs *FileSystem) openFileNode(n *FileNode) (*FileHandle, error) {
 	wc := fs.getOrCreateFileWriteCache(n.ID())
 	cfio := fs.newChunkedFileIO(fs.bs, n, fs.c)
 	h := &FileHandle{fs: fs, n: n, wc: wc, cfio: cfio}
-
 	return h, nil
+}
+
+// FIXME: make this priv.
+func (fs *FileSystem) CreateFile(origpath string) (*FileHandle, error) {
+	n := NewFileNode(fs.INodeDB, origpath)
+	h, err := fs.openFileNode(n)
+	if err != nil {
+		return nil, err
+	}
+	return h, nil
+}
+
+func (fs *FileSystem) OpenFile(id INodeID) (*FileHandle, error) {
+	node := fs.INodeDB.Get(id)
+	if node == nil {
+		return nil, ENOENT
+	}
+	if node.Type() != FileNodeT {
+		return nil, ENOTDIR
+	}
+	filenode := node.(*FileNode)
+
+	h, err := fs.openFileNode(filenode)
+	if err != nil {
+		return nil, err
+	}
+	return h, nil
+}
+
+type Attr struct {
+	INodeID
+	INodeType
+	Size int64
+}
+
+func (fs *FileSystem) Attr(id INodeID) (Attr, error) {
+	n := fs.INodeDB.Get(id)
+	if n == nil {
+		return Attr{}, ENOENT
+	}
+
+	size := int64(0)
+	if fn, ok := n.(*FileNode); ok {
+		size = fn.Size
+	}
+
+	a := Attr{
+		INodeID:   n.ID(),
+		INodeType: n.Type(),
+		Size:      size,
+	}
+	return a, nil
+}
+
+func (fs *FileSystem) IsDir(id INodeID) (bool, error) {
+	n := fs.INodeDB.Get(id)
+	if n == nil {
+		return false, ENOENT
+	}
+
+	return n.Type() == DirNodeT, nil
+}
+
+func (h *FileHandle) ID() INodeID {
+	return h.n.ID()
 }
 
 func (h *FileHandle) PWrite(offset int64, p []byte) error {

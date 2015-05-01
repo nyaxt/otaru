@@ -26,18 +26,37 @@ var (
 )
 var Cipher otaru.Cipher
 
-type FileHandle struct {
-	h *otaru.FileHandle
+type FileNode struct {
+	fs *otaru.FileSystem
+	id otaru.INodeID
 }
 
-func (fh FileHandle) Attr(a *fuse.Attr) {
-	a.Inode = 2
+func (n FileNode) Attr(a *fuse.Attr) {
+	attr, err := n.fs.Attr(n.id)
+	if err != nil {
+		panic("fs.Attr failed for FileNode")
+	}
+
+	a.Inode = uint64(n.id)
 	a.Mode = 0666
 	a.Atime = time.Now()
 	a.Mtime = time.Now()
 	a.Ctime = time.Now()
 	a.Crtime = time.Now()
-	a.Size = uint64(fh.h.Size())
+	a.Size = uint64(attr.Size)
+}
+
+func (n FileNode) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	fh, err := n.fs.OpenFile(n.id)
+	if err != nil {
+		return nil, err
+	}
+
+	return FileHandle{fh}, nil
+}
+
+type FileHandle struct {
+	h *otaru.FileHandle
 }
 
 func (fh FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
@@ -75,6 +94,7 @@ func (fh FileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *fu
 	return nil
 }
 
+// FIXME: move this to FileNode
 func (fh FileHandle) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
 	if req.Valid.Size() {
 		log.Printf("Setattr size %d", req.Size)
@@ -95,37 +115,71 @@ func (fh FileHandle) Flush(ctx context.Context, req *fuse.FlushRequest) error {
 	return nil
 }
 
-type Dir struct {
+type DirNode struct {
 	dh *otaru.DirHandle
 }
 
-func (d Dir) Attr(a *fuse.Attr) {
-	a.Inode = uint64(d.dh.INodeID())
+func (d DirNode) Attr(a *fuse.Attr) {
+	id := d.dh.ID()
+	log.Printf("DirNode Attr id: %d", id)
+
+	attr, err := d.dh.FileSystem().Attr(id)
+	if err != nil {
+		panic("fs.Attr failed for DirNode")
+	}
+
+	a.Inode = uint64(id)
 	a.Mode = os.ModeDir | 0777
+	a.Atime = time.Now()
+	a.Mtime = time.Now()
+	a.Ctime = time.Now()
+	a.Crtime = time.Now()
+	a.Size = uint64(attr.Size)
 }
 
-func (d Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+func (d DirNode) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	entries := d.dh.Entries()
+	if id, ok := entries[name]; ok {
+		isdir, err := d.dh.FileSystem().IsDir(id)
+		if err != nil {
+			log.Fatalf("Stale inode in dir? Failed IsDir: %v", err)
+		}
+		if isdir {
+			childdh, err := d.dh.FileSystem().OpenDir(id)
+			if err != nil {
+				return nil, err
+			}
+			return DirNode{childdh}, nil
+		} else {
+			return FileNode{d.dh.FileSystem(), id}, nil
+		}
+	}
+
 	return nil, fuse.ENOENT
 }
 
-/*
-func (d Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (Node, Handle, error) {
-  d.dh.Create(
+func (d DirNode) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
+	h, err := d.dh.CreateFile(req.Name) // req.Flags req.Mode
+	if err != nil {
+		return nil, nil, err
+	}
 
-  return n, h, nil
+	fn := FileNode{d.dh.FileSystem(), h.ID()}
+	fh := FileHandle{h}
+
+	return fn, fh, nil
 }
-*/
 
-func (d Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+func (d DirNode) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	entries := d.dh.Entries()
 
 	fentries := make([]fuse.Dirent, 0, len(entries))
-	for _, e := range entries {
+	for name, id := range entries {
 		t := fuse.DT_File // FIXME!!!
 
 		fentries = append(fentries, fuse.Dirent{
-			Inode: uint64(e.INodeID),
-			Name:  e.Name,
+			Inode: uint64(id),
+			Name:  name,
 			Type:  t,
 		})
 	}
@@ -137,11 +191,11 @@ type FileSystem struct {
 }
 
 func (fs FileSystem) Root() (fs.Node, error) {
-	rootdir, err := fs.ofs.OpenDir()
+	rootdir, err := fs.ofs.OpenDir(1)
 	if err != nil {
 		log.Fatalf("Failed to open rootdir: %v", err)
 	}
-	return Dir{rootdir}, nil
+	return DirNode{rootdir}, nil
 }
 
 func main() {
@@ -164,20 +218,6 @@ func main() {
 		return
 	}
 	ofs := otaru.NewFileSystem(bs, Cipher)
-	/*
-		h, err := ofs.CreateFile("hello.txt")
-		if err != nil {
-			log.Fatalf("CreateFile failed: %v", err)
-			return
-		}
-
-		err = h.PWrite(0, []byte("hello world!\n"))
-		if err != nil {
-			log.Fatalf("PWrite failed: %v", err)
-		}
-
-		hogeFH = FileHandle{h}
-	*/
 
 	log.Printf("arg: %v", flag.Args())
 	if flag.NArg() != 1 {
