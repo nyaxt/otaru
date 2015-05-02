@@ -1,6 +1,7 @@
 package otaru
 
 import (
+	"bufio"
 	"compress/zlib"
 	"io"
 	"log"
@@ -23,11 +24,15 @@ func (idb *INodeDB) SaveToBlobStore(bs RandomAccessBlobStore, c Cipher) error {
 		OrigFilename: "*INODEDB_SNAPSHOT*",
 		OrigOffset:   0,
 	})
-	zw := zlib.NewWriter(&OffsetWriter{cio, 0})
+	bufio := bufio.NewWriter(&OffsetWriter{cio, 0})
+	zw := zlib.NewWriter(bufio)
 	if err := idb.SerializeSnapshot(zw); err != nil {
 		return err
 	}
 	if err := zw.Close(); err != nil {
+		return err
+	}
+	if err := bufio.Flush(); err != nil {
 		return err
 	}
 	if err := cio.Close(); err != nil {
