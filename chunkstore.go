@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math"
 )
 
@@ -289,6 +290,11 @@ func (ch *ChunkIO) Truncate(size int64) error {
 }
 
 func (ch *ChunkIO) PayloadLen() int {
+	if err := ch.ensurePrologue(); err != nil {
+		log.Printf("Failed to read prologue for payload len: %v", err)
+		return 0
+	}
+
 	return int(ch.header.PayloadLen)
 }
 
@@ -443,6 +449,8 @@ func (ch *ChunkIO) PRead(offset int64, p []byte) error {
 		return fmt.Errorf("Offset out of int32 range: %d", offset)
 	}
 
+	fmt.Printf("PRead off %d len %d. Chunk payload len: %d\n", offset, len(p), ch.PayloadLen())
+
 	remo := int(offset)
 	remp := p
 	for len(remp) > 0 {
@@ -455,19 +463,21 @@ func (ch *ChunkIO) PRead(offset int64, p []byte) error {
 		if inframeOffset < 0 {
 			panic("ASSERT: inframeOffset must be non-negative here")
 		}
+		// fmt.Printf("Decoded content frame. %+v\n", f)
 
 		n := len(remp)
 		valid := len(f.P) - inframeOffset // valid payload after offset
-		if len(remp) > valid {
+		// fmt.Printf("n: %d. valid: %d\n", n, valid)
+		if n > valid {
 			if f.IsLastFrame {
-				return fmt.Errorf("Attempted to read beyond written size: %d. inframeOffset: %d, framePayloadLen: %d", offset, inframeOffset, len(f.P))
+				return fmt.Errorf("Attempted to read beyond written size: %d. inframeOffset: %d, framePayloadLen: %d", remo, inframeOffset, len(f.P))
 			}
 
 			n = valid
 		}
 
 		copy(remp[:n], f.P[inframeOffset:])
-		fmt.Printf("read %d bytes for off %d len %d\n", n, offset, len(remp))
+		fmt.Printf("read %d bytes for off %d len %d\n", n, remo, len(remp))
 
 		remo += n
 		remp = remp[n:]
@@ -637,6 +647,7 @@ func (ch *ChunkIO) Flush() error {
 		if err := ch.bh.PWrite(0, bhdr); err != nil {
 			return fmt.Errorf("Header write failed: %v", err)
 		}
+		log.Printf("Wrote chunk header: %+v", ch.header)
 		ch.needsHeaderUpdate = false
 	}
 	return nil

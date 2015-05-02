@@ -2,6 +2,7 @@ package otaru
 
 import (
 	"compress/zlib"
+	"io"
 	"log"
 )
 
@@ -32,6 +33,9 @@ func (idb *INodeDB) SaveToBlobStore(bs RandomAccessBlobStore, c Cipher) error {
 	if err := cio.Close(); err != nil {
 		return err
 	}
+	if err := raw.Close(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -43,7 +47,8 @@ func LoadINodeDBFromBlobStore(bs RandomAccessBlobStore, c Cipher) (*INodeDB, err
 	}
 
 	cio := NewChunkIO(raw, c)
-	zr, err := zlib.NewReader(&OffsetReader{cio, 0})
+	log.Printf("serialized blob size: %d", cio.Size())
+	zr, err := zlib.NewReader(&io.LimitedReader{&OffsetReader{cio, 0}, cio.Size()})
 	if err != nil {
 		return nil, err
 	}
@@ -56,6 +61,9 @@ func LoadINodeDBFromBlobStore(bs RandomAccessBlobStore, c Cipher) (*INodeDB, err
 		return nil, err
 	}
 	if err := cio.Close(); err != nil {
+		return nil, err
+	}
+	if err := raw.Close(); err != nil {
 		return nil, err
 	}
 

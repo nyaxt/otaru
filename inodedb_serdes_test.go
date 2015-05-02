@@ -36,12 +36,14 @@ func TestINodeDB_SaveLoadBlobStore_Empty(t *testing.T) {
 		idb := NewINodeDBEmpty()
 		if err := idb.SaveToBlobStore(bs, TestCipher()); err != nil {
 			t.Errorf("Failed save: %v", err)
+			return
 		}
 	}
 	{
 		idb, err := LoadINodeDBFromBlobStore(bs, TestCipher())
 		if err != nil {
 			t.Errorf("Failed load: %v", err)
+			return
 		}
 		NewFileNode(idb, "/piyo.txt")
 	}
