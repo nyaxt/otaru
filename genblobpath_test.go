@@ -1,6 +1,9 @@
-package otaru
+package otaru_test
 
 import (
+	. "github.com/nyaxt/otaru"
+	. "github.com/nyaxt/otaru/testutils"
+
 	"testing"
 )
 

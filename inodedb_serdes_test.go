@@ -2,6 +2,7 @@ package otaru_test
 
 import (
 	. "github.com/nyaxt/otaru"
+	. "github.com/nyaxt/otaru/testutils"
 
 	"bytes"
 	"reflect"
@@ -26,5 +27,22 @@ func TestINodeDB_SerializeSnapshot(t *testing.T) {
 
 	if !reflect.DeepEqual(idb, idb2) {
 		t.Errorf("serdes mismatch!")
+	}
+}
+
+func TestINodeDB_SaveLoadBlobStore_Empty(t *testing.T) {
+	bs := TestFileBlobStore()
+	{
+		idb := NewINodeDBEmpty()
+		if err := idb.SaveToBlobStore(bs, TestCipher()); err != nil {
+			t.Errorf("Failed save: %v", err)
+		}
+	}
+	{
+		idb, err := LoadINodeDBFromBlobStore(bs, TestCipher())
+		if err != nil {
+			t.Errorf("Failed load: %v", err)
+		}
+		NewFileNode(idb, "/piyo.txt")
 	}
 }

@@ -1,14 +1,17 @@
-package otaru
+package otaru_test
 
 import (
+	. "github.com/nyaxt/otaru"
+	. "github.com/nyaxt/otaru/testutils"
+
 	"bytes"
 	"os"
 	"testing"
 )
 
 func TestFileWriteRead(t *testing.T) {
-	bs := testFileBlobStore()
-	fs := NewFileSystemEmpty(bs, testCipher())
+	bs := TestFileBlobStore()
+	fs := NewFileSystemEmpty(bs, TestCipher())
 	h, err := fs.OpenFileFullPath("/hello.txt", os.O_CREATE, 0666)
 	if err != nil {
 		t.Errorf("CreateFile failed: %v", err)

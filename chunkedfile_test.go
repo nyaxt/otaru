@@ -1,30 +1,19 @@
-package otaru
+package otaru_test
 
 import (
+	. "github.com/nyaxt/otaru"
+	. "github.com/nyaxt/otaru/testutils"
+
 	"bytes"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"reflect"
 	"testing"
 )
 
-func testFileBlobStore() *FileBlobStore {
-	tempdir, err := ioutil.TempDir("", "otarutest")
-	if err != nil {
-		log.Fatalf("failed to create tmpdir: %v", err)
-	}
-	fbs, err := NewFileBlobStore(tempdir, O_RDWR)
-	if err != nil {
-		log.Fatalf("failed to create blobstore: %v", err)
-	}
-	return fbs
-}
-
 func TestChunkedFileIO_FileBlobStore(t *testing.T) {
-	fn := NewFileNode(NewINodeDBEmpty(), "hoge/fuga.txt")
-	fbs := testFileBlobStore()
-	cfio := NewChunkedFileIO(fbs, fn, testCipher())
+	fn := NewFileNode(NewINodeDBEmpty(), "/hoge/fuga.txt")
+	fbs := TestFileBlobStore()
+	cfio := NewChunkedFileIO(fbs, fn, TestCipher())
 
 	if err := cfio.PWrite(0, HelloWorld); err != nil {
 		t.Errorf("PWrite failed: %v", err)
@@ -45,9 +34,9 @@ func TestChunkedFileIO_FileBlobStore(t *testing.T) {
 }
 
 func TestChunkedFileIO_SingleChunk(t *testing.T) {
-	fn := NewFileNode(NewINodeDBEmpty(), "piyo.txt")
+	fn := NewFileNode(NewINodeDBEmpty(), "/piyo.txt")
 	bs := NewMockBlobStore()
-	cfio := NewChunkedFileIO(bs, fn, testCipher())
+	cfio := NewChunkedFileIO(bs, fn, TestCipher())
 
 	// Disable Chunk framing for testing
 	cfio.OverrideNewChunkIOForTesting(func(bh BlobHandle, c Cipher) BlobHandle { return bh })
@@ -78,9 +67,9 @@ func TestChunkedFileIO_SingleChunk(t *testing.T) {
 }
 
 func TestChunkedFileIO_MultiChunk(t *testing.T) {
-	fn := NewFileNode(NewINodeDBEmpty(), "piyo.txt")
+	fn := NewFileNode(NewINodeDBEmpty(), "/piyo.txt")
 	bs := NewMockBlobStore()
-	cfio := NewChunkedFileIO(bs, fn, testCipher())
+	cfio := NewChunkedFileIO(bs, fn, TestCipher())
 
 	// Disable Chunk framing for testing
 	cfio.OverrideNewChunkIOForTesting(func(bh BlobHandle, c Cipher) BlobHandle { return bh })
