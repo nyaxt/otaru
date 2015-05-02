@@ -1,7 +1,7 @@
 package otaru
 
 import (
-	"io"
+	"encoding/gob"
 )
 
 type INodeType int
@@ -16,7 +16,7 @@ type INode interface {
 	ID() INodeID
 	Type() INodeType
 
-	SerializeSnapshot(w io.Writer) error
+	SerializeSnapshot(enc *gob.Encoder) error
 }
 
 type INodeCommon struct {

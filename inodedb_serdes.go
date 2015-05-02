@@ -2,10 +2,9 @@ package otaru
 
 import (
 	"bytes"
+	"encoding/gob"
 	"fmt"
 	"io"
-
-	"encoding/gob"
 )
 
 const (
@@ -49,9 +48,7 @@ func deserializeCommon(dec *gob.Decoder, t INodeType, c *INodeCommon) error {
 	return nil
 }
 
-func (fn *FileNode) SerializeSnapshot(w io.Writer) error {
-	enc := gob.NewEncoder(w)
-
+func (fn *FileNode) SerializeSnapshot(enc *gob.Encoder) error {
 	if err := serializeCommon(enc, fn.INodeCommon); err != nil {
 		return err
 	}
@@ -84,9 +81,7 @@ func deserializeFileNodeSnapshot(dec *gob.Decoder) (*FileNode, error) {
 	return fn, nil
 }
 
-func (dn *DirNode) SerializeSnapshot(w io.Writer) error {
-	enc := gob.NewEncoder(w)
-
+func (dn *DirNode) SerializeSnapshot(enc *gob.Encoder) error {
 	if err := serializeCommon(enc, dn.INodeCommon); err != nil {
 		return err
 	}
@@ -132,7 +127,7 @@ func (idb *INodeDB) SerializeSnapshot(w io.Writer) error {
 	}
 
 	for _, n := range idb.nodes {
-		if err := n.SerializeSnapshot(w); err != nil {
+		if err := n.SerializeSnapshot(enc); err != nil {
 			return err
 		}
 	}
@@ -140,9 +135,7 @@ func (idb *INodeDB) SerializeSnapshot(w io.Writer) error {
 	return nil
 }
 
-func DeserializeINodeSnapshot(r io.Reader) (INode, error) {
-	dec := gob.NewDecoder(r)
-
+func deserializeINodeSnapshot(dec *gob.Decoder) (INode, error) {
 	var t INodeType
 	if err := dec.Decode(&t); err != nil {
 		return nil, fmt.Errorf("Failed to decode INodeType: %v", err)
@@ -193,7 +186,7 @@ func DeserializeINodeDBSnapshot(r io.Reader) (*INodeDB, error) {
 
 	nodes := make(map[INodeID]INode)
 	for i := 0; i < count; i++ {
-		n, err := DeserializeINodeSnapshot(r)
+		n, err := deserializeINodeSnapshot(dec)
 		if err != nil {
 			return nil, err
 		}
