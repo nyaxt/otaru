@@ -14,7 +14,7 @@ func testFileBlobStore() *FileBlobStore {
 	if err != nil {
 		log.Fatalf("failed to create tmpdir: %v", err)
 	}
-	fbs, err := NewFileBlobStore(tempdir)
+	fbs, err := NewFileBlobStore(tempdir, O_RDWR)
 	if err != nil {
 		log.Fatalf("failed to create blobstore: %v", err)
 	}

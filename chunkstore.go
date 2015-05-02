@@ -284,8 +284,8 @@ func (ch *ChunkIO) Size() int64 {
 	return int64(ch.PayloadLen())
 }
 
-func (ch *ChunkIO) Truncate(size int64) {
-	panic("FIXME: implement!")
+func (ch *ChunkIO) Truncate(size int64) error {
+	return fmt.Errorf("FIXME: implement ChunkIO.Truncate!")
 }
 
 func (ch *ChunkIO) PayloadLen() int {
@@ -555,7 +555,6 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 			if err := ch.writeContentFrame(i, f); err != nil {
 				return fmt.Errorf("failed to write back the encrypted frame: %v", err)
 			}
-
 		}
 	}
 

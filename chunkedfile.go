@@ -8,6 +8,11 @@ const (
 	ChunkSplitSize = 256 * 1024 * 1024 // 256MB
 )
 
+const (
+	NewChunk      = true
+	ExistingChunk = false
+)
+
 type ChunkedFileIO struct {
 	bs RandomAccessBlobStore
 	fn *FileNode
@@ -44,10 +49,18 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		return nil
 	}
 
-	writeToChunk := func(c *FileChunk, maxChunkLen int64) error {
-		bh, err := cfio.bs.Open(c.BlobPath)
+	writeToChunk := func(c *FileChunk, isNewChunk bool, maxChunkLen int64) error {
+		if !IsReadWriteAllowed(cfio.bs.Flags()) {
+			return EPERM
+		}
+
+		flags := O_RDWR
+		if isNewChunk {
+			flags |= O_CREATE | O_EXCL
+		}
+		bh, err := cfio.bs.Open(c.BlobPath, flags)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed to open path \"%s\" for writing (isNewChunk: %t): %v", c.BlobPath, isNewChunk, err)
 		}
 		cio := cfio.newChunkIO(bh, cfio.c)
 
@@ -102,7 +115,7 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 			copy(fn.Chunks[i+1:], fn.Chunks[i:])
 			fn.Chunks[i] = newc
 
-			if err := writeToChunk(&newc, maxlen); err != nil {
+			if err := writeToChunk(&newc, NewChunk, maxlen); err != nil {
 				return err
 			}
 			if len(remp) == 0 {
@@ -120,7 +133,7 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 				maxlen = next.Left() - c.Left()
 			}
 		}
-		if err := writeToChunk(c, maxlen); err != nil {
+		if err := writeToChunk(c, ExistingChunk, maxlen); err != nil {
 			return err
 		}
 		if len(remp) == 0 {
@@ -146,7 +159,7 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		if err != nil {
 			return err
 		}
-		if err := writeToChunk(&newc, maxlen); err != nil {
+		if err := writeToChunk(&newc, NewChunk, maxlen); err != nil {
 			return err
 		}
 
@@ -189,9 +202,13 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 			}
 		}
 
-		bh, err := cfio.bs.Open(c.BlobPath)
+		if !IsReadAllowed(cfio.bs.Flags()) {
+			return EPERM
+		}
+
+		bh, err := cfio.bs.Open(c.BlobPath, O_RDONLY)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed to open path \"%s\" for reading: %v", c.BlobPath, err)
 		}
 		cio := cfio.newChunkIO(bh, cfio.c)
 
@@ -226,17 +243,42 @@ func (cfio *ChunkedFileIO) Close() error {
 	return nil
 }
 
-func (cfio *ChunkedFileIO) Truncate(size int64) {
+func (cfio *ChunkedFileIO) Truncate(size int64) error {
+	if !IsReadWriteAllowed(cfio.bs.Flags()) {
+		return EPERM
+	}
+
 	chunks := cfio.fn.Chunks
 
 	for i := len(chunks) - 1; i >= 0; i-- {
-		if chunks[i].Left() >= size {
+		c := &chunks[i]
+
+		if c.Left() >= size {
 			// drop the chunk
 			continue
 		}
 
+		if c.Right() > size {
+			// trim the chunk
+			chunksize := size - c.Left()
+
+			bh, err := cfio.bs.Open(c.BlobPath, O_RDWR)
+			if err != nil {
+				return err
+			}
+			cio := cfio.newChunkIO(bh, cfio.c)
+			if err := cio.Truncate(chunksize); err != nil {
+				return err
+			}
+			if err := cio.Close(); err != nil {
+				return err
+			}
+			c.Length = int64(cio.Size())
+		}
+
 		cfio.fn.Chunks = chunks[:i+1]
-		return
+		return nil
 	}
 	cfio.fn.Chunks = []FileChunk{}
+	return nil
 }

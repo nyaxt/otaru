@@ -44,8 +44,9 @@ func (bh *MockBlobHandle) Size() int64 {
 	return bh.PayloadLen
 }
 
-func (bh *MockBlobHandle) Truncate(size int64) {
+func (bh *MockBlobHandle) Truncate(size int64) error {
 	bh.PayloadLen = size
+	return nil
 }
 
 func (bh *MockBlobHandle) Close() error {
@@ -60,11 +61,15 @@ func NewMockBlobStore() *MockBlobStore {
 	return &MockBlobStore{make(map[string]*MockBlobHandle)}
 }
 
-func (bs *MockBlobStore) Open(blobpath string) (BlobHandle, error) {
+func (bs *MockBlobStore) Open(blobpath string, flags int) (BlobHandle, error) {
 	bh := bs.Paths[blobpath]
 	if bh == nil {
 		bh = NewMockBlobHandle()
 		bs.Paths[blobpath] = bh
 	}
 	return bh, nil
+}
+
+func (bs *MockBlobStore) Flags() int {
+	return O_RDWR
 }

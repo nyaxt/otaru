@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	EPERM   = syscall.Errno(syscall.EPERM)
 	ENOENT  = syscall.Errno(syscall.ENOENT)
 	ENOTDIR = syscall.Errno(syscall.ENOTDIR)
 	EEXIST  = syscall.Errno(syscall.EEXIST)
@@ -157,26 +158,6 @@ func NewFileSystemEmpty(bs RandomAccessBlobStore, c Cipher) *FileSystem {
 	}
 
 	return newFileSystemCommon(idb, bs, c)
-}
-
-const (
-	INodeDBSnapshotBlobpath = "INODEDB_SNAPSHOT"
-)
-
-func LoadINodeDBFromBlobStore(bs RandomAccessBlobStore, c Cipher) (*INodeDB, error) {
-	raw, err := bs.Open(INodeDBSnapshotBlobpath)
-	if err != nil {
-		return nil, err
-	}
-
-	cio := NewChunkIO(raw, c)
-	r := &OffsetReader{cio, 0}
-	idb, err := DeserializeINodeDBSnapshot(r)
-	if err != nil {
-		return nil, err
-	}
-
-	return idb, nil
 }
 
 func NewFileSystemFromSnapshot(bs RandomAccessBlobStore, c Cipher) (*FileSystem, error) {
@@ -363,5 +344,13 @@ func (h *FileHandle) Truncate(newsize int64) error {
 		h.cfio.Truncate(newsize)
 		h.n.Size = newsize
 	}
+	return nil
+}
+
+func (fs *FileSystem) Sync() error {
+	if err := fs.INodeDB.SaveToBlobStore(fs.bs, fs.c); err != nil {
+		return fmt.Errorf("Failed to save INodeDB: %v", err)
+	}
+
 	return nil
 }

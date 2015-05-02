@@ -34,7 +34,7 @@ func put(fromurl, tourl string) error {
 	// FIXME: handle unsized file / non-file (e.g. pipe)
 	fromsize := fromstat.Size()
 
-	bs, err := otaru.NewFileBlobStore(".")
+	bs, err := otaru.NewFileBlobStore(".", otaru.O_RDWR)
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func put(fromurl, tourl string) error {
 }
 
 func get(fromurl string) error {
-	bs, err := otaru.NewFileBlobStore(".")
+	bs, err := otaru.NewFileBlobStore(".", otaru.O_RDWR)
 	if err != nil {
 		return err
 	}

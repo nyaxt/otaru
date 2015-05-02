@@ -22,9 +22,9 @@ var Usage = func() {
 }
 
 var (
-	Key = []byte("0123456789abcdef")
+	Key      = []byte("0123456789abcdef")
+	flagMkfs = flag.Bool("mkfs", false, "Reset metadata if no existing metadata exists")
 )
-var Cipher otaru.Cipher
 
 type FileNode struct {
 	fs *otaru.FileSystem
@@ -209,20 +209,25 @@ func main() {
 		log.Printf("fusedbg: %v", msg)
 	}
 
-	var err error
-	Cipher, err = otaru.NewCipher(Key)
+	cipher, err := otaru.NewCipher(Key)
 	if err != nil {
 		log.Fatalf("Failed to init Cipher: %v", err)
 	}
 
-	bs, err := otaru.NewFileBlobStore("/tmp/otaru")
+	bs, err := otaru.NewFileBlobStore("/tmp/otaru", otaru.O_RDWR)
 	if err != nil {
 		log.Fatalf("NewFileBlobStore failed: %v", err)
 		return
 	}
-	ofs := otaru.NewFileSystemEmpty(bs, Cipher)
+	ofs, err := otaru.NewFileSystemFromSnapshot(bs, cipher)
+	if err != nil {
+		if err == otaru.ENOENT && *flagMkfs {
+			ofs = otaru.NewFileSystemEmpty(bs, cipher)
+		} else {
+			log.Fatalf("NewFileSystemFromSnapshot failed: %v", err)
+		}
+	}
 
-	log.Printf("arg: %v", flag.Args())
 	if flag.NArg() != 1 {
 		Usage()
 		os.Exit(2)
@@ -249,5 +254,9 @@ func main() {
 	<-c.Ready
 	if err := c.MountError; err != nil {
 		log.Fatal(err)
+	}
+
+	if err := ofs.Sync(); err != nil {
+		log.Fatalf("Failed to Sync fs: %v", err)
 	}
 }

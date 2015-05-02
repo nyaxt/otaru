@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"syscall"
 )
 
 type fileBlobHandle struct {
@@ -38,10 +39,11 @@ func (h fileBlobHandle) Size() int64 {
 	return fi.Size()
 }
 
-func (h fileBlobHandle) Truncate(size int64) {
+func (h fileBlobHandle) Truncate(size int64) error {
 	if err := h.fp.Truncate(size); err != nil {
-		log.Fatalf("os.File.Truncate failed: %v", err)
+		return err
 	}
+	return nil
 }
 
 func (h fileBlobHandle) Close() error {
@@ -49,10 +51,12 @@ func (h fileBlobHandle) Close() error {
 }
 
 type FileBlobStore struct {
-	Base string
+	base  string
+	flags int
+	fmask int
 }
 
-func NewFileBlobStore(base string) (*FileBlobStore, error) {
+func NewFileBlobStore(base string, flags int) (*FileBlobStore, error) {
 	base = path.Clean(base)
 
 	fi, err := os.Stat(base)
@@ -63,24 +67,47 @@ func NewFileBlobStore(base string) (*FileBlobStore, error) {
 		return nil, fmt.Errorf("Specified base \"%s\" is not a directory")
 	}
 
-	return &FileBlobStore{base}, nil
+	fmask := O_RDONLY
+	if IsWriteAllowed(flags) {
+		fmask = O_RDONLY | O_WRONLY | O_RDWR | O_CREATE | O_EXCL
+	}
+
+	return &FileBlobStore{base, flags, fmask}, nil
 }
 
-func (f *FileBlobStore) Open(blobpath string) (BlobHandle, error) {
-	realpath := path.Join(f.Base, blobpath)
-	fp, err := os.OpenFile(realpath, os.O_RDWR|os.O_CREATE, 0644)
+func (f *FileBlobStore) Open(blobpath string, flags int) (BlobHandle, error) {
+	realpath := path.Join(f.base, blobpath)
+
+	fp, err := os.OpenFile(realpath, flags&f.fmask, 0644)
 	if err != nil {
+		if pe, ok := err.(*os.PathError); ok {
+			if pe.Err == syscall.ENOENT {
+				return nil, ENOENT
+			}
+		}
 		return nil, err
 	}
 	return &fileBlobHandle{fp}, nil
 }
 
+func (f *FileBlobStore) Flags() int {
+	return f.flags
+}
+
 func (f *FileBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
-	realpath := path.Join(f.Base, blobpath)
+	if !IsWriteAllowed(f.flags) {
+		return nil, EPERM
+	}
+
+	realpath := path.Join(f.base, blobpath)
 	return os.Create(realpath)
 }
 
 func (f *FileBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
-	realpath := path.Join(f.Base, blobpath)
+	if !IsReadAllowed(f.flags) {
+		return nil, EPERM
+	}
+
+	realpath := path.Join(f.base, blobpath)
 	return os.Open(realpath)
 }

@@ -14,7 +14,7 @@ func TestGenerateNewBlobPath_Unique(t *testing.T) {
 			t.Errorf("Failed to GenerateNewBlobPath on %d iter: %v", i, err)
 		}
 
-		bh, err := bs.Open(bpath)
+		bh, err := bs.Open(bpath, O_RDONLY)
 		if err != nil {
 			t.Errorf("open bpath \"%s\" failed: %v", bpath, err)
 		}
