@@ -235,6 +235,17 @@ func (dh *DirHandle) Rename(oldname string, tgtdh *DirHandle, newname string) er
 	return nil
 }
 
+func (dh *DirHandle) Remove(name string) error {
+	es := dh.n.Entries
+
+	if _, ok := es[name]; !ok {
+		return ENOENT
+	}
+
+	delete(es, name)
+	return nil
+}
+
 func (dh *DirHandle) CreateFile(name string) (INodeID, error) {
 	_, ok := dh.n.Entries[name]
 	if ok {

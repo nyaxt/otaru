@@ -98,3 +98,11 @@ func (d DirNode) Rename(ctx context.Context, req *bfuse.RenameRequest, newDir bf
 
 	return nil
 }
+
+func (d DirNode) Remove(ctx context.Context, req *bfuse.RemoveRequest) error {
+	if err := d.dh.Remove(req.Name); err != nil {
+		return err
+	}
+
+	return nil
+}
