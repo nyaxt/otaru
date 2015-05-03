@@ -1,6 +1,7 @@
 package fuse
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/nyaxt/otaru"
@@ -21,7 +22,7 @@ func (fs FileSystem) Root() (bfs.Node, error) {
 	return DirNode{rootdir}, nil
 }
 
-func ServeFUSE(mountpoint string, ofs *otaru.FileSystem) error {
+func ServeFUSE(mountpoint string, ofs *otaru.FileSystem, ready chan<- bool) error {
 	c, err := bfuse.Mount(
 		mountpoint,
 		bfuse.FSName("otaru"),
@@ -33,19 +34,32 @@ func ServeFUSE(mountpoint string, ofs *otaru.FileSystem) error {
 	}
 	defer c.Close()
 
-	err = bfs.Serve(c, FileSystem{ofs})
-	if err != nil {
-		log.Fatal(err)
-	}
+	serveC := make(chan error)
+	go func() {
+		if err := bfs.Serve(c, FileSystem{ofs}); err != nil {
+			serveC <- err
+			close(serveC)
+			return
+		}
+		close(serveC)
+	}()
 
 	// check if the mount process has an error to report
 	<-c.Ready
 	if err := c.MountError; err != nil {
-		log.Fatal(err)
+		return err
 	}
 
+	log.Printf("Mountpoint \"%s\" should be ready now!", mountpoint)
+	if ready != nil {
+		close(ready)
+	}
+
+	if err := <-serveC; err != nil {
+		return nil
+	}
 	if err := ofs.Sync(); err != nil {
-		log.Fatalf("Failed to Sync fs: %v", err)
+		return fmt.Errorf("Failed to Sync fs: %v", err)
 	}
 	return nil
 }

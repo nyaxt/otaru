@@ -56,7 +56,7 @@ func main() {
 	}
 	mountpoint := flag.Arg(0)
 
-	if err := fuse.ServeFUSE(mountpoint, ofs); err != nil {
+	if err := fuse.ServeFUSE(mountpoint, ofs, nil); err != nil {
 		log.Fatalf("ServeFUSE failed: %v", err)
 	}
 }
