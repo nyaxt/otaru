@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"log"
+	"os"
 	"path"
 	"testing"
 
@@ -55,10 +56,45 @@ func TestServeFUSE_WriteReadFile(t *testing.T) {
 		if err := ioutil.WriteFile(path.Join(mountpoint, "hello.txt"), HelloWorld, 0644); err != nil {
 			t.Errorf("failed to write file: %v", err)
 		}
+
+		b, err := ioutil.ReadFile(path.Join(mountpoint, "hello.txt"))
+		if err != nil {
+			t.Errorf("Failed to read file: %v", err)
+		}
+		if !bytes.Equal(HelloWorld, b) {
+			t.Errorf("Content mismatch!: %v", err)
+		}
 	})
 
+	// Check that it persists
 	fusetestCommon(t, fs, func(mountpoint string) {
 		b, err := ioutil.ReadFile(path.Join(mountpoint, "hello.txt"))
+		if err != nil {
+			t.Errorf("Failed to read file: %v", err)
+		}
+		if !bytes.Equal(HelloWorld, b) {
+			t.Errorf("Content mismatch!: %v", err)
+		}
+	})
+}
+
+func TestServeFUSE_RenameFile(t *testing.T) {
+	bs := TestFileBlobStore()
+	fs := otaru.NewFileSystemEmpty(bs, TestCipher())
+
+	fusetestCommon(t, fs, func(mountpoint string) {
+		before := path.Join(mountpoint, "aaa.txt")
+		after := path.Join(mountpoint, "bbb.txt")
+
+		if err := ioutil.WriteFile(before, HelloWorld, 0644); err != nil {
+			t.Errorf("failed to write file: %v", err)
+		}
+
+		if err := os.Rename(before, after); err != nil {
+			t.Errorf("failed to rename file: %v", err)
+		}
+
+		b, err := ioutil.ReadFile(after)
 		if err != nil {
 			t.Errorf("Failed to read file: %v", err)
 		}

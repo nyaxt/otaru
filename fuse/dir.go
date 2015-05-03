@@ -1,6 +1,7 @@
 package fuse
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -83,4 +84,17 @@ func (d DirNode) ReadDirAll(ctx context.Context) ([]bfuse.Dirent, error) {
 		})
 	}
 	return fentries, nil
+}
+
+func (d DirNode) Rename(ctx context.Context, req *bfuse.RenameRequest, newDir bfs.Node) error {
+	newdn, ok := newDir.(DirNode)
+	if !ok {
+		return fmt.Errorf("Node for provided target dir is not DirNode!")
+	}
+
+	if err := d.dh.Rename(req.OldName, newdn.dh, req.NewName); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -218,6 +218,23 @@ func (dh *DirHandle) Path() string {
 	return ""
 }
 
+func (dh *DirHandle) Rename(oldname string, tgtdh *DirHandle, newname string) error {
+	es := dh.n.Entries
+
+	id, ok := es[oldname]
+	if !ok {
+		return ENOENT
+	}
+
+	if tgtdh != dh {
+		return fmt.Errorf("FIXME: implement inter directory move")
+	}
+
+	es[newname] = id
+	delete(es, oldname)
+	return nil
+}
+
 func (dh *DirHandle) CreateFile(name string) (INodeID, error) {
 	_, ok := dh.n.Entries[name]
 	if ok {
