@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"syscall"
 	"testing"
 
 	bfuse "bazil.org/fuse"
@@ -100,6 +101,36 @@ func TestServeFUSE_RenameFile(t *testing.T) {
 		}
 		if !bytes.Equal(HelloWorld, b) {
 			t.Errorf("Content mismatch!: %v", err)
+		}
+	})
+}
+
+func TestServeFUSE_RemoveFile(t *testing.T) {
+	bs := TestFileBlobStore()
+	fs := otaru.NewFileSystemEmpty(bs, TestCipher())
+
+	fusetestCommon(t, fs, func(mountpoint string) {
+		filepath := path.Join(mountpoint, "hello.txt")
+
+		if err := ioutil.WriteFile(filepath, HelloWorld, 0644); err != nil {
+			t.Errorf("failed to write file: %v", err)
+		}
+
+		if err := os.Remove(filepath); err != nil {
+			t.Errorf("Failed to remove file: %v", err)
+		}
+
+		_, err := ioutil.ReadFile(filepath)
+		if pe, ok := err.(*os.PathError); !ok || pe.Err != syscall.ENOENT {
+			t.Errorf("File still exists: %v", err)
+		}
+	})
+
+	fusetestCommon(t, fs, func(mountpoint string) {
+		filepath := path.Join(mountpoint, "hello.txt")
+		_, err := ioutil.ReadFile(filepath)
+		if pe, ok := err.(*os.PathError); !ok || pe.Err != syscall.ENOENT {
+			t.Errorf("File still exists: %v", err)
 		}
 	})
 }
