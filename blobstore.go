@@ -86,6 +86,5 @@ func IsReadWriteAllowed(flags int) bool {
 
 type RandomAccessBlobStore interface {
 	Open(blobpath string, flags int) (BlobHandle, error)
-
 	Flags() int
 }
