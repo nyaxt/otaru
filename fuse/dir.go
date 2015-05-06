@@ -106,3 +106,17 @@ func (d DirNode) Remove(ctx context.Context, req *bfuse.RemoveRequest) error {
 
 	return nil
 }
+
+func (d DirNode) Mkdir(ctx context.Context, req *bfuse.MkdirRequest) (bfs.Node, error) {
+	id, err := d.dh.CreateDir(req.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	dh, err := d.dh.FileSystem().OpenDir(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return DirNode{dh}, nil
+}

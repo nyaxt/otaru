@@ -246,18 +246,30 @@ func (dh *DirHandle) Remove(name string) error {
 	return nil
 }
 
-func (dh *DirHandle) CreateFile(name string) (INodeID, error) {
+func (dh *DirHandle) createNode(name string, newNode func(db *INodeDB, origpath string) INodeID) (INodeID, error) {
 	_, ok := dh.n.Entries[name]
 	if ok {
 		return 0, EEXIST
 	}
 
 	fullorigpath := fmt.Sprintf("%s/%s", dh.Path(), name)
-	n := NewFileNode(dh.fs.INodeDB, fullorigpath)
-
-	id := n.ID()
+	id := newNode(dh.fs.INodeDB, fullorigpath)
 	dh.n.Entries[name] = id
 	return id, nil
+}
+
+func (dh *DirHandle) CreateFile(name string) (INodeID, error) {
+	return dh.createNode(name, func(db *INodeDB, origpath string) INodeID {
+		n := NewFileNode(dh.fs.INodeDB, origpath)
+		return n.ID()
+	})
+}
+
+func (dh *DirHandle) CreateDir(name string) (INodeID, error) {
+	return dh.createNode(name, func(db *INodeDB, origpath string) INodeID {
+		n := NewDirNode(dh.fs.INodeDB, origpath)
+		return n.ID()
+	})
 }
 
 // FIXME: Multiple FileHandle may exist for same file at once. Support it!
