@@ -162,3 +162,39 @@ func TestServeFUSE_Mkdir(t *testing.T) {
 		}
 	})
 }
+
+func TestServeFUSE_MoveFile(t *testing.T) {
+	bs := TestFileBlobStore()
+	fs := otaru.NewFileSystemEmpty(bs, TestCipher())
+
+	fusetestCommon(t, fs, func(mountpoint string) {
+		dir1 := path.Join(mountpoint, "dir1")
+		if err := os.Mkdir(dir1, 0755); err != nil {
+			t.Errorf("Failed to mkdir: %v", err)
+		}
+
+		dir2 := path.Join(mountpoint, "dir2")
+		if err := os.Mkdir(dir2, 0755); err != nil {
+			t.Errorf("Failed to mkdir: %v", err)
+		}
+
+		before := path.Join(dir1, "aaa.txt")
+		after := path.Join(dir2, "bbb.txt")
+
+		if err := ioutil.WriteFile(before, HelloWorld, 0644); err != nil {
+			t.Errorf("failed to write file: %v", err)
+		}
+
+		if err := os.Rename(before, after); err != nil {
+			t.Errorf("failed to rename file: %v", err)
+		}
+
+		b, err := ioutil.ReadFile(after)
+		if err != nil {
+			t.Errorf("Failed to read file: %v", err)
+		}
+		if !bytes.Equal(HelloWorld, b) {
+			t.Errorf("Content mismatch!: %v", err)
+		}
+	})
+}
