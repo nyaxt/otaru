@@ -220,17 +220,18 @@ func (dh *DirHandle) Path() string {
 
 func (dh *DirHandle) Rename(oldname string, tgtdh *DirHandle, newname string) error {
 	es := dh.n.Entries
-
 	id, ok := es[oldname]
 	if !ok {
 		return ENOENT
 	}
 
-	if tgtdh != dh {
-		return fmt.Errorf("FIXME: implement inter directory move")
+	es2 := tgtdh.n.Entries
+	_, ok = es2[newname]
+	if ok {
+		return EEXIST
 	}
 
-	es[newname] = id
+	es2[newname] = id
 	delete(es, oldname)
 	return nil
 }
