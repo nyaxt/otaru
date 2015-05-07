@@ -20,7 +20,7 @@ var (
 func main() {
 	flag.Parse()
 
-	_, err := gcs.GetGCloudClient(*credentialsFilePath, *tokenCacheFilePath)
+	_, err := gcs.GetGCloudClientSource(*credentialsFilePath, *tokenCacheFilePath, true)
 	if err != nil {
 		log.Fatalf("Failed: %v", err)
 	}
