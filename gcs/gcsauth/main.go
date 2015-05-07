@@ -14,7 +14,7 @@ var (
 
 	projectName         = flag.String("project-name", "", "Gcloud project name")
 	credentialsFilePath = flag.String("credentials", path.Join(homedir, ".otaru", "credentials.json"), "Credentials json path")
-	tokenCacheFilePath  = flag.String("token-cache", path.Join(homedir, ".otaru", "credentials.json"), "Token cache json path")
+	tokenCacheFilePath  = flag.String("token-cache", path.Join(homedir, ".otaru", "tokencache.json"), "Token cache json path")
 )
 
 func main() {
@@ -24,4 +24,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed: %v", err)
 	}
+	log.Printf("credentials valid!")
 }
