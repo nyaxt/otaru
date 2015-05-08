@@ -43,8 +43,12 @@ func NewCipher(key []byte) (Cipher, error) {
 	return Cipher{gcm: gcm}, nil
 }
 
+func (c Cipher) FrameOverhead() int {
+	return c.gcm.NonceSize() + c.gcm.Overhead()
+}
+
 func (c Cipher) EncryptedFrameSize(payloadLen int) int {
-	return c.gcm.NonceSize() + payloadLen + c.gcm.Overhead()
+	return payloadLen + c.FrameOverhead()
 }
 
 type frameEncryptor struct {

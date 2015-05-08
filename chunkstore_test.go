@@ -1,7 +1,7 @@
 package otaru_test
 
 import (
-	. "github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru"
 	. "github.com/nyaxt/otaru/testutils"
 
 	"bytes"
@@ -48,15 +48,9 @@ func Test_genTestData(t *testing.T) {
 
 func genFrameByChunkWriter(t *testing.T, p []byte) []byte {
 	buf := new(bytes.Buffer)
-	cw := NewChunkWriter(buf, TestCipher())
-
-	err := cw.WriteHeaderAndPrologue(
-		len(p),
-		&ChunkPrologue{OrigFilename: "testframe.dat", OrigOffset: 0},
-	)
+	cw, err := otaru.NewChunkWriter(buf, TestCipher(), otaru.ChunkHeader{PayloadLen: uint32(len(p))})
 	if err != nil {
-		t.Errorf("Failed to write chunk header: %v", err)
-		return nil
+		t.Errorf("Failed to create chunk writer: %v", err)
 	}
 
 	if _, err := cw.Write(p); err != nil {
@@ -78,7 +72,7 @@ func TestChunkIO_Read_HelloWorld(t *testing.T) {
 		return
 	}
 	testbh := &TestBlobHandle{b}
-	cio := NewChunkIO(testbh, TestCipher())
+	cio := otaru.NewChunkIO(testbh, TestCipher())
 
 	readtgt := make([]byte, len(HelloWorld))
 	if err := cio.PRead(0, readtgt); err != nil {
@@ -103,7 +97,7 @@ func TestChunkIO_Read_1MB(t *testing.T) {
 		return
 	}
 	testbh := &TestBlobHandle{b}
-	cio := NewChunkIO(testbh, TestCipher())
+	cio := otaru.NewChunkIO(testbh, TestCipher())
 
 	// Full read
 	readtgt := make([]byte, len(td))
@@ -139,7 +133,7 @@ func TestChunkIO_Write_UpdateHello(t *testing.T) {
 		return
 	}
 	testbh := &TestBlobHandle{b}
-	cio := NewChunkIO(testbh, TestCipher())
+	cio := otaru.NewChunkIO(testbh, TestCipher())
 
 	upd := []byte("testin write")
 	if err := cio.PWrite(0, upd); err != nil {
@@ -170,7 +164,7 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 		return
 	}
 	testbh := &TestBlobHandle{b}
-	cio := NewChunkIO(testbh, TestCipher())
+	cio := otaru.NewChunkIO(testbh, TestCipher())
 
 	// Full update
 	td2 := negateBits(td)
@@ -212,7 +206,7 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 
 func Test_ChunkIOWrite_NewHello_ChunkReaderRead(t *testing.T) {
 	testbh := &TestBlobHandle{}
-	cio := NewChunkIO(testbh, TestCipher())
+	cio := otaru.NewChunkIO(testbh, TestCipher())
 	if err := cio.PWrite(0, HelloWorld); err != nil {
 		t.Errorf("failed to PWrite to ChunkIO: %v", err)
 		return
@@ -231,13 +225,9 @@ func Test_ChunkIOWrite_NewHello_ChunkReaderRead(t *testing.T) {
 		return
 	}
 
-	cr := NewChunkReader(bytes.NewBuffer(testbh.Buf), TestCipher())
-	if err := cr.ReadHeader(); err != nil {
-		t.Errorf("failed to read header: %v", err)
-		return
-	}
-	if err := cr.ReadPrologue(); err != nil {
-		t.Errorf("failed to read prologue: %v", err)
+	cr, err := otaru.NewChunkReader(bytes.NewBuffer(testbh.Buf), TestCipher())
+	if err != nil {
+		t.Errorf("failed to create chunk reader: %v", err)
 		return
 	}
 	if cr.Length() != len(HelloWorld) {
@@ -266,7 +256,7 @@ func checkZero(t *testing.T, p []byte, off int, length int) {
 
 func Test_ChunkIOWrite_ZeroFillPadding(t *testing.T) {
 	testbh := &TestBlobHandle{}
-	cio := NewChunkIO(testbh, TestCipher())
+	cio := otaru.NewChunkIO(testbh, TestCipher())
 
 	// [ zero ][ hello ]
 	//    10      12
@@ -324,7 +314,7 @@ func Test_ChunkIOWrite_ZeroFillPadding(t *testing.T) {
 
 func Test_ChunkIOWrite_OverflowUpdate(t *testing.T) {
 	testbh := &TestBlobHandle{}
-	cio := NewChunkIO(testbh, TestCipher())
+	cio := otaru.NewChunkIO(testbh, TestCipher())
 	if err := cio.PWrite(0, HelloWorld); err != nil {
 		t.Errorf("failed to PWrite to ChunkIO: %v", err)
 		return
@@ -338,13 +328,9 @@ func Test_ChunkIOWrite_OverflowUpdate(t *testing.T) {
 		return
 	}
 
-	cr := NewChunkReader(bytes.NewBuffer(testbh.Buf), TestCipher())
-	if err := cr.ReadHeader(); err != nil {
-		t.Errorf("failed to read header: %v", err)
-		return
-	}
-	if err := cr.ReadPrologue(); err != nil {
-		t.Errorf("failed to read prologue: %v", err)
+	cr, err := otaru.NewChunkReader(bytes.NewBuffer(testbh.Buf), TestCipher())
+	if err != nil {
+		t.Errorf("failed to create chunk reader: %v", err)
 		return
 	}
 	exp := []byte("Hello, hogefugapiyo")

@@ -20,7 +20,7 @@ func (idb *INodeDB) SaveToBlobStore(bs RandomAccessBlobStore, c Cipher) error {
 		return err
 	}
 
-	cio := NewChunkIOWithMetadata(raw, c, ChunkPrologue{
+	cio := NewChunkIOWithMetadata(raw, c, ChunkHeader{
 		OrigFilename: "*INODEDB_SNAPSHOT*",
 		OrigOffset:   0,
 	})
