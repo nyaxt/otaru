@@ -146,9 +146,9 @@ func NewCachedBlobStore(backendbs BlobStore, cachebs RandomAccessBlobStore, flag
 				return nil, fmt.Errorf("Writable CachedBlobStore requested, but backendbs doesn't allow writes")
 			}
 		}
-		if !IsWriteAllowed(cachebs.Flags()) {
-			return nil, fmt.Errorf("Writable CachedBlobStore requested, but cachebs doesn't allow writes")
-		}
+	}
+	if !IsWriteAllowed(cachebs.Flags()) {
+		return nil, fmt.Errorf("CachedBlobStore requested, but cachebs doesn't allow writes")
 	}
 
 	return &CachedBlobStore{
@@ -163,7 +163,7 @@ func (cbs *CachedBlobStore) Open(blobpath string, flags int) (BlobHandle, error)
 		return nil, EPERM
 	}
 
-	cachebh, err := cbs.cachebs.Open(blobpath, flags)
+	cachebh, err := cbs.cachebs.Open(blobpath, O_RDWRCREATE)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open cache blob: %v", err)
 	}
