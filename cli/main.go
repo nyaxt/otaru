@@ -48,17 +48,17 @@ func put(fromurl, tourl string) error {
 		return err
 	}
 
-	cw := otaru.NewChunkWriter(w, c)
-	defer cw.Close()
-
-	// FIXME: split file into multiple chunks
-	cw.WriteHeaderAndPrologue(
-		int(fromsize), // FIXME
-		&otaru.ChunkPrologue{
+	cw, err := otaru.NewChunkWriter(w, c,
+		otaru.ChunkHeader{
 			OrigFilename: fromurl,
 			OrigOffset:   0,
+			PayloadLen:   uint32(fromsize),
 		},
 	)
+	if err != nil {
+		return err
+	}
+	defer cw.Close()
 
 	buf := make([]byte, otaru.BtnFrameMaxPayload)
 	for {
@@ -101,12 +101,9 @@ func get(fromurl string) error {
 		return err
 	}
 
-	cr := otaru.NewChunkReader(r, c)
-	if err := cr.ReadHeader(); err != nil {
-		return fmt.Errorf("Failed to read header: %v", err)
-	}
-	if err := cr.ReadPrologue(); err != nil {
-		return fmt.Errorf("Failed to read prologue: %v", err)
+	cr, err := otaru.NewChunkReader(r, c)
+	if err != nil {
+		return err
 	}
 	buf := make([]byte, otaru.BtnFrameMaxPayload)
 	unreadLen := cr.Length()

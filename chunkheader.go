@@ -60,7 +60,8 @@ func (h ChunkHeader) WriteTo(w io.Writer, c Cipher) error {
 		return err
 	}
 	framelen := ChunkHeaderLength - c.FrameOverhead() - SignatureLength - 1
-	if b.Len() > framelen {
+	paddinglen := framelen - b.Len()
+	if paddinglen < 0 {
 		log.Fatalf("SHOULD NOT BE REACHED: Marshaled ChunkHeader size too large")
 	}
 
@@ -72,7 +73,7 @@ func (h ChunkHeader) WriteTo(w io.Writer, c Cipher) error {
 		return fmt.Errorf("Header frame gob payload write failed: %v", err)
 	}
 	// zero padding
-	if _, err := bew.Write(make([]byte, framelen-b.Len())); err != nil {
+	if _, err := bew.Write(make([]byte, paddinglen)); err != nil {
 		return fmt.Errorf("Header frame zero padding write failed: %v", err)
 	}
 	if err := bew.Close(); err != nil {

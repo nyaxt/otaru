@@ -8,7 +8,7 @@ import (
 	. "github.com/nyaxt/otaru/testutils"
 )
 
-func TestChunkHeader_MarshalBinary(t *testing.T) {
+func TestChunkHeader_SerDes(t *testing.T) {
 	// ser
 	var b bytes.Buffer
 	{
@@ -53,7 +53,7 @@ func TestChunkHeader_MarshalBinary(t *testing.T) {
 	}
 }
 
-func TestChunkHeader_UnmarshalBinary_BadMagic(t *testing.T) {
+func TestChunkHeader_Read_BadMagic(t *testing.T) {
 	b := []byte{0xba, 0xad, otaru.CurrentFormat, 0x02, 0xcd, 0xab, 0x21, 0x43, 0x01, 0x02, 0x03, 0x04}
 	var h otaru.ChunkHeader
 	if err := h.ReadFrom(bytes.NewBuffer(b), TestCipher()); err == nil {

@@ -163,7 +163,7 @@ func (bew *BtnEncryptWriteCloser) Write(p []byte) (int, error) {
 
 func (bew *BtnEncryptWriteCloser) Close() error {
 	if bew.lenTotal != bew.lenWritten {
-		return fmt.Errorf("Incomplete data written")
+		return fmt.Errorf("Frame len different from declared. %d / %d bytes", bew.lenWritten, bew.lenTotal)
 	}
 
 	if err := bew.flushFrame(); err != nil {

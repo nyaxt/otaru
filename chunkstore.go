@@ -1,7 +1,6 @@
 package otaru
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -16,50 +15,12 @@ var (
 	ZeroContent = make([]byte, ContentFramePayloadLength)
 )
 
-type ChunkWriter struct {
-	w           io.Writer
-	c           Cipher
-	bew         *BtnEncryptWriteCloser
-	wroteHeader bool
-}
-
-func NewChunkWriter(w io.Writer, c Cipher, h ChunkHeader) (*ChunkWriter, error) {
-	cw := &ChunkWriter{
-		w: w, c: c,
-		wroteHeader: false,
-	}
-
-	var err error
-	cw.bew, err = NewBtnEncryptWriteCloser(cw.w, cw.c, int(h.PayloadLen))
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize frame encryptor: %v", err)
-	}
-
-	if err := h.WriteTo(cw.w, cw.c); err != nil {
+func NewChunkWriter(w io.Writer, c Cipher, h ChunkHeader) (io.WriteCloser, error) {
+	if err := h.WriteTo(w, c); err != nil {
 		return nil, fmt.Errorf("Failed to write header: %v", err)
 	}
 
-	return cw, nil
-}
-
-func (cw *ChunkWriter) Write(p []byte) (int, error) {
-	if !cw.wroteHeader {
-		return 0, errors.New("Header is not yet written to chunk")
-	}
-
-	if _, err := cw.bew.Write(p); err != nil {
-		return 0, fmt.Errorf("Failed to write encrypted frame: %v", err)
-	}
-
-	return len(p), nil
-}
-
-func (cw *ChunkWriter) Close() error {
-	if err := cw.bew.Close(); err != nil {
-		return err
-	}
-
-	return nil
+	return NewBtnEncryptWriteCloser(w, c, int(h.PayloadLen))
 }
 
 type ChunkReader struct {
@@ -132,7 +93,7 @@ func NewChunkIOWithMetadata(bh BlobHandle, c Cipher, h ChunkHeader) *ChunkIO {
 
 func (ch *ChunkIO) ensureHeader() error {
 	if ch.didReadHeader {
-		return errors.New("Already read header.")
+		return nil
 	}
 
 	if ch.bh.Size() == 0 {
@@ -163,7 +124,7 @@ func (ch *ChunkIO) Truncate(size int64) error {
 
 func (ch *ChunkIO) PayloadLen() int {
 	if err := ch.ensureHeader(); err != nil {
-		log.Printf("Failed to read iheader for payload len: %v", err)
+		log.Printf("Failed to read header for payload len: %v", err)
 		return 0
 	}
 

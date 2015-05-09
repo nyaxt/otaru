@@ -23,6 +23,10 @@ func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string
 
 	mountpoint := "/tmp/hoge"
 
+	if err := os.Mkdir(mountpoint, 0777); err != nil && !os.IsExist(err) {
+		log.Fatalf("Failed to create mountpoint: %v", err)
+	}
+
 	done := make(chan bool)
 	ready := make(chan bool)
 	go func() {
