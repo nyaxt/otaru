@@ -4,14 +4,18 @@ import (
 	"io"
 )
 
+type SizeQueryable interface {
+	Size() int64
+}
+
 type BlobHandle interface {
 	RandomAccessIO
-	Size() int64
+	SizeQueryable
 	Truncate(int64) error
 	io.Closer
 }
 
 type RandomAccessBlobStore interface {
 	Open(blobpath string, flags int) (BlobHandle, error)
-	Flags() int
+	FlagsReader
 }
