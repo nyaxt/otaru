@@ -18,7 +18,7 @@ type CachedBlobStore struct {
 	flags int
 
 	queryVersion QueryVersionFunc
-	beversion    map[string]BlobVersion
+	beVerCache   map[string]BlobVersion
 }
 
 type CachedBlobHandle struct {
@@ -70,6 +70,11 @@ func (bh *CachedBlobHandle) writeBack() error {
 		return EPERM
 	}
 
+	cachever, err := bh.cbs.queryVersion(&OffsetReader{bh.cachebh, 0})
+	if err != nil {
+		return fmt.Errorf("Failed to query cached blob ver: %v", err)
+	}
+
 	w, err := bh.cbs.backendbs.OpenWriter(bh.blobpath)
 	if err != nil {
 		return fmt.Errorf("Failed to open backend blob writer: %v", err)
@@ -82,6 +87,7 @@ func (bh *CachedBlobHandle) writeBack() error {
 		return fmt.Errorf("Failed to close backend blob writer: %v", err)
 	}
 
+	bh.cbs.ensureBEVerCache()[bh.blobpath] = cachever
 	bh.isDirty = false
 	return nil
 }
@@ -126,21 +132,33 @@ func (cbs *CachedBlobStore) invalidateCache(blobpath string) error {
 	return nil
 }
 
+func (cbs *CachedBlobStore) ensureBEVerCache() map[string]BlobVersion {
+	if cbs.beVerCache == nil {
+		cbs.beVerCache = make(map[string]BlobVersion)
+	}
+	return cbs.beVerCache
+}
+
 func (cbs *CachedBlobStore) queryBackendVersion(blobpath string) (BlobVersion, error) {
-	backendr, err := cbs.backendbs.OpenReader(blobpath)
+	if ver, ok := cbs.beVerCache[blobpath]; ok {
+		//log.Printf("return cached ver for \"%s\" -> %d", blobpath, ver)
+		return ver, nil
+	}
+
+	r, err := cbs.backendbs.OpenReader(blobpath)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to open backend blob: %v", err)
 	}
-	// FIXME: use cache
-	backendver, err := cbs.queryVersion(backendr)
+	ver, err := cbs.queryVersion(r)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to query backend blob ver: %v", err)
 	}
-	if err := backendr.Close(); err != nil {
+	if err := r.Close(); err != nil {
 		return -1, fmt.Errorf("Failed to close backend blob handle for querying version: %v", err)
 	}
 
-	return backendver, nil
+	cbs.ensureBEVerCache()[blobpath] = ver
+	return ver, nil
 }
 
 func NewCachedBlobStore(backendbs BlobStore, cachebs RandomAccessBlobStore, flags int, queryVersion QueryVersionFunc) (*CachedBlobStore, error) {
