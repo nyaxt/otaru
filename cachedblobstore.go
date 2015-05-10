@@ -6,7 +6,10 @@ import (
 	"log"
 )
 
-type QueryVersionFunc func(r io.Reader) (int, error)
+// FIXME: handle overflows
+type BlobVersion int64
+
+type QueryVersionFunc func(r io.Reader) (BlobVersion, error)
 
 type CachedBlobStore struct {
 	backendbs BlobStore
@@ -15,6 +18,7 @@ type CachedBlobStore struct {
 	flags int
 
 	queryVersion QueryVersionFunc
+	beversion    map[string]BlobVersion
 }
 
 type CachedBlobHandle struct {
@@ -122,7 +126,7 @@ func (cbs *CachedBlobStore) invalidateCache(blobpath string) error {
 	return nil
 }
 
-func (cbs *CachedBlobStore) queryBackendVersion(blobpath string) (int, error) {
+func (cbs *CachedBlobStore) queryBackendVersion(blobpath string) (BlobVersion, error) {
 	backendr, err := cbs.backendbs.OpenReader(blobpath)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to open backend blob: %v", err)

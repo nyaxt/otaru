@@ -26,7 +26,7 @@ func TestFileBlobStoreOfName(name string) *otaru.FileBlobStore {
 	return fbs
 }
 
-func TestQueryVersion(r io.Reader) (int, error) {
+func TestQueryVersion(r io.Reader) (otaru.BlobVersion, error) {
 	b := make([]byte, 1)
 	if _, err := r.Read(b); err != nil {
 		if err == io.EOF {
@@ -36,10 +36,10 @@ func TestQueryVersion(r io.Reader) (int, error) {
 		return -1, fmt.Errorf("Failed to read 1 byte: %v", err)
 	}
 
-	return int(b[0]), nil
+	return otaru.BlobVersion(b[0]), nil
 }
 
-func AssertBlobVersion(bs otaru.BlobStore, blobpath string, expected int) error {
+func AssertBlobVersion(bs otaru.BlobStore, blobpath string, expected otaru.BlobVersion) error {
 	r, err := bs.OpenReader(blobpath)
 	if err != nil {
 		if expected == 0 && os.IsNotExist(err) {
@@ -62,7 +62,7 @@ func AssertBlobVersion(bs otaru.BlobStore, blobpath string, expected int) error 
 	return nil
 }
 
-func AssertBlobVersionRA(bs otaru.RandomAccessBlobStore, blobpath string, expected int) error {
+func AssertBlobVersionRA(bs otaru.RandomAccessBlobStore, blobpath string, expected otaru.BlobVersion) error {
 	h, err := bs.Open(blobpath, otaru.O_RDONLY)
 	if err != nil {
 		return fmt.Errorf("Failed to open reader: %v", err)
