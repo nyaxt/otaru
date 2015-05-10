@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	Key = []byte("0123456789abcdef")
+	Key = []byte("0123456789abcdef0123456789abcdef")
 )
 
 func TestCipher() Cipher {

@@ -2,7 +2,11 @@ package otaru
 
 import (
 	"crypto/rand"
+	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
+	"strings"
 )
 
 func Int64Min(a, b int64) int64 {
@@ -39,4 +43,20 @@ func RandomBytes(size int) []byte {
 		panic(err)
 	}
 	return nonce
+}
+
+func StringFromFile(filename string) (string, error) {
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return "", fmt.Errorf("Failed to read file \"%s\": %v", filename, err)
+	}
+	return strings.TrimRight(string(b), "\n"), nil
+}
+
+func StringFromFileOrDie(filename string) string {
+	s, err := StringFromFile(filename)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	return s
 }

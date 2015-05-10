@@ -3,11 +3,9 @@ package gcs_test
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/nyaxt/otaru"
@@ -15,18 +13,10 @@ import (
 	. "github.com/nyaxt/otaru/testutils"
 )
 
-func readFileToString(filename string) string {
-	b, err := ioutil.ReadFile(filename)
-	if err != nil {
-		log.Fatalf("Failed to read file \"%s\": %v", filename, err)
-	}
-	return strings.TrimRight(string(b), "\n")
-}
-
 func testGCSBlobStore() *gcs.GCSBlobStore {
 	homedir := os.Getenv("HOME")
 
-	projectName := readFileToString(path.Join(homedir, ".otaru", "projectname.txt"))
+	projectName := otaru.StringFromFileOrDie(path.Join(homedir, ".otaru", "projectname.txt"))
 	bs, err := gcs.NewGCSBlobStore(
 		projectName,
 		"otaru-test",

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 
 	bfuse "bazil.org/fuse"
 
@@ -19,8 +20,8 @@ var Usage = func() {
 }
 
 var (
-	Key      = []byte("0123456789abcdef")
-	flagMkfs = flag.Bool("mkfs", false, "Reset metadata if no existing metadata exists")
+	flagMkfs         = flag.Bool("mkfs", false, "Reset metadata if no existing metadata exists")
+	flagPasswordFile = flag.String("passwordfile", path.Join(os.Getenv("HOME"), ".otaru", "password"), "Path of a text file storing password")
 )
 
 func main() {
@@ -31,11 +32,15 @@ func main() {
 		log.Printf("fusedbg: %v", msg)
 	}
 
-	cipher, err := otaru.NewCipher(Key)
+	password, err := otaru.StringFromFile(*flagPasswordFile)
+	if err != nil {
+		log.Fatalf("Failed to load encryption password: %v", err)
+	}
+	key := otaru.KeyFromPassword(password)
+	cipher, err := otaru.NewCipher(key)
 	if err != nil {
 		log.Fatalf("Failed to init Cipher: %v", err)
 	}
-
 	bs, err := otaru.NewFileBlobStore("/tmp/otaru", otaru.O_RDWR)
 	if err != nil {
 		log.Fatalf("NewFileBlobStore failed: %v", err)
