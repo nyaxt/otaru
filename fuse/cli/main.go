@@ -22,6 +22,7 @@ var Usage = func() {
 var (
 	flagMkfs         = flag.Bool("mkfs", false, "Reset metadata if no existing metadata exists")
 	flagPasswordFile = flag.String("passwordfile", path.Join(os.Getenv("HOME"), ".otaru", "password"), "Path of a text file storing password")
+	flagCacheDir     = flag.String("cachedir", "/var/cache/otaru", "Path to blob cache dir")
 )
 
 func main() {
@@ -41,7 +42,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to init Cipher: %v", err)
 	}
-	bs, err := otaru.NewFileBlobStore("/tmp/otaru", otaru.O_RDWR)
+	bs, err := otaru.NewFileBlobStore(*flagCacheDir, otaru.O_RDWRCREATE)
 	if err != nil {
 		log.Fatalf("NewFileBlobStore failed: %v", err)
 		return
