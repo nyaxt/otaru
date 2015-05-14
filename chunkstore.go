@@ -1,8 +1,6 @@
 package otaru
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -11,199 +9,47 @@ import (
 
 const (
 	ContentFramePayloadLength = BtnFrameMaxPayload
-	MaxMarshaledPrologueLen   = 65000
 )
 
 var (
 	ZeroContent = make([]byte, ContentFramePayloadLength)
 )
 
-type ChunkPrologue struct {
-	OrigFilename string
-	OrigOffset   int64
-}
-
-type ChunkWriter struct {
-	w             io.Writer
-	c             Cipher
-	bew           *BtnEncryptWriteCloser
-	wroteHeader   bool
-	wroteEpilogue bool
-	lenTotal      int
-}
-
-func NewChunkWriter(w io.Writer, c Cipher) *ChunkWriter {
-	return &ChunkWriter{
-		w: w, c: c,
-		wroteHeader:   false,
-		wroteEpilogue: false,
-	}
-}
-
-func WriteHeaderAndPrologue(w io.Writer, c Cipher, payloadLen int, p *ChunkPrologue) error {
-	pjson, err := json.Marshal(p)
-	if err != nil {
-		return fmt.Errorf("Serializing header failed: %v", err)
-	}
-	if len(pjson) > MaxMarshaledPrologueLen {
-		panic("marshaled prologue too long!")
+func NewChunkWriter(w io.Writer, c Cipher, h ChunkHeader) (io.WriteCloser, error) {
+	if err := h.WriteTo(w, c); err != nil {
+		return nil, fmt.Errorf("Failed to write header: %v", err)
 	}
 
-	if payloadLen > math.MaxInt32 {
-		return fmt.Errorf("PayloadLen too long: %d", payloadLen)
-	}
-	hdr := ChunkHeader{
-		Format:             0x02,
-		FrameEncapsulation: 0x01,
-		PrologueLen:        uint16(len(pjson)),
-		EpilogueLen:        0,
-		PayloadLen:         uint32(payloadLen),
-	}
-	bhdr, err := hdr.MarshalBinary()
-	if err != nil {
-		return fmt.Errorf("Failed to marshal ChunkHeader: %v", err)
-	}
-	if _, err := w.Write(bhdr); err != nil {
-		return fmt.Errorf("Header write failed: %v", err)
-	}
-
-	bew, err := NewBtnEncryptWriteCloser(w, c, len(pjson))
-	if err != nil {
-		return fmt.Errorf("Failed to initialize frame encryptor: %v", err)
-	}
-	if _, err := bew.Write(pjson); err != nil {
-		return fmt.Errorf("Prologue frame write failed: %v", err)
-	}
-	if err := bew.Close(); err != nil {
-		return fmt.Errorf("Prologue frame close failed: %v", err)
-	}
-	return nil
-}
-
-func (cw *ChunkWriter) WriteHeaderAndPrologue(payloadLen int, p *ChunkPrologue) error {
-	if cw.wroteHeader {
-		return errors.New("Already wrote header")
-	}
-
-	cw.lenTotal = payloadLen
-	if err := WriteHeaderAndPrologue(cw.w, cw.c, payloadLen, p); err != nil {
-		return err
-	}
-	cw.wroteHeader = true
-	return nil
-}
-
-func (cw *ChunkWriter) Write(p []byte) (int, error) {
-	if !cw.wroteHeader {
-		return 0, errors.New("Header is not yet written to chunk")
-	}
-
-	if cw.bew == nil {
-		var err error
-		cw.bew, err = NewBtnEncryptWriteCloser(cw.w, cw.c, cw.lenTotal)
-		if err != nil {
-			return 0, fmt.Errorf("Failed to initialize frame encryptor: %v", err)
-		}
-	}
-
-	if _, err := cw.bew.Write(p); err != nil {
-		return 0, fmt.Errorf("Failed to write encrypted frame: %v", err)
-	}
-
-	return len(p), nil
-}
-
-func (cw *ChunkWriter) Close() error {
-	if cw.bew != nil {
-		if err := cw.bew.Close(); err != nil {
-			return err
-		}
-	}
-
-	// FIXME: Write epilogue
-	return nil
+	return NewBtnEncryptWriteCloser(w, c, int(h.PayloadLen))
 }
 
 type ChunkReader struct {
 	r io.Reader
 	c Cipher
 
+	header ChunkHeader
+
 	bdr *BtnDecryptReader
-
-	didReadHeader   bool
-	header          ChunkHeader
-	didReadPrologue bool
-	prologue        ChunkPrologue
-
-	lenTotal int
 }
 
-func NewChunkReader(r io.Reader, c Cipher) *ChunkReader {
-	return &ChunkReader{
-		r: r, c: c,
-		didReadHeader: false, didReadPrologue: false,
-	}
-}
+func NewChunkReader(r io.Reader, c Cipher) (*ChunkReader, error) {
+	cr := &ChunkReader{r: r, c: c}
 
-func (cr *ChunkReader) ReadHeader() error {
-	if cr.didReadHeader {
-		return errors.New("Already read header.")
+	if err := cr.header.ReadFrom(r, c); err != nil {
+		return nil, fmt.Errorf("Failed to read header: %v", err)
 	}
 
-	b := make([]byte, MarshaledChunkHeaderLength)
-	if _, err := io.ReadFull(cr.r, b); err != nil {
-		return fmt.Errorf("Failed to read ChunkHeader: %v", err)
+	var err error
+	cr.bdr, err = NewBtnDecryptReader(cr.r, cr.c, cr.Length())
+	if err != nil {
+		return nil, err
 	}
 
-	if err := cr.header.UnmarshalBinary(b); err != nil {
-		return fmt.Errorf("Failed to unmarshal ChunkHeader: %v", err)
-	}
-
-	cr.didReadHeader = true
-	return nil
+	return cr, nil
 }
 
 func (cr *ChunkReader) Header() ChunkHeader {
-	if !cr.didReadHeader {
-		panic("Tried to access header before reading it.")
-	}
 	return cr.header
-}
-
-func (cr *ChunkReader) ReadPrologue() error {
-	if cr.didReadPrologue {
-		return errors.New("Already read prologue.")
-	}
-	if !cr.didReadHeader {
-		return errors.New("Tried to read prologue before reading header.")
-	}
-
-	bdr, err := NewBtnDecryptReader(cr.r, cr.c, int(cr.header.PrologueLen))
-	if err != nil {
-		return err
-	}
-
-	mpro := make([]byte, cr.header.PrologueLen)
-	if _, err := io.ReadFull(bdr, mpro); err != nil {
-		return fmt.Errorf("Failed to read prologue frame: %v", err)
-	}
-	if !bdr.HasReadAll() {
-		panic("Incomplete read in prologue frame !?!?")
-	}
-
-	if err := json.Unmarshal(mpro, &cr.prologue); err != nil {
-		return fmt.Errorf("Failed to unmarshal prologue: %v", err)
-	}
-
-	cr.didReadPrologue = true
-	return nil
-}
-
-func (cr *ChunkReader) Prologue() ChunkPrologue {
-	if !cr.didReadPrologue {
-		panic("Tried to access prologue before reading it.")
-	}
-	return cr.prologue
 }
 
 // Length returns length of content.
@@ -212,20 +58,7 @@ func (cr *ChunkReader) Length() int {
 }
 
 func (cr *ChunkReader) Read(p []byte) (int, error) {
-	if !cr.didReadPrologue {
-		return 0, errors.New("Tried to read content before reading prologue.")
-	}
-
-	if cr.bdr == nil {
-		var err error
-		cr.bdr, err = NewBtnDecryptReader(cr.r, cr.c, cr.Length())
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	nr, err := cr.bdr.Read(p)
-	return nr, err
+	return cr.bdr.Read(p)
 }
 
 // ChunkIO provides RandomAccessIO for blobchunk
@@ -233,23 +66,18 @@ type ChunkIO struct {
 	bh BlobHandle
 	c  Cipher
 
-	// FIXME: fn *FileNode or something for header debug info
-
-	didReadHeader   bool
-	header          ChunkHeader
-	didReadPrologue bool
-	prologue        ChunkPrologue
+	didReadHeader bool
+	header        ChunkHeader
 
 	needsHeaderUpdate bool
 }
 
 func NewChunkIO(bh BlobHandle, c Cipher) *ChunkIO {
 	return &ChunkIO{
-		bh:              bh,
-		c:               c,
-		didReadHeader:   false,
-		didReadPrologue: false,
-		prologue: ChunkPrologue{
+		bh:            bh,
+		c:             c,
+		didReadHeader: false,
+		header: ChunkHeader{
 			OrigFilename: "<unknown>",
 			OrigOffset:   -1,
 		},
@@ -257,24 +85,29 @@ func NewChunkIO(bh BlobHandle, c Cipher) *ChunkIO {
 	}
 }
 
-func NewChunkIOWithMetadata(bh BlobHandle, c Cipher, initPro ChunkPrologue) *ChunkIO {
+func NewChunkIOWithMetadata(bh BlobHandle, c Cipher, h ChunkHeader) *ChunkIO {
 	ch := NewChunkIO(bh, c)
-	ch.prologue = initPro
+	ch.header = h
 	return ch
 }
 
-func (ch *ChunkIO) readHeader() error {
+func (ch *ChunkIO) ensureHeader() error {
 	if ch.didReadHeader {
-		return errors.New("Already read header.")
+		return nil
 	}
 
-	b := make([]byte, MarshaledChunkHeaderLength)
-	if err := ch.bh.PRead(0, b); err != nil {
-		return fmt.Errorf("Failed to read ChunkHeader: %v", err)
+	if ch.bh.Size() == 0 {
+		w := &OffsetWriter{ch.bh, 0}
+		if err := ch.header.WriteTo(w, ch.c); err != nil {
+			return fmt.Errorf("Failed to init header/prologue: %v", err)
+		}
+
+		ch.didReadHeader = true
+		return nil
 	}
 
-	if err := ch.header.UnmarshalBinary(b); err != nil {
-		return fmt.Errorf("Failed to unmarshal ChunkHeader: %v", err)
+	if err := ch.header.ReadFrom(&OffsetReader{ch.bh, 0}, ch.c); err != nil {
+		return fmt.Errorf("Failed to read header: %v", err)
 	}
 
 	ch.didReadHeader = true
@@ -290,8 +123,8 @@ func (ch *ChunkIO) Truncate(size int64) error {
 }
 
 func (ch *ChunkIO) PayloadLen() int {
-	if err := ch.ensurePrologue(); err != nil {
-		log.Printf("Failed to read prologue for payload len: %v", err)
+	if err := ch.ensureHeader(); err != nil {
+		log.Printf("Failed to read header for payload len: %v", err)
 		return 0
 	}
 
@@ -318,40 +151,9 @@ func (ch *ChunkIO) expandLengthBy(by int) error {
 	return nil
 }
 
-func (ch *ChunkIO) readPrologue() error {
-	if ch.didReadPrologue {
-		return errors.New("Already read prologue.")
-	}
-
-	rd := &OffsetReader{ch.bh, MarshaledChunkHeaderLength}
-	bdr, err := NewBtnDecryptReader(rd, ch.c, int(ch.header.PrologueLen))
-	if err != nil {
-		return err
-	}
-
-	mpro := make([]byte, ch.header.PrologueLen)
-	if _, err := io.ReadFull(bdr, mpro); err != nil {
-		return fmt.Errorf("Failed to read prologue frame: %v", err)
-	}
-	if !bdr.HasReadAll() {
-		panic("Incomplete read in prologue frame !?!?")
-	}
-
-	if err := json.Unmarshal(mpro, &ch.prologue); err != nil {
-		return fmt.Errorf("Failed to unmarshal prologue: %v", err)
-	}
-
-	ch.didReadPrologue = true
-	return nil
-}
-
 func (ch *ChunkIO) encryptedFrameOffset(i int) int {
-	o := MarshaledChunkHeaderLength + ch.c.EncryptedFrameSize(int(ch.header.PrologueLen))
-
 	encryptedFrameSize := ch.c.EncryptedFrameSize(ContentFramePayloadLength)
-	o += encryptedFrameSize * i
-
-	return o
+	return ChunkHeaderLength + encryptedFrameSize*i
 }
 
 type decryptedContentFrame struct {
@@ -418,30 +220,8 @@ func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
 	return nil
 }
 
-func (ch *ChunkIO) ensurePrologue() error {
-	if !ch.didReadPrologue {
-		if ch.bh.Size() == 0 {
-			w := &OffsetWriter{ch.bh, 0}
-			if err := WriteHeaderAndPrologue(w, ch.c, 0, &ch.prologue); err != nil {
-				return fmt.Errorf("Failed to init header/prologue: %v", err)
-			}
-		}
-
-		if !ch.didReadHeader {
-			if err := ch.readHeader(); err != nil {
-				return err
-			}
-		}
-		if err := ch.readPrologue(); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (ch *ChunkIO) PRead(offset int64, p []byte) error {
-	if err := ch.ensurePrologue(); err != nil {
+	if err := ch.ensureHeader(); err != nil {
 		return err
 	}
 
@@ -488,7 +268,7 @@ func (ch *ChunkIO) PRead(offset int64, p []byte) error {
 func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 	fmt.Printf("PWrite: offset %d, len %d\n", offset, len(p))
 
-	if err := ch.ensurePrologue(); err != nil {
+	if err := ch.ensureHeader(); err != nil {
 		return err
 	}
 
@@ -640,11 +420,7 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 
 func (ch *ChunkIO) Flush() error {
 	if ch.needsHeaderUpdate {
-		bhdr, err := ch.header.MarshalBinary()
-		if err != nil {
-			return fmt.Errorf("Failed to marshal ChunkHeader: %v", err)
-		}
-		if err := ch.bh.PWrite(0, bhdr); err != nil {
+		if err := ch.header.WriteTo(&OffsetWriter{ch.bh, 0}, ch.c); err != nil {
 			return fmt.Errorf("Header write failed: %v", err)
 		}
 		log.Printf("Wrote chunk header: %+v", ch.header)

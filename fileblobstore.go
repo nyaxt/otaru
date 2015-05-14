@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"syscall"
 )
 
 type fileBlobHandle struct {
@@ -80,10 +79,8 @@ func (f *FileBlobStore) Open(blobpath string, flags int) (BlobHandle, error) {
 
 	fp, err := os.OpenFile(realpath, flags&f.fmask, 0644)
 	if err != nil {
-		if pe, ok := err.(*os.PathError); ok {
-			if pe.Err == syscall.ENOENT {
-				return nil, ENOENT
-			}
+		if os.IsNotExist(err) {
+			return nil, ENOENT
 		}
 		return nil, err
 	}

@@ -43,8 +43,12 @@ func NewCipher(key []byte) (Cipher, error) {
 	return Cipher{gcm: gcm}, nil
 }
 
+func (c Cipher) FrameOverhead() int {
+	return c.gcm.NonceSize() + c.gcm.Overhead()
+}
+
 func (c Cipher) EncryptedFrameSize(payloadLen int) int {
-	return c.gcm.NonceSize() + payloadLen + c.gcm.Overhead()
+	return payloadLen + c.FrameOverhead()
 }
 
 type frameEncryptor struct {
@@ -159,7 +163,7 @@ func (bew *BtnEncryptWriteCloser) Write(p []byte) (int, error) {
 
 func (bew *BtnEncryptWriteCloser) Close() error {
 	if bew.lenTotal != bew.lenWritten {
-		return fmt.Errorf("Incomplete data written")
+		return fmt.Errorf("Frame len different from declared. %d / %d bytes", bew.lenWritten, bew.lenTotal)
 	}
 
 	if err := bew.flushFrame(); err != nil {

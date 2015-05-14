@@ -8,10 +8,11 @@ import (
 )
 
 const (
-	EPERM   = syscall.Errno(syscall.EPERM)
-	ENOENT  = syscall.Errno(syscall.ENOENT)
-	ENOTDIR = syscall.Errno(syscall.ENOTDIR)
-	EEXIST  = syscall.Errno(syscall.EEXIST)
+	EPERM     = syscall.Errno(syscall.EPERM)
+	ENOENT    = syscall.Errno(syscall.ENOENT)
+	ENOTDIR   = syscall.Errno(syscall.ENOTDIR)
+	ENOTEMPTY = syscall.Errno(syscall.ENOTEMPTY)
+	EEXIST    = syscall.Errno(syscall.EEXIST)
 )
 
 const (
@@ -239,8 +240,16 @@ func (dh *DirHandle) Rename(oldname string, tgtdh *DirHandle, newname string) er
 func (dh *DirHandle) Remove(name string) error {
 	es := dh.n.Entries
 
-	if _, ok := es[name]; !ok {
+	id, ok := es[name]
+	if !ok {
 		return ENOENT
+	}
+	n := dh.fs.INodeDB.Get(id)
+	if n.Type() == DirNodeT {
+		sdn := n.(*DirNode)
+		if len(sdn.Entries) != 0 {
+			return ENOTEMPTY
+		}
 	}
 
 	delete(es, name)

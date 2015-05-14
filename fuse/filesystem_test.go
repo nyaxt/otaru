@@ -23,6 +23,10 @@ func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string
 
 	mountpoint := "/tmp/hoge"
 
+	if err := os.Mkdir(mountpoint, 0777); err != nil && !os.IsExist(err) {
+		log.Fatalf("Failed to create mountpoint: %v", err)
+	}
+
 	done := make(chan bool)
 	ready := make(chan bool)
 	go func() {
@@ -195,6 +199,40 @@ func TestServeFUSE_MoveFile(t *testing.T) {
 		}
 		if !bytes.Equal(HelloWorld, b) {
 			t.Errorf("Content mismatch!: %v", err)
+		}
+	})
+}
+
+func TestServeFUSE_Rmdir(t *testing.T) {
+	bs := TestFileBlobStore()
+	fs := otaru.NewFileSystemEmpty(bs, TestCipher())
+
+	fusetestCommon(t, fs, func(mountpoint string) {
+		dirpath := path.Join(mountpoint, "hokkaido")
+		if err := os.Mkdir(dirpath, 0755); err != nil {
+			t.Errorf("Failed to mkdir: %v", err)
+		}
+
+		filepath := path.Join(dirpath, "otaru.txt")
+		if err := ioutil.WriteFile(filepath, HelloWorld, 0644); err != nil {
+			t.Errorf("failed to write file: %v", err)
+		}
+
+		err := os.Remove(dirpath)
+		if err == nil {
+			t.Errorf("Removed non-empty dir without err")
+		} else {
+			if en, ok := err.(*os.PathError).Err.(syscall.Errno); !ok || en != syscall.ENOTEMPTY {
+				t.Errorf("Expected ENOTEMPTY err when trying to remove non-empty dir: %v, %d", err, en)
+			}
+		}
+
+		if err := os.Remove(filepath); err != nil {
+			t.Errorf("Failed to remove file: %v", err)
+		}
+
+		if err := os.Remove(dirpath); err != nil {
+			t.Errorf("Failed to remove empty dir: %v", err)
 		}
 	})
 }

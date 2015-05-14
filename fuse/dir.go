@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"syscall"
 	"time"
 
 	"github.com/nyaxt/otaru"
@@ -101,6 +102,11 @@ func (d DirNode) Rename(ctx context.Context, req *bfuse.RenameRequest, newDir bf
 
 func (d DirNode) Remove(ctx context.Context, req *bfuse.RemoveRequest) error {
 	if err := d.dh.Remove(req.Name); err != nil {
+		// FIXME: implement generic err converter
+		if err == otaru.ENOTEMPTY {
+			return bfuse.Errno(syscall.ENOTEMPTY)
+		}
+
 		return err
 	}
 
