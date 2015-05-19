@@ -1,4 +1,4 @@
-package inode_test
+package inodedb_test
 
 import (
 	"testing"
@@ -7,5 +7,5 @@ import (
 )
 
 func TestInitialState(t *testing.T) {
-
+	NewDB(NewSimpleDBStateSnapshotIO(), NewSimpleDBTransactionLogIO())
 }

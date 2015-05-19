@@ -1,8 +1,9 @@
-package inode
+package inodedb
 
 import (
-	"encoding/json"
+// "encoding/json"
 )
 
 type JSONEncodable interface {
+	MarshalJSON() ([]byte, error)
 }
