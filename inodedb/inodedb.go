@@ -15,12 +15,12 @@ const (
 
 type DBState struct {
 	nodes  map[ID]INode
-	lastId ID
+	lastID ID
 }
 
 func NewDBState() *DBState {
 	return &DBState{
-		nodes:  make(map[INodeID]INodeID),
+		nodes:  make(map[INodeID]ID),
 		lastID: 0,
 	}
 }
