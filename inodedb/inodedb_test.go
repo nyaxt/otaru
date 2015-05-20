@@ -7,5 +7,5 @@ import (
 )
 
 func TestInitialState(t *testing.T) {
-	NewDB(NewSimpleDBStateSnapshotIO(), NewSimpleDBTransactionLogIO())
+	inodedb.NewDB(inodedb.NewSimpleDBStateSnapshotIO(), inodedb.NewSimpleDBTransactionLogIO())
 }

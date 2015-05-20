@@ -11,16 +11,16 @@ type SimpleDBStateSnapshotIO struct {
 	Buf bytes.Buffer
 }
 
-var _ = DBStateSnapshotIO(SimpleDBStateSnapshotIO)
+var _ = DBStateSnapshotIO(&SimpleDBStateSnapshotIO{})
 
 func NewSimpleDBStateSnapshotIO() *SimpleDBStateSnapshotIO {
 	return &SimpleDBStateSnapshotIO{}
 }
 
-func (io *DBStateSnapshotIO) SaveSnapshot(s *DBState) error {
+func (io *SimpleDBStateSnapshotIO) SaveSnapshot(s *DBState) error {
 	io.Buf.Reset()
 
-	enc := gob.NewEncoder(io.Buf)
+	enc := gob.NewEncoder(&io.Buf)
 	if err := s.EncodeToGob(enc); err != nil {
 		return fmt.Errorf("Failed to encode DBState: %v", err)
 	}
@@ -28,7 +28,7 @@ func (io *DBStateSnapshotIO) SaveSnapshot(s *DBState) error {
 	return nil
 }
 
-func (io *DBStateSnapshotIO) RestoreSnapshot() (*DBState, error) {
-	dec := gob.NewDecoder(io.Buf)
+func (io *SimpleDBStateSnapshotIO) RestoreSnapshot() (*DBState, error) {
+	dec := gob.NewDecoder(&io.Buf)
 	return DecodeDBStateFromGob(dec)
 }
