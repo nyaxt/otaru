@@ -18,7 +18,7 @@ func (io *SimpleDBTransactionLogIO) AppendTransaction(tx DBTransaction) error {
 }
 
 func (io *SimpleDBTransactionLogIO) QueryTransactions(minID TxID) ([]DBTransaction, error) {
-	result := make([]DBTransaction, 0)
+	result := []DBTransaction{}
 	for _, tx := range io.txs {
 		if tx.TxID >= minID {
 			result = append(result, tx)

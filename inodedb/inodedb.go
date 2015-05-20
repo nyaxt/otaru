@@ -38,8 +38,9 @@ type DBState struct {
 
 func NewDBState() *DBState {
 	return &DBState{
-		nodes:  make(map[ID]INode),
-		lastID: 0,
+		nodes:   make(map[ID]INode),
+		lastID:  0,
+		version: 0,
 	}
 }
 
@@ -83,8 +84,93 @@ func (s *DBState) EncodeToGob(enc *gob.Encoder) error {
 	return nil
 }
 
+func deserializeCommon(dec *gob.Decoder, t Type, c *INodeCommon) error {
+	c.Type = t
+
+	if err := dec.Decode(&c.ID); err != nil {
+		return fmt.Errorf("Failed to decode ID: %v", err)
+	}
+
+	if err := dec.Decode(&c.OrigPath); err != nil {
+		return fmt.Errorf("Failed to decode OrigPath: %v", err)
+	}
+
+	return nil
+}
+
+func deserializeFileNodeSnapshot(dec *gob.Decoder) (*FileNode, error) {
+	fn := &FileNode{}
+	if err := deserializeCommon(dec, FileNodeT, &fn.INodeCommon); err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(&fn.Size); err != nil {
+		return nil, fmt.Errorf("Failed to decode Size: %v", err)
+	}
+
+	if err := dec.Decode(&fn.Chunks); err != nil {
+		return nil, fmt.Errorf("Failed to decode Chunks: %v", err)
+	}
+
+	return fn, nil
+}
+
+func deserializeDirNodeSnapshot(dec *gob.Decoder) (*DirNode, error) {
+	dn := &DirNode{}
+	if err := deserializeCommon(dec, DirNodeT, &dn.INodeCommon); err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(&dn.Entries); err != nil {
+		return nil, fmt.Errorf("Failed to decode Entries: %v", err)
+	}
+
+	return dn, nil
+}
+
+func DecodeNodeFromGob(dec *gob.Decoder) (INode, error) {
+	var t Type
+	if err := dec.Decode(&t); err != nil {
+		return nil, fmt.Errorf("Failed to decode Type: %v", err)
+	}
+
+	switch t {
+	case FileNodeT:
+		fn, err := deserializeFileNodeSnapshot(dec)
+		return fn, err
+
+	case DirNodeT:
+		dn, err := deserializeDirNodeSnapshot(dec)
+		return dn, err
+
+	default:
+	}
+	return nil, fmt.Errorf("Invalid Type: %d", t)
+}
+
 func DecodeDBStateFromGob(dec *gob.Decoder) (*DBState, error) {
-	return nil, fmt.Errorf("FIXME: Implement me!")
+	s := &DBState{}
+
+	var numNodes uint64
+	if err := dec.Decode(&numNodes); err != nil {
+		return nil, fmt.Errorf("failed to decode numNodes: %v", err)
+	}
+	for i := uint64(0); i < numNodes; i++ {
+		n, err := DecodeNodeFromGob(dec)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode node: %v", err)
+		}
+		s.nodes[n.GetID()] = n
+	}
+
+	if err := dec.Decode(&s.lastID); err != nil {
+		return nil, fmt.Errorf("Failed to decode lastID: %v", err)
+	}
+	if err := dec.Decode(&s.version); err != nil {
+		return nil, fmt.Errorf("Failed to decode version: %v", err)
+	}
+
+	return s, nil
 }
 
 type INodeCommon struct {
@@ -177,13 +263,8 @@ func (dn *DirNode) EncodeToGob(enc *gob.Encoder) error {
 	return nil
 }
 
-type DBStateTransfer interface {
-	Apply(s *DBState) error
-}
-
 type DBOperation interface {
-	JSONEncodable
-	DBStateTransfer
+	Apply(s *DBState) error
 }
 
 type DBTransaction struct {
@@ -209,7 +290,7 @@ type DB struct {
 	txLogIO    DBTransactionLogIO
 }
 
-func NewEmptyDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) *DB {
+func newDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) *DB {
 	return &DB{
 		state:      NewDBState(),
 		snapshotIO: snapshotIO,
@@ -217,8 +298,30 @@ func NewEmptyDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) *DB {
 	}
 }
 
+func NewEmptyDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) (*DB, error) {
+	db := newDB(snapshotIO, txLogIO)
+	if _, err := snapshotIO.RestoreSnapshot(); err == nil {
+		return nil, fmt.Errorf("NewEmptyDB: Refusing to use non-empty snapshotIO")
+	}
+	if txs, err := txLogIO.QueryTransactions(0); err == nil && len(txs) > 0 {
+		return nil, fmt.Errorf("NewEmptyDB: Refusing to use non-empty txLogIO")
+	}
+
+	tx := DBTransaction{
+		TxID: 1,
+		Ops: []DBOperation{
+			&AssertEmptyFileSystemOp{},
+			&CreateDirOp{ID: 1, OrigPath: "/", DirID: 0},
+		},
+	}
+	if err := db.ApplyTransaction(tx); err != nil {
+		return nil, fmt.Errorf("Failed to initilaize db: %v", err)
+	}
+	return db, nil
+}
+
 func NewDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) (*DB, error) {
-	db := NewEmptyDB(snapshotIO, txLogIO)
+	db := newDB(snapshotIO, txLogIO)
 	if err := db.RestoreVersion(LatestVersion); err != nil {
 		return nil, err
 	}
@@ -229,7 +332,7 @@ func NewDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) (*DB, error
 func (db *DB) RestoreVersion(version TxID) error {
 	state, err := db.snapshotIO.RestoreSnapshot()
 	if err != nil {
-		return fmt.Errorf("Failed to restore snapshot: %v")
+		return fmt.Errorf("Failed to restore snapshot: %v", err)
 	}
 
 	oldState := db.state
@@ -273,6 +376,10 @@ func (db *DB) ApplyTransaction(tx DBTransaction) error {
 	return nil
 }
 
+func (db *DB) ReadNode(id ID) INode {
+	return db.state.nodes[id]
+}
+
 type OpMeta struct {
 	Kind string `json:"kind"`
 }
@@ -280,6 +387,8 @@ type OpMeta struct {
 type AssertEmptyFileSystemOp struct {
 	OpMeta `json:",inline"`
 }
+
+var _ = DBOperation(&AssertEmptyFileSystemOp{})
 
 func (op *AssertEmptyFileSystemOp) Apply(s *DBState) error {
 	if len(s.nodes) != 0 {
@@ -299,6 +408,8 @@ type CreateDirOp struct {
 	OrigPath string `json:"origpath"`
 	DirID    ID     `json:"dirid"`
 }
+
+var _ = DBOperation(&CreateDirOp{})
 
 func (op *CreateDirOp) Apply(s *DBState) error {
 	n := &DirNode{

@@ -7,5 +7,13 @@ import (
 )
 
 func TestInitialState(t *testing.T) {
-	inodedb.NewDB(inodedb.NewSimpleDBStateSnapshotIO(), inodedb.NewSimpleDBTransactionLogIO())
+	db, err := inodedb.NewEmptyDB(inodedb.NewSimpleDBStateSnapshotIO(), inodedb.NewSimpleDBTransactionLogIO())
+	if err != nil {
+		t.Errorf("Failed to NewEmptyDB: %v", err)
+		return
+	}
+
+	if db.ReadNode(1).GetType() != inodedb.DirNodeT {
+		t.Errorf("root dir not found!")
+	}
 }
