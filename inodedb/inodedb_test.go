@@ -13,7 +13,12 @@ func TestInitialState(t *testing.T) {
 		return
 	}
 
-	if db.ReadNode(1).GetType() != inodedb.DirNodeT {
+	nv, err := db.QueryNode(1)
+	if err != nil {
+		t.Errorf("Failed to query root dir")
+		return
+	}
+	if nv.GetType() != inodedb.DirNodeT {
 		t.Errorf("root dir not found!")
 	}
 }

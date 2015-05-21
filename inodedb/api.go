@@ -7,6 +7,7 @@ type NodeView interface {
 
 type FileNodeView interface {
 	NodeView
+	GetSize() int64
 	GetChunks() []FileChunk
 }
 
@@ -15,12 +16,26 @@ type DirNodeView interface {
 	GetEntries() map[string]ID
 }
 
-type DBHandle interface {
-	CreateFile(name string) (FileNodeView, error)
-	UpdateFileChunks(id ID, cs []FileChunk) (FileNodeView, error)
+type DBHandler interface {
+	ApplyTransaction(tx DBTransaction) error
+	QueryNode(id ID) (NodeView, error)
+}
 
-	CreateDir(dirID ID, name string) (DirNodeView, error)
-	AddDirEntry(dirID, id ID) (DirNodeView, error)
+type DBServiceRequest struct {
+	tx      DBTransaction
+	resultC chan error
+}
+
+type DBService struct {
+	c chan DBServiceRequest
+	h DBHandler
+}
+
+func NewDBService(h DBHandler) *DBService {
+	return &DBService{
+		c: make(chan DBServiceRequest),
+		h: h,
+	}
 }
 
 /*
@@ -46,7 +61,5 @@ atomic {
   - create new file node
   - link new dir
 }
-
-
 
 */

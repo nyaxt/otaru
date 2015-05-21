@@ -1,11 +1,16 @@
 package inodedb
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math"
 
 	"encoding/gob"
+)
+
+var (
+	ErrNotFound = errors.New("No such node.")
 )
 
 type ID uint64
@@ -22,6 +27,8 @@ type INode interface {
 	GetType() Type
 
 	EncodeToGob(enc *gob.Encoder) error
+
+	View() NodeView
 }
 
 type TxID uint64
@@ -85,8 +92,6 @@ func (s *DBState) EncodeToGob(enc *gob.Encoder) error {
 }
 
 func deserializeCommon(dec *gob.Decoder, t Type, c *INodeCommon) error {
-	c.Type = t
-
 	if err := dec.Decode(&c.ID); err != nil {
 		return fmt.Errorf("Failed to decode ID: %v", err)
 	}
@@ -175,7 +180,6 @@ func DecodeDBStateFromGob(dec *gob.Decoder) (*DBState, error) {
 
 type INodeCommon struct {
 	ID
-	Type
 
 	// OrigPath contains filepath passed to first create and does not necessary follow "rename" operations.
 	// To be used for recovery/debug purposes only
@@ -184,10 +188,6 @@ type INodeCommon struct {
 
 func (n INodeCommon) GetID() ID {
 	return n.ID
-}
-
-func (n INodeCommon) GetType() Type {
-	return n.Type
 }
 
 type FileChunk struct {
@@ -212,8 +212,10 @@ type FileNode struct {
 
 var _ = INode(&FileNode{})
 
-func serializeCommon(enc *gob.Encoder, c INodeCommon) error {
-	if err := enc.Encode(c.Type); err != nil {
+func (fn *FileNode) GetType() Type { return FileNodeT }
+
+func serializeCommon(enc *gob.Encoder, t Type, c INodeCommon) error {
+	if err := enc.Encode(t); err != nil {
 		return fmt.Errorf("Failed to encode Type: %v", err)
 	}
 
@@ -229,7 +231,7 @@ func serializeCommon(enc *gob.Encoder, c INodeCommon) error {
 }
 
 func (fn *FileNode) EncodeToGob(enc *gob.Encoder) error {
-	if err := serializeCommon(enc, fn.INodeCommon); err != nil {
+	if err := serializeCommon(enc, fn.GetType(), fn.INodeCommon); err != nil {
 		return err
 	}
 
@@ -244,6 +246,28 @@ func (fn *FileNode) EncodeToGob(enc *gob.Encoder) error {
 	return nil
 }
 
+type fileNodeView struct {
+	ss FileNode
+}
+
+func (fn *FileNode) View() NodeView {
+	v := &fileNodeView{
+		ss: FileNode{
+			INodeCommon: fn.INodeCommon,
+			Size:        fn.Size,
+			Chunks:      make([]FileChunk, len(fn.Chunks)),
+		},
+	}
+	copy(v.ss.Chunks, fn.Chunks)
+
+	return v
+}
+
+func (v fileNodeView) GetID() ID              { return v.ss.GetID() }
+func (v fileNodeView) GetType() Type          { return v.ss.GetType() }
+func (v fileNodeView) GetSize() int64         { return v.ss.Size }
+func (v fileNodeView) GetChunks() []FileChunk { return v.ss.Chunks }
+
 type DirNode struct {
 	INodeCommon
 	Entries map[string]ID
@@ -251,8 +275,10 @@ type DirNode struct {
 
 var _ = INode(&DirNode{})
 
+func (dn *DirNode) GetType() Type { return DirNodeT }
+
 func (dn *DirNode) EncodeToGob(enc *gob.Encoder) error {
-	if err := serializeCommon(enc, dn.INodeCommon); err != nil {
+	if err := serializeCommon(enc, dn.GetType(), dn.INodeCommon); err != nil {
 		return err
 	}
 
@@ -262,6 +288,28 @@ func (dn *DirNode) EncodeToGob(enc *gob.Encoder) error {
 
 	return nil
 }
+
+type dirNodeView struct {
+	ss DirNode
+}
+
+func (dn *DirNode) View() NodeView {
+	v := &dirNodeView{
+		ss: DirNode{
+			INodeCommon: dn.INodeCommon,
+			Entries:     make(map[string]ID),
+		},
+	}
+	for name, id := range dn.Entries {
+		v.ss.Entries[name] = id
+	}
+
+	return v
+}
+
+func (v dirNodeView) GetID() ID                 { return v.ss.GetID() }
+func (v dirNodeView) GetType() Type             { return v.ss.GetType() }
+func (v dirNodeView) GetEntries() map[string]ID { return v.ss.Entries }
 
 type DBOperation interface {
 	Apply(s *DBState) error
@@ -289,6 +337,8 @@ type DB struct {
 	snapshotIO DBStateSnapshotIO
 	txLogIO    DBTransactionLogIO
 }
+
+var _ = DBHandler(&DB{})
 
 func newDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) *DB {
 	return &DB{
@@ -376,8 +426,13 @@ func (db *DB) ApplyTransaction(tx DBTransaction) error {
 	return nil
 }
 
-func (db *DB) ReadNode(id ID) INode {
-	return db.state.nodes[id]
+func (db *DB) QueryNode(id ID) (NodeView, error) {
+	n := db.state.nodes[id]
+	if n == nil {
+		return nil, ErrNotFound
+	}
+
+	return n.View(), nil
 }
 
 type OpMeta struct {
@@ -413,7 +468,7 @@ var _ = DBOperation(&CreateDirOp{})
 
 func (op *CreateDirOp) Apply(s *DBState) error {
 	n := &DirNode{
-		INodeCommon: INodeCommon{ID: op.ID, Type: DirNodeT, OrigPath: op.OrigPath},
+		INodeCommon: INodeCommon{ID: op.ID, OrigPath: op.OrigPath},
 		Entries:     make(map[string]ID),
 	}
 
@@ -434,7 +489,7 @@ type CreateFileOp struct {
 
 func (op *CreateFileOp) Apply(s *DBState) error {
 	n := &FileNode{
-		INodeCommon: INodeCommon{ID: op.ID, Type: FileNodeT, OrigPath: op.OrigPath},
+		INodeCommon: INodeCommon{ID: op.ID, OrigPath: op.OrigPath},
 		Size:        0,
 	}
 
