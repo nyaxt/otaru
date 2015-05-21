@@ -13,6 +13,8 @@ var (
 	ErrNotFound = errors.New("No such node.")
 )
 
+func IsErrNotFound(err error) bool { return err == ErrNotFound }
+
 type ID uint64
 type Type int
 

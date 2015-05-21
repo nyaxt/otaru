@@ -21,23 +21,6 @@ type DBHandler interface {
 	QueryNode(id ID) (NodeView, error)
 }
 
-type DBServiceRequest struct {
-	tx      DBTransaction
-	resultC chan error
-}
-
-type DBService struct {
-	c chan DBServiceRequest
-	h DBHandler
-}
-
-func NewDBService(h DBHandler) *DBService {
-	return &DBService{
-		c: make(chan DBServiceRequest),
-		h: h,
-	}
-}
-
 /*
 
 File write:
