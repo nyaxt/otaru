@@ -13,7 +13,7 @@ func TestInitialState(t *testing.T) {
 		return
 	}
 
-	nv, err := db.QueryNode(1)
+	nv, _, err := db.QueryNode(1, false)
 	if err != nil {
 		t.Errorf("Failed to query root dir")
 		return

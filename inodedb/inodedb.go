@@ -461,13 +461,19 @@ func (db *DB) ApplyTransaction(tx DBTransaction) (TxID, error) {
 	return tx.TxID, nil
 }
 
-func (db *DB) QueryNode(id ID) (NodeView, error) {
+func (db *DB) QueryNode(id ID, tryLock bool) (NodeView, NodeLock, error) {
 	n := db.state.nodes[id]
 	if n == nil {
-		return nil, ENOENT
+		return nil, NodeLock{}, ENOENT
+	}
+	v := n.View()
+
+	if tryLock {
+		nlock, err := db.LockNode(id)
+		return v, nlock, err
 	}
 
-	return n.View(), nil
+	return v, NodeLock{ID: id, Ticket: NoTicket}, nil
 }
 
 func (db *DB) LockNode(id ID) (NodeLock, error) {
@@ -487,6 +493,15 @@ func (db *DB) LockNode(id ID) (NodeLock, error) {
 
 	db.state.nodeLocks[id] = nlock
 	return nlock, nil
+}
+
+func (db *DB) UnlockNode(nlock NodeLock) error {
+	if err := db.state.checkLock(nlock, true); err != nil {
+		return err
+	}
+
+	delete(db.state.nodeLocks, nlock.ID)
+	return nil
 }
 
 type OpMeta struct {

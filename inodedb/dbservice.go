@@ -9,14 +9,26 @@ type DBTransactionRequest struct {
 	resultC chan interface{}
 }
 
+type queryNodeResult struct {
+	v     NodeView
+	nlock NodeLock
+	err   error
+}
+
 type DBQueryNodeRequest struct {
 	id      ID
-	resultC chan NodeView
+	tryLock bool
+	resultC chan queryNodeResult
 }
 
 type DBLockNodeRequest struct {
 	id      ID
 	resultC chan interface{}
+}
+
+type DBUnlockNodeRequest struct {
+	nlock   NodeLock
+	resultC chan error
 }
 
 // DBService serializes requests to DBHandler
@@ -58,11 +70,8 @@ func (srv *DBService) run() {
 				}
 			case *DBQueryNodeRequest:
 				req := req.(*DBQueryNodeRequest)
-				v, err := srv.h.QueryNode(req.id)
-				if err != nil && !IsErrNotFound(err) {
-					log.Printf("QueryNode failed and err isn't NotFound err: %v", err)
-				}
-				req.resultC <- v
+				v, nlock, err := srv.h.QueryNode(req.id, req.tryLock)
+				req.resultC <- queryNodeResult{v, nlock, err}
 			case *DBLockNodeRequest:
 				req := req.(*DBLockNodeRequest)
 				nlock, err := srv.h.LockNode(req.id)
@@ -96,14 +105,11 @@ func (srv *DBService) ApplyTransaction(tx DBTransaction) (TxID, error) {
 	return 0, res.(error)
 }
 
-func (srv *DBService) QueryNode(id ID) (NodeView, error) {
-	req := &DBQueryNodeRequest{id: id, resultC: make(chan NodeView)}
+func (srv *DBService) QueryNode(id ID, tryLock bool) (NodeView, NodeLock, error) {
+	req := &DBQueryNodeRequest{id: id, tryLock: tryLock, resultC: make(chan queryNodeResult)}
 	srv.reqC <- req
-	v := <-req.resultC
-	if v == nil {
-		return nil, ENOENT
-	}
-	return v, nil
+	res := <-req.resultC
+	return res.v, res.nlock, res.err
 }
 
 func (srv *DBService) LockNode(id ID) (NodeLock, error) {
@@ -114,4 +120,10 @@ func (srv *DBService) LockNode(id ID) (NodeLock, error) {
 		return nlock, nil
 	}
 	return NodeLock{}, res.(error)
+}
+
+func (srv *DBService) UnlockNode(nlock NodeLock) error {
+	req := &DBUnlockNodeRequest{nlock: nlock, resultC: make(chan error)}
+	srv.reqC <- req
+	return <-req.resultC
 }

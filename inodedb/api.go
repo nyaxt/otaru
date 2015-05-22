@@ -33,10 +33,11 @@ type DBHandler interface {
 	// ApplyTransaction applies DBTransaction to db.state, and returns applied transaction's TxID. If it fails to apply the transaction, it rollbacks intermediate state and returns error.
 	ApplyTransaction(tx DBTransaction) (TxID, error)
 
-	LockNode(id ID) (NodeLock, error)
+	// QueryNode returns read-only snapshot of INode id, with a lock if specified
+	QueryNode(id ID, tryLock bool) (NodeView, NodeLock, error)
 
-	// QueryNode returns read-only snapshot of INode id.
-	QueryNode(id ID) (NodeView, error)
+	LockNode(id ID) (NodeLock, error)
+	UnlockNode(nlock NodeLock) error
 }
 
 /*
