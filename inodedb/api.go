@@ -1,6 +1,8 @@
 package inodedb
 
 type NodeView interface {
+	// GetVersion() TxID
+
 	GetID() ID
 	GetType() Type
 }
@@ -16,8 +18,24 @@ type DirNodeView interface {
 	GetEntries() map[string]ID
 }
 
+type Ticket uint64
+
+const NoTicket = Ticket(0)
+
+type NodeLock struct {
+	ID
+	Ticket
+
+	// FIXME: add Expire
+}
+
 type DBHandler interface {
-	ApplyTransaction(tx DBTransaction) error
+	// ApplyTransaction applies DBTransaction to db.state, and returns applied transaction's TxID. If it fails to apply the transaction, it rollbacks intermediate state and returns error.
+	ApplyTransaction(tx DBTransaction) (TxID, error)
+
+	LockNode(id ID) (NodeLock, error)
+
+	// QueryNode returns read-only snapshot of INode id.
 	QueryNode(id ID) (NodeView, error)
 }
 

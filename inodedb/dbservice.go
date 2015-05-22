@@ -6,7 +6,7 @@ import (
 
 type DBTransactionRequest struct {
 	tx      DBTransaction
-	resultC chan error
+	resultC chan interface{}
 }
 
 type DBQueryNodeRequest struct {
@@ -14,10 +14,14 @@ type DBQueryNodeRequest struct {
 	resultC chan NodeView
 }
 
+type DBLockNodeRequest struct {
+	id      ID
+	resultC chan interface{}
+}
+
 // DBService serializes requests to DBHandler
 type DBService struct {
-	txC     chan *DBTransactionRequest
-	queryC  chan *DBQueryNodeRequest
+	reqC    chan interface{}
 	quitC   chan struct{}
 	exitedC chan struct{}
 
@@ -28,8 +32,7 @@ var _ = DBHandler(&DBService{})
 
 func NewDBService(h DBHandler) *DBService {
 	s := &DBService{
-		txC:     make(chan *DBTransactionRequest),
-		queryC:  make(chan *DBQueryNodeRequest),
+		reqC:    make(chan interface{}),
 		quitC:   make(chan struct{}),
 		exitedC: make(chan struct{}),
 		h:       h,
@@ -43,14 +46,34 @@ func NewDBService(h DBHandler) *DBService {
 func (srv *DBService) run() {
 	for {
 		select {
-		case req := <-srv.txC:
-			req.resultC <- srv.h.ApplyTransaction(req.tx)
-		case req := <-srv.queryC:
-			v, err := srv.h.QueryNode(req.id)
-			if err != nil && !IsErrNotFound(err) {
-				log.Printf("QueryNode failed and err isn't NotFound err: %v", err)
+		case req := <-srv.reqC:
+			switch req.(type) {
+			case *DBTransactionRequest:
+				req := req.(*DBTransactionRequest)
+				txid, err := srv.h.ApplyTransaction(req.tx)
+				if err != nil {
+					req.resultC <- err
+				} else {
+					req.resultC <- txid
+				}
+			case *DBQueryNodeRequest:
+				req := req.(*DBQueryNodeRequest)
+				v, err := srv.h.QueryNode(req.id)
+				if err != nil && !IsErrNotFound(err) {
+					log.Printf("QueryNode failed and err isn't NotFound err: %v", err)
+				}
+				req.resultC <- v
+			case *DBLockNodeRequest:
+				req := req.(*DBLockNodeRequest)
+				nlock, err := srv.h.LockNode(req.id)
+				if err != nil {
+					req.resultC <- err
+				} else {
+					req.resultC <- nlock
+				}
+			default:
+				log.Printf("unknown request passed to DBService: %v", req)
 			}
-			req.resultC <- v
 		case <-srv.quitC:
 			srv.exitedC <- struct{}{}
 			return
@@ -63,18 +86,32 @@ func (srv *DBService) Quit() {
 	<-srv.exitedC
 }
 
-func (srv *DBService) ApplyTransaction(tx DBTransaction) error {
-	req := &DBTransactionRequest{tx: tx, resultC: make(chan error)}
-	srv.txC <- req
-	return <-req.resultC
+func (srv *DBService) ApplyTransaction(tx DBTransaction) (TxID, error) {
+	req := &DBTransactionRequest{tx: tx, resultC: make(chan interface{})}
+	srv.reqC <- req
+	res := <-req.resultC
+	if txid, ok := res.(TxID); ok {
+		return txid, nil
+	}
+	return 0, res.(error)
 }
 
 func (srv *DBService) QueryNode(id ID) (NodeView, error) {
 	req := &DBQueryNodeRequest{id: id, resultC: make(chan NodeView)}
-	srv.queryC <- req
+	srv.reqC <- req
 	v := <-req.resultC
 	if v == nil {
-		return nil, ErrNotFound
+		return nil, ENOENT
 	}
 	return v, nil
+}
+
+func (srv *DBService) LockNode(id ID) (NodeLock, error) {
+	req := &DBLockNodeRequest{id: id, resultC: make(chan interface{})}
+	srv.reqC <- req
+	res := <-req.resultC
+	if nlock, ok := res.(NodeLock); ok {
+		return nlock, nil
+	}
+	return NodeLock{}, res.(error)
 }

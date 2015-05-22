@@ -5,17 +5,27 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"syscall"
 
 	"encoding/gob"
 )
 
 var (
-	ErrNotFound = errors.New("No such node.")
+	EEXIST         = syscall.Errno(syscall.EEXIST)
+	ENOENT         = syscall.Errno(syscall.ENOENT)
+	ENOTDIR        = syscall.Errno(syscall.ENOTDIR)
+	ErrLockInvalid = errors.New("Invalid lock given.")
+	ErrLockTaken   = errors.New("Lock is already acquired by someone else.")
 )
 
-func IsErrNotFound(err error) bool { return err == ErrNotFound }
+func IsErrNotFound(err error) bool { return err == ENOENT }
 
 type ID uint64
+
+const (
+	AllocateNewNodeID = 0
+)
+
 type Type int
 
 const (
@@ -37,12 +47,16 @@ type TxID uint64
 
 const (
 	LatestVersion = math.MaxUint64
+	AnyVersion    = 0
 )
 
 type DBState struct {
 	nodes   map[ID]INode
 	lastID  ID
 	version TxID
+
+	lastTicket Ticket
+	nodeLocks  map[ID]NodeLock
 }
 
 func NewDBState() *DBState {
@@ -50,6 +64,9 @@ func NewDBState() *DBState {
 		nodes:   make(map[ID]INode),
 		lastID:  0,
 		version: 0,
+
+		lastTicket: 1,
+		nodeLocks:  make(map[ID]NodeLock),
 	}
 }
 
@@ -66,6 +83,21 @@ func (s *DBState) addNewNode(node INode) error {
 
 	s.nodes[id] = node
 	s.lastID = id
+	return nil
+}
+
+func (s *DBState) checkLock(nlock NodeLock, requireTicket bool) error {
+	// if ticket is required, make sure we have one
+	if requireTicket && nlock.Ticket == NoTicket {
+		return ErrLockInvalid
+	}
+
+	// if node is locked, and nlock isn't the lock, return error
+	existing, ok := s.nodeLocks[nlock.ID]
+	if ok && nlock != existing {
+		return ErrLockTaken
+	}
+
 	return nil
 }
 
@@ -362,11 +394,10 @@ func NewEmptyDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) (*DB, 
 	tx := DBTransaction{
 		TxID: 1,
 		Ops: []DBOperation{
-			&AssertEmptyFileSystemOp{},
-			&CreateDirOp{ID: 1, OrigPath: "/", DirID: 0},
+			&InitializeFileSystemOp{},
 		},
 	}
-	if err := db.ApplyTransaction(tx); err != nil {
+	if _, err := db.ApplyTransaction(tx); err != nil {
 		return nil, fmt.Errorf("Failed to initilaize db: %v", err)
 	}
 	return db, nil
@@ -401,7 +432,7 @@ func (db *DB) RestoreVersion(version TxID) error {
 	}
 
 	for _, tx := range txlog {
-		if err := db.ApplyTransaction(tx); err != nil {
+		if _, err := db.ApplyTransaction(tx); err != nil {
 			db.state = oldState
 			return fmt.Errorf("Failed to replay tx: %v", err)
 		}
@@ -410,9 +441,11 @@ func (db *DB) RestoreVersion(version TxID) error {
 	return nil
 }
 
-func (db *DB) ApplyTransaction(tx DBTransaction) error {
-	if tx.TxID != db.state.version+1 {
-		return fmt.Errorf("Skipped tx %d", db.state.version+1)
+func (db *DB) ApplyTransaction(tx DBTransaction) (TxID, error) {
+	if tx.TxID == AnyVersion {
+		tx.TxID = db.state.version + 1
+	} else if tx.TxID != db.state.version+1 {
+		return 0, fmt.Errorf("Skipped tx %d", db.state.version+1)
 	}
 
 	for _, op := range tx.Ops {
@@ -420,34 +453,53 @@ func (db *DB) ApplyTransaction(tx DBTransaction) error {
 			if rerr := db.RestoreVersion(db.state.version); rerr != nil {
 				log.Fatalf("Following Error: %v. DB rollback failed!!!: %v", err, rerr)
 			}
-			return err
+			return 0, err
 		}
 	}
 
 	db.state.version = tx.TxID
-	return nil
+	return tx.TxID, nil
 }
 
 func (db *DB) QueryNode(id ID) (NodeView, error) {
 	n := db.state.nodes[id]
 	if n == nil {
-		return nil, ErrNotFound
+		return nil, ENOENT
 	}
 
 	return n.View(), nil
+}
+
+func (db *DB) LockNode(id ID) (NodeLock, error) {
+	if id == AllocateNewNodeID {
+		id = db.state.lastID + 1
+		db.state.lastID = id
+	}
+
+	if _, ok := db.state.nodeLocks[id]; ok {
+		return NodeLock{}, ErrLockTaken
+	}
+
+	ticket := db.state.lastTicket + 1
+	db.state.lastTicket = ticket
+
+	nlock := NodeLock{ID: id, Ticket: ticket}
+
+	db.state.nodeLocks[id] = nlock
+	return nlock, nil
 }
 
 type OpMeta struct {
 	Kind string `json:"kind"`
 }
 
-type AssertEmptyFileSystemOp struct {
+type InitializeFileSystemOp struct {
 	OpMeta `json:",inline"`
 }
 
-var _ = DBOperation(&AssertEmptyFileSystemOp{})
+var _ = DBOperation(&InitializeFileSystemOp{})
 
-func (op *AssertEmptyFileSystemOp) Apply(s *DBState) error {
+func (op *InitializeFileSystemOp) Apply(s *DBState) error {
 	if len(s.nodes) != 0 {
 		return fmt.Errorf("DB not empty. Already contains %d nodes!", len(s.nodes))
 	}
@@ -455,27 +507,39 @@ func (op *AssertEmptyFileSystemOp) Apply(s *DBState) error {
 		return fmt.Errorf("DB lastId != 0")
 	}
 
+	n := &DirNode{
+		INodeCommon: INodeCommon{ID: 1, OrigPath: "/"},
+		Entries:     make(map[string]ID),
+	}
+
+	if err := s.addNewNode(n); err != nil {
+		return fmt.Errorf("Failed to create root DirNode: %v", err)
+	}
+	s.lastID = 1
+
 	return nil
 }
 
 type CreateDirOp struct {
 	OpMeta   `json:",inline"`
-	ID       `json:"id"`
-	Name     string `json:"name"`
+	NodeLock `json:"nodelock"`
 	OrigPath string `json:"origpath"`
-	DirID    ID     `json:"dirid"`
 }
 
 var _ = DBOperation(&CreateDirOp{})
 
 func (op *CreateDirOp) Apply(s *DBState) error {
+	if err := s.checkLock(op.NodeLock, true); err != nil {
+		return err
+	}
+
 	n := &DirNode{
 		INodeCommon: INodeCommon{ID: op.ID, OrigPath: op.OrigPath},
 		Entries:     make(map[string]ID),
 	}
 
 	if err := s.addNewNode(n); err != nil {
-		return fmt.Errorf("Failed to create new FileNode: %v", err)
+		return fmt.Errorf("Failed to create new DirNode: %v", err)
 	}
 
 	return nil
@@ -483,13 +547,15 @@ func (op *CreateDirOp) Apply(s *DBState) error {
 
 type CreateFileOp struct {
 	OpMeta   `json:",inline"`
-	ID       `json:"id"`
-	Name     string `json:"name"`
+	NodeLock `json:"nodelock"`
 	OrigPath string `json:"origpath"`
-	DirID    ID     `json:"dirid"`
 }
 
 func (op *CreateFileOp) Apply(s *DBState) error {
+	if err := s.checkLock(op.NodeLock, true); err != nil {
+		return err
+	}
+
 	n := &FileNode{
 		INodeCommon: INodeCommon{ID: op.ID, OrigPath: op.OrigPath},
 		Size:        0,
@@ -498,6 +564,39 @@ func (op *CreateFileOp) Apply(s *DBState) error {
 	if err := s.addNewNode(n); err != nil {
 		return fmt.Errorf("Failed to create new FileNode: %v", err)
 	}
+
+	return nil
+}
+
+type HardLinkOp struct {
+	OpMeta   `json:",inline"`
+	NodeLock `json:"nodelock"`
+	Name     string `json:"name"`
+	TargetID ID     `json:"targetid"`
+}
+
+func (op *HardLinkOp) Apply(s *DBState) error {
+	if err := s.checkLock(op.NodeLock, false); err != nil {
+		return err
+	}
+
+	n, ok := s.nodes[op.ID]
+	if !ok {
+		return ENOENT
+	}
+	dn, ok := n.(*DirNode)
+	if !ok {
+		return ENOTDIR
+	}
+
+	if _, ok := s.nodes[op.TargetID]; !ok {
+		return ENOENT
+	}
+
+	if _, ok := dn.Entries[op.Name]; ok {
+		return EEXIST
+	}
+	dn.Entries[op.Name] = op.TargetID
 
 	return nil
 }
