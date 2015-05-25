@@ -2,6 +2,9 @@ package otaru
 
 import (
 	"fmt"
+
+	"github.com/nyaxt/otaru/blobstore"
+	. "github.com/nyaxt/otaru/util" // FIXME
 )
 
 const (
@@ -14,26 +17,26 @@ const (
 )
 
 type ChunkedFileIO struct {
-	bs RandomAccessBlobStore
+	bs blobstore.RandomAccessBlobStore
 	fn *FileNode
 	c  Cipher
 
-	newChunkIO func(BlobHandle, Cipher) BlobHandle
+	newChunkIO func(blobstore.BlobHandle, Cipher) blobstore.BlobHandle
 }
 
-func NewChunkedFileIO(bs RandomAccessBlobStore, fn *FileNode, c Cipher) *ChunkedFileIO {
+func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, fn *FileNode, c Cipher) *ChunkedFileIO {
 	return &ChunkedFileIO{
 		bs: bs, fn: fn, c: c,
-		newChunkIO: func(bh BlobHandle, c Cipher) BlobHandle { return NewChunkIO(bh, c) },
+		newChunkIO: func(bh blobstore.BlobHandle, c Cipher) blobstore.BlobHandle { return NewChunkIO(bh, c) },
 	}
 }
 
-func (cfio *ChunkedFileIO) OverrideNewChunkIOForTesting(newChunkIO func(BlobHandle, Cipher) BlobHandle) {
+func (cfio *ChunkedFileIO) OverrideNewChunkIOForTesting(newChunkIO func(blobstore.BlobHandle, Cipher) blobstore.BlobHandle) {
 	cfio.newChunkIO = newChunkIO
 }
 
 func (cfio *ChunkedFileIO) newFileChunk(newo int64) (FileChunk, error) {
-	bpath, err := GenerateNewBlobPath(cfio.bs)
+	bpath, err := blobstore.GenerateNewBlobPath(cfio.bs)
 	if err != nil {
 		return FileChunk{}, err
 	}
@@ -50,13 +53,13 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 	}
 
 	writeToChunk := func(c *FileChunk, isNewChunk bool, maxChunkLen int64) error {
-		if !IsReadWriteAllowed(cfio.bs.Flags()) {
+		if !blobstore.IsReadWriteAllowed(cfio.bs.Flags()) {
 			return EPERM
 		}
 
-		flags := O_RDWR
+		flags := blobstore.O_RDWR
 		if isNewChunk {
-			flags |= O_CREATE | O_EXCL
+			flags |= blobstore.O_CREATE | blobstore.O_EXCL
 		}
 		bh, err := cfio.bs.Open(c.BlobPath, flags)
 		if err != nil {
@@ -202,11 +205,11 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 			}
 		}
 
-		if !IsReadAllowed(cfio.bs.Flags()) {
+		if !blobstore.IsReadAllowed(cfio.bs.Flags()) {
 			return EPERM
 		}
 
-		bh, err := cfio.bs.Open(c.BlobPath, O_RDONLY)
+		bh, err := cfio.bs.Open(c.BlobPath, blobstore.O_RDONLY)
 		if err != nil {
 			return fmt.Errorf("Failed to open path \"%s\" for reading: %v", c.BlobPath, err)
 		}
@@ -244,7 +247,7 @@ func (cfio *ChunkedFileIO) Close() error {
 }
 
 func (cfio *ChunkedFileIO) Truncate(size int64) error {
-	if !IsReadWriteAllowed(cfio.bs.Flags()) {
+	if !blobstore.IsReadWriteAllowed(cfio.bs.Flags()) {
 		return EPERM
 	}
 
@@ -262,7 +265,7 @@ func (cfio *ChunkedFileIO) Truncate(size int64) error {
 			// trim the chunk
 			chunksize := size - c.Left()
 
-			bh, err := cfio.bs.Open(c.BlobPath, O_RDWR)
+			bh, err := cfio.bs.Open(c.BlobPath, blobstore.O_RDWR)
 			if err != nil {
 				return err
 			}

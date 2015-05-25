@@ -2,6 +2,7 @@ package otaru_test
 
 import (
 	. "github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/blobstore"
 	. "github.com/nyaxt/otaru/testutils"
 
 	"bytes"
@@ -35,11 +36,11 @@ func TestChunkedFileIO_FileBlobStore(t *testing.T) {
 
 func TestChunkedFileIO_SingleChunk(t *testing.T) {
 	fn := NewFileNode(NewINodeDBEmpty(), "/piyo.txt")
-	bs := NewMockBlobStore()
+	bs := blobstore.NewMockBlobStore()
 	cfio := NewChunkedFileIO(bs, fn, TestCipher())
 
 	// Disable Chunk framing for testing
-	cfio.OverrideNewChunkIOForTesting(func(bh BlobHandle, c Cipher) BlobHandle { return bh })
+	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c Cipher) blobstore.BlobHandle { return bh })
 
 	if err := cfio.PWrite(123, HelloWorld); err != nil {
 		t.Errorf("PWrite failed: %v", err)
@@ -68,11 +69,11 @@ func TestChunkedFileIO_SingleChunk(t *testing.T) {
 
 func TestChunkedFileIO_MultiChunk(t *testing.T) {
 	fn := NewFileNode(NewINodeDBEmpty(), "/piyo.txt")
-	bs := NewMockBlobStore()
+	bs := blobstore.NewMockBlobStore()
 	cfio := NewChunkedFileIO(bs, fn, TestCipher())
 
 	// Disable Chunk framing for testing
-	cfio.OverrideNewChunkIOForTesting(func(bh BlobHandle, c Cipher) BlobHandle { return bh })
+	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c Cipher) blobstore.BlobHandle { return bh })
 
 	if err := cfio.PWrite(ChunkSplitSize+12345, HelloWorld); err != nil {
 		t.Errorf("PWrite failed: %v", err)
@@ -107,7 +108,7 @@ func TestChunkedFileIO_MultiChunk(t *testing.T) {
 		return
 	}
 	bh = bs.Paths[fn.Chunks[1].BlobPath]
-	if !reflect.DeepEqual(bh.Log[1], MockBlobStoreOperation{'W', 0, 7, HelloWorld[5]}) {
+	if !reflect.DeepEqual(bh.Log[1], blobstore.MockBlobStoreOperation{'W', 0, 7, HelloWorld[5]}) {
 		fmt.Printf("? %+v\n", bh.Log[1])
 	}
 }

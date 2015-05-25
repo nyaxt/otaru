@@ -1,9 +1,14 @@
-package otaru
+package blobstore
 
 import (
 	"fmt"
 	"io"
 	"log"
+	"syscall"
+)
+
+const (
+	EPERM = syscall.Errno(syscall.EPERM)
 )
 
 // FIXME: handle overflows

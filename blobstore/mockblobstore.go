@@ -1,4 +1,4 @@
-package otaru
+package blobstore
 
 type MockBlobStoreOperation struct {
 	Type      rune

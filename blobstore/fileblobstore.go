@@ -1,4 +1,4 @@
-package otaru
+package blobstore
 
 import (
 	"fmt"
@@ -6,6 +6,11 @@ import (
 	"log"
 	"os"
 	"path"
+	"syscall"
+)
+
+const (
+	ENOENT = syscall.Errno(syscall.ENOENT)
 )
 
 type fileBlobHandle struct {

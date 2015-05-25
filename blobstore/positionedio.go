@@ -1,4 +1,4 @@
-package otaru
+package blobstore
 
 // PReader implements positioned read
 type PReader interface {

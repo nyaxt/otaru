@@ -5,14 +5,16 @@ import (
 	"compress/zlib"
 	"io"
 	"log"
+
+	"github.com/nyaxt/otaru/blobstore"
 )
 
 const (
 	INodeDBSnapshotBlobpath = "INODEDB_SNAPSHOT"
 )
 
-func (idb *INodeDB) SaveToBlobStore(bs RandomAccessBlobStore, c Cipher) error {
-	raw, err := bs.Open(INodeDBSnapshotBlobpath, O_RDWR|O_CREATE)
+func (idb *INodeDB) SaveToBlobStore(bs blobstore.RandomAccessBlobStore, c Cipher) error {
+	raw, err := bs.Open(INodeDBSnapshotBlobpath, blobstore.O_RDWR|blobstore.O_CREATE)
 	if err != nil {
 		return err
 	}
@@ -24,7 +26,7 @@ func (idb *INodeDB) SaveToBlobStore(bs RandomAccessBlobStore, c Cipher) error {
 		OrigFilename: "*INODEDB_SNAPSHOT*",
 		OrigOffset:   0,
 	})
-	bufio := bufio.NewWriter(&OffsetWriter{cio, 0})
+	bufio := bufio.NewWriter(&blobstore.OffsetWriter{cio, 0})
 	zw := zlib.NewWriter(bufio)
 	if err := idb.SerializeSnapshot(zw); err != nil {
 		return err
@@ -45,15 +47,15 @@ func (idb *INodeDB) SaveToBlobStore(bs RandomAccessBlobStore, c Cipher) error {
 	return nil
 }
 
-func LoadINodeDBFromBlobStore(bs RandomAccessBlobStore, c Cipher) (*INodeDB, error) {
-	raw, err := bs.Open(INodeDBSnapshotBlobpath, O_RDONLY)
+func LoadINodeDBFromBlobStore(bs blobstore.RandomAccessBlobStore, c Cipher) (*INodeDB, error) {
+	raw, err := bs.Open(INodeDBSnapshotBlobpath, blobstore.O_RDONLY)
 	if err != nil {
 		return nil, err
 	}
 
 	cio := NewChunkIO(raw, c)
 	log.Printf("serialized blob size: %d", cio.Size())
-	zr, err := zlib.NewReader(&io.LimitedReader{&OffsetReader{cio, 0}, cio.Size()})
+	zr, err := zlib.NewReader(&io.LimitedReader{&blobstore.OffsetReader{cio, 0}, cio.Size()})
 	if err != nil {
 		return nil, err
 	}

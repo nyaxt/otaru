@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"syscall"
 
-	"github.com/nyaxt/otaru/intn"
+	"github.com/nyaxt/otaru/blobstore"
 )
 
 const (
@@ -20,120 +20,19 @@ const (
 	FileWriteCacheMaxPatchContentLen = 256 * 1024
 )
 
-type FileWriteCache struct {
-	ps intn.Patches
-}
-
-func NewFileWriteCache() *FileWriteCache {
-	return &FileWriteCache{ps: intn.NewPatches()}
-}
-
-func (wc *FileWriteCache) PWrite(offset int64, p []byte) error {
-	newp := intn.Patch{Offset: offset, P: p}
-	wc.ps = wc.ps.Merge(newp)
-	return nil
-}
-
-func (wc *FileWriteCache) PReadThrough(offset int64, p []byte, r PReader) error {
-	nr := int64(len(p))
-	remo := offset
-	remp := p
-
-	for _, patch := range wc.ps {
-		if nr <= 0 {
-			return nil
-		}
-
-		if remo > patch.Right() {
-			continue
-		}
-
-		if remo < patch.Left() {
-			fallbackLen := Int64Min(nr, patch.Left()-remo)
-
-			if err := r.PRead(remo, remp[:fallbackLen]); err != nil {
-				return err
-			}
-
-			remp = remp[fallbackLen:]
-			nr -= fallbackLen
-			remo += fallbackLen
-		}
-
-		if nr <= 0 {
-			return nil
-		}
-
-		applyOffset := remo - patch.Offset
-		applyLen := Int64Min(int64(len(patch.P))-applyOffset, nr)
-		copy(remp[:applyLen], patch.P[applyOffset:])
-
-		remp = remp[applyLen:]
-		nr -= applyLen
-		remo += applyLen
-	}
-
-	if err := r.PRead(remo, remp); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (wc *FileWriteCache) ContentLen() int64 {
-	l := int64(0)
-	for _, p := range wc.ps {
-		l += int64(len(p.P))
-	}
-	return l
-}
-
-func (wc *FileWriteCache) NeedsFlush() bool {
-	if len(wc.ps) > FileWriteCacheMaxPatches {
-		return true
-	}
-	if wc.ContentLen() > FileWriteCacheMaxPatchContentLen {
-		return true
-	}
-
-	return false
-}
-
-func (wc *FileWriteCache) Flush(bh BlobHandle) error {
-	for _, p := range wc.ps {
-		if err := bh.PWrite(p.Offset, p.P); err != nil {
-			return err
-		}
-	}
-	wc.ps = wc.ps[:0]
-
-	return nil
-}
-
-func (wc *FileWriteCache) Right() int64 {
-	if len(wc.ps) == 0 {
-		return 0
-	}
-
-	return wc.ps[0].Right()
-}
-
-func (wc *FileWriteCache) Truncate(size int64) {
-	wc.ps = wc.ps.Truncate(size)
-}
-
 type FileSystem struct {
 	*INodeDB
 	lastID INodeID
 
-	bs RandomAccessBlobStore
+	bs blobstore.RandomAccessBlobStore
 	c  Cipher
 
-	newChunkedFileIO func(bs RandomAccessBlobStore, fn *FileNode, c Cipher) BlobHandle
+	newChunkedFileIO func(bs blobstore.RandomAccessBlobStore, fn *FileNode, c Cipher) blobstore.BlobHandle
 
 	wcmap map[INodeID]*FileWriteCache
 }
 
-func newFileSystemCommon(idb *INodeDB, bs RandomAccessBlobStore, c Cipher) *FileSystem {
+func newFileSystemCommon(idb *INodeDB, bs blobstore.RandomAccessBlobStore, c Cipher) *FileSystem {
 	fs := &FileSystem{
 		INodeDB: idb,
 		lastID:  0,
@@ -141,7 +40,7 @@ func newFileSystemCommon(idb *INodeDB, bs RandomAccessBlobStore, c Cipher) *File
 		bs: bs,
 		c:  c,
 
-		newChunkedFileIO: func(bs RandomAccessBlobStore, fn *FileNode, c Cipher) BlobHandle {
+		newChunkedFileIO: func(bs blobstore.RandomAccessBlobStore, fn *FileNode, c Cipher) blobstore.BlobHandle {
 			return NewChunkedFileIO(bs, fn, c)
 		},
 
@@ -151,7 +50,7 @@ func newFileSystemCommon(idb *INodeDB, bs RandomAccessBlobStore, c Cipher) *File
 	return fs
 }
 
-func NewFileSystemEmpty(bs RandomAccessBlobStore, c Cipher) *FileSystem {
+func NewFileSystemEmpty(bs blobstore.RandomAccessBlobStore, c Cipher) *FileSystem {
 	idb := NewINodeDBEmpty()
 	rootdir := NewDirNode(idb, "/")
 	if rootdir.ID() != 1 {
@@ -161,7 +60,7 @@ func NewFileSystemEmpty(bs RandomAccessBlobStore, c Cipher) *FileSystem {
 	return newFileSystemCommon(idb, bs, c)
 }
 
-func NewFileSystemFromSnapshot(bs RandomAccessBlobStore, c Cipher) (*FileSystem, error) {
+func NewFileSystemFromSnapshot(bs blobstore.RandomAccessBlobStore, c Cipher) (*FileSystem, error) {
 	idb, err := LoadINodeDBFromBlobStore(bs, c)
 	if err != nil {
 		return nil, err
@@ -179,7 +78,7 @@ func (fs *FileSystem) getOrCreateFileWriteCache(id INodeID) *FileWriteCache {
 	return wc
 }
 
-func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(RandomAccessBlobStore, *FileNode, Cipher) BlobHandle) {
+func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(blobstore.RandomAccessBlobStore, *FileNode, Cipher) blobstore.BlobHandle) {
 	fs.newChunkedFileIO = newChunkedFileIO
 }
 
@@ -287,7 +186,7 @@ type FileHandle struct {
 	fs   *FileSystem
 	n    *FileNode
 	wc   *FileWriteCache
-	cfio BlobHandle
+	cfio blobstore.BlobHandle
 }
 
 func (fs *FileSystem) openFileNode(n *FileNode) (*FileHandle, error) {
