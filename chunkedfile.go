@@ -24,63 +24,6 @@ type ChunksArrayIO interface {
 	Close() error
 }
 
-type INodeDBChunksArrayIO struct {
-	db    inodedb.DBHandler
-	nlock inodedb.NodeLock
-	fn    inodedb.FileNodeView
-}
-
-var _ = ChunksArrayIO(&INodeDBChunksArrayIO{})
-
-func NewINodeDBChunksArrayIO(db inodedb.DBHandler, nlock inodedb.NodeLock, fn inodedb.FileNodeView) (*INodeDBChunksArrayIO, error) {
-	if nlock.Ticket == inodedb.NoTicket {
-		return nil, fmt.Errorf("NewINodeDBChunksArrayIO requires valid node lock. Use NewReadOnlyINodeDBChunksArrayIO if need read access")
-	}
-
-	return &INodeDBChunksArrayIO{db: db, nlock: nlock, fn: fn}, nil
-}
-
-func (caio *INodeDBChunksArrayIO) Read() ([]inodedb.FileChunk, error) {
-	if caio.nlock.Ticket != inodedb.NoTicket {
-		return caio.fn.GetChunks(), nil
-	}
-
-	v, _, err := caio.db.QueryNode(caio.nlock.ID, false)
-	if err != nil {
-		return nil, err
-	}
-
-	fn, ok := v.(inodedb.FileNodeView)
-	if !ok {
-		return nil, fmt.Errorf("Target node view is not a file.")
-	}
-
-	return fn.GetChunks(), nil
-}
-
-func (caio *INodeDBChunksArrayIO) Write(cs []inodedb.FileChunk) error {
-	if caio.nlock.Ticket == inodedb.NoTicket {
-		return fmt.Errorf("No ticket lock is acquired.")
-	}
-
-	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
-		&inodedb.UpdateChunksOp{NodeLock: caio.nlock, Chunks: cs},
-	}}
-	if _, err := caio.db.ApplyTransaction(tx); err != nil {
-		return fmt.Errorf("Failed to apply tx for updating cs: %v", err)
-	}
-	return nil
-}
-
-func (caio *INodeDBChunksArrayIO) Close() error {
-	if caio.nlock.Ticket != inodedb.NoTicket {
-		if err := caio.db.UnlockNode(caio.nlock); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 type ChunkedFileIO struct {
 	bs blobstore.RandomAccessBlobStore
 	c  Cipher

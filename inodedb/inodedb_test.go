@@ -43,4 +43,8 @@ func TestCreateFile(t *testing.T) {
 	if _, err := db.ApplyTransaction(tx); err != nil {
 		t.Errorf("Failed to apply tx: %v", err)
 	}
+
+	if err := db.UnlockNode(nlock); err != nil {
+		t.Errorf("Failed to UnlockNode: %v", err)
+	}
 }

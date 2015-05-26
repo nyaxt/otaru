@@ -1,26 +1,26 @@
 package otaru
 
-/*
 import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/nyaxt/otaru/inodedb"
 )
 
-func (fs *FileSystem) OpenDirFullPath(fullpath string) (*DirHandle, error) {
+func (fs *FileSystem) FindDirFullPath(fullpath string) (inodedb.ID, error) {
 	if len(fullpath) < 1 || fullpath[0] != '/' {
-		return nil, fmt.Errorf("Path must start with /, but given: %v", fullpath)
+		return 0, fmt.Errorf("Path must start with /, but given: %v", fullpath)
 	}
 
 	if fullpath != "/" {
 		panic("FIXME: implement me!!!!")
 	}
 
-	dh, err := fs.OpenDir(1)
-	return dh, err
+	return inodedb.ID(1), nil
 }
 
-func (fs *FileSystem) OpenFileFullPath(fullpath string, flag int, perm os.FileMode) (*FileHandle, error) {
+func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileMode) (*FileHandle, error) {
 	perm &= os.ModePerm
 
 	if len(fullpath) < 1 || fullpath[0] != '/' {
@@ -30,20 +30,23 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flag int, perm os.FileMo
 	dirname := filepath.Dir(fullpath)
 	basename := filepath.Base(fullpath)
 
-	dh, err := fs.OpenDirFullPath(dirname)
+	dirID, err := fs.FindDirFullPath(dirname)
 	if err != nil {
 		return nil, err
 	}
 
-	id := INodeID(0)
+	entries, err := fs.DirEntries(dirID)
+	if err != nil {
+		return nil, err
+	}
 
-	entries := dh.Entries()
+	var id inodedb.ID
 	id, ok := entries[basename]
 	if !ok {
-		if flag|os.O_CREATE != 0 {
+		if flags|os.O_CREATE != 0 {
 			// FIXME: apply perm
 
-			id, err = dh.CreateFile(basename)
+			id, err = fs.CreateFile(dirID, basename)
 			if err != nil {
 				return nil, err
 			}
@@ -57,11 +60,10 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flag int, perm os.FileMo
 	}
 
 	// FIXME: handle flag
-	fh, err := fs.OpenFile(id)
+	fh, err := fs.OpenFile(id, flags)
 	if err != nil {
 		return nil, err
 	}
 
 	return fh, nil
 }
-*/

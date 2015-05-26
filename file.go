@@ -2,6 +2,7 @@ package otaru
 
 import (
 	"fmt"
+	"log"
 	"syscall"
 
 	"github.com/nyaxt/otaru/blobstore"
@@ -10,11 +11,12 @@ import (
 )
 
 const (
-	EPERM     = syscall.Errno(syscall.EPERM)
+	EEXIST    = syscall.Errno(syscall.EEXIST)
+	EISDIR    = syscall.Errno(syscall.EISDIR)
 	ENOENT    = syscall.Errno(syscall.ENOENT)
 	ENOTDIR   = syscall.Errno(syscall.ENOTDIR)
 	ENOTEMPTY = syscall.Errno(syscall.ENOTEMPTY)
-	EEXIST    = syscall.Errno(syscall.EEXIST)
+	EPERM     = syscall.Errno(syscall.EPERM)
 )
 
 const (
@@ -96,105 +98,123 @@ func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(b
 	fs.newChunkedFileIO = newChunkedFileIO
 }
 
-/*
-
-type DirHandle struct {
-	fs *FileSystem
-	id inodedb.ID
-}
-
-func (fs *FileSystem) OpenDir(id inodedb.ID) (*DirHandle, error) {
-	node := fs.INodeDB.Get(id)
-	if node == nil {
-		return nil, ENOENT
+func (fs *FileSystem) DirEntries(id inodedb.ID) (map[string]inodedb.ID, error) {
+	v, _, err := fs.idb.QueryNode(id, false)
+	if err != nil {
+		return nil, err
 	}
-	if node.Type() != DirNodeT {
+	if v.GetType() != inodedb.DirNodeT {
 		return nil, ENOTDIR
 	}
-	dirnode := node.(*DirNode)
 
-	h := &DirHandle{fs: fs, n: dirnode}
-	return h, nil
+	dv := v.(inodedb.DirNodeView)
+	return dv.GetEntries(), err
 }
 
-func (dh *DirHandle) FileSystem() *FileSystem {
-	return dh.fs
-}
-
-func (dh *DirHandle) ID() inodedb.ID {
-	return dh.id
-}
-
-func (dh *DirHandle) Entries() map[string]inodedb.ID {
-	return dh.n.Entries
-}
-
-// FIXME
-func (dh *DirHandle) Path() string {
-	return ""
-}
-
-func (dh *DirHandle) Rename(oldname string, tgtdh *DirHandle, newname string) error {
-	es := dh.n.Entries
-	id, ok := es[oldname]
-	if !ok {
-		return ENOENT
-	}
-
-	es2 := tgtdh.n.Entries
-	_, ok = es2[newname]
-	if ok {
-		return EEXIST
-	}
-
-	es2[newname] = id
-	delete(es, oldname)
-	return nil
-}
-
-func (dh *DirHandle) Remove(name string) error {
-	es := dh.n.Entries
-
-	id, ok := es[name]
-	if !ok {
-		return ENOENT
-	}
-	n := dh.fs.INodeDB.Get(id)
-	if n.Type() == DirNodeT {
-		sdn := n.(*DirNode)
-		if len(sdn.Entries) != 0 {
-			return ENOTEMPTY
+func (fs *FileSystem) Rename(srcdir inodedb.ID, oldname string, tgtdir inodedb.ID, newname string) error {
+	/*
+		es := dh.n.Entries
+		id, ok := es[oldname]
+		if !ok {
+			return ENOENT
 		}
-	}
 
-	delete(es, name)
+		es2 := tgtdh.n.Entries
+		_, ok = es2[newname]
+		if ok {
+			return EEXIST
+		}
+
+		es2[newname] = id
+		delete(es, oldname)
+	*/
+	log.Printf("Implement me: Rename")
 	return nil
 }
 
-func (dh *DirHandle) createNode(name string, newNode func(db *inodedb.DBHandler, origpath string) inodedb.ID) (inodedb.ID, error) {
-	_, ok := dh.n.Entries[name]
-	if ok {
-		return 0, EEXIST
+func (fs *FileSystem) Remove(name string) error {
+	/*
+		es := dh.n.Entries
+
+		id, ok := es[name]
+		if !ok {
+			return ENOENT
+		}
+		n := dh.fs.INodeDB.Get(id)
+		if n.Type() == DirNodeT {
+			sdn := n.(*DirNode)
+			if len(sdn.Entries) != 0 {
+				return ENOTEMPTY
+			}
+		}
+
+		delete(es, name)
+		return nil
+	*/
+	log.Printf("Implement me: Rename")
+	return nil
+}
+
+func (fs *FileSystem) CreateFile(dirID inodedb.ID, name string) (inodedb.ID, error) {
+	nlock, err := fs.idb.LockNode(inodedb.AllocateNewNodeID)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err := fs.idb.UnlockNode(nlock); err != nil {
+			log.Printf("Failed to unlock node when creating file: %v", err)
+		}
+	}()
+
+	origpath := name // FIXME
+
+	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
+		&inodedb.CreateFileOp{NodeLock: nlock, OrigPath: origpath},
+		&inodedb.HardLinkOp{NodeLock: inodedb.NodeLock{dirID, inodedb.NoTicket}, Name: name, TargetID: nlock.ID},
+	}}
+	if _, err := fs.idb.ApplyTransaction(tx); err != nil {
+		return 0, err
 	}
 
-	fullorigpath := fmt.Sprintf("%s/%s", dh.Path(), name)
-	id := newNode(dh.fs.INodeDB, fullorigpath)
-	dh.n.Entries[name] = id
-	return id, nil
+	return nlock.ID, nil
 }
 
-func (dh *DirHandle) CreateFile(name string) (inodedb.ID, error) {
-	return dh.createNode(name, func(db *INodeDB, origpath string) inodedb.ID {
-		n := NewFileNode(dh.fs.INodeDB, origpath)
-		return n.ID()
-	})
+func (fs *FileSystem) CreateDir(dirID inodedb.ID, name string) (inodedb.ID, error) {
+	return 0, fmt.Errorf("Not yet implemented: CreateDir")
 }
 
-func (dh *DirHandle) CreateDir(name string) (inodedb.ID, error) {
-	return dh.createNode(name, func(db *INodeDB, origpath string) inodedb.ID {
-		n := NewDirNode(dh.fs.INodeDB, origpath)
-		return n.ID()
-	})
+type Attr struct {
+	ID   inodedb.ID
+	Type inodedb.Type
+	Size int64
+}
+
+func (fs *FileSystem) Attr(id inodedb.ID) (Attr, error) {
+	v, _, err := fs.idb.QueryNode(id, false)
+	if err != nil {
+		return Attr{}, err
+	}
+
+	size := int64(0)
+	if fn, ok := v.(inodedb.FileNodeView); ok {
+		size = fn.GetSize()
+	}
+
+	a := Attr{
+		ID:   v.GetID(),
+		Type: v.GetType(),
+		Size: size,
+	}
+	return a, nil
+}
+
+func (fs *FileSystem) IsDir(id inodedb.ID) (bool, error) {
+	v, _, err := fs.idb.QueryNode(id, false)
+	if err != nil {
+		return false, err
+	}
+
+	return v.GetType() == inodedb.DirNodeT, nil
 }
 
 // FIXME: Multiple FileHandle may exist for same file at once. Support it!
@@ -205,69 +225,63 @@ type FileHandle struct {
 	cfio  blobstore.BlobHandle
 }
 
-func (fs *FileSystem) openFileNode(n *FileNode) (*FileHandle, error) {
-	wc := fs.getOrCreateFileWriteCache(n.ID())
-	cfio := fs.newChunkedFileIO(fs.bs, n, fs.c)
-	h := &FileHandle{fs: fs, n: n, wc: wc, cfio: cfio}
-	return h, nil
-}
-
-func (fs *FileSystem) OpenFile(id inodedb.ID) (*FileHandle, error) {
-	node := fs.INodeDB.Get(id)
-	if node == nil {
-		return nil, ENOENT
-	}
-	if node.Type() != FileNodeT {
-		return nil, ENOTDIR
-	}
-	filenode := node.(*FileNode)
-
-	h, err := fs.openFileNode(filenode)
+func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
+	tryLock := blobstore.IsWriteAllowed(flags)
+	v, nlock, err := fs.idb.QueryNode(id, tryLock)
 	if err != nil {
 		return nil, err
 	}
-	return h, nil
-}
-
-type Attr struct {
-	inodedb.ID
-	INodeType
-	Size int64
-}
-
-func (fs *FileSystem) Attr(id inodedb.ID) (Attr, error) {
-	n := fs.INodeDB.Get(id)
-	if n == nil {
-		return Attr{}, ENOENT
+	if v.GetType() == inodedb.DirNodeT {
+		return nil, EISDIR
+	}
+	fv, ok := v.(inodedb.FileNodeView)
+	if !ok {
+		return nil, fmt.Errorf("Specified node not file but has type %v", v.GetType())
 	}
 
-	size := int64(0)
-	if fn, ok := n.(*FileNode); ok {
-		size = fn.Size
+	wc := fs.getOrCreateFileWriteCache(id)
+	var caio ChunksArrayIO
+	if tryLock {
+		caio = NewINodeDBChunksArrayIO(fs.idb, nlock, fv)
+	} else {
+		caio = NewReadOnlyINodeDBChunksArrayIO(fs.idb, nlock)
 	}
-
-	a := Attr{
-		inodedb.ID: n.ID(),
-		INodeType:  n.Type(),
-		Size:       size,
-	}
-	return a, nil
-}
-
-func (fs *FileSystem) IsDir(id inodedb.ID) (bool, error) {
-	n := fs.INodeDB.Get(id)
-	if n == nil {
-		return false, ENOENT
-	}
-
-	return n.Type() == DirNodeT, nil
+	cfio := fs.newChunkedFileIO(fs.bs, fs.c, caio)
+	return &FileHandle{fs: fs, nlock: nlock, wc: wc, cfio: cfio}, nil
 }
 
 func (h *FileHandle) ID() inodedb.ID {
-	return h.n.ID()
+	return h.nlock.ID
+}
+
+func (h *FileHandle) updateSize(newsize int64) error {
+	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
+		&inodedb.UpdateSizeOp{NodeLock: h.nlock, Size: newsize},
+	}}
+	if _, err := h.fs.idb.ApplyTransaction(tx); err != nil {
+		return fmt.Errorf("Failed to update FileNode size: %v", err)
+	}
+	return nil
+}
+
+func (h *FileHandle) SizeMayFail() (int64, error) {
+	v, _, err := h.fs.idb.QueryNode(h.nlock.ID, false)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to QueryNode inodedb: %v", err)
+	}
+	fv, ok := v.(inodedb.FileNodeView)
+	if !ok {
+		return 0, fmt.Errorf("Non-FileNodeView returned from QueryNode. Type: %v", v.GetType())
+	}
+	return fv.GetSize(), nil
 }
 
 func (h *FileHandle) PWrite(offset int64, p []byte) error {
+	currentSize, err := h.SizeMayFail()
+	if err != nil {
+		return err
+	}
+
 	if err := h.wc.PWrite(offset, p); err != nil {
 		return err
 	}
@@ -279,8 +293,8 @@ func (h *FileHandle) PWrite(offset int64, p []byte) error {
 	}
 
 	right := offset + int64(len(p))
-	if right > h.n.Size {
-		h.n.Size = right
+	if right > currentSize {
+		return h.updateSize(right)
 	}
 
 	return nil
@@ -295,20 +309,33 @@ func (h *FileHandle) Flush() error {
 }
 
 func (h *FileHandle) Size() int64 {
-	return h.n.Size
+	v, _, err := h.fs.idb.QueryNode(h.nlock.ID, false)
+	if err != nil {
+		log.Printf("Failed to QueryNode inodedb: %v", err)
+		return 0
+	}
+	fv, ok := v.(inodedb.FileNodeView)
+	if !ok {
+		log.Printf("Non-FileNodeView returned from QueryNode. Type: %v", v.GetType())
+		return 0
+	}
+
+	return fv.GetSize()
 }
 
 func (h *FileHandle) Truncate(newsize int64) error {
-	if newsize > h.n.Size {
-		h.n.Size = newsize
-		return nil
+	oldsize, err := h.SizeMayFail()
+	if err != nil {
+		return err
 	}
 
-	if newsize < h.n.Size {
+	if newsize > oldsize {
+		return h.updateSize(newsize)
+	} else if newsize < oldsize {
 		h.wc.Truncate(newsize)
 		h.cfio.Truncate(newsize)
-		h.n.Size = newsize
+		return h.updateSize(newsize)
+	} else {
+		return nil
 	}
-	return nil
 }
-*/

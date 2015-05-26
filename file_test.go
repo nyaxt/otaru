@@ -1,6 +1,5 @@
 package otaru_test
 
-/*
 import (
 	. "github.com/nyaxt/otaru"
 	. "github.com/nyaxt/otaru/testutils"
@@ -37,4 +36,3 @@ func TestFileWriteRead(t *testing.T) {
 		t.Errorf("PRead content != PWrite content")
 	}
 }
-*/
