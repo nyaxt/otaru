@@ -2,6 +2,7 @@ package otaru
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/inodedb"
@@ -187,7 +188,7 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 				}
 			}
 
-			newc, err := cfio.newinodedb.FileChunk(newo)
+			newc, err := cfio.newFileChunk(newo)
 			if err != nil {
 				return err
 			}
@@ -200,7 +201,7 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 				return err
 			}
 			if len(remp) == 0 {
-				return nil
+				break
 			}
 
 			continue
@@ -218,7 +219,7 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 			return err
 		}
 		if len(remp) == 0 {
-			return nil
+			break
 		}
 	}
 
@@ -236,7 +237,7 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 			}
 		}
 
-		newc, err := cfio.newinodedb.FileChunk(newo)
+		newc, err := cfio.newFileChunk(newo)
 		if err != nil {
 			return err
 		}
@@ -253,7 +254,6 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 			return fmt.Errorf("Failed to write updated cs array: %v", err)
 		}
 	}
-
 	return nil
 }
 
@@ -265,7 +265,10 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 		return fmt.Errorf("negative offset %d given", offset)
 	}
 
-	cs := cfio.cs
+	cs, err := cfio.caio.Read()
+	if err != nil {
+		return fmt.Errorf("Failed to read cs array: %v", err)
+	}
 	// fmt.Printf("cs: %v\n", cs)
 	for i := 0; i < len(cs) && len(remp) > 0; i++ {
 		c := cs[i]
@@ -320,7 +323,11 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 }
 
 func (cfio *ChunkedFileIO) Size() int64 {
-	cs := cfio.cs
+	cs, err := cfio.caio.Read()
+	if err != nil {
+		log.Printf("Failed to read cs array: %v", err)
+		return 0
+	}
 	if len(cs) == 0 {
 		return 0
 	}

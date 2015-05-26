@@ -342,3 +342,8 @@ func (db *DB) UnlockNode(nlock NodeLock) error {
 	delete(db.state.nodeLocks, nlock.ID)
 	return nil
 }
+
+func (db *DB) Sync() error {
+	log.Printf("DB Sync: Not yet implemented!")
+	return nil
+}

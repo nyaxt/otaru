@@ -1,5 +1,6 @@
 package otaru
 
+/*
 import (
 	"fmt"
 	"os"
@@ -63,3 +64,4 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flag int, perm os.FileMo
 
 	return fh, nil
 }
+*/

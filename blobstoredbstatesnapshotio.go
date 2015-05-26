@@ -12,6 +12,10 @@ import (
 	"github.com/nyaxt/otaru/inodedb"
 )
 
+const (
+	INodeDBSnapshotBlobpath = "INODEDB_SNAPSHOT"
+)
+
 type BlobStoreDBStateSnapshotIO struct {
 	bs blobstore.RandomAccessBlobStore
 	c  Cipher

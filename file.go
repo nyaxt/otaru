@@ -6,6 +6,7 @@ import (
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/util"
 )
 
 const (
@@ -48,28 +49,35 @@ func newFileSystemCommon(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobSto
 	return fs
 }
 
-func NewFileSystemEmpty(bs blobstore.RandomAccessBlobStore, c Cipher) *FileSystem {
-	idb := NewINodeDBEmpty()
-	rootdir := NewDirNode(idb, "/")
-	if rootdir.ID() != 1 {
-		panic("rootdir must have inodedb.ID 1")
+func NewFileSystemEmpty(bs blobstore.RandomAccessBlobStore, c Cipher) (*FileSystem, error) {
+	// FIXME: refactor here and FromSnapshot
+
+	snapshotio := NewBlobStoreDBStateSnapshotIO(bs, c)
+	txio := inodedb.NewSimpleDBTransactionLogIO() // FIXME!
+	idb, err := inodedb.NewEmptyDB(snapshotio, txio)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to initialize inodedb: %v", err)
 	}
 
-	return newFileSystemCommon(idb, bs, c)
+	return newFileSystemCommon(idb, bs, c), nil
 }
 
 func NewFileSystemFromSnapshot(bs blobstore.RandomAccessBlobStore, c Cipher) (*FileSystem, error) {
-	idb, err := LoadINodeDBFromBlobStore(bs, c)
+	snapshotio := NewBlobStoreDBStateSnapshotIO(bs, c)
+	txio := inodedb.NewSimpleDBTransactionLogIO() // FIXME!
+	idb, err := inodedb.NewDB(snapshotio, txio)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to initialize inodedb: %v", err)
 	}
 
 	return newFileSystemCommon(idb, bs, c), nil
 }
 
 func (fs *FileSystem) Sync() error {
-	if err := fs.INodeDB.SaveToBlobStore(fs.bs, fs.c); err != nil {
-		return fmt.Errorf("Failed to save INodeDB: %v", err)
+	if s, ok := fs.idb.(util.Syncer); ok {
+		if err := s.Sync(); err != nil {
+			return fmt.Errorf("Failed to sync INodeDB: %v", err)
+		}
 	}
 
 	return nil
