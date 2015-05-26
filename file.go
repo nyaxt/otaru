@@ -22,30 +22,27 @@ const (
 )
 
 type FileSystem struct {
-	*INodeDB
-	lastID INodeID
+	idb inodedb.DBHandler
 
 	bs blobstore.RandomAccessBlobStore
 	c  Cipher
 
-	newChunkedFileIO func(bs blobstore.RandomAccessBlobStore, fn *FileNode, c Cipher) blobstore.BlobHandle
+	newChunkedFileIO func(bs blobstore.RandomAccessBlobStore, c Cipher, caio ChunksArrayIO) blobstore.BlobHandle
 
-	wcmap map[INodeID]*FileWriteCache
+	wcmap map[inodedb.ID]*FileWriteCache
 }
 
-func newFileSystemCommon(idb *INodeDB, bs blobstore.RandomAccessBlobStore, c Cipher) *FileSystem {
+func newFileSystemCommon(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c Cipher) *FileSystem {
 	fs := &FileSystem{
-		INodeDB: idb,
-		lastID:  0,
+		idb: idb,
+		bs:  bs,
+		c:   c,
 
-		bs: bs,
-		c:  c,
-
-		newChunkedFileIO: func(bs blobstore.RandomAccessBlobStore, fn *FileNode, c Cipher) blobstore.BlobHandle {
-			return NewChunkedFileIO(bs, fn, c)
+		newChunkedFileIO: func(bs blobstore.RandomAccessBlobStore, c Cipher, caio ChunksArrayIO) blobstore.BlobHandle {
+			return NewChunkedFileIO(bs, c, caio)
 		},
 
-		wcmap: make(map[INodeID]*FileWriteCache),
+		wcmap: make(map[inodedb.ID]*FileWriteCache),
 	}
 
 	return fs
@@ -55,7 +52,7 @@ func NewFileSystemEmpty(bs blobstore.RandomAccessBlobStore, c Cipher) *FileSyste
 	idb := NewINodeDBEmpty()
 	rootdir := NewDirNode(idb, "/")
 	if rootdir.ID() != 1 {
-		panic("rootdir must have INodeID 1")
+		panic("rootdir must have inodedb.ID 1")
 	}
 
 	return newFileSystemCommon(idb, bs, c)
@@ -70,7 +67,15 @@ func NewFileSystemFromSnapshot(bs blobstore.RandomAccessBlobStore, c Cipher) (*F
 	return newFileSystemCommon(idb, bs, c), nil
 }
 
-func (fs *FileSystem) getOrCreateFileWriteCache(id INodeID) *FileWriteCache {
+func (fs *FileSystem) Sync() error {
+	if err := fs.INodeDB.SaveToBlobStore(fs.bs, fs.c); err != nil {
+		return fmt.Errorf("Failed to save INodeDB: %v", err)
+	}
+
+	return nil
+}
+
+func (fs *FileSystem) getOrCreateFileWriteCache(id inodedb.ID) *FileWriteCache {
 	wc := fs.wcmap[id]
 	if wc == nil {
 		wc = NewFileWriteCache()
@@ -79,16 +84,18 @@ func (fs *FileSystem) getOrCreateFileWriteCache(id INodeID) *FileWriteCache {
 	return wc
 }
 
-func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(blobstore.RandomAccessBlobStore, *FileNode, Cipher) blobstore.BlobHandle) {
+func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(blobstore.RandomAccessBlobStore, Cipher, ChunksArrayIO) blobstore.BlobHandle) {
 	fs.newChunkedFileIO = newChunkedFileIO
 }
 
+/*
+
 type DirHandle struct {
 	fs *FileSystem
-	n  *DirNode
+	id inodedb.ID
 }
 
-func (fs *FileSystem) OpenDir(id INodeID) (*DirHandle, error) {
+func (fs *FileSystem) OpenDir(id inodedb.ID) (*DirHandle, error) {
 	node := fs.INodeDB.Get(id)
 	if node == nil {
 		return nil, ENOENT
@@ -106,11 +113,11 @@ func (dh *DirHandle) FileSystem() *FileSystem {
 	return dh.fs
 }
 
-func (dh *DirHandle) ID() INodeID {
-	return dh.n.ID()
+func (dh *DirHandle) ID() inodedb.ID {
+	return dh.id
 }
 
-func (dh *DirHandle) Entries() map[string]INodeID {
+func (dh *DirHandle) Entries() map[string]inodedb.ID {
 	return dh.n.Entries
 }
 
@@ -156,7 +163,7 @@ func (dh *DirHandle) Remove(name string) error {
 	return nil
 }
 
-func (dh *DirHandle) createNode(name string, newNode func(db *INodeDB, origpath string) INodeID) (INodeID, error) {
+func (dh *DirHandle) createNode(name string, newNode func(db *inodedb.DBHandler, origpath string) inodedb.ID) (inodedb.ID, error) {
 	_, ok := dh.n.Entries[name]
 	if ok {
 		return 0, EEXIST
@@ -168,15 +175,15 @@ func (dh *DirHandle) createNode(name string, newNode func(db *INodeDB, origpath 
 	return id, nil
 }
 
-func (dh *DirHandle) CreateFile(name string) (INodeID, error) {
-	return dh.createNode(name, func(db *INodeDB, origpath string) INodeID {
+func (dh *DirHandle) CreateFile(name string) (inodedb.ID, error) {
+	return dh.createNode(name, func(db *INodeDB, origpath string) inodedb.ID {
 		n := NewFileNode(dh.fs.INodeDB, origpath)
 		return n.ID()
 	})
 }
 
-func (dh *DirHandle) CreateDir(name string) (INodeID, error) {
-	return dh.createNode(name, func(db *INodeDB, origpath string) INodeID {
+func (dh *DirHandle) CreateDir(name string) (inodedb.ID, error) {
+	return dh.createNode(name, func(db *INodeDB, origpath string) inodedb.ID {
 		n := NewDirNode(dh.fs.INodeDB, origpath)
 		return n.ID()
 	})
@@ -184,10 +191,10 @@ func (dh *DirHandle) CreateDir(name string) (INodeID, error) {
 
 // FIXME: Multiple FileHandle may exist for same file at once. Support it!
 type FileHandle struct {
-	fs   *FileSystem
-	n    *FileNode
-	wc   *FileWriteCache
-	cfio blobstore.BlobHandle
+	fs    *FileSystem
+	nlock inodedb.NodeLock
+	wc    *FileWriteCache
+	cfio  blobstore.BlobHandle
 }
 
 func (fs *FileSystem) openFileNode(n *FileNode) (*FileHandle, error) {
@@ -197,7 +204,7 @@ func (fs *FileSystem) openFileNode(n *FileNode) (*FileHandle, error) {
 	return h, nil
 }
 
-func (fs *FileSystem) OpenFile(id INodeID) (*FileHandle, error) {
+func (fs *FileSystem) OpenFile(id inodedb.ID) (*FileHandle, error) {
 	node := fs.INodeDB.Get(id)
 	if node == nil {
 		return nil, ENOENT
@@ -215,12 +222,12 @@ func (fs *FileSystem) OpenFile(id INodeID) (*FileHandle, error) {
 }
 
 type Attr struct {
-	INodeID
+	inodedb.ID
 	INodeType
 	Size int64
 }
 
-func (fs *FileSystem) Attr(id INodeID) (Attr, error) {
+func (fs *FileSystem) Attr(id inodedb.ID) (Attr, error) {
 	n := fs.INodeDB.Get(id)
 	if n == nil {
 		return Attr{}, ENOENT
@@ -232,14 +239,14 @@ func (fs *FileSystem) Attr(id INodeID) (Attr, error) {
 	}
 
 	a := Attr{
-		INodeID:   n.ID(),
-		INodeType: n.Type(),
-		Size:      size,
+		inodedb.ID: n.ID(),
+		INodeType:  n.Type(),
+		Size:       size,
 	}
 	return a, nil
 }
 
-func (fs *FileSystem) IsDir(id INodeID) (bool, error) {
+func (fs *FileSystem) IsDir(id inodedb.ID) (bool, error) {
 	n := fs.INodeDB.Get(id)
 	if n == nil {
 		return false, ENOENT
@@ -248,7 +255,7 @@ func (fs *FileSystem) IsDir(id INodeID) (bool, error) {
 	return n.Type() == DirNodeT, nil
 }
 
-func (h *FileHandle) ID() INodeID {
+func (h *FileHandle) ID() inodedb.ID {
 	return h.n.ID()
 }
 
@@ -296,11 +303,4 @@ func (h *FileHandle) Truncate(newsize int64) error {
 	}
 	return nil
 }
-
-func (fs *FileSystem) Sync() error {
-	if err := fs.INodeDB.SaveToBlobStore(fs.bs, fs.c); err != nil {
-		return fmt.Errorf("Failed to save INodeDB: %v", err)
-	}
-
-	return nil
-}
+*/

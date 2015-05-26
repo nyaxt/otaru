@@ -24,32 +24,32 @@ type ChunksArrayIO interface {
 }
 
 type INodeDBChunksArrayIO struct {
-	inodedb inodedb.DBHandler
-	nlock   inodedb.NodeLock
-	fn      inodedb.FileNodeView
+	db    inodedb.DBHandler
+	nlock inodedb.NodeLock
+	fn    inodedb.FileNodeView
 }
 
 var _ = ChunksArrayIO(&INodeDBChunksArrayIO{})
 
-func NewINodeDBChunksArrayIO(inodedb inodedb.DBHandler, nlock inodedb.NodeLock, fn inodedb.FileNodeView) (*INodeDBChunksArrayIO, error) {
+func NewINodeDBChunksArrayIO(db inodedb.DBHandler, nlock inodedb.NodeLock, fn inodedb.FileNodeView) (*INodeDBChunksArrayIO, error) {
 	if nlock.Ticket == inodedb.NoTicket {
 		return nil, fmt.Errorf("NewINodeDBChunksArrayIO requires valid node lock. Use NewReadOnlyINodeDBChunksArrayIO if need read access")
 	}
 
-	return &INodeDBChunksArrayIO{inodedb: inodedb, nlock: nlock, fn: fn}, nil
+	return &INodeDBChunksArrayIO{db: db, nlock: nlock, fn: fn}, nil
 }
 
 func (caio *INodeDBChunksArrayIO) Read() ([]inodedb.FileChunk, error) {
-	if nlock.Ticket != inodedb.NoTicket {
+	if caio.nlock.Ticket != inodedb.NoTicket {
 		return caio.fn.GetChunks(), nil
 	}
 
-	v, _, err := caio.inodedb.QueryNode(caio.nlock.ID, false)
+	v, _, err := caio.db.QueryNode(caio.nlock.ID, false)
 	if err != nil {
 		return nil, err
 	}
 
-	fn, ok := v.(*FileNodeView)
+	fn, ok := v.(inodedb.FileNodeView)
 	if !ok {
 		return nil, fmt.Errorf("Target node view is not a file.")
 	}
@@ -58,22 +58,22 @@ func (caio *INodeDBChunksArrayIO) Read() ([]inodedb.FileChunk, error) {
 }
 
 func (caio *INodeDBChunksArrayIO) Write(cs []inodedb.FileChunk) error {
-	if nlock.Ticket == inodedb.NoTicket {
+	if caio.nlock.Ticket == inodedb.NoTicket {
 		return fmt.Errorf("No ticket lock is acquired.")
 	}
 
 	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
-		&i.UpdateChunksOp{NodeLock: caio.nlock, cs: cs},
+		&inodedb.UpdateChunksOp{NodeLock: caio.nlock, Chunks: cs},
 	}}
-	if _, err := caio.inodedb.ApplyTransaction(tx); err != nil {
+	if _, err := caio.db.ApplyTransaction(tx); err != nil {
 		return fmt.Errorf("Failed to apply tx for updating cs: %v", err)
 	}
 	return nil
 }
 
 func (caio *INodeDBChunksArrayIO) Close() error {
-	if caio.nlock.Ticket != inodedb.NoTicker {
-		if err := caio.inodedb.UnlockNode(nlock); err != nil {
+	if caio.nlock.Ticket != inodedb.NoTicket {
+		if err := caio.db.UnlockNode(caio.nlock); err != nil {
 			return err
 		}
 	}
@@ -121,7 +121,7 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		return nil
 	}
 
-	cs, err = cfio.caio.Read()
+	cs, err := cfio.caio.Read()
 	if err != nil {
 		return fmt.Errorf("Failed to read cs array: %v", err)
 	}
