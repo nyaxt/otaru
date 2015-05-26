@@ -5,6 +5,7 @@ import (
 	"syscall"
 
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/inodedb"
 )
 
 const (

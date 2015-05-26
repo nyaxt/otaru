@@ -119,3 +119,27 @@ func (op *HardLinkOp) Apply(s *DBState) error {
 
 	return nil
 }
+
+type UpdateChunksOp struct {
+	OpMeta   `json:",inline"`
+	NodeLock `json:"nodelock"`
+	Chunks   []FileChunk
+}
+
+func (op *UpdateChunksOp) Apply(s *DBState) error {
+	if err := s.checkLock(op.NodeLock, true); err != nil {
+		return err
+	}
+
+	n, ok := s.nodes[op.ID]
+	if !ok {
+		return ENOENT
+	}
+	fn, ok := n.(*FileNode)
+	if !ok {
+		return fmt.Errorf("UpdateChunksOp specified node was not file node but was type: %d", n.GetType())
+	}
+
+	fn.Chunks = op.Chunks // FIXME: not sure if need clone?
+	return nil
+}

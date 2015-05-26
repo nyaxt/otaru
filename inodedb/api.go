@@ -36,6 +36,7 @@ type DBHandler interface {
 	// QueryNode returns read-only snapshot of INode id, with a lock if specified
 	QueryNode(id ID, tryLock bool) (NodeView, NodeLock, error)
 
+	// FIXME: this should actually take NodeLock for renew ticket operation
 	LockNode(id ID) (NodeLock, error)
 	UnlockNode(nlock NodeLock) error
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/inodedb"
 	. "github.com/nyaxt/otaru/util" // FIXME
 )
 
@@ -16,17 +17,85 @@ const (
 	ExistingChunk = false
 )
 
+type ChunksArrayIO interface {
+	Read() ([]inodedb.FileChunk, error)
+	Write(cs []inodedb.FileChunk) error
+	Close() error
+}
+
+type INodeDBChunksArrayIO struct {
+	inodedb inodedb.DBHandler
+	nlock   inodedb.NodeLock
+	fn      inodedb.FileNodeView
+}
+
+var _ = ChunksArrayIO(&INodeDBChunksArrayIO{})
+
+func NewINodeDBChunksArrayIO(inodedb inodedb.DBHandler, nlock inodedb.NodeLock, fn inodedb.FileNodeView) (*INodeDBChunksArrayIO, error) {
+	if nlock.Ticket == inodedb.NoTicket {
+		return nil, fmt.Errorf("NewINodeDBChunksArrayIO requires valid node lock. Use NewReadOnlyINodeDBChunksArrayIO if need read access")
+	}
+
+	return &INodeDBChunksArrayIO{inodedb: inodedb, nlock: nlock, fn: fn}, nil
+}
+
+func (caio *INodeDBChunksArrayIO) Read() ([]inodedb.FileChunk, error) {
+	if nlock.Ticket != inodedb.NoTicket {
+		return caio.fn.GetChunks(), nil
+	}
+
+	v, _, err := caio.inodedb.QueryNode(caio.nlock.ID, false)
+	if err != nil {
+		return nil, err
+	}
+
+	fn, ok := v.(*FileNodeView)
+	if !ok {
+		return nil, fmt.Errorf("Target node view is not a file.")
+	}
+
+	return fn.GetChunks(), nil
+}
+
+func (caio *INodeDBChunksArrayIO) Write(cs []inodedb.FileChunk) error {
+	if nlock.Ticket == inodedb.NoTicket {
+		return fmt.Errorf("No ticket lock is acquired.")
+	}
+
+	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
+		&i.UpdateChunksOp{NodeLock: caio.nlock, cs: cs},
+	}}
+	if _, err := caio.inodedb.ApplyTransaction(tx); err != nil {
+		return fmt.Errorf("Failed to apply tx for updating cs: %v", err)
+	}
+	return nil
+}
+
+func (caio *INodeDBChunksArrayIO) Close() error {
+	if caio.nlock.Ticket != inodedb.NoTicker {
+		if err := caio.inodedb.UnlockNode(nlock); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type ChunkedFileIO struct {
 	bs blobstore.RandomAccessBlobStore
-	fn *FileNode
 	c  Cipher
+
+	caio ChunksArrayIO
 
 	newChunkIO func(blobstore.BlobHandle, Cipher) blobstore.BlobHandle
 }
 
-func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, fn *FileNode, c Cipher) *ChunkedFileIO {
+func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c Cipher, caio ChunksArrayIO) *ChunkedFileIO {
 	return &ChunkedFileIO{
-		bs: bs, fn: fn, c: c,
+		bs: bs,
+		c:  c,
+
+		caio: caio,
+
 		newChunkIO: func(bh blobstore.BlobHandle, c Cipher) blobstore.BlobHandle { return NewChunkIO(bh, c) },
 	}
 }
@@ -35,12 +104,12 @@ func (cfio *ChunkedFileIO) OverrideNewChunkIOForTesting(newChunkIO func(blobstor
 	cfio.newChunkIO = newChunkIO
 }
 
-func (cfio *ChunkedFileIO) newFileChunk(newo int64) (FileChunk, error) {
+func (cfio *ChunkedFileIO) newFileChunk(newo int64) (inodedb.FileChunk, error) {
 	bpath, err := blobstore.GenerateNewBlobPath(cfio.bs)
 	if err != nil {
-		return FileChunk{}, err
+		return inodedb.FileChunk{}, err
 	}
-	fc := FileChunk{Offset: newo, Length: 0, BlobPath: bpath}
+	fc := inodedb.FileChunk{Offset: newo, Length: 0, BlobPath: bpath}
 	fmt.Printf("new chunk %v\n", fc)
 	return fc, nil
 }
@@ -52,7 +121,13 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		return nil
 	}
 
-	writeToChunk := func(c *FileChunk, isNewChunk bool, maxChunkLen int64) error {
+	cs, err = cfio.caio.Read()
+	if err != nil {
+		return fmt.Errorf("Failed to read cs array: %v", err)
+	}
+	csUpdated := false
+
+	writeToChunk := func(c *inodedb.FileChunk, isNewChunk bool, maxChunkLen int64) error {
 		if !blobstore.IsReadWriteAllowed(cfio.bs.Flags()) {
 			return EPERM
 		}
@@ -78,17 +153,19 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		if err := cio.Close(); err != nil {
 			return err
 		}
+		oldLength := c.Length
 		c.Length = int64(cio.Size())
+		if oldLength != c.Length {
+			csUpdated = true
+		}
 
 		remo += int64(n)
 		remp = remp[n:]
 		return nil
 	}
 
-	fn := cfio.fn
-
-	for i := 0; i < len(fn.Chunks); i++ {
-		c := &fn.Chunks[i]
+	for i := 0; i < len(cs); i++ {
+		c := &cs[i]
 		if c.Left() > remo {
 			// Insert a new chunk @ i
 
@@ -96,27 +173,28 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 			newo := remo / ChunkSplitSize * ChunkSplitSize
 			maxlen := int64(ChunkSplitSize)
 			if i > 0 {
-				prev := fn.Chunks[i-1]
+				prev := cs[i-1]
 				pright := prev.Right()
 				if newo < pright {
 					maxlen -= pright - newo
 					newo = pright
 				}
 			}
-			if i < len(fn.Chunks)-1 {
-				next := fn.Chunks[i+1]
+			if i < len(cs)-1 {
+				next := cs[i+1]
 				if newo+maxlen > next.Left() {
 					maxlen = next.Left() - newo
 				}
 			}
 
-			newc, err := cfio.newFileChunk(newo)
+			newc, err := cfio.newinodedb.FileChunk(newo)
 			if err != nil {
 				return err
 			}
-			fn.Chunks = append(fn.Chunks, FileChunk{})
-			copy(fn.Chunks[i+1:], fn.Chunks[i:])
-			fn.Chunks[i] = newc
+			cs = append(cs, inodedb.FileChunk{})
+			copy(cs[i+1:], cs[i:])
+			cs[i] = newc
+			csUpdated = true
 
 			if err := writeToChunk(&newc, NewChunk, maxlen); err != nil {
 				return err
@@ -130,8 +208,8 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 
 		// Write to the chunk
 		maxlen := int64(ChunkSplitSize)
-		if i < len(fn.Chunks)-1 {
-			next := fn.Chunks[i+1]
+		if i < len(cs)-1 {
+			next := cs[i+1]
 			if c.Left()+maxlen > next.Left() {
 				maxlen = next.Left() - c.Left()
 			}
@@ -149,8 +227,8 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		newo := remo / ChunkSplitSize * ChunkSplitSize
 		maxlen := int64(ChunkSplitSize)
 
-		if len(fn.Chunks) > 0 {
-			last := fn.Chunks[len(fn.Chunks)-1]
+		if len(cs) > 0 {
+			last := cs[len(cs)-1]
 			lastRight := last.Right()
 			if newo < lastRight {
 				maxlen -= lastRight - newo
@@ -158,7 +236,7 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 			}
 		}
 
-		newc, err := cfio.newFileChunk(newo)
+		newc, err := cfio.newinodedb.FileChunk(newo)
 		if err != nil {
 			return err
 		}
@@ -166,7 +244,14 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 			return err
 		}
 
-		fn.Chunks = append(fn.Chunks, newc)
+		cs = append(cs, newc)
+		csUpdated = true
+	}
+
+	if csUpdated {
+		if err := cfio.caio.Write(cs); err != nil {
+			return fmt.Errorf("Failed to write updated cs array: %v", err)
+		}
 	}
 
 	return nil
@@ -180,8 +265,8 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 		return fmt.Errorf("negative offset %d given", offset)
 	}
 
-	cs := cfio.fn.Chunks
-	// fmt.Printf("Chunks: %v\n", cs)
+	cs := cfio.cs
+	// fmt.Printf("cs: %v\n", cs)
 	for i := 0; i < len(cs) && len(remp) > 0; i++ {
 		c := cs[i]
 		if c.Left() > remo+int64(len(remp)) {
@@ -235,7 +320,7 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 }
 
 func (cfio *ChunkedFileIO) Size() int64 {
-	cs := cfio.fn.Chunks
+	cs := cfio.cs
 	if len(cs) == 0 {
 		return 0
 	}
@@ -251,10 +336,13 @@ func (cfio *ChunkedFileIO) Truncate(size int64) error {
 		return EPERM
 	}
 
-	chunks := cfio.fn.Chunks
+	cs, err := cfio.caio.Read()
+	if err != nil {
+		return fmt.Errorf("Failed to read cs array: %v", err)
+	}
 
-	for i := len(chunks) - 1; i >= 0; i-- {
-		c := &chunks[i]
+	for i := len(cs) - 1; i >= 0; i-- {
+		c := &cs[i]
 
 		if c.Left() >= size {
 			// drop the chunk
@@ -279,9 +367,14 @@ func (cfio *ChunkedFileIO) Truncate(size int64) error {
 			c.Length = int64(cio.Size())
 		}
 
-		cfio.fn.Chunks = chunks[:i+1]
+		cs = cs[:i+1]
+		if err := cfio.caio.Write(cs); err != nil {
+			return fmt.Errorf("Failed to write updated cs array: %v", err)
+		}
 		return nil
 	}
-	cfio.fn.Chunks = []FileChunk{}
+	if err := cfio.caio.Write([]inodedb.FileChunk{}); err != nil {
+		return fmt.Errorf("Failed to write updated cs array (empty): %v", err)
+	}
 	return nil
 }

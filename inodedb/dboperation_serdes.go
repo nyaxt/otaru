@@ -16,8 +16,10 @@ func EncodeDBOperationToJson(op DBOperation) ([]byte, error) {
 		op.(*CreateFileOp).Kind = "CreateFileOp"
 	case *HardLinkOp:
 		op.(*HardLinkOp).Kind = "HardLinkOp"
+	case *UpdateChunksOp:
+		op.(*UpdateChunksOp).Kind = "UpdateChunksOp"
 	default:
-		return nil, fmt.Errorf("Unknown type: %v", op)
+		return nil, fmt.Errorf("Encoder undefined for op: %v", op)
 	}
 
 	return json.Marshal(op)
@@ -50,6 +52,12 @@ func DecodeDBOperationFromJson(jsonb []byte) (DBOperation, error) {
 		return &op, nil
 	case "HardLinkOp":
 		var op HardLinkOp
+		if err := json.Unmarshal(jsonb, &op); err != nil {
+			return nil, err
+		}
+		return &op, nil
+	case "UpdateChunksOp":
+		var op UpdateChunksOp
 		if err := json.Unmarshal(jsonb, &op); err != nil {
 			return nil, err
 		}
