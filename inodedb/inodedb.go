@@ -239,6 +239,9 @@ func NewEmptyDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) (*DB, 
 	if _, err := db.ApplyTransaction(tx); err != nil {
 		return nil, fmt.Errorf("Failed to initilaize db: %v", err)
 	}
+	if err := db.Sync(); err != nil {
+		return nil, err
+	}
 	return db, nil
 }
 
@@ -344,6 +347,8 @@ func (db *DB) UnlockNode(nlock NodeLock) error {
 }
 
 func (db *DB) Sync() error {
-	log.Printf("DB Sync: Not yet implemented!")
+	if err := db.snapshotIO.SaveSnapshot(db.state); err != nil {
+		return err
+	}
 	return nil
 }

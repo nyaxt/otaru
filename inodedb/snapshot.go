@@ -32,7 +32,7 @@ func (s *DBState) EncodeToGob(enc *gob.Encoder) error {
 }
 
 func DecodeDBStateFromGob(dec *gob.Decoder) (*DBState, error) {
-	s := &DBState{}
+	s := NewDBState()
 
 	var numNodes uint64
 	if err := dec.Decode(&numNodes); err != nil {

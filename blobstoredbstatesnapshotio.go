@@ -42,7 +42,7 @@ func (sio *BlobStoreDBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
 	})
 	bufio := bufio.NewWriter(&blobstore.OffsetWriter{cio, 0})
 	zw := zlib.NewWriter(bufio)
-	enc := gob.NewEncoder(bufio)
+	enc := gob.NewEncoder(zw)
 	if err := s.EncodeToGob(enc); err != nil {
 		return fmt.Errorf("Failed to encode DBState: %v", err)
 	}
