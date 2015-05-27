@@ -132,7 +132,7 @@ func (fs *FileSystem) Rename(srcdir inodedb.ID, oldname string, tgtdir inodedb.I
 	return nil
 }
 
-func (fs *FileSystem) Remove(name string) error {
+func (fs *FileSystem) Remove(dirID inodedb.ID, name string) error {
 	/*
 		es := dh.n.Entries
 

@@ -18,6 +18,8 @@ type InitializeFileSystemOp struct {
 
 var _ = DBOperation(&InitializeFileSystemOp{})
 
+const RootDirID ID = 1
+
 func (op *InitializeFileSystemOp) Apply(s *DBState) error {
 	if len(s.nodes) != 0 {
 		return fmt.Errorf("DB not empty. Already contains %d nodes!", len(s.nodes))
@@ -27,7 +29,7 @@ func (op *InitializeFileSystemOp) Apply(s *DBState) error {
 	}
 
 	n := &DirNode{
-		INodeCommon: INodeCommon{ID: 1, OrigPath: "/"},
+		INodeCommon: INodeCommon{ID: RootDirID, OrigPath: "/"},
 		Entries:     make(map[string]ID),
 	}
 
