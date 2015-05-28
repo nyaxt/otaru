@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"syscall"
+
+	fl "github.com/nyaxt/otaru/flags"
 )
 
 const (
@@ -41,7 +43,7 @@ func (bh *CachedBlobHandle) PRead(offset int64, p []byte) error {
 }
 
 func (bh *CachedBlobHandle) PWrite(offset int64, p []byte) error {
-	if !IsWriteAllowed(bh.flags) {
+	if !fl.IsWriteAllowed(bh.flags) {
 		return EPERM
 	}
 	if len(p) == 0 {
@@ -56,7 +58,7 @@ func (bh *CachedBlobHandle) Size() int64 {
 }
 
 func (bh *CachedBlobHandle) Truncate(newsize int64) error {
-	if !IsWriteAllowed(bh.flags) {
+	if !fl.IsWriteAllowed(bh.flags) {
 		return EPERM
 	}
 	if bh.cachebh.Size() == newsize {
@@ -70,7 +72,7 @@ func (bh *CachedBlobHandle) writeBack() error {
 	if !bh.isDirty {
 		return nil
 	}
-	if !IsWriteAllowed(bh.flags) {
+	if !fl.IsWriteAllowed(bh.flags) {
 		log.Printf("Write disallowed, but dirty flag is on somehow")
 		return EPERM
 	}
@@ -167,14 +169,14 @@ func (cbs *CachedBlobStore) queryBackendVersion(blobpath string) (BlobVersion, e
 }
 
 func NewCachedBlobStore(backendbs BlobStore, cachebs RandomAccessBlobStore, flags int, queryVersion QueryVersionFunc) (*CachedBlobStore, error) {
-	if IsWriteAllowed(flags) {
+	if fl.IsWriteAllowed(flags) {
 		if fr, ok := backendbs.(FlagsReader); ok {
-			if !IsWriteAllowed(fr.Flags()) {
+			if !fl.IsWriteAllowed(fr.Flags()) {
 				return nil, fmt.Errorf("Writable CachedBlobStore requested, but backendbs doesn't allow writes")
 			}
 		}
 	}
-	if !IsWriteAllowed(cachebs.Flags()) {
+	if !fl.IsWriteAllowed(cachebs.Flags()) {
 		return nil, fmt.Errorf("CachedBlobStore requested, but cachebs doesn't allow writes")
 	}
 
@@ -186,11 +188,11 @@ func NewCachedBlobStore(backendbs BlobStore, cachebs RandomAccessBlobStore, flag
 }
 
 func (cbs *CachedBlobStore) Open(blobpath string, flags int) (BlobHandle, error) {
-	if !IsWriteAllowed(cbs.flags) && IsWriteAllowed(flags) {
+	if !fl.IsWriteAllowed(cbs.flags) && fl.IsWriteAllowed(flags) {
 		return nil, EPERM
 	}
 
-	cachebh, err := cbs.cachebs.Open(blobpath, O_RDWRCREATE)
+	cachebh, err := cbs.cachebs.Open(blobpath, flags)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open cache blob: %v", err)
 	}

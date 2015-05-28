@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"syscall"
+
+	fl "github.com/nyaxt/otaru/flags"
 )
 
 const (
@@ -71,9 +73,9 @@ func NewFileBlobStore(base string, flags int) (*FileBlobStore, error) {
 		return nil, fmt.Errorf("Specified base \"%s\" is not a directory")
 	}
 
-	fmask := O_RDONLY
-	if IsWriteAllowed(flags) {
-		fmask = O_RDONLY | O_WRONLY | O_RDWR | O_CREATE | O_EXCL
+	fmask := fl.O_RDONLY
+	if fl.IsWriteAllowed(flags) {
+		fmask = fl.O_RDONLY | fl.O_WRONLY | fl.O_RDWR | fl.O_CREATE | fl.O_EXCL
 	}
 
 	return &FileBlobStore{base, flags, fmask}, nil
@@ -97,7 +99,7 @@ func (f *FileBlobStore) Flags() int {
 }
 
 func (f *FileBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
-	if !IsWriteAllowed(f.flags) {
+	if !fl.IsWriteAllowed(f.flags) {
 		return nil, EPERM
 	}
 
@@ -106,7 +108,7 @@ func (f *FileBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 }
 
 func (f *FileBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
-	if !IsReadAllowed(f.flags) {
+	if !fl.IsReadAllowed(f.flags) {
 		return nil, EPERM
 	}
 

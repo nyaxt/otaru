@@ -24,10 +24,11 @@ func TestEncodeDBOperationToJson_InitializeFileSystemOp(t *testing.T) {
 	}
 }
 
-func TestEncodeDBOperationToJson_CreateDirOp(t *testing.T) {
-	json, err := i.EncodeDBOperationToJson(&i.CreateDirOp{
+func TestEncodeDBOperationToJson_CreateNodeOp(t *testing.T) {
+	json, err := i.EncodeDBOperationToJson(&i.CreateNodeOp{
 		NodeLock: i.NodeLock{ID: 123, Ticket: 456},
 		OrigPath: "/foo/bar",
+		Type:     i.DirNodeT,
 	})
 	if err != nil {
 		t.Errorf("EncodeDBOperationToJson failed: %v", err)
@@ -40,7 +41,7 @@ func TestEncodeDBOperationToJson_CreateDirOp(t *testing.T) {
 		return
 	}
 
-	dirop, ok := op.(*i.CreateDirOp)
+	dirop, ok := op.(*i.CreateNodeOp)
 	if !ok {
 		t.Errorf("Decode failed to recover original type")
 	}

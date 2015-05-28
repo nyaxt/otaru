@@ -37,7 +37,7 @@ func TestCreateFile(t *testing.T) {
 	}
 
 	tx := i.DBTransaction{Ops: []i.DBOperation{
-		&i.CreateFileOp{NodeLock: nlock, OrigPath: "/hoge.txt"},
+		&i.CreateNodeOp{NodeLock: nlock, OrigPath: "/hoge.txt", Type: i.FileNodeT},
 		&i.HardLinkOp{NodeLock: i.NodeLock{1, i.NoTicket}, Name: "hoge.txt", TargetID: nlock.ID},
 	}}
 	if _, err := db.ApplyTransaction(tx); err != nil {

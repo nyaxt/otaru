@@ -10,7 +10,9 @@ import (
 	bfuse "bazil.org/fuse"
 
 	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/fuse"
+	"github.com/nyaxt/otaru/util"
 )
 
 var Usage = func() {
@@ -33,7 +35,7 @@ func main() {
 		log.Printf("fusedbg: %v", msg)
 	}
 
-	password, err := otaru.StringFromFile(*flagPasswordFile)
+	password, err := util.StringFromFile(*flagPasswordFile)
 	if err != nil {
 		log.Fatalf("Failed to load encryption password: %v", err)
 	}
@@ -42,7 +44,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to init Cipher: %v", err)
 	}
-	bs, err := otaru.NewFileBlobStore(*flagCacheDir, otaru.O_RDWRCREATE)
+	bs, err := blobstore.NewFileBlobStore(*flagCacheDir, otaru.O_RDWRCREATE)
 	if err != nil {
 		log.Fatalf("NewFileBlobStore failed: %v", err)
 		return
@@ -50,7 +52,10 @@ func main() {
 	ofs, err := otaru.NewFileSystemFromSnapshot(bs, cipher)
 	if err != nil {
 		if err == otaru.ENOENT && *flagMkfs {
-			ofs = otaru.NewFileSystemEmpty(bs, cipher)
+			ofs, err := otaru.NewFileSystemEmpty(bs, cipher)
+			if err != nil {
+				log.Fatalf("NewFileSystemEmpty failed: %v", err)
+			}
 		} else {
 			log.Fatalf("NewFileSystemFromSnapshot failed: %v", err)
 		}

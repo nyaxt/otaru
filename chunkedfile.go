@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/nyaxt/otaru/blobstore"
+	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	. "github.com/nyaxt/otaru/util" // FIXME
 )
@@ -72,13 +73,13 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 	csUpdated := false
 
 	writeToChunk := func(c *inodedb.FileChunk, isNewChunk bool, maxChunkLen int64) error {
-		if !blobstore.IsReadWriteAllowed(cfio.bs.Flags()) {
+		if !fl.IsReadWriteAllowed(cfio.bs.Flags()) {
 			return EPERM
 		}
 
-		flags := blobstore.O_RDWR
+		flags := fl.O_RDWR
 		if isNewChunk {
-			flags |= blobstore.O_CREATE | blobstore.O_EXCL
+			flags |= fl.O_CREATE | fl.O_EXCL
 		}
 		bh, err := cfio.bs.Open(c.BlobPath, flags)
 		if err != nil {
@@ -236,11 +237,11 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 			}
 		}
 
-		if !blobstore.IsReadAllowed(cfio.bs.Flags()) {
+		if !fl.IsReadAllowed(cfio.bs.Flags()) {
 			return EPERM
 		}
 
-		bh, err := cfio.bs.Open(c.BlobPath, blobstore.O_RDONLY)
+		bh, err := cfio.bs.Open(c.BlobPath, fl.O_RDONLY)
 		if err != nil {
 			return fmt.Errorf("Failed to open path \"%s\" for reading: %v", c.BlobPath, err)
 		}
@@ -282,7 +283,7 @@ func (cfio *ChunkedFileIO) Close() error {
 }
 
 func (cfio *ChunkedFileIO) Truncate(size int64) error {
-	if !blobstore.IsReadWriteAllowed(cfio.bs.Flags()) {
+	if !fl.IsReadWriteAllowed(cfio.bs.Flags()) {
 		return EPERM
 	}
 
@@ -303,7 +304,7 @@ func (cfio *ChunkedFileIO) Truncate(size int64) error {
 			// trim the chunk
 			chunksize := size - c.Left()
 
-			bh, err := cfio.bs.Open(c.BlobPath, blobstore.O_RDWR)
+			bh, err := cfio.bs.Open(c.BlobPath, fl.O_RDWR)
 			if err != nil {
 				return err
 			}

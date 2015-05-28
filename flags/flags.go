@@ -1,4 +1,4 @@
-package blobstore
+package flags
 
 import (
 	"os"

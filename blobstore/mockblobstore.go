@@ -1,5 +1,9 @@
 package blobstore
 
+import (
+	"github.com/nyaxt/otaru/flags"
+)
+
 type MockBlobStoreOperation struct {
 	Type      rune
 	Offset    int64
@@ -71,5 +75,5 @@ func (bs *MockBlobStore) Open(blobpath string, flags int) (BlobHandle, error) {
 }
 
 func (bs *MockBlobStore) Flags() int {
-	return O_RDWR
+	return flags.O_RDWR
 }

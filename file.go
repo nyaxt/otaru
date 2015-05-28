@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/nyaxt/otaru/blobstore"
+	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/util"
 )
@@ -213,7 +214,7 @@ type FileHandle struct {
 }
 
 func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
-	tryLock := blobstore.IsWriteAllowed(flags)
+	tryLock := fl.IsWriteAllowed(flags)
 	v, nlock, err := fs.idb.QueryNode(id, tryLock)
 	if err != nil {
 		return nil, err

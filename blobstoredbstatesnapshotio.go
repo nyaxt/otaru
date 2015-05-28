@@ -9,6 +9,7 @@ import (
 	"log"
 
 	"github.com/nyaxt/otaru/blobstore"
+	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 )
 
@@ -28,7 +29,7 @@ func NewBlobStoreDBStateSnapshotIO(bs blobstore.RandomAccessBlobStore, c Cipher)
 }
 
 func (sio *BlobStoreDBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
-	raw, err := sio.bs.Open(INodeDBSnapshotBlobpath, blobstore.O_RDWR|blobstore.O_CREATE)
+	raw, err := sio.bs.Open(INodeDBSnapshotBlobpath, fl.O_RDWR|fl.O_CREATE)
 	if err != nil {
 		return err
 	}
@@ -63,7 +64,7 @@ func (sio *BlobStoreDBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
 }
 
 func (sio *BlobStoreDBStateSnapshotIO) RestoreSnapshot() (*inodedb.DBState, error) {
-	raw, err := sio.bs.Open(INodeDBSnapshotBlobpath, blobstore.O_RDONLY)
+	raw, err := sio.bs.Open(INodeDBSnapshotBlobpath, fl.O_RDONLY)
 	if err != nil {
 		return nil, err
 	}
