@@ -8,6 +8,7 @@ import (
 	"google.golang.org/cloud/storage"
 
 	"github.com/nyaxt/otaru"
+	oflags "github.com/nyaxt/otaru/flags"
 )
 
 type GCSBlobStore struct {
@@ -40,7 +41,7 @@ func (bs *GCSBlobStore) newAuthedContext(basectx context.Context) context.Contex
 }
 
 func (bs *GCSBlobStore) OpenWriter(blobpath string, flags int) (io.WriteCloser, error) {
-	if !otaru.IsWriteAllowed(bs.flags) || !otaru.IsWriteAllowed(flags) {
+	if !oflags.IsWriteAllowed(bs.flags) || !oflags.IsWriteAllowed(flags) {
 		return nil, otaru.EPERM
 	}
 

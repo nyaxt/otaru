@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/flags"
 )
 
 func TestFileBlobStore() *blobstore.FileBlobStore {
@@ -19,7 +20,7 @@ func TestFileBlobStoreOfName(name string) *blobstore.FileBlobStore {
 	if err != nil {
 		log.Fatalf("failed to create tmpdir: %v", err)
 	}
-	fbs, err := blobstore.NewFileBlobStore(tempdir, blobstore.O_RDWRCREATE)
+	fbs, err := blobstore.NewFileBlobStore(tempdir, flags.O_RDWRCREATE)
 	if err != nil {
 		log.Fatalf("failed to create blobstore: %v", err)
 	}
@@ -63,7 +64,7 @@ func AssertBlobVersion(bs blobstore.BlobStore, blobpath string, expected blobsto
 }
 
 func AssertBlobVersionRA(bs blobstore.RandomAccessBlobStore, blobpath string, expected blobstore.BlobVersion) error {
-	h, err := bs.Open(blobpath, blobstore.O_RDONLY)
+	h, err := bs.Open(blobpath, flags.O_RDONLY)
 	if err != nil {
 		return fmt.Errorf("Failed to open reader: %v", err)
 	}
@@ -100,7 +101,7 @@ func WriteVersionedBlob(bs blobstore.BlobStore, blobpath string, version byte) e
 }
 
 func WriteVersionedBlobRA(bs blobstore.RandomAccessBlobStore, blobpath string, version byte) error {
-	bh, err := bs.Open(blobpath, blobstore.O_RDWRCREATE)
+	bh, err := bs.Open(blobpath, flags.O_RDWRCREATE)
 	if err != nil {
 		return fmt.Errorf("Failed to open handle: %v", err)
 	}

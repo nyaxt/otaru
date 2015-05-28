@@ -9,6 +9,7 @@ import (
 
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/flags"
 )
 
 var (
@@ -35,7 +36,7 @@ func put(fromurl, tourl string) error {
 	// FIXME: handle unsized file / non-file (e.g. pipe)
 	fromsize := fromstat.Size()
 
-	bs, err := blobstore.NewFileBlobStore(".", blobstore.O_RDWR)
+	bs, err := blobstore.NewFileBlobStore(".", flags.O_RDWR)
 	if err != nil {
 		return err
 	}
@@ -88,7 +89,7 @@ func put(fromurl, tourl string) error {
 }
 
 func get(fromurl string) error {
-	bs, err := blobstore.NewFileBlobStore(".", blobstore.O_RDWR)
+	bs, err := blobstore.NewFileBlobStore(".", flags.O_RDWR)
 	if err != nil {
 		return err
 	}

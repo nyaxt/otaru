@@ -2,6 +2,7 @@ package blobstore_test
 
 import (
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/flags"
 	. "github.com/nyaxt/otaru/testutils"
 
 	"testing"
@@ -17,7 +18,7 @@ func TestGenerateNewBlobPath_Unique(t *testing.T) {
 			t.Errorf("Failed to GenerateNewBlobPath on %d iter: %v", i, err)
 		}
 
-		bh, err := bs.Open(bpath, blobstore.O_RDONLY)
+		bh, err := bs.Open(bpath, flags.O_RDONLY)
 		if err != nil {
 			t.Errorf("open bpath \"%s\" failed: %v", bpath, err)
 		}

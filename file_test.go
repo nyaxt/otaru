@@ -2,6 +2,7 @@ package otaru_test
 
 import (
 	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/flags"
 	. "github.com/nyaxt/otaru/testutils"
 
 	"bytes"
@@ -15,7 +16,7 @@ func TestFileWriteRead(t *testing.T) {
 		t.Errorf("NewFileSystemEmpty failed: %v", err)
 		return
 	}
-	h, err := fs.OpenFileFullPath("/hello.txt", otaru.O_CREATE|otaru.O_RDWR, 0666)
+	h, err := fs.OpenFileFullPath("/hello.txt", flags.O_CREATE|flags.O_RDWR, 0666)
 	if err != nil {
 		t.Errorf("OpenFileFullPath failed: %v", err)
 		return

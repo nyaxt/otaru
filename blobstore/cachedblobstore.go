@@ -192,7 +192,7 @@ func (cbs *CachedBlobStore) Open(blobpath string, flags int) (BlobHandle, error)
 		return nil, EPERM
 	}
 
-	cachebh, err := cbs.cachebs.Open(blobpath, flags)
+	cachebh, err := cbs.cachebs.Open(blobpath, fl.O_RDWRCREATE)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open cache blob: %v", err)
 	}
@@ -226,7 +226,7 @@ func (cbs *CachedBlobStore) Open(blobpath string, flags int) (BlobHandle, error)
 			return nil, fmt.Errorf("Failed to close cache blob for re-opening: %v", err)
 		}
 		var err error
-		cbh.cachebh, err = cbs.cachebs.Open(blobpath, flags)
+		cbh.cachebh, err = cbs.cachebs.Open(blobpath, fl.O_RDWRCREATE)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to reopen cache blob: %v", err)
 		}
