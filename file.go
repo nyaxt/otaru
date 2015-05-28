@@ -138,7 +138,7 @@ func (fs *FileSystem) Remove(dirID inodedb.ID, name string) error {
 	return nil
 }
 
-func (fs *FileSystem) CreateFile(dirID inodedb.ID, name string) (inodedb.ID, error) {
+func (fs *FileSystem) createNode(dirID inodedb.ID, name string, typ inodedb.Type) (inodedb.ID, error) {
 	nlock, err := fs.idb.LockNode(inodedb.AllocateNewNodeID)
 	if err != nil {
 		return 0, err
@@ -152,7 +152,7 @@ func (fs *FileSystem) CreateFile(dirID inodedb.ID, name string) (inodedb.ID, err
 	origpath := name // FIXME
 
 	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
-		&inodedb.CreateFileOp{NodeLock: nlock, OrigPath: origpath},
+		&inodedb.CreateNodeOp{NodeLock: nlock, OrigPath: origpath, Type: typ},
 		&inodedb.HardLinkOp{NodeLock: inodedb.NodeLock{dirID, inodedb.NoTicket}, Name: name, TargetID: nlock.ID},
 	}}
 	if _, err := fs.idb.ApplyTransaction(tx); err != nil {
@@ -162,8 +162,12 @@ func (fs *FileSystem) CreateFile(dirID inodedb.ID, name string) (inodedb.ID, err
 	return nlock.ID, nil
 }
 
+func (fs *FileSystem) CreateFile(dirID inodedb.ID, name string) (inodedb.ID, error) {
+	return fs.createNode(dirID, name, inodedb.FileNodeT)
+}
+
 func (fs *FileSystem) CreateDir(dirID inodedb.ID, name string) (inodedb.ID, error) {
-	return 0, fmt.Errorf("Not yet implemented: CreateDir")
+	return fs.createNode(dirID, name, inodedb.DirNodeT)
 }
 
 type Attr struct {

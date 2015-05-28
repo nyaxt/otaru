@@ -41,49 +41,38 @@ func (op *InitializeFileSystemOp) Apply(s *DBState) error {
 	return nil
 }
 
-type CreateDirOp struct {
+type CreateNodeOp struct {
 	OpMeta   `json:",inline"`
 	NodeLock `json:"nodelock"`
 	OrigPath string `json:"origpath"`
+	Type     `json:"type"`
 }
 
-var _ = DBOperation(&CreateDirOp{})
+var _ = DBOperation(&CreateNodeOp{})
 
-func (op *CreateDirOp) Apply(s *DBState) error {
+func (op *CreateNodeOp) Apply(s *DBState) error {
 	if err := s.checkLock(op.NodeLock, true); err != nil {
 		return err
 	}
 
-	n := &DirNode{
-		INodeCommon: INodeCommon{ID: op.ID, OrigPath: op.OrigPath},
-		Entries:     make(map[string]ID),
+	var n INode
+	switch op.Type {
+	case FileNodeT:
+		n = &FileNode{
+			INodeCommon: INodeCommon{ID: op.ID, OrigPath: op.OrigPath},
+			Size:        0,
+		}
+	case DirNodeT:
+		n = &DirNode{
+			INodeCommon: INodeCommon{ID: op.ID, OrigPath: op.OrigPath},
+			Entries:     make(map[string]ID),
+		}
+	default:
+		return fmt.Errorf("Unknown node type specified to CreateNodeOp: %v", op.Type)
 	}
 
 	if err := s.addNewNode(n); err != nil {
 		return fmt.Errorf("Failed to create new DirNode: %v", err)
-	}
-
-	return nil
-}
-
-type CreateFileOp struct {
-	OpMeta   `json:",inline"`
-	NodeLock `json:"nodelock"`
-	OrigPath string `json:"origpath"`
-}
-
-func (op *CreateFileOp) Apply(s *DBState) error {
-	if err := s.checkLock(op.NodeLock, true); err != nil {
-		return err
-	}
-
-	n := &FileNode{
-		INodeCommon: INodeCommon{ID: op.ID, OrigPath: op.OrigPath},
-		Size:        0,
-	}
-
-	if err := s.addNewNode(n); err != nil {
-		return fmt.Errorf("Failed to create new FileNode: %v", err)
 	}
 
 	return nil
@@ -238,8 +227,16 @@ func (op *RemoveOp) Apply(s *DBState) error {
 		return ENOTDIR
 	}
 
-	if _, ok := dn.Entries[op.Name]; !ok {
+	tgtid, ok := dn.Entries[op.Name]
+	if !ok {
 		return ENOENT
+	}
+	if tgtnode, ok := s.nodes[tgtid]; ok {
+		if tgtdirnode, ok := tgtnode.(*DirNode); ok {
+			if len(tgtdirnode.Entries) != 0 {
+				return ENOTEMPTY
+			}
+		}
 	}
 
 	delete(dn.Entries, op.Name)

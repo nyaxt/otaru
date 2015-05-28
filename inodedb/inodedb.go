@@ -6,12 +6,25 @@ import (
 	"log"
 	"math"
 	"syscall"
+
+	bfuse "bazil.org/fuse"
 )
 
+type Errno syscall.Errno
+
+func (e Errno) Errno() bfuse.Errno {
+	return bfuse.Errno(e)
+}
+
+func (e Errno) Error() string {
+	return syscall.Errno(e).Error()
+}
+
 var (
-	EEXIST         = syscall.Errno(syscall.EEXIST)
-	ENOENT         = syscall.Errno(syscall.ENOENT)
-	ENOTDIR        = syscall.Errno(syscall.ENOTDIR)
+	EEXIST         = Errno(syscall.EEXIST)
+	ENOENT         = Errno(syscall.ENOENT)
+	ENOTDIR        = Errno(syscall.ENOTDIR)
+	ENOTEMPTY      = Errno(syscall.ENOTEMPTY)
 	ErrLockInvalid = errors.New("Invalid lock given.")
 	ErrLockTaken   = errors.New("Lock is already acquired by someone else.")
 )
@@ -263,11 +276,13 @@ func (db *DB) RestoreVersion(version TxID) error {
 	oldState := db.state
 	db.state = state
 
+	ssver := state.version
+
 	if state.version > version {
 		return fmt.Errorf("Can't rollback to old version %d which is older than snapshot version %d", version, state.version)
 	}
 
-	txlog, err := db.txLogIO.QueryTransactions(state.version + 1)
+	txlog, err := db.txLogIO.QueryTransactions(ssver + 1)
 	if txlog == nil || err != nil {
 		db.state = oldState
 		return fmt.Errorf("Failed to query txlog: %v", err)
@@ -279,6 +294,8 @@ func (db *DB) RestoreVersion(version TxID) error {
 			return fmt.Errorf("Failed to replay tx: %v", err)
 		}
 	}
+
+	log.Printf("Fast forward txlog from ver %d to %d", ssver, state.version)
 
 	return nil
 }
@@ -297,6 +314,12 @@ func (db *DB) ApplyTransaction(tx DBTransaction) (TxID, error) {
 			}
 			return 0, err
 		}
+	}
+	if err := db.txLogIO.AppendTransaction(tx); err != nil {
+		if rerr := db.RestoreVersion(db.state.version); rerr != nil {
+			log.Fatalf("Failed to write txlog: %v. DB rollback failed!!!: %v", err, rerr)
+		}
+		return 0, fmt.Errorf("Failed to write txlog: %v", err)
 	}
 
 	db.state.version = tx.TxID

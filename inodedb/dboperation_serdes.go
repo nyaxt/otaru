@@ -10,10 +10,8 @@ func EncodeDBOperationToJson(op DBOperation) ([]byte, error) {
 	switch op.(type) {
 	case *InitializeFileSystemOp:
 		op.(*InitializeFileSystemOp).Kind = "InitializeFileSystemOp"
-	case *CreateDirOp:
-		op.(*CreateDirOp).Kind = "CreateDirOp"
-	case *CreateFileOp:
-		op.(*CreateFileOp).Kind = "CreateFileOp"
+	case *CreateNodeOp:
+		op.(*CreateNodeOp).Kind = "CreateNodeOp"
 	case *HardLinkOp:
 		op.(*HardLinkOp).Kind = "HardLinkOp"
 	case *UpdateChunksOp:
@@ -44,14 +42,8 @@ func DecodeDBOperationFromJson(jsonb []byte) (DBOperation, error) {
 			return nil, err
 		}
 		return &op, nil
-	case "CreateDirOp":
-		var op CreateDirOp
-		if err := json.Unmarshal(jsonb, &op); err != nil {
-			return nil, err
-		}
-		return &op, nil
-	case "CreateFileOp":
-		var op CreateFileOp
+	case "CreateNodeOp":
+		var op CreateNodeOp
 		if err := json.Unmarshal(jsonb, &op); err != nil {
 			return nil, err
 		}
