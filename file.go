@@ -111,24 +111,14 @@ func (fs *FileSystem) DirEntries(id inodedb.ID) (map[string]inodedb.ID, error) {
 	return dv.GetEntries(), err
 }
 
-func (fs *FileSystem) Rename(srcdir inodedb.ID, oldname string, tgtdir inodedb.ID, newname string) error {
-	/*
-		es := dh.n.Entries
-		id, ok := es[oldname]
-		if !ok {
-			return ENOENT
-		}
+func (fs *FileSystem) Rename(srcDirID inodedb.ID, srcName string, dstDirID inodedb.ID, dstName string) error {
+	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
+		&inodedb.RenameOp{SrcDirID: srcDirID, SrcName: srcName, DstDirID: dstDirID, DstName: dstName},
+	}}
+	if _, err := fs.idb.ApplyTransaction(tx); err != nil {
+		return err
+	}
 
-		es2 := tgtdh.n.Entries
-		_, ok = es2[newname]
-		if ok {
-			return EEXIST
-		}
-
-		es2[newname] = id
-		delete(es, oldname)
-	*/
-	log.Printf("Implement me: Rename")
 	return nil
 }
 

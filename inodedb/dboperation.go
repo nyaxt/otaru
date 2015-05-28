@@ -169,3 +169,52 @@ func (op *UpdateSizeOp) Apply(s *DBState) error {
 	fn.Size = op.Size
 	return nil
 }
+
+type RenameOp struct {
+	OpMeta   `json:",inline"`
+	SrcDirID ID
+	SrcName  string
+	DstDirID ID
+	DstName  string
+}
+
+func (op *RenameOp) Apply(s *DBState) error {
+	if err := s.checkLock(NodeLock{op.SrcDirID, NoTicket}, false); err != nil {
+		return err
+	}
+	if err := s.checkLock(NodeLock{op.DstDirID, NoTicket}, false); err != nil {
+		return err
+	}
+
+	srcn, ok := s.nodes[op.SrcDirID]
+	if !ok {
+		return ENOENT
+	}
+
+	dstn, ok := s.nodes[op.DstDirID]
+	if !ok {
+		return ENOENT
+	}
+
+	srcdn, ok := srcn.(*DirNode)
+	if !ok {
+		return ENOTDIR
+	}
+	dstdn, ok := dstn.(*DirNode)
+	if !ok {
+		return ENOTDIR
+	}
+
+	if _, ok = dstdn.Entries[op.DstName]; ok {
+		return EEXIST
+	}
+
+	id, ok := srcdn.Entries[op.SrcName]
+	if !ok {
+		return ENOENT
+	}
+
+	delete(srcdn.Entries, op.SrcName)
+	dstdn.Entries[op.DstName] = id
+	return nil
+}
