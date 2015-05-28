@@ -5,6 +5,9 @@ import (
 	"io"
 	"log"
 	"math"
+
+	"github.com/nyaxt/otaru/blobstore"
+	. "github.com/nyaxt/otaru/util" // FIXME
 )
 
 const (
@@ -63,7 +66,7 @@ func (cr *ChunkReader) Read(p []byte) (int, error) {
 
 // ChunkIO provides RandomAccessIO for blobchunk
 type ChunkIO struct {
-	bh BlobHandle
+	bh blobstore.BlobHandle
 	c  Cipher
 
 	didReadHeader bool
@@ -72,7 +75,7 @@ type ChunkIO struct {
 	needsHeaderUpdate bool
 }
 
-func NewChunkIO(bh BlobHandle, c Cipher) *ChunkIO {
+func NewChunkIO(bh blobstore.BlobHandle, c Cipher) *ChunkIO {
 	return &ChunkIO{
 		bh:            bh,
 		c:             c,
@@ -85,7 +88,7 @@ func NewChunkIO(bh BlobHandle, c Cipher) *ChunkIO {
 	}
 }
 
-func NewChunkIOWithMetadata(bh BlobHandle, c Cipher, h ChunkHeader) *ChunkIO {
+func NewChunkIOWithMetadata(bh blobstore.BlobHandle, c Cipher, h ChunkHeader) *ChunkIO {
 	ch := NewChunkIO(bh, c)
 	ch.header = h
 	return ch
@@ -97,7 +100,7 @@ func (ch *ChunkIO) ensureHeader() error {
 	}
 
 	if ch.bh.Size() == 0 {
-		w := &OffsetWriter{ch.bh, 0}
+		w := &blobstore.OffsetWriter{ch.bh, 0}
 		if err := ch.header.WriteTo(w, ch.c); err != nil {
 			return fmt.Errorf("Failed to init header/prologue: %v", err)
 		}
@@ -106,7 +109,7 @@ func (ch *ChunkIO) ensureHeader() error {
 		return nil
 	}
 
-	if err := ch.header.ReadFrom(&OffsetReader{ch.bh, 0}, ch.c); err != nil {
+	if err := ch.header.ReadFrom(&blobstore.OffsetReader{ch.bh, 0}, ch.c); err != nil {
 		return fmt.Errorf("Failed to read header: %v", err)
 	}
 
@@ -179,7 +182,7 @@ func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 	// the offset of the start of the frame in blob
 	blobOffset := ch.encryptedFrameOffset(i)
 
-	rd := &OffsetReader{ch.bh, int64(blobOffset)}
+	rd := &blobstore.OffsetReader{ch.bh, int64(blobOffset)}
 	bdr, err := NewBtnDecryptReader(rd, ch.c, framePayloadLen)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create BtnDecryptReader: %v", err)
@@ -204,7 +207,7 @@ func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
 	// the offset of the start of the frame in blob
 	blobOffset := ch.encryptedFrameOffset(i)
 
-	wr := &OffsetWriter{ch.bh, int64(blobOffset)}
+	wr := &blobstore.OffsetWriter{ch.bh, int64(blobOffset)}
 	bew, err := NewBtnEncryptWriteCloser(wr, ch.c, len(f.P))
 	if err != nil {
 		return fmt.Errorf("Failed to create BtnEncryptWriteCloser: %v", err)
@@ -420,7 +423,7 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 
 func (ch *ChunkIO) Flush() error {
 	if ch.needsHeaderUpdate {
-		if err := ch.header.WriteTo(&OffsetWriter{ch.bh, 0}, ch.c); err != nil {
+		if err := ch.header.WriteTo(&blobstore.OffsetWriter{ch.bh, 0}, ch.c); err != nil {
 			return fmt.Errorf("Header write failed: %v", err)
 		}
 		log.Printf("Wrote chunk header: %+v", ch.header)

@@ -1,7 +1,8 @@
 package otaru_test
 
 import (
-	. "github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/util"
 
 	"bytes"
 	"io"
@@ -11,12 +12,12 @@ import (
 func TestEncrypt_Short(t *testing.T) {
 	key := []byte("0123456789abcdef")
 	payload := []byte("short string")
-	envelope, err := Encrypt(key, payload)
+	envelope, err := otaru.Encrypt(key, payload)
 	if err != nil {
 		t.Errorf("Failed to encrypt: %v", err)
 	}
 
-	plain, err := Decrypt(key, envelope, len(payload))
+	plain, err := otaru.Decrypt(key, envelope, len(payload))
 	if err != nil {
 		t.Errorf("Failed to decrypt: %v", err)
 	}
@@ -28,14 +29,14 @@ func TestEncrypt_Short(t *testing.T) {
 
 func TestEncrypt_Long(t *testing.T) {
 	key := []byte("0123456789abcdef")
-	payload := RandomBytes(1024 * 1024)
+	payload := util.RandomBytes(1024 * 1024)
 
-	envelope, err := Encrypt(key, payload)
+	envelope, err := otaru.Encrypt(key, payload)
 	if err != nil {
 		t.Errorf("Failed to encrypt: %v", err)
 	}
 
-	plain, err := Decrypt(key, envelope, len(payload))
+	plain, err := otaru.Decrypt(key, envelope, len(payload))
 	if err != nil {
 		t.Errorf("Failed to decrypt: %v", err)
 	}
@@ -60,14 +61,14 @@ func TestBtnEncryptWriter_WriteAtOnce(t *testing.T) {
 	//payload := RandomBytes(1024 * 1024)
 	payload := []byte("short string")
 
-	c, err := NewCipher(key)
+	c, err := otaru.NewCipher(key)
 	if err != nil {
 		t.Errorf("Failed to create Cipher")
 		return
 	}
 
 	var b bytes.Buffer
-	bew, err := NewBtnEncryptWriteCloser(&b, c, len(payload))
+	bew, err := otaru.NewBtnEncryptWriteCloser(&b, c, len(payload))
 	if err != nil {
 		t.Errorf("Failed to create BtnEncryptWriter: %v", err)
 	}
@@ -77,7 +78,7 @@ func TestBtnEncryptWriter_WriteAtOnce(t *testing.T) {
 		t.Errorf("bew.Close failed: %v", err)
 	}
 
-	plain, err := Decrypt(key, b.Bytes(), len(payload))
+	plain, err := otaru.Decrypt(key, b.Bytes(), len(payload))
 	if err != nil {
 		t.Errorf("Failed to decrypt: %v", err)
 	}
@@ -89,16 +90,16 @@ func TestBtnEncryptWriter_WriteAtOnce(t *testing.T) {
 
 func TestBtnEncryptWriter_PartialWrite(t *testing.T) {
 	key := []byte("0123456789abcdef")
-	payload := RandomBytes(1024 * 1024)
+	payload := util.RandomBytes(1024 * 1024)
 
-	c, err := NewCipher(key)
+	c, err := otaru.NewCipher(key)
 	if err != nil {
 		t.Errorf("Failed to create Cipher")
 		return
 	}
 
 	var b bytes.Buffer
-	bew, err := NewBtnEncryptWriteCloser(&b, c, len(payload))
+	bew, err := otaru.NewBtnEncryptWriteCloser(&b, c, len(payload))
 	if err != nil {
 		t.Errorf("Failed to create BtnEncryptWriter: %v", err)
 	}
@@ -112,7 +113,7 @@ func TestBtnEncryptWriter_PartialWrite(t *testing.T) {
 		t.Errorf("bew.Close failed: %v", err)
 	}
 
-	plain, err := Decrypt(key, b.Bytes(), len(payload))
+	plain, err := otaru.Decrypt(key, b.Bytes(), len(payload))
 	if err != nil {
 		t.Errorf("Failed to decrypt: %v", err)
 	}

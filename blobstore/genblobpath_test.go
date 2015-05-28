@@ -1,7 +1,8 @@
-package otaru_test
+package blobstore_test
 
 import (
-	. "github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/flags"
 	. "github.com/nyaxt/otaru/testutils"
 
 	"testing"
@@ -9,15 +10,15 @@ import (
 
 func TestGenerateNewBlobPath_Unique(t *testing.T) {
 	n := 200
-	bs := NewMockBlobStore()
+	bs := blobstore.NewMockBlobStore()
 
 	for i := 0; i < n; i++ {
-		bpath, err := GenerateNewBlobPath(bs)
+		bpath, err := blobstore.GenerateNewBlobPath(bs)
 		if err != nil {
 			t.Errorf("Failed to GenerateNewBlobPath on %d iter: %v", i, err)
 		}
 
-		bh, err := bs.Open(bpath, O_RDONLY)
+		bh, err := bs.Open(bpath, flags.O_RDONLY)
 		if err != nil {
 			t.Errorf("open bpath \"%s\" failed: %v", bpath, err)
 		}

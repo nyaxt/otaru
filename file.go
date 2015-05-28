@@ -2,17 +2,22 @@ package otaru
 
 import (
 	"fmt"
+	"log"
 	"syscall"
 
-	"github.com/nyaxt/otaru/intn"
+	"github.com/nyaxt/otaru/blobstore"
+	fl "github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/util"
 )
 
 const (
-	EPERM     = syscall.Errno(syscall.EPERM)
+	EEXIST    = syscall.Errno(syscall.EEXIST)
+	EISDIR    = syscall.Errno(syscall.EISDIR)
 	ENOENT    = syscall.Errno(syscall.ENOENT)
 	ENOTDIR   = syscall.Errno(syscall.ENOTDIR)
 	ENOTEMPTY = syscall.Errno(syscall.ENOTEMPTY)
-	EEXIST    = syscall.Errno(syscall.EEXIST)
+	EPERM     = syscall.Errno(syscall.EPERM)
 )
 
 const (
@@ -20,157 +25,68 @@ const (
 	FileWriteCacheMaxPatchContentLen = 256 * 1024
 )
 
-type FileWriteCache struct {
-	ps intn.Patches
-}
-
-func NewFileWriteCache() *FileWriteCache {
-	return &FileWriteCache{ps: intn.NewPatches()}
-}
-
-func (wc *FileWriteCache) PWrite(offset int64, p []byte) error {
-	newp := intn.Patch{Offset: offset, P: p}
-	wc.ps = wc.ps.Merge(newp)
-	return nil
-}
-
-func (wc *FileWriteCache) PReadThrough(offset int64, p []byte, r PReader) error {
-	nr := int64(len(p))
-	remo := offset
-	remp := p
-
-	for _, patch := range wc.ps {
-		if nr <= 0 {
-			return nil
-		}
-
-		if remo > patch.Right() {
-			continue
-		}
-
-		if remo < patch.Left() {
-			fallbackLen := Int64Min(nr, patch.Left()-remo)
-
-			if err := r.PRead(remo, remp[:fallbackLen]); err != nil {
-				return err
-			}
-
-			remp = remp[fallbackLen:]
-			nr -= fallbackLen
-			remo += fallbackLen
-		}
-
-		if nr <= 0 {
-			return nil
-		}
-
-		applyOffset := remo - patch.Offset
-		applyLen := Int64Min(int64(len(patch.P))-applyOffset, nr)
-		copy(remp[:applyLen], patch.P[applyOffset:])
-
-		remp = remp[applyLen:]
-		nr -= applyLen
-		remo += applyLen
-	}
-
-	if err := r.PRead(remo, remp); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (wc *FileWriteCache) ContentLen() int64 {
-	l := int64(0)
-	for _, p := range wc.ps {
-		l += int64(len(p.P))
-	}
-	return l
-}
-
-func (wc *FileWriteCache) NeedsFlush() bool {
-	if len(wc.ps) > FileWriteCacheMaxPatches {
-		return true
-	}
-	if wc.ContentLen() > FileWriteCacheMaxPatchContentLen {
-		return true
-	}
-
-	return false
-}
-
-func (wc *FileWriteCache) Flush(bh BlobHandle) error {
-	for _, p := range wc.ps {
-		if err := bh.PWrite(p.Offset, p.P); err != nil {
-			return err
-		}
-	}
-	wc.ps = wc.ps[:0]
-
-	return nil
-}
-
-func (wc *FileWriteCache) Right() int64 {
-	if len(wc.ps) == 0 {
-		return 0
-	}
-
-	return wc.ps[0].Right()
-}
-
-func (wc *FileWriteCache) Truncate(size int64) {
-	wc.ps = wc.ps.Truncate(size)
-}
-
 type FileSystem struct {
-	*INodeDB
-	lastID INodeID
+	idb inodedb.DBHandler
 
-	bs RandomAccessBlobStore
+	bs blobstore.RandomAccessBlobStore
 	c  Cipher
 
-	newChunkedFileIO func(bs RandomAccessBlobStore, fn *FileNode, c Cipher) BlobHandle
+	newChunkedFileIO func(bs blobstore.RandomAccessBlobStore, c Cipher, caio ChunksArrayIO) blobstore.BlobHandle
 
-	wcmap map[INodeID]*FileWriteCache
+	wcmap map[inodedb.ID]*FileWriteCache
 }
 
-func newFileSystemCommon(idb *INodeDB, bs RandomAccessBlobStore, c Cipher) *FileSystem {
+func newFileSystemCommon(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c Cipher) *FileSystem {
 	fs := &FileSystem{
-		INodeDB: idb,
-		lastID:  0,
+		idb: idb,
+		bs:  bs,
+		c:   c,
 
-		bs: bs,
-		c:  c,
-
-		newChunkedFileIO: func(bs RandomAccessBlobStore, fn *FileNode, c Cipher) BlobHandle {
-			return NewChunkedFileIO(bs, fn, c)
+		newChunkedFileIO: func(bs blobstore.RandomAccessBlobStore, c Cipher, caio ChunksArrayIO) blobstore.BlobHandle {
+			return NewChunkedFileIO(bs, c, caio)
 		},
 
-		wcmap: make(map[INodeID]*FileWriteCache),
+		wcmap: make(map[inodedb.ID]*FileWriteCache),
 	}
 
 	return fs
 }
 
-func NewFileSystemEmpty(bs RandomAccessBlobStore, c Cipher) *FileSystem {
-	idb := NewINodeDBEmpty()
-	rootdir := NewDirNode(idb, "/")
-	if rootdir.ID() != 1 {
-		panic("rootdir must have INodeID 1")
-	}
+func NewFileSystemEmpty(bs blobstore.RandomAccessBlobStore, c Cipher) (*FileSystem, error) {
+	// FIXME: refactor here and FromSnapshot
 
-	return newFileSystemCommon(idb, bs, c)
-}
-
-func NewFileSystemFromSnapshot(bs RandomAccessBlobStore, c Cipher) (*FileSystem, error) {
-	idb, err := LoadINodeDBFromBlobStore(bs, c)
+	snapshotio := NewBlobStoreDBStateSnapshotIO(bs, c)
+	txio := inodedb.NewSimpleDBTransactionLogIO() // FIXME!
+	idb, err := inodedb.NewEmptyDB(snapshotio, txio)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to initialize inodedb: %v", err)
 	}
 
 	return newFileSystemCommon(idb, bs, c), nil
 }
 
-func (fs *FileSystem) getOrCreateFileWriteCache(id INodeID) *FileWriteCache {
+func NewFileSystemFromSnapshot(bs blobstore.RandomAccessBlobStore, c Cipher) (*FileSystem, error) {
+	snapshotio := NewBlobStoreDBStateSnapshotIO(bs, c)
+	txio := inodedb.NewSimpleDBTransactionLogIO() // FIXME!
+	idb, err := inodedb.NewDB(snapshotio, txio)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to initialize inodedb: %v", err)
+	}
+
+	return newFileSystemCommon(idb, bs, c), nil
+}
+
+func (fs *FileSystem) Sync() error {
+	if s, ok := fs.idb.(util.Syncer); ok {
+		if err := s.Sync(); err != nil {
+			return fmt.Errorf("Failed to sync INodeDB: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func (fs *FileSystem) getOrCreateFileWriteCache(id inodedb.ID) *FileWriteCache {
 	wc := fs.wcmap[id]
 	if wc == nil {
 		wc = NewFileWriteCache()
@@ -179,180 +95,181 @@ func (fs *FileSystem) getOrCreateFileWriteCache(id INodeID) *FileWriteCache {
 	return wc
 }
 
-func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(RandomAccessBlobStore, *FileNode, Cipher) BlobHandle) {
+func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(blobstore.RandomAccessBlobStore, Cipher, ChunksArrayIO) blobstore.BlobHandle) {
 	fs.newChunkedFileIO = newChunkedFileIO
 }
 
-type DirHandle struct {
-	fs *FileSystem
-	n  *DirNode
-}
-
-func (fs *FileSystem) OpenDir(id INodeID) (*DirHandle, error) {
-	node := fs.INodeDB.Get(id)
-	if node == nil {
-		return nil, ENOENT
-	}
-	if node.Type() != DirNodeT {
-		return nil, ENOTDIR
-	}
-	dirnode := node.(*DirNode)
-
-	h := &DirHandle{fs: fs, n: dirnode}
-	return h, nil
-}
-
-func (dh *DirHandle) FileSystem() *FileSystem {
-	return dh.fs
-}
-
-func (dh *DirHandle) ID() INodeID {
-	return dh.n.ID()
-}
-
-func (dh *DirHandle) Entries() map[string]INodeID {
-	return dh.n.Entries
-}
-
-// FIXME
-func (dh *DirHandle) Path() string {
-	return ""
-}
-
-func (dh *DirHandle) Rename(oldname string, tgtdh *DirHandle, newname string) error {
-	es := dh.n.Entries
-	id, ok := es[oldname]
-	if !ok {
-		return ENOENT
-	}
-
-	es2 := tgtdh.n.Entries
-	_, ok = es2[newname]
-	if ok {
-		return EEXIST
-	}
-
-	es2[newname] = id
-	delete(es, oldname)
-	return nil
-}
-
-func (dh *DirHandle) Remove(name string) error {
-	es := dh.n.Entries
-
-	id, ok := es[name]
-	if !ok {
-		return ENOENT
-	}
-	n := dh.fs.INodeDB.Get(id)
-	if n.Type() == DirNodeT {
-		sdn := n.(*DirNode)
-		if len(sdn.Entries) != 0 {
-			return ENOTEMPTY
-		}
-	}
-
-	delete(es, name)
-	return nil
-}
-
-func (dh *DirHandle) createNode(name string, newNode func(db *INodeDB, origpath string) INodeID) (INodeID, error) {
-	_, ok := dh.n.Entries[name]
-	if ok {
-		return 0, EEXIST
-	}
-
-	fullorigpath := fmt.Sprintf("%s/%s", dh.Path(), name)
-	id := newNode(dh.fs.INodeDB, fullorigpath)
-	dh.n.Entries[name] = id
-	return id, nil
-}
-
-func (dh *DirHandle) CreateFile(name string) (INodeID, error) {
-	return dh.createNode(name, func(db *INodeDB, origpath string) INodeID {
-		n := NewFileNode(dh.fs.INodeDB, origpath)
-		return n.ID()
-	})
-}
-
-func (dh *DirHandle) CreateDir(name string) (INodeID, error) {
-	return dh.createNode(name, func(db *INodeDB, origpath string) INodeID {
-		n := NewDirNode(dh.fs.INodeDB, origpath)
-		return n.ID()
-	})
-}
-
-// FIXME: Multiple FileHandle may exist for same file at once. Support it!
-type FileHandle struct {
-	fs   *FileSystem
-	n    *FileNode
-	wc   *FileWriteCache
-	cfio BlobHandle
-}
-
-func (fs *FileSystem) openFileNode(n *FileNode) (*FileHandle, error) {
-	wc := fs.getOrCreateFileWriteCache(n.ID())
-	cfio := fs.newChunkedFileIO(fs.bs, n, fs.c)
-	h := &FileHandle{fs: fs, n: n, wc: wc, cfio: cfio}
-	return h, nil
-}
-
-func (fs *FileSystem) OpenFile(id INodeID) (*FileHandle, error) {
-	node := fs.INodeDB.Get(id)
-	if node == nil {
-		return nil, ENOENT
-	}
-	if node.Type() != FileNodeT {
-		return nil, ENOTDIR
-	}
-	filenode := node.(*FileNode)
-
-	h, err := fs.openFileNode(filenode)
+func (fs *FileSystem) DirEntries(id inodedb.ID) (map[string]inodedb.ID, error) {
+	v, _, err := fs.idb.QueryNode(id, false)
 	if err != nil {
 		return nil, err
 	}
-	return h, nil
+	if v.GetType() != inodedb.DirNodeT {
+		return nil, ENOTDIR
+	}
+
+	dv := v.(inodedb.DirNodeView)
+	return dv.GetEntries(), err
+}
+
+func (fs *FileSystem) Rename(srcDirID inodedb.ID, srcName string, dstDirID inodedb.ID, dstName string) error {
+	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
+		&inodedb.RenameOp{
+			SrcDirID: srcDirID, SrcName: srcName,
+			DstDirID: dstDirID, DstName: dstName,
+		},
+	}}
+	if _, err := fs.idb.ApplyTransaction(tx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (fs *FileSystem) Remove(dirID inodedb.ID, name string) error {
+	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
+		&inodedb.RemoveOp{
+			NodeLock: inodedb.NodeLock{dirID, inodedb.NoTicket}, Name: name,
+		},
+	}}
+	if _, err := fs.idb.ApplyTransaction(tx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (fs *FileSystem) createNode(dirID inodedb.ID, name string, typ inodedb.Type) (inodedb.ID, error) {
+	nlock, err := fs.idb.LockNode(inodedb.AllocateNewNodeID)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err := fs.idb.UnlockNode(nlock); err != nil {
+			log.Printf("Failed to unlock node when creating file: %v", err)
+		}
+	}()
+
+	origpath := name // FIXME
+
+	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
+		&inodedb.CreateNodeOp{NodeLock: nlock, OrigPath: origpath, Type: typ},
+		&inodedb.HardLinkOp{NodeLock: inodedb.NodeLock{dirID, inodedb.NoTicket}, Name: name, TargetID: nlock.ID},
+	}}
+	if _, err := fs.idb.ApplyTransaction(tx); err != nil {
+		return 0, err
+	}
+
+	return nlock.ID, nil
+}
+
+func (fs *FileSystem) CreateFile(dirID inodedb.ID, name string) (inodedb.ID, error) {
+	return fs.createNode(dirID, name, inodedb.FileNodeT)
+}
+
+func (fs *FileSystem) CreateDir(dirID inodedb.ID, name string) (inodedb.ID, error) {
+	return fs.createNode(dirID, name, inodedb.DirNodeT)
 }
 
 type Attr struct {
-	INodeID
-	INodeType
+	ID   inodedb.ID
+	Type inodedb.Type
 	Size int64
 }
 
-func (fs *FileSystem) Attr(id INodeID) (Attr, error) {
-	n := fs.INodeDB.Get(id)
-	if n == nil {
-		return Attr{}, ENOENT
+func (fs *FileSystem) Attr(id inodedb.ID) (Attr, error) {
+	v, _, err := fs.idb.QueryNode(id, false)
+	if err != nil {
+		return Attr{}, err
 	}
 
 	size := int64(0)
-	if fn, ok := n.(*FileNode); ok {
-		size = fn.Size
+	if fn, ok := v.(inodedb.FileNodeView); ok {
+		size = fn.GetSize()
 	}
 
 	a := Attr{
-		INodeID:   n.ID(),
-		INodeType: n.Type(),
-		Size:      size,
+		ID:   v.GetID(),
+		Type: v.GetType(),
+		Size: size,
 	}
 	return a, nil
 }
 
-func (fs *FileSystem) IsDir(id INodeID) (bool, error) {
-	n := fs.INodeDB.Get(id)
-	if n == nil {
-		return false, ENOENT
+func (fs *FileSystem) IsDir(id inodedb.ID) (bool, error) {
+	v, _, err := fs.idb.QueryNode(id, false)
+	if err != nil {
+		return false, err
 	}
 
-	return n.Type() == DirNodeT, nil
+	return v.GetType() == inodedb.DirNodeT, nil
 }
 
-func (h *FileHandle) ID() INodeID {
-	return h.n.ID()
+// FIXME: Multiple FileHandle may exist for same file at once. Support it!
+type FileHandle struct {
+	fs    *FileSystem
+	nlock inodedb.NodeLock
+	wc    *FileWriteCache
+	cfio  blobstore.BlobHandle
+}
+
+func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
+	tryLock := fl.IsWriteAllowed(flags)
+	v, nlock, err := fs.idb.QueryNode(id, tryLock)
+	if err != nil {
+		return nil, err
+	}
+	if v.GetType() == inodedb.DirNodeT {
+		return nil, EISDIR
+	}
+	fv, ok := v.(inodedb.FileNodeView)
+	if !ok {
+		return nil, fmt.Errorf("Specified node not file but has type %v", v.GetType())
+	}
+
+	wc := fs.getOrCreateFileWriteCache(id)
+	var caio ChunksArrayIO
+	if tryLock {
+		caio = NewINodeDBChunksArrayIO(fs.idb, nlock, fv)
+	} else {
+		caio = NewReadOnlyINodeDBChunksArrayIO(fs.idb, nlock)
+	}
+	cfio := fs.newChunkedFileIO(fs.bs, fs.c, caio)
+	return &FileHandle{fs: fs, nlock: nlock, wc: wc, cfio: cfio}, nil
+}
+
+func (h *FileHandle) ID() inodedb.ID {
+	return h.nlock.ID
+}
+
+func (h *FileHandle) updateSize(newsize int64) error {
+	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
+		&inodedb.UpdateSizeOp{NodeLock: h.nlock, Size: newsize},
+	}}
+	if _, err := h.fs.idb.ApplyTransaction(tx); err != nil {
+		return fmt.Errorf("Failed to update FileNode size: %v", err)
+	}
+	return nil
+}
+
+func (h *FileHandle) SizeMayFail() (int64, error) {
+	v, _, err := h.fs.idb.QueryNode(h.nlock.ID, false)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to QueryNode inodedb: %v", err)
+	}
+	fv, ok := v.(inodedb.FileNodeView)
+	if !ok {
+		return 0, fmt.Errorf("Non-FileNodeView returned from QueryNode. Type: %v", v.GetType())
+	}
+	return fv.GetSize(), nil
 }
 
 func (h *FileHandle) PWrite(offset int64, p []byte) error {
+	currentSize, err := h.SizeMayFail()
+	if err != nil {
+		return err
+	}
+
 	if err := h.wc.PWrite(offset, p); err != nil {
 		return err
 	}
@@ -364,8 +281,8 @@ func (h *FileHandle) PWrite(offset int64, p []byte) error {
 	}
 
 	right := offset + int64(len(p))
-	if right > h.n.Size {
-		h.n.Size = right
+	if right > currentSize {
+		return h.updateSize(right)
 	}
 
 	return nil
@@ -380,27 +297,33 @@ func (h *FileHandle) Flush() error {
 }
 
 func (h *FileHandle) Size() int64 {
-	return h.n.Size
+	v, _, err := h.fs.idb.QueryNode(h.nlock.ID, false)
+	if err != nil {
+		log.Printf("Failed to QueryNode inodedb: %v", err)
+		return 0
+	}
+	fv, ok := v.(inodedb.FileNodeView)
+	if !ok {
+		log.Printf("Non-FileNodeView returned from QueryNode. Type: %v", v.GetType())
+		return 0
+	}
+
+	return fv.GetSize()
 }
 
 func (h *FileHandle) Truncate(newsize int64) error {
-	if newsize > h.n.Size {
-		h.n.Size = newsize
-		return nil
+	oldsize, err := h.SizeMayFail()
+	if err != nil {
+		return err
 	}
 
-	if newsize < h.n.Size {
+	if newsize > oldsize {
+		return h.updateSize(newsize)
+	} else if newsize < oldsize {
 		h.wc.Truncate(newsize)
 		h.cfio.Truncate(newsize)
-		h.n.Size = newsize
+		return h.updateSize(newsize)
+	} else {
+		return nil
 	}
-	return nil
-}
-
-func (fs *FileSystem) Sync() error {
-	if err := fs.INodeDB.SaveToBlobStore(fs.bs, fs.c); err != nil {
-		return fmt.Errorf("Failed to save INodeDB: %v", err)
-	}
-
-	return nil
 }

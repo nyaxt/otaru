@@ -1,9 +1,10 @@
-package otaru_test
+package blobstore_test
 
 import (
 	"testing"
 
-	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/flags"
 	tu "github.com/nyaxt/otaru/testutils"
 )
 
@@ -16,7 +17,7 @@ func TestCachedBlobStore(t *testing.T) {
 		return
 	}
 
-	bs, err := otaru.NewCachedBlobStore(backendbs, cachebs, otaru.O_RDWRCREATE, tu.TestQueryVersion)
+	bs, err := blobstore.NewCachedBlobStore(backendbs, cachebs, flags.O_RDWRCREATE, tu.TestQueryVersion)
 	if err != nil {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
@@ -73,7 +74,7 @@ func TestCachedBlobStore_Invalidate(t *testing.T) {
 		return
 	}
 
-	bs, err := otaru.NewCachedBlobStore(backendbs, cachebs, otaru.O_RDWRCREATE, tu.TestQueryVersion)
+	bs, err := blobstore.NewCachedBlobStore(backendbs, cachebs, flags.O_RDWRCREATE, tu.TestQueryVersion)
 	if err != nil {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return

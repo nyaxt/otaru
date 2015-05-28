@@ -1,8 +1,11 @@
-package otaru
+package blobstore
 
 import (
 	"encoding/hex"
 	"fmt"
+
+	"github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/util"
 )
 
 // GenerateNewBlobPath tries to return a new unique blob path.
@@ -12,10 +15,10 @@ func GenerateNewBlobPath(bs RandomAccessBlobStore) (string, error) {
 	const BlobPathLen = 16
 
 	for i := 0; i < MaxTrial; i++ {
-		randbin := RandomBytes(BlobPathLen)
+		randbin := util.RandomBytes(BlobPathLen)
 		candidate := hex.EncodeToString(randbin)
 
-		bh, err := bs.Open(candidate, O_RDONLY)
+		bh, err := bs.Open(candidate, flags.O_RDONLY)
 		if err != nil {
 			if err == ENOENT {
 				return candidate, nil

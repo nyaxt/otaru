@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/inodedb"
 
 	bfuse "bazil.org/fuse"
 	bfs "bazil.org/fuse/fs"
@@ -15,11 +16,7 @@ type FileSystem struct {
 }
 
 func (fs FileSystem) Root() (bfs.Node, error) {
-	rootdir, err := fs.ofs.OpenDir(1)
-	if err != nil {
-		log.Fatalf("Failed to open rootdir: %v", err)
-	}
-	return DirNode{rootdir}, nil
+	return DirNode{fs: fs.ofs, id: inodedb.RootDirID}, nil
 }
 
 func ServeFUSE(mountpoint string, ofs *otaru.FileSystem, ready chan<- bool) error {

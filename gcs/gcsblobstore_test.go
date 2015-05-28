@@ -8,21 +8,22 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/gcs"
 	. "github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/util"
 )
 
 func testGCSBlobStore() *gcs.GCSBlobStore {
 	homedir := os.Getenv("HOME")
 
-	projectName := otaru.StringFromFileOrDie(path.Join(homedir, ".otaru", "projectname.txt"))
+	projectName := util.StringFromFileOrDie(path.Join(homedir, ".otaru", "projectname.txt"))
 	bs, err := gcs.NewGCSBlobStore(
 		projectName,
 		"otaru-test",
 		path.Join(homedir, ".otaru", "credentials.json"),
 		path.Join(homedir, ".otaru", "tokencache.json"),
-		otaru.O_RDWR,
+		flags.O_RDWR,
 	)
 	if err != nil {
 		log.Fatalf("Failed to create GCSBlobStore: %v", err)
@@ -35,7 +36,7 @@ func TestGCSBlobStore_WriteReadDelete(t *testing.T) {
 
 	// Write
 	{
-		w, err := bs.OpenWriter("hoge", otaru.O_RDWR)
+		w, err := bs.OpenWriter("hoge", flags.O_RDWR)
 		if err != nil {
 			t.Errorf("Failed to open writer: %v", err)
 			return
@@ -58,7 +59,7 @@ func TestGCSBlobStore_WriteReadDelete(t *testing.T) {
 
 	// Read
 	{
-		r, err := bs.OpenReader("hoge", otaru.O_RDWR)
+		r, err := bs.OpenReader("hoge", flags.O_RDWR)
 		if err != nil {
 			t.Errorf("Failed to open reader: %v", err)
 			return

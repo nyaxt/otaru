@@ -1,4 +1,4 @@
-package otaru
+package util
 
 import (
 	"crypto/rand"

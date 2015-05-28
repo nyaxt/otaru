@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/inodedb"
 
 	bfuse "bazil.org/fuse"
 	bfs "bazil.org/fuse/fs"
@@ -15,19 +15,19 @@ import (
 )
 
 type DirNode struct {
-	dh *otaru.DirHandle
+	fs *otaru.FileSystem
+	id inodedb.ID
 }
 
 func (d DirNode) Attr(a *bfuse.Attr) {
-	id := d.dh.ID()
-	log.Printf("DirNode Attr id: %d", id)
+	log.Printf("DirNode Attr id: %d", d.id)
 
-	attr, err := d.dh.FileSystem().Attr(id)
+	attr, err := d.fs.Attr(d.id)
 	if err != nil {
 		panic("bfs.Attr failed for DirNode")
 	}
 
-	a.Inode = uint64(id)
+	a.Inode = uint64(d.id)
 	a.Mode = os.ModeDir | 0777
 	a.Atime = time.Now()
 	a.Mtime = time.Now()
@@ -37,20 +37,20 @@ func (d DirNode) Attr(a *bfuse.Attr) {
 }
 
 func (d DirNode) Lookup(ctx context.Context, name string) (bfs.Node, error) {
-	entries := d.dh.Entries()
+	entries, err := d.fs.DirEntries(d.id)
+	if err != nil {
+		return nil, err
+	}
+
 	if id, ok := entries[name]; ok {
-		isdir, err := d.dh.FileSystem().IsDir(id)
+		isdir, err := d.fs.IsDir(id)
 		if err != nil {
 			log.Fatalf("Stale inode in dir? Failed IsDir: %v", err)
 		}
 		if isdir {
-			childdh, err := d.dh.FileSystem().OpenDir(id)
-			if err != nil {
-				return nil, err
-			}
-			return DirNode{childdh}, nil
+			return DirNode{d.fs, id}, nil
 		} else {
-			return FileNode{d.dh.FileSystem(), id}, nil
+			return FileNode{d.fs, id}, nil
 		}
 	}
 
@@ -58,21 +58,24 @@ func (d DirNode) Lookup(ctx context.Context, name string) (bfs.Node, error) {
 }
 
 func (d DirNode) Create(ctx context.Context, req *bfuse.CreateRequest, resp *bfuse.CreateResponse) (bfs.Node, bfs.Handle, error) {
-	id, err := d.dh.CreateFile(req.Name) // req.Flags req.Mode
+	id, err := d.fs.CreateFile(d.id, req.Name) // req.Flags req.Mode
 	if err != nil {
 		return nil, nil, err
 	}
 
-	h, err := d.dh.FileSystem().OpenFile(id)
+	h, err := d.fs.OpenFile(id, Bazil2OtaruFlags(req.Flags))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return FileNode{d.dh.FileSystem(), id}, FileHandle{h}, nil
+	return FileNode{d.fs, id}, FileHandle{h}, nil
 }
 
 func (d DirNode) ReadDirAll(ctx context.Context) ([]bfuse.Dirent, error) {
-	entries := d.dh.Entries()
+	entries, err := d.fs.DirEntries(d.id)
+	if err != nil {
+		return nil, err
+	}
 
 	fentries := make([]bfuse.Dirent, 0, len(entries))
 	for name, id := range entries {
@@ -93,7 +96,7 @@ func (d DirNode) Rename(ctx context.Context, req *bfuse.RenameRequest, newDir bf
 		return fmt.Errorf("Node for provided target dir is not DirNode!")
 	}
 
-	if err := d.dh.Rename(req.OldName, newdn.dh, req.NewName); err != nil {
+	if err := d.fs.Rename(d.id, req.OldName, newdn.id, req.NewName); err != nil {
 		return err
 	}
 
@@ -101,12 +104,7 @@ func (d DirNode) Rename(ctx context.Context, req *bfuse.RenameRequest, newDir bf
 }
 
 func (d DirNode) Remove(ctx context.Context, req *bfuse.RemoveRequest) error {
-	if err := d.dh.Remove(req.Name); err != nil {
-		// FIXME: implement generic err converter
-		if err == otaru.ENOTEMPTY {
-			return bfuse.Errno(syscall.ENOTEMPTY)
-		}
-
+	if err := d.fs.Remove(d.id, req.Name); err != nil {
 		return err
 	}
 
@@ -114,15 +112,10 @@ func (d DirNode) Remove(ctx context.Context, req *bfuse.RemoveRequest) error {
 }
 
 func (d DirNode) Mkdir(ctx context.Context, req *bfuse.MkdirRequest) (bfs.Node, error) {
-	id, err := d.dh.CreateDir(req.Name)
+	id, err := d.fs.CreateDir(d.id, req.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	dh, err := d.dh.FileSystem().OpenDir(id)
-	if err != nil {
-		return nil, err
-	}
-
-	return DirNode{dh}, nil
+	return DirNode{fs: d.fs, id: id}, nil
 }

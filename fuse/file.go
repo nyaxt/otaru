@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/inodedb"
 
 	bfuse "bazil.org/fuse"
 	bfs "bazil.org/fuse/fs"
@@ -15,7 +16,7 @@ import (
 
 type FileNode struct {
 	fs *otaru.FileSystem
-	id otaru.INodeID
+	id inodedb.ID
 }
 
 func (n FileNode) Attr(a *bfuse.Attr) {
@@ -33,8 +34,12 @@ func (n FileNode) Attr(a *bfuse.Attr) {
 	a.Size = uint64(attr.Size)
 }
 
+func Bazil2OtaruFlags(bf bfuse.OpenFlags) int {
+	return int(bf) // FIXME
+}
+
 func (n FileNode) Open(ctx context.Context, req *bfuse.OpenRequest, resp *bfuse.OpenResponse) (bfs.Handle, error) {
-	fh, err := n.fs.OpenFile(n.id)
+	fh, err := n.fs.OpenFile(n.id, Bazil2OtaruFlags(req.Flags))
 	if err != nil {
 		return nil, err
 	}

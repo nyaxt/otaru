@@ -1,7 +1,9 @@
 package otaru_test
 
 import (
-	. "github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/inodedb"
 	. "github.com/nyaxt/otaru/testutils"
 
 	"bytes"
@@ -10,10 +12,31 @@ import (
 	"testing"
 )
 
+type SimpleDBChunksArrayIO struct {
+	cs []inodedb.FileChunk
+}
+
+var _ = otaru.ChunksArrayIO(&SimpleDBChunksArrayIO{})
+
+func NewSimpleDBChunksArrayIO() *SimpleDBChunksArrayIO {
+	return &SimpleDBChunksArrayIO{make([]inodedb.FileChunk, 0)}
+}
+
+func (caio *SimpleDBChunksArrayIO) Read() ([]inodedb.FileChunk, error) {
+	return caio.cs, nil
+}
+
+func (caio *SimpleDBChunksArrayIO) Write(cs []inodedb.FileChunk) error {
+	caio.cs = cs
+	return nil
+}
+
+func (caio *SimpleDBChunksArrayIO) Close() error { return nil }
+
 func TestChunkedFileIO_FileBlobStore(t *testing.T) {
-	fn := NewFileNode(NewINodeDBEmpty(), "/hoge/fuga.txt")
+	caio := NewSimpleDBChunksArrayIO()
 	fbs := TestFileBlobStore()
-	cfio := NewChunkedFileIO(fbs, fn, TestCipher())
+	cfio := otaru.NewChunkedFileIO(fbs, TestCipher(), caio)
 
 	if err := cfio.PWrite(0, HelloWorld); err != nil {
 		t.Errorf("PWrite failed: %v", err)
@@ -34,12 +57,12 @@ func TestChunkedFileIO_FileBlobStore(t *testing.T) {
 }
 
 func TestChunkedFileIO_SingleChunk(t *testing.T) {
-	fn := NewFileNode(NewINodeDBEmpty(), "/piyo.txt")
-	bs := NewMockBlobStore()
-	cfio := NewChunkedFileIO(bs, fn, TestCipher())
+	caio := NewSimpleDBChunksArrayIO()
+	bs := blobstore.NewMockBlobStore()
+	cfio := otaru.NewChunkedFileIO(bs, TestCipher(), caio)
 
 	// Disable Chunk framing for testing
-	cfio.OverrideNewChunkIOForTesting(func(bh BlobHandle, c Cipher) BlobHandle { return bh })
+	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c otaru.Cipher) blobstore.BlobHandle { return bh })
 
 	if err := cfio.PWrite(123, HelloWorld); err != nil {
 		t.Errorf("PWrite failed: %v", err)
@@ -50,14 +73,14 @@ func TestChunkedFileIO_SingleChunk(t *testing.T) {
 		return
 	}
 
-	if len(fn.Chunks) != 1 {
-		t.Errorf("len(fn.Chunks) %d", len(fn.Chunks))
+	if len(caio.cs) != 1 {
+		t.Errorf("len(caio.cs) %d", len(caio.cs))
 		return
 	}
-	if fn.Chunks[0].Offset != 0 {
-		t.Errorf("Chunk at invalid offset: %d", fn.Chunks[1].Offset)
+	if caio.cs[0].Offset != 0 {
+		t.Errorf("Chunk at invalid offset: %d", caio.cs[1].Offset)
 	}
-	bh := bs.Paths[fn.Chunks[0].BlobPath]
+	bh := bs.Paths[caio.cs[0].BlobPath]
 	if bh.Log[0].Offset != 123 {
 		t.Errorf("Chunk write at invalid offset: %d", bh.Log[0].Offset)
 	}
@@ -67,14 +90,14 @@ func TestChunkedFileIO_SingleChunk(t *testing.T) {
 }
 
 func TestChunkedFileIO_MultiChunk(t *testing.T) {
-	fn := NewFileNode(NewINodeDBEmpty(), "/piyo.txt")
-	bs := NewMockBlobStore()
-	cfio := NewChunkedFileIO(bs, fn, TestCipher())
+	caio := NewSimpleDBChunksArrayIO()
+	bs := blobstore.NewMockBlobStore()
+	cfio := otaru.NewChunkedFileIO(bs, TestCipher(), caio)
 
 	// Disable Chunk framing for testing
-	cfio.OverrideNewChunkIOForTesting(func(bh BlobHandle, c Cipher) BlobHandle { return bh })
+	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c otaru.Cipher) blobstore.BlobHandle { return bh })
 
-	if err := cfio.PWrite(ChunkSplitSize+12345, HelloWorld); err != nil {
+	if err := cfio.PWrite(otaru.ChunkSplitSize+12345, HelloWorld); err != nil {
 		t.Errorf("PWrite failed: %v", err)
 		return
 	}
@@ -83,31 +106,31 @@ func TestChunkedFileIO_MultiChunk(t *testing.T) {
 		return
 	}
 
-	if len(fn.Chunks) != 2 {
-		t.Errorf("len(fn.Chunks) %d", len(fn.Chunks))
+	if len(caio.cs) != 2 {
+		t.Errorf("len(caio.cs) %d", len(caio.cs))
 		return
 	}
-	if fn.Chunks[0].Offset != 0 {
-		t.Errorf("Chunk at invalid offset: %d", fn.Chunks[1].Offset)
+	if caio.cs[0].Offset != 0 {
+		t.Errorf("Chunk at invalid offset: %d", caio.cs[1].Offset)
 	}
-	bh := bs.Paths[fn.Chunks[0].BlobPath]
+	bh := bs.Paths[caio.cs[0].BlobPath]
 	if bh.Log[0].Offset != 123 {
 		t.Errorf("Chunk write at invalid offset: %d", bh.Log[0].Offset)
 	}
-	if fn.Chunks[1].Offset != ChunkSplitSize {
-		t.Errorf("Split chunk at invalid offset: %d", fn.Chunks[1].Offset)
+	if caio.cs[1].Offset != otaru.ChunkSplitSize {
+		t.Errorf("Split chunk at invalid offset: %d", caio.cs[1].Offset)
 	}
-	bh = bs.Paths[fn.Chunks[1].BlobPath]
+	bh = bs.Paths[caio.cs[1].BlobPath]
 	if bh.Log[0].Offset != 12345 {
 		t.Errorf("Split chunk write at invalid offset: %d", bh.Log[0].Offset)
 	}
 
-	if err := cfio.PWrite(ChunkSplitSize-5, HelloWorld); err != nil {
+	if err := cfio.PWrite(otaru.ChunkSplitSize-5, HelloWorld); err != nil {
 		t.Errorf("PWrite failed: %v", err)
 		return
 	}
-	bh = bs.Paths[fn.Chunks[1].BlobPath]
-	if !reflect.DeepEqual(bh.Log[1], MockBlobStoreOperation{'W', 0, 7, HelloWorld[5]}) {
+	bh = bs.Paths[caio.cs[1].BlobPath]
+	if !reflect.DeepEqual(bh.Log[1], blobstore.MockBlobStoreOperation{'W', 0, 7, HelloWorld[5]}) {
 		fmt.Printf("? %+v\n", bh.Log[1])
 	}
 }

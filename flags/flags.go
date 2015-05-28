@@ -1,4 +1,4 @@
-package otaru
+package flags
 
 import (
 	"os"
