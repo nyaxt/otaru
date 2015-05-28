@@ -125,7 +125,7 @@ func (op *HardLinkOp) Apply(s *DBState) error {
 type UpdateChunksOp struct {
 	OpMeta   `json:",inline"`
 	NodeLock `json:"nodelock"`
-	Chunks   []FileChunk
+	Chunks   []FileChunk `json:"chunks"`
 }
 
 func (op *UpdateChunksOp) Apply(s *DBState) error {
@@ -149,7 +149,7 @@ func (op *UpdateChunksOp) Apply(s *DBState) error {
 type UpdateSizeOp struct {
 	OpMeta   `json:",inline"`
 	NodeLock `json:"nodelock"`
-	Size     int64
+	Size     int64 `json:"size"`
 }
 
 func (op *UpdateSizeOp) Apply(s *DBState) error {
@@ -172,10 +172,10 @@ func (op *UpdateSizeOp) Apply(s *DBState) error {
 
 type RenameOp struct {
 	OpMeta   `json:",inline"`
-	SrcDirID ID
-	SrcName  string
-	DstDirID ID
-	DstName  string
+	SrcDirID ID     `json:"srcdir"`
+	SrcName  string `json:"srcname"`
+	DstDirID ID     `json:"dstdir"`
+	DstName  string `json:"dstname"`
 }
 
 func (op *RenameOp) Apply(s *DBState) error {
@@ -190,7 +190,6 @@ func (op *RenameOp) Apply(s *DBState) error {
 	if !ok {
 		return ENOENT
 	}
-
 	dstn, ok := s.nodes[op.DstDirID]
 	if !ok {
 		return ENOENT
@@ -216,5 +215,33 @@ func (op *RenameOp) Apply(s *DBState) error {
 
 	delete(srcdn.Entries, op.SrcName)
 	dstdn.Entries[op.DstName] = id
+	return nil
+}
+
+type RemoveOp struct {
+	OpMeta   `json:",inline"`
+	NodeLock `json:"nodelock"`
+	Name     string `json:"name"`
+}
+
+func (op *RemoveOp) Apply(s *DBState) error {
+	if err := s.checkLock(op.NodeLock, false); err != nil {
+		return err
+	}
+
+	n, ok := s.nodes[op.ID]
+	if !ok {
+		return ENOENT
+	}
+	dn, ok := n.(*DirNode)
+	if !ok {
+		return ENOTDIR
+	}
+
+	if _, ok := dn.Entries[op.Name]; !ok {
+		return ENOENT
+	}
+
+	delete(dn.Entries, op.Name)
 	return nil
 }

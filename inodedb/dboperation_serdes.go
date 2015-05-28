@@ -22,6 +22,8 @@ func EncodeDBOperationToJson(op DBOperation) ([]byte, error) {
 		op.(*UpdateSizeOp).Kind = "UpdateSizeOp"
 	case *RenameOp:
 		op.(*RenameOp).Kind = "RenameOp"
+	case *RemoveOp:
+		op.(*RemoveOp).Kind = "RemoveOp"
 	default:
 		return nil, fmt.Errorf("Encoder undefined for op: %v", op)
 	}
@@ -74,6 +76,12 @@ func DecodeDBOperationFromJson(jsonb []byte) (DBOperation, error) {
 		return &op, nil
 	case "RenameOp":
 		var op RenameOp
+		if err := json.Unmarshal(jsonb, &op); err != nil {
+			return nil, err
+		}
+		return &op, nil
+	case "RemoveOp":
+		var op RemoveOp
 		if err := json.Unmarshal(jsonb, &op); err != nil {
 			return nil, err
 		}

@@ -113,7 +113,10 @@ func (fs *FileSystem) DirEntries(id inodedb.ID) (map[string]inodedb.ID, error) {
 
 func (fs *FileSystem) Rename(srcDirID inodedb.ID, srcName string, dstDirID inodedb.ID, dstName string) error {
 	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
-		&inodedb.RenameOp{SrcDirID: srcDirID, SrcName: srcName, DstDirID: dstDirID, DstName: dstName},
+		&inodedb.RenameOp{
+			SrcDirID: srcDirID, SrcName: srcName,
+			DstDirID: dstDirID, DstName: dstName,
+		},
 	}}
 	if _, err := fs.idb.ApplyTransaction(tx); err != nil {
 		return err
@@ -123,25 +126,15 @@ func (fs *FileSystem) Rename(srcDirID inodedb.ID, srcName string, dstDirID inode
 }
 
 func (fs *FileSystem) Remove(dirID inodedb.ID, name string) error {
-	/*
-		es := dh.n.Entries
+	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
+		&inodedb.RemoveOp{
+			NodeLock: inodedb.NodeLock{dirID, inodedb.NoTicket}, Name: name,
+		},
+	}}
+	if _, err := fs.idb.ApplyTransaction(tx); err != nil {
+		return err
+	}
 
-		id, ok := es[name]
-		if !ok {
-			return ENOENT
-		}
-		n := dh.fs.INodeDB.Get(id)
-		if n.Type() == DirNodeT {
-			sdn := n.(*DirNode)
-			if len(sdn.Entries) != 0 {
-				return ENOTEMPTY
-			}
-		}
-
-		delete(es, name)
-		return nil
-	*/
-	log.Printf("Implement me: Rename")
 	return nil
 }
 
