@@ -1,0 +1,23 @@
+{
+  "name": "otaru-mgmt-www",
+  "version": "0.0.0",
+  "homepage": "https://github.com/nyaxt/otaru",
+  "authors": [
+    "Kouhei Ueno <ueno@nyaxtstep.com>"
+  ],
+  "description": "Otaru Filesystem Management WebUI",
+  "main": "index.html",
+  "moduleType": [
+    "es6"
+  ],
+  "license": "Apache",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bc",
+    "test"
+  ],
+  "dependencies": {
+    "react": "~0.13.3"
+  }
+}
