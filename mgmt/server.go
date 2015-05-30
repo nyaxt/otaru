@@ -2,30 +2,37 @@ package mgmt
 
 import (
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 type Server struct {
-	mux     *http.ServeMux
+	rtr     *mux.Router
+	apirtr  *mux.Router
 	httpsrv *http.Server
 }
 
 func NewServer() *Server {
-	mux := http.NewServeMux()
-	httpsrv := &http.Server{
-		Addr:    ":10246",
-		Handler: mux,
-	}
+	rtr := mux.NewRouter()
 
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, req *http.Request) {
+	rtr.HandleFunc("/healthz", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte("ok\n"))
 	})
 
-	// FIXME: Migrate to github.com/elazarl/go-bindata-assetfs
-	mux.Handle("/", http.FileServer(http.Dir("../www")))
+	apirtr := rtr.PathPrefix("/api").Subrouter()
 
-	return &Server{mux: mux, httpsrv: httpsrv}
+	// FIXME: Migrate to github.com/elazarl/go-bindata-assetfs
+	rtr.Handle("/", http.FileServer(http.Dir("../www")))
+
+	httpsrv := &http.Server{
+		Addr:    ":10246",
+		Handler: rtr,
+	}
+	return &Server{rtr: rtr, apirtr: apirtr, httpsrv: httpsrv}
 }
+
+func (srv *Server) APIRouter() *mux.Router { return srv.apirtr }
 
 func (srv *Server) Run() error {
 	if err := srv.httpsrv.ListenAndServe(); err != nil {
