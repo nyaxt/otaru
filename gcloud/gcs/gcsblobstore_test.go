@@ -9,20 +9,31 @@ import (
 	"testing"
 
 	"github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/gcs"
 	. "github.com/nyaxt/otaru/testutils"
 	"github.com/nyaxt/otaru/util"
 )
 
+func testClientSource() auth.ClientSource {
+	homedir := os.Getenv("HOME")
+	clisrc, err := auth.GetGCloudClientSource(
+		path.Join(homedir, ".otaru", "credentials.json"),
+		path.Join(homedir, ".otaru", "tokencache.json"),
+		false)
+	if err != nil {
+		log.Fatalf("Failed to create testClientSource: %v", err)
+	}
+	return clisrc
+}
+
 func testGCSBlobStore() *gcs.GCSBlobStore {
 	homedir := os.Getenv("HOME")
-
 	projectName := util.StringFromFileOrDie(path.Join(homedir, ".otaru", "projectname.txt"))
 	bs, err := gcs.NewGCSBlobStore(
 		projectName,
 		"otaru-test",
-		path.Join(homedir, ".otaru", "credentials.json"),
-		path.Join(homedir, ".otaru", "tokencache.json"),
+		testClientSource(),
 		flags.O_RDWR,
 	)
 	if err != nil {

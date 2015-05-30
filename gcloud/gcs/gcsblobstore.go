@@ -19,12 +19,7 @@ type GCSBlobStore struct {
 	clisrc      auth.ClientSource
 }
 
-func NewGCSBlobStore(projectName string, bucketName string, credentialsFilePath string, tokenCacheFilePath string, flags int) (*GCSBlobStore, error) {
-	clisrc, err := auth.GetGCloudClientSource(credentialsFilePath, tokenCacheFilePath, false)
-	if err != nil {
-		return nil, err
-	}
-
+func NewGCSBlobStore(projectName string, bucketName string, clisrc auth.ClientSource, flags int) (*GCSBlobStore, error) {
 	return &GCSBlobStore{
 		projectName: projectName,
 		bucketName:  bucketName,
