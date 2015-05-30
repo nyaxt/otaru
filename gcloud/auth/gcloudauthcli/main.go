@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/nyaxt/otaru/gcs"
+	"github.com/nyaxt/otaru/gcloud/auth"
 )
 
 var (
@@ -20,7 +20,7 @@ var (
 func main() {
 	flag.Parse()
 
-	_, err := gcs.GetGCloudClientSource(*credentialsFilePath, *tokenCacheFilePath, true)
+	_, err := auth.GetGCloudClientSource(*credentialsFilePath, *tokenCacheFilePath, true)
 	if err != nil {
 		log.Fatalf("Failed: %v", err)
 	}

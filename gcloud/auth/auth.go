@@ -1,4 +1,4 @@
-package gcs
+package auth
 
 import (
 	"encoding/json"
@@ -9,11 +9,8 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/cloud/datastore"
 	"google.golang.org/cloud/storage"
-)
-
-const (
-	storageScope = storage.ScopeFullControl
 )
 
 func GetGCloudTokenViaWebUI(conf *oauth2.Config) (*oauth2.Token, error) {
@@ -68,7 +65,11 @@ func GetGCloudClientSource(credentialsFilePath string, tokenCacheFilePath string
 		return nil, fmt.Errorf("failed to read google cloud client-secret file: %v", err)
 	}
 
-	conf, err := google.ConfigFromJSON(credentialsJson, storageScope)
+	conf, err := google.ConfigFromJSON(credentialsJson,
+		storage.ScopeFullControl,
+		datastore.ScopeDatastore,
+		datastore.ScopeUserEmail,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("invalid google cloud key json: %v", err)
 	}

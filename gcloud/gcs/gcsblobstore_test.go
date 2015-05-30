@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/nyaxt/otaru/flags"
-	"github.com/nyaxt/otaru/gcs"
+	"github.com/nyaxt/otaru/gcloud/gcs"
 	. "github.com/nyaxt/otaru/testutils"
 	"github.com/nyaxt/otaru/util"
 )

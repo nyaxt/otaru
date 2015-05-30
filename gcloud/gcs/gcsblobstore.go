@@ -9,17 +9,18 @@ import (
 
 	"github.com/nyaxt/otaru"
 	oflags "github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/gcloud/auth"
 )
 
 type GCSBlobStore struct {
 	projectName string
 	bucketName  string
 	flags       int
-	clisrc      ClientSource
+	clisrc      auth.ClientSource
 }
 
 func NewGCSBlobStore(projectName string, bucketName string, credentialsFilePath string, tokenCacheFilePath string, flags int) (*GCSBlobStore, error) {
-	clisrc, err := GetGCloudClientSource(credentialsFilePath, tokenCacheFilePath, false)
+	clisrc, err := auth.GetGCloudClientSource(credentialsFilePath, tokenCacheFilePath, false)
 	if err != nil {
 		return nil, err
 	}
