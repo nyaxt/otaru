@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"reflect"
 	"testing"
 
 	"github.com/nyaxt/otaru/gcloud/auth"
@@ -54,9 +55,15 @@ func TestDBTransactionIO_PutQuery(t *testing.T) {
 		txs, err := txio.QueryTransactions(123)
 		if err != nil {
 			t.Errorf("QueryTransactions failed: %v", err)
+			return
 		}
 		if len(txs) != 1 {
-			t.Errorf("QueryTransactions >=123 should be noent but got: %+v", txs)
+			t.Errorf("QueryTransactions >=123 result invalid len: %+v", txs)
+			return
+		}
+
+		if !reflect.DeepEqual(txs[0], tx) {
+			t.Errorf("serdes mismatch: %+v", txs)
 		}
 	}
 

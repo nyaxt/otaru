@@ -1,6 +1,8 @@
 package datastore
 
 import (
+	"log"
+
 	"golang.org/x/net/context"
 	"google.golang.org/cloud"
 	"google.golang.org/cloud/datastore"
@@ -11,7 +13,7 @@ import (
 
 type DBTransactionLogIO struct {
 	projectName string
-	namespace   string
+	rootKey     *datastore.Key
 	clisrc      auth.ClientSource
 }
 
@@ -21,18 +23,19 @@ const (
 
 var _ = inodedb.DBTransactionLogIO(&DBTransactionLogIO{})
 
-func NewDBTransactionLogIO(projectName string, namespace string, clisrc auth.ClientSource) (*DBTransactionLogIO, error) {
-	return &DBTransactionLogIO{
+func NewDBTransactionLogIO(projectName, rootKeyStr string, clisrc auth.ClientSource) (*DBTransactionLogIO, error) {
+	txio := &DBTransactionLogIO{
 		projectName: projectName,
-		namespace:   namespace,
 		clisrc:      clisrc,
-	}, nil
+	}
+	ctx := txio.getContext()
+	txio.rootKey = datastore.NewKey(ctx, kindTransaction, rootKeyStr, 0, nil)
+
+	return txio, nil
 }
 
 func (txio *DBTransactionLogIO) getContext() context.Context {
-	return datastore.WithNamespace(
-		cloud.NewContext(txio.projectName, txio.clisrc(context.TODO())),
-		txio.namespace)
+	return cloud.NewContext(txio.projectName, txio.clisrc(context.TODO()))
 }
 
 type storedbtx struct {
@@ -68,7 +71,7 @@ func decode(stx *storedbtx) (inodedb.DBTransaction, error) {
 func (txio *DBTransactionLogIO) AppendTransaction(tx inodedb.DBTransaction) error {
 	ctx := txio.getContext()
 
-	key := datastore.NewKey(ctx, kindTransaction, "", int64(tx.TxID), nil)
+	key := datastore.NewKey(ctx, kindTransaction, "", int64(tx.TxID), txio.rootKey)
 
 	stx, err := encode(tx)
 	if err != nil {
@@ -84,11 +87,11 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 	ctx := txio.getContext()
 
 	result := []inodedb.DBTransaction{}
-	q := datastore.NewQuery(kindTransaction).Filter("TxID >=", int64(minID))
+	q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Filter("TxID >=", int64(minID)).Order("TxID")
 	it := q.Run(ctx)
 	for {
 		var stx storedbtx
-		_, err := it.Next(&stx)
+		k, err := it.Next(&stx)
 		if err != nil {
 			if err == datastore.Done {
 				break
