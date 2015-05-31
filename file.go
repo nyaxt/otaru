@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/btncrypt"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/util"
@@ -29,20 +30,20 @@ type FileSystem struct {
 	idb inodedb.DBHandler
 
 	bs blobstore.RandomAccessBlobStore
-	c  Cipher
+	c  btncrypt.Cipher
 
-	newChunkedFileIO func(bs blobstore.RandomAccessBlobStore, c Cipher, caio ChunksArrayIO) blobstore.BlobHandle
+	newChunkedFileIO func(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, caio ChunksArrayIO) blobstore.BlobHandle
 
 	wcmap map[inodedb.ID]*FileWriteCache
 }
 
-func newFileSystemCommon(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c Cipher) *FileSystem {
+func newFileSystemCommon(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher) *FileSystem {
 	fs := &FileSystem{
 		idb: idb,
 		bs:  bs,
 		c:   c,
 
-		newChunkedFileIO: func(bs blobstore.RandomAccessBlobStore, c Cipher, caio ChunksArrayIO) blobstore.BlobHandle {
+		newChunkedFileIO: func(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, caio ChunksArrayIO) blobstore.BlobHandle {
 			return NewChunkedFileIO(bs, c, caio)
 		},
 
@@ -52,7 +53,7 @@ func newFileSystemCommon(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobSto
 	return fs
 }
 
-func NewFileSystemEmpty(bs blobstore.RandomAccessBlobStore, c Cipher) (*FileSystem, error) {
+func NewFileSystemEmpty(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher) (*FileSystem, error) {
 	// FIXME: refactor here and FromSnapshot
 
 	snapshotio := NewBlobStoreDBStateSnapshotIO(bs, c)
@@ -65,7 +66,7 @@ func NewFileSystemEmpty(bs blobstore.RandomAccessBlobStore, c Cipher) (*FileSyst
 	return newFileSystemCommon(idb, bs, c), nil
 }
 
-func NewFileSystemFromSnapshot(bs blobstore.RandomAccessBlobStore, c Cipher) (*FileSystem, error) {
+func NewFileSystemFromSnapshot(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher) (*FileSystem, error) {
 	snapshotio := NewBlobStoreDBStateSnapshotIO(bs, c)
 	txio := inodedb.NewSimpleDBTransactionLogIO() // FIXME!
 	idb, err := inodedb.NewDB(snapshotio, txio)
@@ -95,7 +96,7 @@ func (fs *FileSystem) getOrCreateFileWriteCache(id inodedb.ID) *FileWriteCache {
 	return wc
 }
 
-func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(blobstore.RandomAccessBlobStore, Cipher, ChunksArrayIO) blobstore.BlobHandle) {
+func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(blobstore.RandomAccessBlobStore, btncrypt.Cipher, ChunksArrayIO) blobstore.BlobHandle) {
 	fs.newChunkedFileIO = newChunkedFileIO
 }
 

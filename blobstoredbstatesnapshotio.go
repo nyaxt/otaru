@@ -9,6 +9,7 @@ import (
 	"log"
 
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/btncrypt"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 )
@@ -19,12 +20,12 @@ const (
 
 type BlobStoreDBStateSnapshotIO struct {
 	bs blobstore.RandomAccessBlobStore
-	c  Cipher
+	c  btncrypt.Cipher
 }
 
 var _ = inodedb.DBStateSnapshotIO(&BlobStoreDBStateSnapshotIO{})
 
-func NewBlobStoreDBStateSnapshotIO(bs blobstore.RandomAccessBlobStore, c Cipher) *BlobStoreDBStateSnapshotIO {
+func NewBlobStoreDBStateSnapshotIO(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher) *BlobStoreDBStateSnapshotIO {
 	return &BlobStoreDBStateSnapshotIO{bs, c}
 }
 

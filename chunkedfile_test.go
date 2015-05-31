@@ -3,6 +3,7 @@ package otaru_test
 import (
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/inodedb"
 	. "github.com/nyaxt/otaru/testutils"
 
@@ -62,7 +63,7 @@ func TestChunkedFileIO_SingleChunk(t *testing.T) {
 	cfio := otaru.NewChunkedFileIO(bs, TestCipher(), caio)
 
 	// Disable Chunk framing for testing
-	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c otaru.Cipher) blobstore.BlobHandle { return bh })
+	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c btncrypt.Cipher) blobstore.BlobHandle { return bh })
 
 	if err := cfio.PWrite(123, HelloWorld); err != nil {
 		t.Errorf("PWrite failed: %v", err)
@@ -95,7 +96,7 @@ func TestChunkedFileIO_MultiChunk(t *testing.T) {
 	cfio := otaru.NewChunkedFileIO(bs, TestCipher(), caio)
 
 	// Disable Chunk framing for testing
-	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c otaru.Cipher) blobstore.BlobHandle { return bh })
+	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c btncrypt.Cipher) blobstore.BlobHandle { return bh })
 
 	if err := cfio.PWrite(otaru.ChunkSplitSize+12345, HelloWorld); err != nil {
 		t.Errorf("PWrite failed: %v", err)

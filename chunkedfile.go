@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/btncrypt"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	. "github.com/nyaxt/otaru/util" // FIXME
@@ -27,25 +28,25 @@ type ChunksArrayIO interface {
 
 type ChunkedFileIO struct {
 	bs blobstore.RandomAccessBlobStore
-	c  Cipher
+	c  btncrypt.Cipher
 
 	caio ChunksArrayIO
 
-	newChunkIO func(blobstore.BlobHandle, Cipher) blobstore.BlobHandle
+	newChunkIO func(blobstore.BlobHandle, btncrypt.Cipher) blobstore.BlobHandle
 }
 
-func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c Cipher, caio ChunksArrayIO) *ChunkedFileIO {
+func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, caio ChunksArrayIO) *ChunkedFileIO {
 	return &ChunkedFileIO{
 		bs: bs,
 		c:  c,
 
 		caio: caio,
 
-		newChunkIO: func(bh blobstore.BlobHandle, c Cipher) blobstore.BlobHandle { return NewChunkIO(bh, c) },
+		newChunkIO: func(bh blobstore.BlobHandle, c btncrypt.Cipher) blobstore.BlobHandle { return NewChunkIO(bh, c) },
 	}
 }
 
-func (cfio *ChunkedFileIO) OverrideNewChunkIOForTesting(newChunkIO func(blobstore.BlobHandle, Cipher) blobstore.BlobHandle) {
+func (cfio *ChunkedFileIO) OverrideNewChunkIOForTesting(newChunkIO func(blobstore.BlobHandle, btncrypt.Cipher) blobstore.BlobHandle) {
 	cfio.newChunkIO = newChunkIO
 }
 

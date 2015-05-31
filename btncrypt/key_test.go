@@ -1,13 +1,13 @@
-package otaru_test
+package btncrypt_test
 
 import (
 	"testing"
 
-	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/btncrypt"
 )
 
 func TestKeyFromPassword(t *testing.T) {
-	key := otaru.KeyFromPassword("hogefuga")
+	key := btncrypt.KeyFromPassword("hogefuga")
 	if len(key) != 32 {
 		t.Errorf("invalid key length: %d", len(key))
 	}

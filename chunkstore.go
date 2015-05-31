@@ -7,35 +7,36 @@ import (
 	"math"
 
 	"github.com/nyaxt/otaru/blobstore"
-	. "github.com/nyaxt/otaru/util" // FIXME
+	"github.com/nyaxt/otaru/btncrypt"
+	"github.com/nyaxt/otaru/util"
 )
 
 const (
-	ContentFramePayloadLength = BtnFrameMaxPayload
+	ContentFramePayloadLength = btncrypt.BtnFrameMaxPayload
 )
 
 var (
 	ZeroContent = make([]byte, ContentFramePayloadLength)
 )
 
-func NewChunkWriter(w io.Writer, c Cipher, h ChunkHeader) (io.WriteCloser, error) {
+func NewChunkWriter(w io.Writer, c btncrypt.Cipher, h ChunkHeader) (io.WriteCloser, error) {
 	if err := h.WriteTo(w, c); err != nil {
 		return nil, fmt.Errorf("Failed to write header: %v", err)
 	}
 
-	return NewBtnEncryptWriteCloser(w, c, int(h.PayloadLen))
+	return btncrypt.NewWriteCloser(w, c, int(h.PayloadLen))
 }
 
 type ChunkReader struct {
 	r io.Reader
-	c Cipher
+	c btncrypt.Cipher
 
 	header ChunkHeader
 
-	bdr *BtnDecryptReader
+	bdr *btncrypt.Reader
 }
 
-func NewChunkReader(r io.Reader, c Cipher) (*ChunkReader, error) {
+func NewChunkReader(r io.Reader, c btncrypt.Cipher) (*ChunkReader, error) {
 	cr := &ChunkReader{r: r, c: c}
 
 	if err := cr.header.ReadFrom(r, c); err != nil {
@@ -43,7 +44,7 @@ func NewChunkReader(r io.Reader, c Cipher) (*ChunkReader, error) {
 	}
 
 	var err error
-	cr.bdr, err = NewBtnDecryptReader(cr.r, cr.c, cr.Length())
+	cr.bdr, err = btncrypt.NewReader(cr.r, cr.c, cr.Length())
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +68,7 @@ func (cr *ChunkReader) Read(p []byte) (int, error) {
 // ChunkIO provides RandomAccessIO for blobchunk
 type ChunkIO struct {
 	bh blobstore.BlobHandle
-	c  Cipher
+	c  btncrypt.Cipher
 
 	didReadHeader bool
 	header        ChunkHeader
@@ -75,7 +76,7 @@ type ChunkIO struct {
 	needsHeaderUpdate bool
 }
 
-func NewChunkIO(bh blobstore.BlobHandle, c Cipher) *ChunkIO {
+func NewChunkIO(bh blobstore.BlobHandle, c btncrypt.Cipher) *ChunkIO {
 	return &ChunkIO{
 		bh:            bh,
 		c:             c,
@@ -88,7 +89,7 @@ func NewChunkIO(bh blobstore.BlobHandle, c Cipher) *ChunkIO {
 	}
 }
 
-func NewChunkIOWithMetadata(bh blobstore.BlobHandle, c Cipher, h ChunkHeader) *ChunkIO {
+func NewChunkIOWithMetadata(bh blobstore.BlobHandle, c btncrypt.Cipher, h ChunkHeader) *ChunkIO {
 	ch := NewChunkIO(bh, c)
 	ch.header = h
 	return ch
@@ -183,7 +184,7 @@ func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 	blobOffset := ch.encryptedFrameOffset(i)
 
 	rd := &blobstore.OffsetReader{ch.bh, int64(blobOffset)}
-	bdr, err := NewBtnDecryptReader(rd, ch.c, framePayloadLen)
+	bdr, err := btncrypt.NewReader(rd, ch.c, framePayloadLen)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create BtnDecryptReader: %v", err)
 	}
@@ -208,7 +209,7 @@ func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
 	blobOffset := ch.encryptedFrameOffset(i)
 
 	wr := &blobstore.OffsetWriter{ch.bh, int64(blobOffset)}
-	bew, err := NewBtnEncryptWriteCloser(wr, ch.c, len(f.P))
+	bew, err := btncrypt.NewWriteCloser(wr, ch.c, len(f.P))
 	if err != nil {
 		return fmt.Errorf("Failed to create BtnEncryptWriteCloser: %v", err)
 	}
@@ -305,7 +306,7 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 				// FIXME: maybe skip writing pure 0 frame.
 				//        Old sambad writes a byte of the end of the file instead of ftruncate, which is a nightmare in the current impl.
 
-				n := IntMin(zflen, ContentFramePayloadLength)
+				n := util.IntMin(zflen, ContentFramePayloadLength)
 
 				f = &decryptedContentFrame{
 					P:           ZeroContent[:n],
@@ -318,7 +319,7 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 				ch.expandLengthBy(n)
 				fmt.Printf(" len: %d\n", n)
 			} else {
-				n := IntMin(zflen, ContentFramePayloadLength-inframeOffset)
+				n := util.IntMin(zflen, ContentFramePayloadLength-inframeOffset)
 				fmt.Printf("PWrite: zero fill last of existing content frame. len: %d f.P[%d:%d] = 0\n", n, inframeOffset, inframeOffset+n)
 
 				// read the frame
@@ -404,7 +405,7 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 		if valid == 0 {
 			panic("Inf loop")
 		}
-		n = IntMin(n, valid)
+		n = util.IntMin(n, valid)
 
 		copy(f.P[inframeOffset:inframeOffset+n], remp)
 

@@ -1,4 +1,4 @@
-package otaru
+package btncrypt
 
 // better than nothing cryptography.
 // This code has not gone through any security audit, so don't trust this code / otaru encryption.
@@ -101,15 +101,15 @@ func (f *frameEncryptor) Flush() ([]byte, error) {
 	return f.encrypted, nil
 }
 
-type BtnEncryptWriteCloser struct {
+type WriteCloser struct {
 	dst        io.Writer
 	lenTotal   int
 	lenWritten int
 	*frameEncryptor
 }
 
-func NewBtnEncryptWriteCloser(dst io.Writer, c Cipher, lenTotal int) (*BtnEncryptWriteCloser, error) {
-	bew := &BtnEncryptWriteCloser{
+func NewWriteCloser(dst io.Writer, c Cipher, lenTotal int) (*WriteCloser, error) {
+	bew := &WriteCloser{
 		dst:            dst,
 		lenTotal:       lenTotal,
 		lenWritten:     0,
@@ -118,7 +118,7 @@ func NewBtnEncryptWriteCloser(dst io.Writer, c Cipher, lenTotal int) (*BtnEncryp
 	return bew, nil
 }
 
-func (bew *BtnEncryptWriteCloser) flushFrame() error {
+func (bew *WriteCloser) flushFrame() error {
 	if bew.frameEncryptor.Written() == 0 {
 		// Don't emit a frame with empty payload
 		return nil
@@ -135,7 +135,7 @@ func (bew *BtnEncryptWriteCloser) flushFrame() error {
 	return nil
 }
 
-func (bew *BtnEncryptWriteCloser) Write(p []byte) (int, error) {
+func (bew *WriteCloser) Write(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -163,7 +163,7 @@ func (bew *BtnEncryptWriteCloser) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (bew *BtnEncryptWriteCloser) Close() error {
+func (bew *WriteCloser) Close() error {
 	if bew.lenTotal != bew.lenWritten {
 		return fmt.Errorf("Frame len different from declared. %d / %d bytes", bew.lenWritten, bew.lenTotal)
 	}
@@ -182,7 +182,7 @@ func Encrypt(key, plain []byte) ([]byte, error) {
 	}
 
 	var b bytes.Buffer
-	bew, err := NewBtnEncryptWriteCloser(&b, c, len(plain))
+	bew, err := NewWriteCloser(&b, c, len(plain))
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func Encrypt(key, plain []byte) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-type BtnDecryptReader struct {
+type Reader struct {
 	src       io.Reader
 	c         Cipher
 	lenTotal  int
@@ -205,8 +205,8 @@ type BtnDecryptReader struct {
 	encrypted []byte
 }
 
-func NewBtnDecryptReader(src io.Reader, c Cipher, lenTotal int) (*BtnDecryptReader, error) {
-	bdr := &BtnDecryptReader{
+func NewReader(src io.Reader, c Cipher, lenTotal int) (*Reader, error) {
+	bdr := &Reader{
 		src:       src,
 		c:         c,
 		lenTotal:  lenTotal,
@@ -217,7 +217,7 @@ func NewBtnDecryptReader(src io.Reader, c Cipher, lenTotal int) (*BtnDecryptRead
 	return bdr, nil
 }
 
-func (bdr *BtnDecryptReader) decryptNextFrame() error {
+func (bdr *Reader) decryptNextFrame() error {
 	frameLen := IntMin(bdr.lenTotal-bdr.lenRead, BtnFrameMaxPayload)
 	encryptedFrameLen := bdr.c.EncryptedFrameSize(frameLen)
 	// fmt.Printf("frameLen: %d, encryptedFrameLen: %d\n", frameLen, encryptedFrameLen)
@@ -241,7 +241,7 @@ func (bdr *BtnDecryptReader) decryptNextFrame() error {
 	return nil
 }
 
-func (bdr *BtnDecryptReader) Read(p []byte) (int, error) {
+func (bdr *Reader) Read(p []byte) (int, error) {
 	nr := IntMin(len(p), bdr.lenTotal-bdr.lenRead)
 	left := p[:nr]
 
@@ -271,7 +271,7 @@ func (bdr *BtnDecryptReader) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-func (bdr *BtnDecryptReader) HasReadAll() bool {
+func (bdr *Reader) HasReadAll() bool {
 	return bdr.lenRead == bdr.lenTotal
 }
 
@@ -281,7 +281,7 @@ func Decrypt(key, envelope []byte, lenTotal int) ([]byte, error) {
 		return nil, err
 	}
 
-	bdr, err := NewBtnDecryptReader(bytes.NewReader(envelope), c, lenTotal)
+	bdr, err := NewReader(bytes.NewReader(envelope), c, lenTotal)
 	if err != nil {
 		return nil, err
 	}

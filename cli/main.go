@@ -9,6 +9,7 @@ import (
 
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/flags"
 )
 
@@ -45,7 +46,7 @@ func put(fromurl, tourl string) error {
 		return err
 	}
 
-	c, err := otaru.NewCipher(Key)
+	c, err := btncrypt.NewCipher(Key)
 	if err != nil {
 		return err
 	}
@@ -62,7 +63,7 @@ func put(fromurl, tourl string) error {
 	}
 	defer cw.Close()
 
-	buf := make([]byte, otaru.BtnFrameMaxPayload)
+	buf := make([]byte, btncrypt.BtnFrameMaxPayload)
 	for {
 		nr, err := fromfile.Read(buf)
 		if err != nil {
@@ -98,7 +99,7 @@ func get(fromurl string) error {
 		return fmt.Errorf("Blob open failed: %v", err)
 	}
 
-	c, err := otaru.NewCipher(Key)
+	c, err := btncrypt.NewCipher(Key)
 	if err != nil {
 		return err
 	}
@@ -107,7 +108,7 @@ func get(fromurl string) error {
 	if err != nil {
 		return err
 	}
-	buf := make([]byte, otaru.BtnFrameMaxPayload)
+	buf := make([]byte, btncrypt.BtnFrameMaxPayload)
 	unreadLen := cr.Length()
 	for unreadLen > 0 {
 		nr, err := cr.Read(buf)

@@ -9,6 +9,8 @@ import (
 	"log"
 	"math"
 	"path/filepath"
+
+	"github.com/nyaxt/otaru/btncrypt"
 )
 
 const (
@@ -33,7 +35,7 @@ type ChunkHeader struct {
 	OrigOffset         int64
 }
 
-func (h ChunkHeader) WriteTo(w io.Writer, c Cipher) error {
+func (h ChunkHeader) WriteTo(w io.Writer, c btncrypt.Cipher) error {
 	h.FrameEncapsulation = CurrentFrameEncapsulation
 
 	if h.PayloadLen > MaxChunkPayloadLen {
@@ -65,7 +67,7 @@ func (h ChunkHeader) WriteTo(w io.Writer, c Cipher) error {
 		log.Fatalf("SHOULD NOT BE REACHED: Marshaled ChunkHeader size too large")
 	}
 
-	bew, err := NewBtnEncryptWriteCloser(w, c, framelen)
+	bew, err := btncrypt.NewWriteCloser(w, c, framelen)
 	if _, err := b.WriteTo(bew); err != nil {
 		return fmt.Errorf("Failed to initialize frame encryptor: %v", err)
 	}
@@ -82,7 +84,7 @@ func (h ChunkHeader) WriteTo(w io.Writer, c Cipher) error {
 	return nil
 }
 
-func (h *ChunkHeader) ReadFrom(r io.Reader, c Cipher) error {
+func (h *ChunkHeader) ReadFrom(r io.Reader, c btncrypt.Cipher) error {
 	magic := make([]byte, SignatureLength+1)
 	if _, err := r.Read(magic); err != nil {
 		return fmt.Errorf("Failed to read signature magic / format bytes: %v", err)
@@ -96,7 +98,7 @@ func (h *ChunkHeader) ReadFrom(r io.Reader, c Cipher) error {
 	}
 
 	framelen := ChunkHeaderLength - c.FrameOverhead() - SignatureLength - 1
-	bdr, err := NewBtnDecryptReader(r, c, framelen)
+	bdr, err := btncrypt.NewReader(r, c, framelen)
 	if err != nil {
 		return err
 	}

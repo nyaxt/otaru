@@ -11,6 +11,7 @@ import (
 
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/btncrypt"
 	oflags "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/fuse"
 	"github.com/nyaxt/otaru/util"
@@ -40,8 +41,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load encryption password: %v", err)
 	}
-	key := otaru.KeyFromPassword(password)
-	cipher, err := otaru.NewCipher(key)
+	key := btncrypt.KeyFromPassword(password)
+	cipher, err := btncrypt.NewCipher(key)
 	if err != nil {
 		log.Fatalf("Failed to init Cipher: %v", err)
 	}

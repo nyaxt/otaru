@@ -1,4 +1,4 @@
-package otaru
+package btncrypt
 
 import (
 	"crypto/sha1"
