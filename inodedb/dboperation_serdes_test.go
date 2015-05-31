@@ -7,41 +7,41 @@ import (
 )
 
 func TestEncodeDBOperationToJson_InitializeFileSystemOp(t *testing.T) {
-	json, err := i.EncodeDBOperationToJson(&i.InitializeFileSystemOp{})
+	json, err := i.EncodeDBOperationsToJson([]i.DBOperation{&i.InitializeFileSystemOp{}})
 	if err != nil {
 		t.Errorf("EncodeDBOperationToJson failed: %v", err)
 		return
 	}
 
 	// t.Errorf("%v", string(json))
-	op, err := i.DecodeDBOperationFromJson(json)
+	ops, err := i.DecodeDBOperationsFromJson(json)
 	if err != nil {
 		t.Errorf("DecodeDBOperationToJson failed: %v", err)
 		return
 	}
-	if _, ok := op.(*i.InitializeFileSystemOp); !ok {
+	if _, ok := ops[0].(*i.InitializeFileSystemOp); !ok {
 		t.Errorf("Decode failed to recover original type")
 	}
 }
 
 func TestEncodeDBOperationToJson_CreateNodeOp(t *testing.T) {
-	json, err := i.EncodeDBOperationToJson(&i.CreateNodeOp{
+	json, err := i.EncodeDBOperationsToJson([]i.DBOperation{&i.CreateNodeOp{
 		NodeLock: i.NodeLock{ID: 123, Ticket: 456},
 		OrigPath: "/foo/bar",
 		Type:     i.DirNodeT,
-	})
+	}})
 	if err != nil {
 		t.Errorf("EncodeDBOperationToJson failed: %v", err)
 		return
 	}
 
-	op, err := i.DecodeDBOperationFromJson(json)
+	ops, err := i.DecodeDBOperationsFromJson(json)
 	if err != nil {
 		t.Errorf("DecodeDBOperationToJson failed: %v", err)
 		return
 	}
 
-	dirop, ok := op.(*i.CreateNodeOp)
+	dirop, ok := ops[0].(*i.CreateNodeOp)
 	if !ok {
 		t.Errorf("Decode failed to recover original type")
 	}
