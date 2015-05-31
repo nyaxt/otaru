@@ -42,6 +42,10 @@ func testDBTransactionIO() *datastore.DBTransactionLogIO {
 func TestDBTransactionIO_PutQuery(t *testing.T) {
 	txio := testDBTransactionIO()
 
+	if err := txio.DeleteAllTransactions(); err != nil {
+		t.Errorf("DeleteTransactions failed: %v", err)
+	}
+
 	tx := inodedb.DBTransaction{TxID: 123, Ops: []inodedb.DBOperation{
 		&inodedb.CreateNodeOp{NodeLock: inodedb.NodeLock{2, 123456}, OrigPath: "/hoge.txt", Type: inodedb.FileNodeT},
 		&inodedb.HardLinkOp{NodeLock: inodedb.NodeLock{1, inodedb.NoTicket}, Name: "hoge.txt", TargetID: 2},

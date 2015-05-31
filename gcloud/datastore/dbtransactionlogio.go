@@ -2,6 +2,7 @@ package datastore
 
 import (
 	"log"
+	"time"
 
 	"golang.org/x/net/context"
 	"google.golang.org/cloud"
@@ -69,6 +70,7 @@ func decode(stx *storedbtx) (inodedb.DBTransaction, error) {
 }
 
 func (txio *DBTransactionLogIO) AppendTransaction(tx inodedb.DBTransaction) error {
+	start := time.Now()
 	ctx := txio.getContext()
 
 	key := datastore.NewKey(ctx, kindTransaction, "", int64(tx.TxID), txio.rootKey)
@@ -80,10 +82,12 @@ func (txio *DBTransactionLogIO) AppendTransaction(tx inodedb.DBTransaction) erro
 	if _, err := datastore.Put(ctx, key, stx); err != nil {
 		return err
 	}
+	log.Printf("AppendTransaction(%v) took %s", tx.TxID, time.Since(start))
 	return nil
 }
 
 func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb.DBTransaction, error) {
+	start := time.Now()
 	ctx := txio.getContext()
 
 	result := []inodedb.DBTransaction{}
@@ -91,7 +95,7 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 	it := q.Run(ctx)
 	for {
 		var stx storedbtx
-		k, err := it.Next(&stx)
+		_, err := it.Next(&stx)
 		if err != nil {
 			if err == datastore.Done {
 				break
@@ -106,5 +110,38 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 
 		result = append(result, tx)
 	}
+	log.Printf("QueryTransactions(%v) took %s", minID, time.Since(start))
 	return result, nil
+}
+
+func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) error {
+	start := time.Now()
+
+	ctx := txio.getContext()
+
+	keys := []*datastore.Key{}
+	q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Filter("TxID <", int64(smallerThanID)).KeysOnly()
+	it := q.Run(ctx)
+	for {
+		k, err := it.Next(nil)
+		if err != nil {
+			if err == datastore.Done {
+				break
+			}
+			return err
+		}
+
+		keys = append(keys, k)
+	}
+
+	if err := datastore.DeleteMulti(ctx, keys); err != nil {
+		return err
+	}
+
+	log.Printf("DeleteTransactions(%v) took %s", smallerThanID, time.Since(start))
+	return nil
+}
+
+func (txio *DBTransactionLogIO) DeleteAllTransactions() error {
+	return txio.DeleteTransactions(inodedb.LatestVersion)
 }
