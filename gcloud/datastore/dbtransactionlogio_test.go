@@ -10,6 +10,7 @@ import (
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/inodedb"
+	tu "github.com/nyaxt/otaru/testutils"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -31,6 +32,7 @@ func testDBTransactionIO() *datastore.DBTransactionLogIO {
 	bs, err := datastore.NewDBTransactionLogIO(
 		projectName,
 		"otaru-test",
+		tu.TestCipher(),
 		testClientSource(),
 	)
 	if err != nil {

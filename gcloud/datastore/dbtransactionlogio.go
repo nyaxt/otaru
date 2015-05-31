@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"google.golang.org/cloud"
 	"google.golang.org/cloud/datastore"
 
+	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/inodedb"
 )
@@ -15,6 +17,7 @@ import (
 type DBTransactionLogIO struct {
 	projectName string
 	rootKey     *datastore.Key
+	c           btncrypt.Cipher
 	clisrc      auth.ClientSource
 }
 
@@ -24,9 +27,10 @@ const (
 
 var _ = inodedb.DBTransactionLogIO(&DBTransactionLogIO{})
 
-func NewDBTransactionLogIO(projectName, rootKeyStr string, clisrc auth.ClientSource) (*DBTransactionLogIO, error) {
+func NewDBTransactionLogIO(projectName, rootKeyStr string, c btncrypt.Cipher, clisrc auth.ClientSource) (*DBTransactionLogIO, error) {
 	txio := &DBTransactionLogIO{
 		projectName: projectName,
+		c:           c,
 		clisrc:      clisrc,
 	}
 	ctx := txio.getContext()
@@ -41,29 +45,32 @@ func (txio *DBTransactionLogIO) getContext() context.Context {
 
 type storedbtx struct {
 	TxID    int64
-	OpsJSON []string
+	OpsJSON []byte
 }
 
-func encode(tx inodedb.DBTransaction) (*storedbtx, error) {
-	ops := make([]string, 0, len(tx.Ops))
-	for _, op := range tx.Ops {
-		jsonop, err := inodedb.EncodeDBOperationToJson(op)
-		if err != nil {
-			return nil, err
-		}
-		ops = append(ops, string(jsonop))
+func encode(c btncrypt.Cipher, tx inodedb.DBTransaction) (*storedbtx, error) {
+	jsonops, err := inodedb.EncodeDBOperationsToJson(tx.Ops)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to encode dbtx: %v", err)
 	}
-	return &storedbtx{TxID: int64(tx.TxID), OpsJSON: ops}, nil
+
+	env, err := btncrypt.Encrypt(c, jsonops)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to decrypt OpsJSON: %v", err)
+	}
+
+	return &storedbtx{TxID: int64(tx.TxID), OpsJSON: env}, nil
 }
 
-func decode(stx *storedbtx) (inodedb.DBTransaction, error) {
-	ops := make([]inodedb.DBOperation, 0, len(stx.OpsJSON))
-	for _, jsonnop := range stx.OpsJSON {
-		op, err := inodedb.DecodeDBOperationFromJson([]byte(jsonnop))
-		if err != nil {
-			return inodedb.DBTransaction{}, err
-		}
-		ops = append(ops, op)
+func decode(c btncrypt.Cipher, stx *storedbtx) (inodedb.DBTransaction, error) {
+	jsonop, err := btncrypt.Decrypt(c, stx.OpsJSON, len(stx.OpsJSON)-c.FrameOverhead())
+	if err != nil {
+		return inodedb.DBTransaction{}, fmt.Errorf("Failed to decrypt OpsJSON: %v", err)
+	}
+
+	ops, err := inodedb.DecodeDBOperationsFromJson(jsonop)
+	if err != nil {
+		return inodedb.DBTransaction{}, err
 	}
 
 	return inodedb.DBTransaction{TxID: inodedb.TxID(stx.TxID), Ops: ops}, nil
@@ -75,7 +82,7 @@ func (txio *DBTransactionLogIO) AppendTransaction(tx inodedb.DBTransaction) erro
 
 	key := datastore.NewKey(ctx, kindTransaction, "", int64(tx.TxID), txio.rootKey)
 
-	stx, err := encode(tx)
+	stx, err := encode(txio.c, tx)
 	if err != nil {
 		return err
 	}
@@ -103,7 +110,7 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 			return []inodedb.DBTransaction{}, err
 		}
 
-		tx, err := decode(&stx)
+		tx, err := decode(txio.c, &stx)
 		if err != nil {
 			return []inodedb.DBTransaction{}, err
 		}

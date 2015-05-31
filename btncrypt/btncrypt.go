@@ -175,12 +175,7 @@ func (bew *WriteCloser) Close() error {
 	return nil
 }
 
-func Encrypt(key, plain []byte) ([]byte, error) {
-	c, err := NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-
+func Encrypt(c Cipher, plain []byte) ([]byte, error) {
 	var b bytes.Buffer
 	bew, err := NewWriteCloser(&b, c, len(plain))
 	if err != nil {
@@ -275,12 +270,7 @@ func (bdr *Reader) HasReadAll() bool {
 	return bdr.lenRead == bdr.lenTotal
 }
 
-func Decrypt(key, envelope []byte, lenTotal int) ([]byte, error) {
-	c, err := NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-
+func Decrypt(c Cipher, envelope []byte, lenTotal int) ([]byte, error) {
 	bdr, err := NewReader(bytes.NewReader(envelope), c, lenTotal)
 	if err != nil {
 		return nil, err
