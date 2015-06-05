@@ -148,7 +148,7 @@ func (cbs *CachedBlobStore) ensureBEVerCache() map[string]BlobVersion {
 
 func (cbs *CachedBlobStore) queryBackendVersion(blobpath string) (BlobVersion, error) {
 	if ver, ok := cbs.beVerCache[blobpath]; ok {
-		//log.Printf("return cached ver for \"%s\" -> %d", blobpath, ver)
+		log.Printf("return cached ver for \"%s\" -> %d", blobpath, ver)
 		return ver, nil
 	}
 

@@ -8,6 +8,7 @@ import (
 	"google.golang.org/cloud/storage"
 
 	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/blobstore"
 	oflags "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/gcloud/auth"
 )
@@ -18,6 +19,8 @@ type GCSBlobStore struct {
 	flags       int
 	clisrc      auth.ClientSource
 }
+
+var _ = blobstore.BlobStore(&GCSBlobStore{})
 
 func NewGCSBlobStore(projectName string, bucketName string, clisrc auth.ClientSource, flags int) (*GCSBlobStore, error) {
 	return &GCSBlobStore{
@@ -36,8 +39,8 @@ func (bs *GCSBlobStore) newAuthedContext(basectx context.Context) context.Contex
 	return cloud.NewContext(bs.projectName, bs.clisrc(context.TODO()))
 }
 
-func (bs *GCSBlobStore) OpenWriter(blobpath string, flags int) (io.WriteCloser, error) {
-	if !oflags.IsWriteAllowed(bs.flags) || !oflags.IsWriteAllowed(flags) {
+func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
+	if !oflags.IsWriteAllowed(bs.flags) {
 		return nil, otaru.EPERM
 	}
 
@@ -63,7 +66,7 @@ func (w *Writer) Close() error {
 	return nil
 }
 
-func (bs *GCSBlobStore) OpenReader(blobpath string, flags int) (io.ReadCloser, error) {
+func (bs *GCSBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
 	ctx := bs.newAuthedContext(context.TODO())
 	return storage.NewReader(ctx, bs.bucketName, blobpath)
 }

@@ -30,7 +30,7 @@ const (
 type ChunkHeader struct {
 	FrameEncapsulation byte
 	PayloadLen         uint32
-	PayloadVersion     int
+	PayloadVersion     int64
 	OrigFilename       string
 	OrigOffset         int64
 }

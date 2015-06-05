@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	bfuse "bazil.org/fuse"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/gcloud/gcs"
+	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -42,6 +44,10 @@ type Otaru struct {
 	FBS *blobstore.FileBlobStore
 	GBS *gcs.GCSBlobStore
 	CBS *blobstore.CachedBlobStore
+
+	SIO  *otaru.BlobStoreDBStateSnapshotIO
+	TxIO *datastore.DBTransactionLogIO
+	IDB  *inodedb.DB
 
 	FS *otaru.FileSystem
 }
@@ -73,31 +79,42 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 		return nil, fmt.Errorf("Failed to init FileBlobStore: %v", err)
 	}
 
-	o.GBS, err = gcs.NewGCSBlobStore(projectName, bucketName, clisrc)
+	o.GBS, err = gcs.NewGCSBlobStore(projectName, bucketName, o.Clisrc, oflags.O_RDWRCREATE)
 	if err != nil {
 		o.Close()
 		return nil, fmt.Errorf("Failed to init GCSBlobStore: %v", err)
 	}
 
-	o.CBS, err = blobstore.NewCachedBlobStore(o.GBS, o.FBS, oflags.O_RDWRCREATE /* FIXME */, otaru.QueryChunkVersion)
+	queryFn := otaru.NewQueryChunkVersion(o.C)
+	o.CBS, err = blobstore.NewCachedBlobStore(o.GBS, o.FBS, oflags.O_RDWRCREATE /* FIXME */, queryFn)
 	if err != nil {
 		o.Close()
 		return nil, fmt.Errorf("Failed to init CachedBlobStore: %v", err)
 	}
 
-	c.FS, err = otaru.NewFileSystemFromSnapshot(o.CBS, o.C)
+	o.SIO = otaru.NewBlobStoreDBStateSnapshotIO(o.CBS, o.C)
+
+	o.TxIO, err = datastore.NewDBTransactionLogIO(projectName, bucketName, o.C, o.Clisrc)
 	if err != nil {
-		if err == otaru.ENOENT && mkfs {
-			c.FS, err = otaru.NewFileSystemEmpty(o.CBS, o.C)
-			if err != nil {
-				o.Close()
-				return nil, fmt.Errorf("NewFileSystemEmpty failed: %v", err)
-			}
-		} else {
+		o.Close()
+		return nil, fmt.Errorf("Failed to init gcloud DBTransactionLogIO: %v", err)
+	}
+
+	if mkfs {
+		o.IDB, err = inodedb.NewEmptyDB(o.SIO, o.TxIO)
+		if err != nil {
 			o.Close()
-			return nil, fmt.Errorf("NewFileSystemFromSnapshot failed: %v", err)
+			return nil, fmt.Errorf("NewEmptyDB failed: %v", err)
+		}
+	} else {
+		o.IDB, err = inodedb.NewDB(o.SIO, o.TxIO)
+		if err != nil {
+			o.Close()
+			return nil, fmt.Errorf("NewDB failed: %v", err)
 		}
 	}
+
+	o.FS = otaru.NewFileSystem(o.IDB, o.CBS, o.C)
 
 	return o, nil
 }
@@ -107,7 +124,7 @@ type OtaruCloseErrors []error
 func (errs OtaruCloseErrors) Error() string {
 	errstrs := make([]string, len(errs))
 	for i, e := range errs {
-		errstrs[i] = errs[i].Error()
+		errstrs[i] = e.Error()
 	}
 
 	return "Errors: [" + strings.Join(errstrs, ", ") + "]"
@@ -117,29 +134,20 @@ func (o *Otaru) Close() error {
 	errs := []error{}
 
 	if o.FS != nil {
-		if err := o.FS.Close(); err != nil {
-			errs := append(errs, err)
+		if err := o.FS.Sync(); err != nil {
+			errs = append(errs, err)
 		}
 	}
 
-	if o.CBS != nil {
-		if err := o.CBS.Close(); err != nil {
-			errs := append(errs, err)
+	if o.IDB != nil {
+		if err := o.IDB.Sync(); err != nil {
+			errs = append(errs, err)
 		}
 	}
 
-	if o.GBS != nil {
-		if err := o.GBS.Close(); err != nil {
-			errs := append(errs, err)
-		}
+	if len(errs) != 0 {
+		return OtaruCloseErrors(errs)
 	}
-
-	if o.FBS != nil {
-		if err := o.FBS.Close(); err != nil {
-			errs := append(errs, err)
-		}
-	}
-
 	return nil
 }
 
@@ -147,7 +155,7 @@ func main() {
 	flag.Usage = Usage
 	flag.Parse()
 
-	password := util.StringFromFile(*flagPasswordFile, "password")
+	password := util.StringFromFileOrDie(*flagPasswordFile, "password")
 	if *flagProjectName == "" {
 		log.Printf("Please specify a valid project name")
 		Usage()
@@ -164,7 +172,16 @@ func main() {
 	}
 	mountpoint := flag.Arg(0)
 
-	otaru := NewOtaru(*flagMkfs, password, *flagProjectName, *flagBucketName, *flagCacheDir)
+	o, err := NewOtaru(*flagMkfs, password, *flagProjectName, *flagBucketName, *flagCacheDir)
+	if err != nil {
+		log.Printf("NewOtaru failed: %v", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := o.Close(); err != nil {
+			log.Printf("Otaru.Close() returned errs: %v", err)
+		}
+	}()
 
 	bfuse.Debug = func(msg interface{}) {
 		log.Printf("fusedbg: %v", msg)

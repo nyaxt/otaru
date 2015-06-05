@@ -19,6 +19,17 @@ var (
 	ZeroContent = make([]byte, ContentFramePayloadLength)
 )
 
+func NewQueryChunkVersion(c btncrypt.Cipher) blobstore.QueryVersionFunc {
+	return func(r io.Reader) (blobstore.BlobVersion, error) {
+		var h ChunkHeader
+		if err := h.ReadFrom(r, c); err != nil {
+			return 0, err
+		}
+
+		return blobstore.BlobVersion(h.PayloadVersion), nil
+	}
+}
+
 func NewChunkWriter(w io.Writer, c btncrypt.Cipher, h ChunkHeader) (io.WriteCloser, error) {
 	if err := h.WriteTo(w, c); err != nil {
 		return nil, fmt.Errorf("Failed to write header: %v", err)
@@ -213,12 +224,16 @@ func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
 	if err != nil {
 		return fmt.Errorf("Failed to create BtnEncryptWriteCloser: %v", err)
 	}
+	defer func() {
+		if err := bew.Close(); err != nil {
+			log.Printf("Failed to Close BtnEncryptWriteCloser: %v", err)
+		}
+	}()
 	if _, err := bew.Write(f.P); err != nil {
 		return fmt.Errorf("Failed to encrypt frame: %v", err)
 	}
-	if err := bew.Close(); err != nil {
-		return fmt.Errorf("Failed to Close BtnEncryptWriteCloser: %v", err)
-	}
+	ch.header.PayloadVersion++
+	ch.needsHeaderUpdate = true
 
 	fmt.Printf("Wrote content frame idx: %d\n", i)
 	return nil
