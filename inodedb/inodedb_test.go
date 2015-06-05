@@ -23,6 +23,27 @@ func TestInitialState(t *testing.T) {
 	}
 }
 
+func TestNewEmptyDB_ShouldFailOnNonEmptySnapsshotIO(t *testing.T) {
+	sio := i.NewSimpleDBStateSnapshotIO()
+	{
+		db, err := i.NewEmptyDB(sio, i.NewSimpleDBTransactionLogIO())
+		if err != nil {
+			t.Errorf("Failed to NewEmptyDB: %v", err)
+			return
+		}
+		if err := db.Sync(); err != nil {
+			t.Errorf("Failed to Sync DB: %v", err)
+			return
+		}
+	}
+
+	_, err := i.NewEmptyDB(sio, i.NewSimpleDBTransactionLogIO())
+	if err == nil {
+		t.Errorf("NewEmptyDB should fail on non-empty snapshot io")
+		return
+	}
+}
+
 func TestNewEmptyDB_ShouldFailOnNonEmptyTxIO(t *testing.T) {
 	sio := i.NewSimpleDBStateSnapshotIO()
 	txio := i.NewSimpleDBTransactionLogIO()
@@ -38,7 +59,7 @@ func TestNewEmptyDB_ShouldFailOnNonEmptyTxIO(t *testing.T) {
 
 	_, err := i.NewEmptyDB(sio, txio)
 	if err == nil {
-		t.Errorf("NewEmptyDB should fail on non-empty txio: %v", err)
+		t.Errorf("NewEmptyDB should fail on non-empty txio")
 		return
 	}
 }
