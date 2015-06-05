@@ -3,6 +3,7 @@ package otaru_test
 import (
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/inodedb"
 	. "github.com/nyaxt/otaru/testutils"
 
 	"bytes"
@@ -10,12 +11,16 @@ import (
 )
 
 func TestFileWriteRead(t *testing.T) {
-	bs := TestFileBlobStore()
-	fs, err := otaru.NewFileSystemEmpty(bs, TestCipher())
+	snapshotio := inodedb.NewSimpleDBStateSnapshotIO()
+	txio := inodedb.NewSimpleDBTransactionLogIO()
+	idb, err := inodedb.NewEmptyDB(snapshotio, txio)
 	if err != nil {
-		t.Errorf("NewFileSystemEmpty failed: %v", err)
+		t.Errorf("NewEmptyDB failed: %v", err)
 		return
 	}
+
+	bs := TestFileBlobStore()
+	fs := otaru.NewFileSystem(idb, bs, TestCipher())
 	h, err := fs.OpenFileFullPath("/hello.txt", flags.O_CREATE|flags.O_RDWR, 0666)
 	if err != nil {
 		t.Errorf("OpenFileFullPath failed: %v", err)

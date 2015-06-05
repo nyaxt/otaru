@@ -53,10 +53,10 @@ func StringFromFile(filename string) (string, error) {
 	return strings.TrimRight(string(b), "\n"), nil
 }
 
-func StringFromFileOrDie(filename string) string {
+func StringFromFileOrDie(filename string, usage string) string {
 	s, err := StringFromFile(filename)
 	if err != nil {
-		log.Fatalf("%v", err)
+		log.Fatalf("While fetching %s: %v", usage, err)
 	}
 	return s
 }

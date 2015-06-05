@@ -37,7 +37,7 @@ type FileSystem struct {
 	wcmap map[inodedb.ID]*FileWriteCache
 }
 
-func newFileSystemCommon(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher) *FileSystem {
+func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher) *FileSystem {
 	fs := &FileSystem{
 		idb: idb,
 		bs:  bs,
@@ -51,30 +51,6 @@ func newFileSystemCommon(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobSto
 	}
 
 	return fs
-}
-
-func NewFileSystemEmpty(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher) (*FileSystem, error) {
-	// FIXME: refactor here and FromSnapshot
-
-	snapshotio := NewBlobStoreDBStateSnapshotIO(bs, c)
-	txio := inodedb.NewSimpleDBTransactionLogIO() // FIXME!
-	idb, err := inodedb.NewEmptyDB(snapshotio, txio)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize inodedb: %v", err)
-	}
-
-	return newFileSystemCommon(idb, bs, c), nil
-}
-
-func NewFileSystemFromSnapshot(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher) (*FileSystem, error) {
-	snapshotio := NewBlobStoreDBStateSnapshotIO(bs, c)
-	txio := inodedb.NewSimpleDBTransactionLogIO() // FIXME!
-	idb, err := inodedb.NewDB(snapshotio, txio)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize inodedb: %v", err)
-	}
-
-	return newFileSystemCommon(idb, bs, c), nil
 }
 
 func (fs *FileSystem) Sync() error {
