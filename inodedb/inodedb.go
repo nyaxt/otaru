@@ -54,10 +54,10 @@ type INode interface {
 	View() NodeView
 }
 
-type TxID uint64
+type TxID int64
 
 const (
-	LatestVersion = math.MaxUint64
+	LatestVersion = math.MaxInt64
 	AnyVersion    = 0
 )
 

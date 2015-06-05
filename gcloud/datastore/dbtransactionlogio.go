@@ -141,6 +141,7 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 		keys = append(keys, k)
 	}
 
+	log.Printf("keys to delete: %v", keys)
 	if err := datastore.DeleteMulti(ctx, keys); err != nil {
 		return err
 	}
