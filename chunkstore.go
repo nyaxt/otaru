@@ -96,8 +96,9 @@ func NewChunkIO(bh blobstore.BlobHandle, c btncrypt.Cipher) *ChunkIO {
 		c:             c,
 		didReadHeader: false,
 		header: ChunkHeader{
-			OrigFilename: "<unknown>",
-			OrigOffset:   -1,
+			OrigFilename:   "<unknown>",
+			OrigOffset:     -1,
+			PayloadVersion: 1,
 		},
 		needsHeaderUpdate: false,
 	}

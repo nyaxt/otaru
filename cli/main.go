@@ -53,9 +53,10 @@ func put(fromurl, tourl string) error {
 
 	cw, err := otaru.NewChunkWriter(w, c,
 		otaru.ChunkHeader{
-			OrigFilename: fromurl,
-			OrigOffset:   0,
-			PayloadLen:   uint32(fromsize),
+			OrigFilename:   fromurl,
+			OrigOffset:     0,
+			PayloadLen:     uint32(fromsize),
+			PayloadVersion: 1,
 		},
 	)
 	if err != nil {

@@ -136,8 +136,8 @@ func TestChunkIO_Write_UpdateHello(t *testing.T) {
 	testbh := &TestBlobHandle{b}
 	cio := otaru.NewChunkIO(testbh, TestCipher())
 
-	if cio.Header().PayloadVersion != 0 {
-		t.Errorf("Initial PayloadVersion != 0")
+	if cio.Header().PayloadVersion != 1 {
+		t.Errorf("Initial PayloadVersion != 1")
 	}
 
 	upd := []byte("testin write")
@@ -146,8 +146,8 @@ func TestChunkIO_Write_UpdateHello(t *testing.T) {
 		return
 	}
 
-	if cio.Header().PayloadVersion != 1 {
-		t.Errorf("PayloadVersion after PWrite != 1")
+	if cio.Header().PayloadVersion != 2 {
+		t.Errorf("PayloadVersion after PWrite != 2")
 	}
 
 	readtgt := make([]byte, len(upd))
@@ -170,8 +170,8 @@ func TestChunkIO_Write_UpdateHello(t *testing.T) {
 	if err != nil {
 		t.Errorf("PayloadVersion query failed")
 	}
-	if ver != 1 {
-		t.Errorf("PayloadVersion read back after cio.Close != 1")
+	if ver != 2 {
+		t.Errorf("PayloadVersion read back after cio.Close != 2")
 	}
 }
 
