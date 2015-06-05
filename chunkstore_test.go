@@ -135,10 +135,18 @@ func TestChunkIO_Write_UpdateHello(t *testing.T) {
 	testbh := &TestBlobHandle{b}
 	cio := otaru.NewChunkIO(testbh, TestCipher())
 
+	if cio.Header().PayloadVersion != 0 {
+		t.Errorf("Initial PayloadVersion != 0")
+	}
+
 	upd := []byte("testin write")
 	if err := cio.PWrite(0, upd); err != nil {
 		t.Errorf("failed to PWrite to ChunkIO: %v", err)
 		return
+	}
+
+	if cio.Header().PayloadVersion != 1 {
+		t.Errorf("PayloadVersion after PWrite != 1")
 	}
 
 	readtgt := make([]byte, len(upd))
@@ -165,6 +173,7 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 	}
 	testbh := &TestBlobHandle{b}
 	cio := otaru.NewChunkIO(testbh, TestCipher())
+	origver := cio.Header().PayloadVersion
 
 	// Full update
 	td2 := negateBits(td)
@@ -172,6 +181,10 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 		t.Errorf("failed to PWrite into ChunkIO: %v", err)
 		return
 	}
+	if cio.Header().PayloadVersion <= origver {
+		t.Errorf("PayloadVersion after PWrite < origver: %d < %d", cio.Header().PayloadVersion, origver)
+	}
+	origver = cio.Header().PayloadVersion
 	readtgt := make([]byte, len(td))
 	if err := cio.PRead(0, readtgt); err != nil {
 		t.Errorf("failed to PRead from ChunkIO: %v", err)
@@ -187,6 +200,10 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 		t.Errorf("failed to PWrite into ChunkIO: %v", err)
 		return
 	}
+	if cio.Header().PayloadVersion <= origver {
+		t.Errorf("PayloadVersion after PWrite < origver: %d < %d", cio.Header().PayloadVersion, origver)
+	}
+	origver = cio.Header().PayloadVersion
 	td3 := make([]byte, len(td2))
 	copy(td3, td2)
 	copy(td3[1012345:1012345+321], td[1012345:1012345+321])

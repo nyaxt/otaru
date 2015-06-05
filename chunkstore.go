@@ -129,6 +129,13 @@ func (ch *ChunkIO) ensureHeader() error {
 	return nil
 }
 
+func (ch *ChunkIO) Header() ChunkHeader {
+	if err := ch.ensureHeader(); err != nil {
+		log.Printf("Failed to ensureHeader(): %v", err)
+	}
+	return ch.header
+}
+
 func (ch *ChunkIO) Size() int64 {
 	return int64(ch.PayloadLen())
 }
