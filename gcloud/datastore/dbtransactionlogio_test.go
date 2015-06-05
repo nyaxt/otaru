@@ -28,7 +28,7 @@ func testClientSource() auth.ClientSource {
 
 func testDBTransactionIO() *datastore.DBTransactionLogIO {
 	homedir := os.Getenv("HOME")
-	projectName := util.StringFromFileOrDie(path.Join(homedir, ".otaru", "projectname.txt"))
+	projectName := util.StringFromFileOrDie(path.Join(homedir, ".otaru", "projectname.txt"), "projectName")
 	bs, err := datastore.NewDBTransactionLogIO(
 		projectName,
 		"otaru-test",

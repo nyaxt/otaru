@@ -29,7 +29,7 @@ func testClientSource() auth.ClientSource {
 
 func testGCSBlobStore() *gcs.GCSBlobStore {
 	homedir := os.Getenv("HOME")
-	projectName := util.StringFromFileOrDie(path.Join(homedir, ".otaru", "projectname.txt"))
+	projectName := util.StringFromFileOrDie(path.Join(homedir, ".otaru", "projectname.txt"), "projectName")
 	bs, err := gcs.NewGCSBlobStore(
 		projectName,
 		"otaru-test",
@@ -47,7 +47,7 @@ func TestGCSBlobStore_WriteReadDelete(t *testing.T) {
 
 	// Write
 	{
-		w, err := bs.OpenWriter("hoge", flags.O_RDWR)
+		w, err := bs.OpenWriter("hoge")
 		if err != nil {
 			t.Errorf("Failed to open writer: %v", err)
 			return
@@ -70,7 +70,7 @@ func TestGCSBlobStore_WriteReadDelete(t *testing.T) {
 
 	// Read
 	{
-		r, err := bs.OpenReader("hoge", flags.O_RDWR)
+		r, err := bs.OpenReader("hoge")
 		if err != nil {
 			t.Errorf("Failed to open reader: %v", err)
 			return

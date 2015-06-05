@@ -13,8 +13,24 @@ import (
 
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/fuse"
+	"github.com/nyaxt/otaru/inodedb"
 	. "github.com/nyaxt/otaru/testutils"
 )
+
+func fusetestFileSystem() *otaru.FileSystem {
+	sio := inodedb.NewSimpleDBStateSnapshotIO()
+	txio := inodedb.NewSimpleDBTransactionLogIO()
+
+	idb, err := inodedb.NewEmptyDB(sio, txio)
+	if err != nil {
+		log.Fatalf("NewEmptyDB failed: %v", err)
+	}
+
+	bs := TestFileBlobStore()
+	fs := otaru.NewFileSystem(idb, bs, TestCipher())
+
+	return fs
+}
 
 func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string)) {
 	bfuse.Debug = func(msg interface{}) {
@@ -47,21 +63,12 @@ func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string
 }
 
 func TestServeFUSE_DoNothing(t *testing.T) {
-	bs := TestFileBlobStore()
-	fs, err := otaru.NewFileSystemEmpty(bs, TestCipher())
-	if err != nil {
-		t.Errorf("NewFileSystemEmpty failed: %v", err)
-	}
-
+	fs := fusetestFileSystem()
 	fusetestCommon(t, fs, func(mountpoint string) {})
 }
 
 func TestServeFUSE_WriteReadFile(t *testing.T) {
-	bs := TestFileBlobStore()
-	fs, err := otaru.NewFileSystemEmpty(bs, TestCipher())
-	if err != nil {
-		t.Errorf("NewFileSystemEmpty failed: %v", err)
-	}
+	fs := fusetestFileSystem()
 
 	fusetestCommon(t, fs, func(mountpoint string) {
 		if err := ioutil.WriteFile(path.Join(mountpoint, "hello.txt"), HelloWorld, 0644); err != nil {
@@ -90,11 +97,7 @@ func TestServeFUSE_WriteReadFile(t *testing.T) {
 }
 
 func TestServeFUSE_RenameFile(t *testing.T) {
-	bs := TestFileBlobStore()
-	fs, err := otaru.NewFileSystemEmpty(bs, TestCipher())
-	if err != nil {
-		t.Errorf("NewFileSystemEmpty failed: %v", err)
-	}
+	fs := fusetestFileSystem()
 
 	fusetestCommon(t, fs, func(mountpoint string) {
 		before := path.Join(mountpoint, "aaa.txt")
@@ -119,11 +122,7 @@ func TestServeFUSE_RenameFile(t *testing.T) {
 }
 
 func TestServeFUSE_RemoveFile(t *testing.T) {
-	bs := TestFileBlobStore()
-	fs, err := otaru.NewFileSystemEmpty(bs, TestCipher())
-	if err != nil {
-		t.Errorf("NewFileSystemEmpty failed: %v", err)
-	}
+	fs := fusetestFileSystem()
 
 	fusetestCommon(t, fs, func(mountpoint string) {
 		filepath := path.Join(mountpoint, "hello.txt")
@@ -152,11 +151,7 @@ func TestServeFUSE_RemoveFile(t *testing.T) {
 }
 
 func TestServeFUSE_Mkdir(t *testing.T) {
-	bs := TestFileBlobStore()
-	fs, err := otaru.NewFileSystemEmpty(bs, TestCipher())
-	if err != nil {
-		t.Errorf("NewFileSystemEmpty failed: %v", err)
-	}
+	fs := fusetestFileSystem()
 
 	fusetestCommon(t, fs, func(mountpoint string) {
 		dirpath := path.Join(mountpoint, "hokkaido")
@@ -183,11 +178,7 @@ func TestServeFUSE_Mkdir(t *testing.T) {
 }
 
 func TestServeFUSE_MoveFile(t *testing.T) {
-	bs := TestFileBlobStore()
-	fs, err := otaru.NewFileSystemEmpty(bs, TestCipher())
-	if err != nil {
-		t.Errorf("NewFileSystemEmpty failed: %v", err)
-	}
+	fs := fusetestFileSystem()
 
 	fusetestCommon(t, fs, func(mountpoint string) {
 		dir1 := path.Join(mountpoint, "dir1")
@@ -222,11 +213,7 @@ func TestServeFUSE_MoveFile(t *testing.T) {
 }
 
 func TestServeFUSE_Rmdir(t *testing.T) {
-	bs := TestFileBlobStore()
-	fs, err := otaru.NewFileSystemEmpty(bs, TestCipher())
-	if err != nil {
-		t.Errorf("NewFileSystemEmpty failed: %v", err)
-	}
+	fs := fusetestFileSystem()
 
 	fusetestCommon(t, fs, func(mountpoint string) {
 		dirpath := path.Join(mountpoint, "hokkaido")
