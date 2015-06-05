@@ -23,6 +23,26 @@ func TestInitialState(t *testing.T) {
 	}
 }
 
+func TestNewEmptyDB_ShouldFailOnNonEmptyTxIO(t *testing.T) {
+	sio := i.NewSimpleDBStateSnapshotIO()
+	txio := i.NewSimpleDBTransactionLogIO()
+
+	tx := i.DBTransaction{TxID: 123, Ops: []i.DBOperation{
+		&i.CreateNodeOp{NodeLock: i.NodeLock{2, 123456}, OrigPath: "/hoge.txt", Type: i.FileNodeT},
+		&i.HardLinkOp{NodeLock: i.NodeLock{1, i.NoTicket}, Name: "hoge.txt", TargetID: 2},
+	}}
+	if err := txio.AppendTransaction(tx); err != nil {
+		t.Errorf("AppendTransaction failed: %v")
+		return
+	}
+
+	_, err := i.NewEmptyDB(sio, txio)
+	if err == nil {
+		t.Errorf("NewEmptyDB should fail on non-empty txio: %v", err)
+		return
+	}
+}
+
 func TestCreateFile(t *testing.T) {
 	db, err := i.NewEmptyDB(i.NewSimpleDBStateSnapshotIO(), i.NewSimpleDBTransactionLogIO())
 	if err != nil {
