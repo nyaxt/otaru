@@ -2,6 +2,7 @@ package otaru_test
 
 import (
 	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/blobstore"
 	. "github.com/nyaxt/otaru/testutils"
 
 	"bytes"
@@ -162,6 +163,15 @@ func TestChunkIO_Write_UpdateHello(t *testing.T) {
 	if err := cio.Close(); err != nil {
 		t.Errorf("failed to Close ChunkIO: %v", err)
 		return
+	}
+
+	queryFn := otaru.NewQueryChunkVersion(TestCipher())
+	ver, err := queryFn(&blobstore.OffsetReader{testbh, 0})
+	if err != nil {
+		t.Errorf("PayloadVersion query failed")
+	}
+	if ver != 1 {
+		t.Errorf("PayloadVersion read back after cio.Close != 1")
 	}
 }
 
@@ -362,5 +372,20 @@ func Test_ChunkIOWrite_OverflowUpdate(t *testing.T) {
 	if !bytes.Equal(readtgt, exp) {
 		t.Errorf("Read content invalid")
 		return
+	}
+}
+
+type eofReader struct{}
+
+func (eofReader) Read([]byte) (int, error) { return 0, io.EOF }
+
+func Test_QueryChunkVersion_EOF(t *testing.T) {
+	queryFn := otaru.NewQueryChunkVersion(TestCipher())
+	ver, err := queryFn(&eofReader{})
+	if err != nil {
+		t.Errorf("NewQueryChunkVersion should return no err on EOF")
+	}
+	if ver != 0 {
+		t.Errorf("NewQueryChunkVersion should return 0 on EOF")
 	}
 }

@@ -87,6 +87,9 @@ func (h ChunkHeader) WriteTo(w io.Writer, c btncrypt.Cipher) error {
 func (h *ChunkHeader) ReadFrom(r io.Reader, c btncrypt.Cipher) error {
 	magic := make([]byte, SignatureLength+1)
 	if _, err := r.Read(magic); err != nil {
+		if err == io.EOF {
+			return err
+		}
 		return fmt.Errorf("Failed to read signature magic / format bytes: %v", err)
 	}
 	if magic[0] != ChunkSignatureMagic1 ||

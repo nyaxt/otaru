@@ -23,6 +23,9 @@ func NewQueryChunkVersion(c btncrypt.Cipher) blobstore.QueryVersionFunc {
 	return func(r io.Reader) (blobstore.BlobVersion, error) {
 		var h ChunkHeader
 		if err := h.ReadFrom(r, c); err != nil {
+			if err == io.EOF {
+				return 0, nil
+			}
 			return 0, err
 		}
 
