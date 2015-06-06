@@ -24,7 +24,7 @@ func NewINodeDBChunksArrayIO(db inodedb.DBHandler, nlock inodedb.NodeLock, fn in
 }
 
 func NewReadOnlyINodeDBChunksArrayIO(db inodedb.DBHandler, nlock inodedb.NodeLock) *INodeDBChunksArrayIO {
-	if nlock.Ticket != inodedb.NoTicket {
+	if nlock.HasTicket() {
 		log.Fatalf("Valid node lock w/ ticket passed to NewReadOnlyINodeDBChunksArrayIO")
 	}
 
@@ -32,7 +32,7 @@ func NewReadOnlyINodeDBChunksArrayIO(db inodedb.DBHandler, nlock inodedb.NodeLoc
 }
 
 func (caio *INodeDBChunksArrayIO) Read() ([]inodedb.FileChunk, error) {
-	if caio.nlock.Ticket != inodedb.NoTicket {
+	if caio.nlock.HasTicket() {
 		return caio.fn.GetChunks(), nil
 	}
 
@@ -50,7 +50,7 @@ func (caio *INodeDBChunksArrayIO) Read() ([]inodedb.FileChunk, error) {
 }
 
 func (caio *INodeDBChunksArrayIO) Write(cs []inodedb.FileChunk) error {
-	if caio.nlock.Ticket == inodedb.NoTicket {
+	if !caio.nlock.HasTicket() {
 		return fmt.Errorf("No ticket lock is acquired.")
 	}
 

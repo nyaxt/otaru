@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"syscall"
 	"time"
 
 	"github.com/nyaxt/otaru"
@@ -12,6 +13,10 @@ import (
 	bfuse "bazil.org/fuse"
 	bfs "bazil.org/fuse/fs"
 	"golang.org/x/net/context"
+)
+
+const (
+	EBADF = syscall.Errno(syscall.EBADF)
 )
 
 type FileNode struct {
@@ -67,6 +72,10 @@ func (fh FileHandle) Read(ctx context.Context, req *bfuse.ReadRequest, resp *bfu
 	*/
 	log.Printf("Read offset %d size %d", req.Offset, req.Size)
 
+	if fh.h == nil {
+		return EBADF
+	}
+
 	resp.Data = resp.Data[:req.Size]
 	if err := fh.h.PRead(req.Offset, resp.Data); err != nil {
 		return err
@@ -78,6 +87,10 @@ func (fh FileHandle) Read(ctx context.Context, req *bfuse.ReadRequest, resp *bfu
 func (fh FileHandle) Write(ctx context.Context, req *bfuse.WriteRequest, resp *bfuse.WriteResponse) error {
 	log.Printf("Write offset %d size %d", req.Offset, len(req.Data))
 
+	if fh.h == nil {
+		return EBADF
+	}
+
 	if err := fh.h.PWrite(req.Offset, req.Data); err != nil {
 		return err
 	}
@@ -88,6 +101,10 @@ func (fh FileHandle) Write(ctx context.Context, req *bfuse.WriteRequest, resp *b
 
 // FIXME: move this to FileNode
 func (fh FileHandle) Setattr(ctx context.Context, req *bfuse.SetattrRequest, resp *bfuse.SetattrResponse) error {
+	if fh.h == nil {
+		return EBADF
+	}
+
 	if req.Valid.Size() {
 		log.Printf("Setattr size %d", req.Size)
 		if req.Size > math.MaxInt64 {
@@ -102,6 +119,10 @@ func (fh FileHandle) Setattr(ctx context.Context, req *bfuse.SetattrRequest, res
 }
 
 func (fh FileHandle) Flush(ctx context.Context, req *bfuse.FlushRequest) error {
+	if fh.h == nil {
+		return EBADF
+	}
+
 	if err := fh.h.Sync(); err != nil {
 		return err
 	}
@@ -109,7 +130,6 @@ func (fh FileHandle) Flush(ctx context.Context, req *bfuse.FlushRequest) error {
 }
 
 func (fh FileHandle) Forget() {
-	if err := fh.h.Sync(); err != nil {
-		log.Printf("Failed to Sync() on Forget: %v", err)
-	}
+	fh.h.Close()
+	fh.h = nil
 }
