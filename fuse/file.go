@@ -102,8 +102,14 @@ func (fh FileHandle) Setattr(ctx context.Context, req *bfuse.SetattrRequest, res
 }
 
 func (fh FileHandle) Flush(ctx context.Context, req *bfuse.FlushRequest) error {
-	if err := fh.h.Flush(); err != nil {
+	if err := fh.h.Sync(); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (fh FileHandle) Forget() {
+	if err := fh.h.Sync(); err != nil {
+		log.Printf("Failed to Sync() on Forget: %v", err)
+	}
 }

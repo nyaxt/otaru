@@ -73,7 +73,7 @@ func (wc *FileWriteCache) ContentLen() int64 {
 	return l
 }
 
-func (wc *FileWriteCache) NeedsFlush() bool {
+func (wc *FileWriteCache) NeedsSync() bool {
 	if len(wc.ps) > FileWriteCacheMaxPatches {
 		return true
 	}
@@ -84,7 +84,7 @@ func (wc *FileWriteCache) NeedsFlush() bool {
 	return false
 }
 
-func (wc *FileWriteCache) Flush(bh blobstore.BlobHandle) error {
+func (wc *FileWriteCache) Sync(bh blobstore.BlobHandle) error {
 	for _, p := range wc.ps {
 		if err := bh.PWrite(p.Offset, p.P); err != nil {
 			return err

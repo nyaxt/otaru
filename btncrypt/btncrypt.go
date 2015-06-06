@@ -83,7 +83,7 @@ func (f *frameEncryptor) CapacityLeft() int {
 	return BtnFrameMaxPayload - f.b.Len()
 }
 
-func (f *frameEncryptor) Flush() ([]byte, error) {
+func (f *frameEncryptor) Sync() ([]byte, error) {
 	if f.Written() > BtnFrameMaxPayload {
 		return nil, fmt.Errorf("frame payload size exceeding max len: %d > %d", f.Written(), BtnFrameMaxPayload)
 	}
@@ -124,7 +124,7 @@ func (bew *WriteCloser) flushFrame() error {
 		return nil
 	}
 
-	frame, err := bew.frameEncryptor.Flush()
+	frame, err := bew.frameEncryptor.Sync()
 	if err != nil {
 		return err
 	}

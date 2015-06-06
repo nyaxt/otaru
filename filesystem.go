@@ -251,8 +251,8 @@ func (h *FileHandle) PWrite(offset int64, p []byte) error {
 		return err
 	}
 
-	if h.wc.NeedsFlush() {
-		if err := h.wc.Flush(h.cfio); err != nil {
+	if h.wc.NeedsSync() {
+		if err := h.wc.Sync(h.cfio); err != nil {
 			return err
 		}
 	}
@@ -269,8 +269,8 @@ func (h *FileHandle) PRead(offset int64, p []byte) error {
 	return h.wc.PReadThrough(offset, p, h.cfio)
 }
 
-func (h *FileHandle) Flush() error {
-	return h.wc.Flush(h.cfio)
+func (h *FileHandle) Sync() error {
+	return h.wc.Sync(h.cfio)
 }
 
 func (h *FileHandle) Size() int64 {

@@ -444,7 +444,7 @@ func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
 	return nil
 }
 
-func (ch *ChunkIO) Flush() error {
+func (ch *ChunkIO) Sync() error {
 	if ch.needsHeaderUpdate {
 		if err := ch.header.WriteTo(&blobstore.OffsetWriter{ch.bh, 0}, ch.c); err != nil {
 			return fmt.Errorf("Header write failed: %v", err)
@@ -456,5 +456,5 @@ func (ch *ChunkIO) Flush() error {
 }
 
 func (ch *ChunkIO) Close() error {
-	return ch.Flush()
+	return ch.Sync()
 }
