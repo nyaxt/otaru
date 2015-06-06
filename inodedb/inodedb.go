@@ -112,6 +112,10 @@ func (s *DBState) checkLock(nlock NodeLock, requireTicket bool) error {
 	return nil
 }
 
+func (s *DBState) Version() TxID {
+	return s.version
+}
+
 type INodeCommon struct {
 	ID
 

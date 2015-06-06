@@ -54,13 +54,16 @@ func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c 
 }
 
 func (fs *FileSystem) Sync() error {
+	es := []error{}
+
 	if s, ok := fs.idb.(util.Syncer); ok {
 		if err := s.Sync(); err != nil {
-			return fmt.Errorf("Failed to sync INodeDB: %v", err)
+			es = append(es, fmt.Errorf("Failed to sync INodeDB: %v", err))
 		}
 	}
+	// FIXME: sync active handles
 
-	return nil
+	return util.ToErrors(es)
 }
 
 func (fs *FileSystem) getOrCreateFileWriteCache(id inodedb.ID) *FileWriteCache {
@@ -270,7 +273,10 @@ func (h *FileHandle) PRead(offset int64, p []byte) error {
 }
 
 func (h *FileHandle) Sync() error {
-	return h.wc.Sync(h.cfio)
+	if err := h.wc.Sync(h.cfio); err != nil {
+		return fmt.Errorf("FileWriteCache sync failed: %v", err)
+	}
+	return nil
 }
 
 func (h *FileHandle) Size() int64 {

@@ -100,13 +100,49 @@ func (bh *CachedBlobHandle) writeBack() error {
 	return nil
 }
 
+var _ = util.Syncer(&CachedBlobHandle{})
+
+func (bh *CachedBlobHandle) Sync() error {
+	errC := make(chan error)
+
+	go func() {
+		if bh.isDirty {
+			if err := bh.writeBack(); err != nil {
+				errC <- fmt.Errorf("Failed to writeback dirty: %v", err)
+			} else {
+				errC <- nil
+			}
+		} else {
+			errC <- nil
+		}
+	}()
+
+	go func() {
+		if cs, ok := bh.cachebh.(util.Syncer); ok {
+			if err := cs.Sync(); err != nil {
+				errC <- fmt.Errorf("Failed to sync cache: %v", err)
+			} else {
+				errC <- nil
+			}
+		} else {
+			errC <- nil
+		}
+	}()
+
+	errs := []error{}
+	for i := 0; i < 2; i++ {
+		if err := <-errC; err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return util.ToErrors(errs)
+}
+
 func (bh *CachedBlobHandle) Close() error {
 	errs := []error{}
 
-	if bh.isDirty {
-		if err := bh.writeBack(); err != nil {
-			errs = append(errs, fmt.Errorf("Failed to writeback dirty: %v", err))
-		}
+	if err := bh.Sync(); err != nil {
+		errs = append(errs, fmt.Errorf("Failed to sync: %v", err))
 	}
 
 	if err := bh.cachebh.Close(); err != nil {
