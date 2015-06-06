@@ -3,6 +3,7 @@ package otaru
 import (
 	"fmt"
 	"log"
+	"sync"
 	"syscall"
 
 	"github.com/nyaxt/otaru/blobstore"
@@ -13,6 +14,8 @@ import (
 )
 
 const (
+	EACCES    = syscall.Errno(syscall.EACCES)
+	EBADF     = syscall.Errno(syscall.EBADF)
 	EEXIST    = syscall.Errno(syscall.EEXIST)
 	EISDIR    = syscall.Errno(syscall.EISDIR)
 	ENOENT    = syscall.Errno(syscall.ENOENT)
@@ -34,7 +37,8 @@ type FileSystem struct {
 
 	newChunkedFileIO func(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, caio ChunksArrayIO) blobstore.BlobHandle
 
-	wcmap map[inodedb.ID]*FileWriteCache
+	muOpenFiles sync.Mutex
+	openFiles   map[inodedb.ID]*OpenFile
 }
 
 func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher) *FileSystem {
@@ -47,7 +51,7 @@ func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c 
 			return NewChunkedFileIO(bs, c, caio)
 		},
 
-		wcmap: make(map[inodedb.ID]*FileWriteCache),
+		openFiles: make(map[inodedb.ID]*OpenFile),
 	}
 
 	return fs
@@ -64,15 +68,6 @@ func (fs *FileSystem) Sync() error {
 	// FIXME: sync active handles
 
 	return util.ToErrors(es)
-}
-
-func (fs *FileSystem) getOrCreateFileWriteCache(id inodedb.ID) *FileWriteCache {
-	wc := fs.wcmap[id]
-	if wc == nil {
-		wc = NewFileWriteCache()
-		fs.wcmap[id] = wc
-	}
-	return wc
 }
 
 func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(blobstore.RandomAccessBlobStore, btncrypt.Cipher, ChunksArrayIO) blobstore.BlobHandle) {
@@ -185,55 +180,144 @@ func (fs *FileSystem) IsDir(id inodedb.ID) (bool, error) {
 	return v.GetType() == inodedb.DirNodeT, nil
 }
 
-// FIXME: Multiple FileHandle may exist for same file at once. Support it!
 type FileHandle struct {
+	of    *OpenFile
+	flags int
+}
+
+type OpenFile struct {
 	fs    *FileSystem
 	nlock inodedb.NodeLock
 	wc    *FileWriteCache
 	cfio  blobstore.BlobHandle
+
+	handles []*FileHandle
+
+	mu sync.Mutex
+}
+
+func (fs *FileSystem) getOrCreateOpenFile(id inodedb.ID) *OpenFile {
+	fs.muOpenFiles.Lock()
+	defer fs.muOpenFiles.Unlock()
+
+	of, ok := fs.openFiles[id]
+	if ok {
+		return of
+	}
+	of = &OpenFile{fs: fs, wc: NewFileWriteCache(), handles: make([]*FileHandle, 0, 1)}
+	fs.openFiles[id] = of
+	return of
 }
 
 func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
+	log.Printf("OpenFile(id: %v, flags rok: %t wok: %t)", id, fl.IsReadAllowed(flags), fl.IsWriteAllowed(flags))
+
 	tryLock := fl.IsWriteAllowed(flags)
+	if tryLock && !fl.IsWriteAllowed(fs.bs.Flags()) {
+		return nil, EACCES
+	}
+
+	of := fs.getOrCreateOpenFile(id)
+
+	of.mu.Lock()
+	defer of.mu.Unlock()
+
+	ofIsInitialized := of.nlock.ID != 0
+	if ofIsInitialized && (of.nlock.HasTicket() || !tryLock) {
+		// No need to upgrade lock. Just use cached filehandle.
+		log.Printf("Using cached of for inode id: %v", id)
+		return of.OpenHandleWithoutLock(flags), nil
+	}
+
+	// upgrade lock or acquire new lock...
 	v, nlock, err := fs.idb.QueryNode(id, tryLock)
 	if err != nil {
 		return nil, err
 	}
-	if v.GetType() == inodedb.DirNodeT {
-		return nil, EISDIR
-	}
-	fv, ok := v.(inodedb.FileNodeView)
-	if !ok {
+	if v.GetType() != inodedb.FileNodeT {
+		fs.idb.UnlockNode(nlock)
+
+		if v.GetType() == inodedb.DirNodeT {
+			return nil, EISDIR
+		}
 		return nil, fmt.Errorf("Specified node not file but has type %v", v.GetType())
 	}
 
-	wc := fs.getOrCreateFileWriteCache(id)
-	var caio ChunksArrayIO
-	if tryLock {
-		caio = NewINodeDBChunksArrayIO(fs.idb, nlock, fv)
-	} else {
-		caio = NewReadOnlyINodeDBChunksArrayIO(fs.idb, nlock)
+	of.nlock = nlock
+	caio := NewINodeDBChunksArrayIO(fs.idb, nlock)
+	of.cfio = fs.newChunkedFileIO(fs.bs, fs.c, caio)
+	return of.OpenHandleWithoutLock(flags), nil
+}
+
+func (of *OpenFile) OpenHandleWithoutLock(flags int) *FileHandle {
+	fh := &FileHandle{of: of, flags: flags}
+	of.handles = append(of.handles, fh)
+	return fh
+}
+
+func (of *OpenFile) CloseHandle(tgt *FileHandle) {
+	if tgt.of == nil {
+		log.Printf("Detected FileHandle double close!")
+		return
 	}
-	cfio := fs.newChunkedFileIO(fs.bs, fs.c, caio)
-	return &FileHandle{fs: fs, nlock: nlock, wc: wc, cfio: cfio}, nil
+	if tgt.of != of {
+		log.Fatalf("Attempt to close handle for other OpenFile. tgt fh: %+v, of: %+v", tgt, of)
+		return
+	}
+
+	wasWriteHandle := fl.IsWriteAllowed(tgt.flags)
+	ofHasOtherWriteHandle := false
+
+	tgt.of = nil
+
+	of.mu.Lock()
+	defer of.mu.Unlock()
+
+	// remove tgt from of.handles slice
+	newHandles := make([]*FileHandle, 0, len(of.handles)-1)
+	for _, h := range of.handles {
+		if h != tgt {
+			if fl.IsWriteAllowed(h.flags) {
+				ofHasOtherWriteHandle = true
+			}
+			newHandles = append(newHandles, h)
+		}
+	}
+	of.handles = newHandles
+
+	if wasWriteHandle && !ofHasOtherWriteHandle {
+		of.downgradeToReadLock()
+	}
 }
 
-func (h *FileHandle) ID() inodedb.ID {
-	return h.nlock.ID
+func (of *OpenFile) downgradeToReadLock() {
+	log.Printf("Downgrade %v to read lock.", of)
+	// Note: assumes of.mu is Lock()-ed
+
+	if !of.nlock.HasTicket() {
+		log.Printf("Attempt to downgrade node lock, but no excl lock found. of: %v", of)
+		return
+	}
+
+	of.fs.idb.UnlockNode(of.nlock)
+	of.nlock.Ticket = inodedb.NoTicket
+	caio := NewINodeDBChunksArrayIO(of.fs.idb, of.nlock)
+	of.cfio = of.fs.newChunkedFileIO(of.fs.bs, of.fs.c, caio)
 }
 
-func (h *FileHandle) updateSize(newsize int64) error {
+func (of *OpenFile) updateSizeWithoutLock(newsize int64) error {
 	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
-		&inodedb.UpdateSizeOp{NodeLock: h.nlock, Size: newsize},
+		&inodedb.UpdateSizeOp{NodeLock: of.nlock, Size: newsize},
 	}}
-	if _, err := h.fs.idb.ApplyTransaction(tx); err != nil {
+	if _, err := of.fs.idb.ApplyTransaction(tx); err != nil {
 		return fmt.Errorf("Failed to update FileNode size: %v", err)
 	}
 	return nil
 }
 
-func (h *FileHandle) SizeMayFail() (int64, error) {
-	v, _, err := h.fs.idb.QueryNode(h.nlock.ID, false)
+// sizeMayFailWithoutLock returns file size if succeed. The size query may fail with an error.
+func (of *OpenFile) sizeMayFailWithoutLock() (int64, error) {
+	v, _, err := of.fs.idb.QueryNode(of.nlock.ID, false)
 	if err != nil {
 		return 0, fmt.Errorf("Failed to QueryNode inodedb: %v", err)
 	}
@@ -244,69 +328,121 @@ func (h *FileHandle) SizeMayFail() (int64, error) {
 	return fv.GetSize(), nil
 }
 
-func (h *FileHandle) PWrite(offset int64, p []byte) error {
-	currentSize, err := h.SizeMayFail()
+func (of *OpenFile) PWrite(offset int64, p []byte) error {
+	of.mu.Lock()
+	defer of.mu.Unlock()
+
+	currentSize, err := of.sizeMayFailWithoutLock()
 	if err != nil {
 		return err
 	}
 
-	if err := h.wc.PWrite(offset, p); err != nil {
+	if err := of.wc.PWrite(offset, p); err != nil {
 		return err
 	}
 
-	if h.wc.NeedsSync() {
-		if err := h.wc.Sync(h.cfio); err != nil {
+	if of.wc.NeedsSync() {
+		if err := of.wc.Sync(of.cfio); err != nil {
 			return err
 		}
 	}
 
 	right := offset + int64(len(p))
 	if right > currentSize {
-		return h.updateSize(right)
+		return of.updateSizeWithoutLock(right)
 	}
 
 	return nil
 }
 
-func (h *FileHandle) PRead(offset int64, p []byte) error {
-	return h.wc.PReadThrough(offset, p, h.cfio)
+func (of *OpenFile) PRead(offset int64, p []byte) error {
+	of.mu.Lock()
+	defer of.mu.Unlock()
+
+	return of.wc.PReadThrough(offset, p, of.cfio)
 }
 
-func (h *FileHandle) Sync() error {
-	if err := h.wc.Sync(h.cfio); err != nil {
+func (of *OpenFile) Sync() error {
+	of.mu.Lock()
+	defer of.mu.Unlock()
+
+	if err := of.wc.Sync(of.cfio); err != nil {
 		return fmt.Errorf("FileWriteCache sync failed: %v", err)
 	}
 	return nil
 }
 
-func (h *FileHandle) Size() int64 {
-	v, _, err := h.fs.idb.QueryNode(h.nlock.ID, false)
-	if err != nil {
-		log.Printf("Failed to QueryNode inodedb: %v", err)
-		return 0
-	}
-	fv, ok := v.(inodedb.FileNodeView)
-	if !ok {
-		log.Printf("Non-FileNodeView returned from QueryNode. Type: %v", v.GetType())
-		return 0
-	}
+func (of *OpenFile) Size() int64 {
+	of.mu.Lock()
+	defer of.mu.Unlock()
 
-	return fv.GetSize()
+	size, err := of.sizeMayFailWithoutLock()
+	if err != nil {
+		return 0
+	}
+	return size
 }
 
-func (h *FileHandle) Truncate(newsize int64) error {
-	oldsize, err := h.SizeMayFail()
+func (of *OpenFile) Truncate(newsize int64) error {
+	of.mu.Lock()
+	defer of.mu.Unlock()
+
+	oldsize, err := of.sizeMayFailWithoutLock()
 	if err != nil {
 		return err
 	}
 
 	if newsize > oldsize {
-		return h.updateSize(newsize)
+		return of.updateSizeWithoutLock(newsize)
 	} else if newsize < oldsize {
-		h.wc.Truncate(newsize)
-		h.cfio.Truncate(newsize)
-		return h.updateSize(newsize)
+		of.wc.Truncate(newsize)
+		of.cfio.Truncate(newsize)
+		return of.updateSizeWithoutLock(newsize)
 	} else {
 		return nil
 	}
+}
+
+func (fh *FileHandle) ID() inodedb.ID {
+	return fh.of.nlock.ID
+}
+
+func (fh *FileHandle) PWrite(offset int64, p []byte) error {
+	if !fl.IsWriteAllowed(fh.flags) {
+		return EBADF
+	}
+
+	return fh.of.PWrite(offset, p)
+}
+
+func (fh *FileHandle) PRead(offset int64, p []byte) error {
+	if !fl.IsReadAllowed(fh.flags) {
+		return EBADF
+	}
+
+	return fh.of.PRead(offset, p)
+}
+
+func (fh *FileHandle) Sync() error {
+	if !fl.IsWriteAllowed(fh.flags) {
+		return nil
+	}
+
+	return fh.of.Sync()
+}
+
+func (fh *FileHandle) Size() int64 {
+	return fh.of.Size()
+}
+
+func (fh *FileHandle) Truncate(newsize int64) error {
+	if !fl.IsWriteAllowed(fh.flags) {
+		return EBADF
+	}
+
+	return fh.of.Truncate(newsize)
+}
+
+func (fh *FileHandle) Close() {
+	fh.of.CloseHandle(fh)
 }

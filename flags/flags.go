@@ -1,27 +1,30 @@
 package flags
 
 import (
-	"os"
+	"syscall"
 )
 
 const (
-	O_RDONLY     int = os.O_RDONLY
-	O_WRONLY     int = os.O_WRONLY
-	O_RDWR       int = os.O_RDWR
-	O_CREATE     int = os.O_CREATE
-	O_EXCL       int = os.O_EXCL
+	O_RDONLY     int = syscall.O_RDONLY
+	O_WRONLY     int = syscall.O_WRONLY
+	O_RDWR       int = syscall.O_RDWR
+	O_CREATE     int = syscall.O_CREAT
+	O_EXCL       int = syscall.O_EXCL
 	O_RDWRCREATE int = O_RDWR | O_CREATE
 	O_VALIDMASK  int = O_RDONLY | O_WRONLY | O_RDWR | O_CREATE | O_EXCL
 )
 
 func IsReadAllowed(flags int) bool {
-	return flags&(O_RDWR|O_RDONLY) != 0
+	mode := flags & syscall.O_ACCMODE
+	return mode == O_RDONLY || mode == O_RDWR
 }
 
 func IsWriteAllowed(flags int) bool {
-	return flags&(O_RDWR|O_WRONLY) != 0
+	mode := flags & syscall.O_ACCMODE
+	return mode == O_WRONLY || mode == O_RDWR
 }
 
 func IsReadWriteAllowed(flags int) bool {
-	return flags&O_RDWR != 0
+	mode := flags & syscall.O_ACCMODE
+	return mode == O_RDWR
 }

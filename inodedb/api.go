@@ -29,6 +29,8 @@ type NodeLock struct {
 	// FIXME: add Expire
 }
 
+func (nlock NodeLock) HasTicket() bool { return nlock.Ticket != NoTicket }
+
 type DBHandler interface {
 	// ApplyTransaction applies DBTransaction to db.state, and returns applied transaction's TxID. If it fails to apply the transaction, it rollbacks intermediate state and returns error.
 	ApplyTransaction(tx DBTransaction) (TxID, error)

@@ -84,6 +84,7 @@ func (srv *DBService) run() {
 				log.Printf("unknown request passed to DBService: %v", req)
 			}
 		case <-srv.quitC:
+			// FIXME: ensure that no req is pending
 			srv.exitedC <- struct{}{}
 			return
 		}
