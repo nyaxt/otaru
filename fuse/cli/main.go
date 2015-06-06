@@ -44,9 +44,10 @@ type Otaru struct {
 	GBS *gcs.GCSBlobStore
 	CBS *blobstore.CachedBlobStore
 
-	SIO  *otaru.BlobStoreDBStateSnapshotIO
-	TxIO *datastore.DBTransactionLogIO
-	IDB  *inodedb.DB
+	SIO   *otaru.BlobStoreDBStateSnapshotIO
+	TxIO  *datastore.DBTransactionLogIO
+	IDBBE *inodedb.DB
+	IDBS  *inodedb.DBService
 
 	FS *otaru.FileSystem
 }
@@ -100,20 +101,21 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 	}
 
 	if mkfs {
-		o.IDB, err = inodedb.NewEmptyDB(o.SIO, o.TxIO)
+		o.IDBBE, err = inodedb.NewEmptyDB(o.SIO, o.TxIO)
 		if err != nil {
 			o.Close()
 			return nil, fmt.Errorf("NewEmptyDB failed: %v", err)
 		}
 	} else {
-		o.IDB, err = inodedb.NewDB(o.SIO, o.TxIO)
+		o.IDBBE, err = inodedb.NewDB(o.SIO, o.TxIO)
 		if err != nil {
 			o.Close()
 			return nil, fmt.Errorf("NewDB failed: %v", err)
 		}
 	}
 
-	o.FS = otaru.NewFileSystem(o.IDB, o.CBS, o.C)
+	o.IDBS = inodedb.NewDBService(o.IDBBE)
+	o.FS = otaru.NewFileSystem(o.IDBS, o.CBS, o.C)
 
 	return o, nil
 }
@@ -127,16 +129,17 @@ func (o *Otaru) Close() error {
 		}
 	}
 
-	if o.IDB != nil {
-		if err := o.IDB.Sync(); err != nil {
+	if o.IDBS != nil {
+		o.IDBS.Quit()
+	}
+
+	if o.IDBBE != nil {
+		if err := o.IDBBE.Sync(); err != nil {
 			errs = append(errs, err)
 		}
 	}
 
-	if len(errs) != 0 {
-		return util.Errors(errs)
-	}
-	return nil
+	return util.ToErrors(errs)
 }
 
 func main() {
