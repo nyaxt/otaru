@@ -210,6 +210,8 @@ func (fs *FileSystem) getOrCreateOpenFile(id inodedb.ID) *OpenFile {
 }
 
 func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
+	log.Printf("OpenFile(id: %v, flags rok: %t wok: %t)", id, fl.IsReadAllowed(flags), fl.IsWriteAllowed(flags))
+
 	tryLock := fl.IsWriteAllowed(flags)
 	if tryLock && !fl.IsWriteAllowed(fs.bs.Flags()) {
 		return nil, EACCES
@@ -221,38 +223,28 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	defer of.mu.Unlock()
 
 	ofIsInitialized := of.nlock.ID != 0
-	if !ofIsInitialized && (of.nlock.HasTicket() || !tryLock) {
+	if ofIsInitialized && (of.nlock.HasTicket() || !tryLock) {
 		// No need to upgrade lock. Just use cached filehandle.
+		log.Printf("Using cached of for inode id: %v", id)
 		return of.OpenHandleWithoutLock(flags), nil
 	}
 
 	// upgrade lock or acquire new lock...
-	if of.nlock.HasTicket() {
-		fmt.Printf("ASSERT fail: \"of\" must not have an lock here.")
-		fs.idb.UnlockNode(of.nlock)
-	}
-
 	v, nlock, err := fs.idb.QueryNode(id, tryLock)
 	if err != nil {
 		return nil, err
 	}
-	if v.GetType() == inodedb.DirNodeT {
+	if v.GetType() != inodedb.FileNodeT {
 		fs.idb.UnlockNode(nlock)
-		return nil, EISDIR
-	}
-	fv, ok := v.(inodedb.FileNodeView)
-	if !ok {
-		fs.idb.UnlockNode(nlock)
+
+		if v.GetType() == inodedb.DirNodeT {
+			return nil, EISDIR
+		}
 		return nil, fmt.Errorf("Specified node not file but has type %v", v.GetType())
 	}
 
 	of.nlock = nlock
-	var caio ChunksArrayIO
-	if tryLock {
-		caio = NewINodeDBChunksArrayIO(fs.idb, nlock, fv)
-	} else {
-		caio = NewReadOnlyINodeDBChunksArrayIO(fs.idb, nlock)
-	}
+	caio := NewINodeDBChunksArrayIO(fs.idb, nlock)
 	of.cfio = fs.newChunkedFileIO(fs.bs, fs.c, caio)
 	return of.OpenHandleWithoutLock(flags), nil
 }
@@ -299,6 +291,7 @@ func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 }
 
 func (of *OpenFile) downgradeToReadLock() {
+	log.Printf("Downgrade %v to read lock.", of)
 	// Note: assumes of.mu is Lock()-ed
 
 	if !of.nlock.HasTicket() {
@@ -308,7 +301,7 @@ func (of *OpenFile) downgradeToReadLock() {
 
 	of.fs.idb.UnlockNode(of.nlock)
 	of.nlock.Ticket = inodedb.NoTicket
-	caio := NewReadOnlyINodeDBChunksArrayIO(of.fs.idb, of.nlock)
+	caio := NewINodeDBChunksArrayIO(of.fs.idb, of.nlock)
 	of.cfio = of.fs.newChunkedFileIO(of.fs.bs, of.fs.c, caio)
 }
 

@@ -23,7 +23,6 @@ const (
 type ChunksArrayIO interface {
 	Read() ([]inodedb.FileChunk, error)
 	Write(cs []inodedb.FileChunk) error
-	Close() error
 }
 
 type ChunkedFileIO struct {
@@ -264,6 +263,7 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 		}
 	}
 
+	log.Printf("cs: %+v", cs)
 	return fmt.Errorf("Attempt to read over file size by %d", len(remp))
 }
 

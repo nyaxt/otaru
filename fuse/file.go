@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru"
+	oflags "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 
 	bfuse "bazil.org/fuse"
@@ -40,10 +41,37 @@ func (n FileNode) Attr(a *bfuse.Attr) {
 }
 
 func Bazil2OtaruFlags(bf bfuse.OpenFlags) int {
-	return int(bf) // FIXME
+	ret := 0
+	if bf.IsReadOnly() {
+		ret = oflags.O_RDONLY
+	} else if bf.IsWriteOnly() {
+		ret = oflags.O_WRONLY
+	} else if bf.IsReadWrite() {
+		ret = oflags.O_RDWR
+	}
+
+	if bf&bfuse.OpenAppend != 0 {
+		log.Printf("FIXME: Append not supported yet !!!!!!!!!!!")
+	}
+	if bf&bfuse.OpenCreate != 0 {
+		ret |= oflags.O_CREATE
+	}
+	if bf&bfuse.OpenExclusive != 0 {
+		ret |= oflags.O_EXCL
+	}
+	if bf&bfuse.OpenSync != 0 {
+		log.Printf("FIXME: OpenSync not supported yet !!!!!!!!!!!")
+	}
+	if bf&bfuse.OpenTruncate != 0 {
+		log.Printf("FIXME: OpenTruncate not supported yet !!!!!!!!!!!")
+	}
+
+	return ret
 }
 
 func (n FileNode) Open(ctx context.Context, req *bfuse.OpenRequest, resp *bfuse.OpenResponse) (bfs.Handle, error) {
+	log.Printf("Open flags: %s", req.Flags.String())
+
 	fh, err := n.fs.OpenFile(n.id, Bazil2OtaruFlags(req.Flags))
 	if err != nil {
 		return nil, err
