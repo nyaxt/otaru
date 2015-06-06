@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	fl "github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/util"
 )
 
 const (
@@ -100,23 +101,31 @@ func (bh *CachedBlobHandle) writeBack() error {
 }
 
 func (bh *CachedBlobHandle) Close() error {
+	errs := []error{}
+
 	if bh.isDirty {
 		if err := bh.writeBack(); err != nil {
-			return err
+			errs = append(errs, fmt.Errorf("Failed to writeback dirty: %v", err))
 		}
 	}
 
 	if err := bh.cachebh.Close(); err != nil {
-		return err
+		errs = append(errs, fmt.Errorf("Failed to close cachebh: %v", err))
 	}
-	return nil
+
+	return util.ToErrors(errs)
 }
 
 func (cbs *CachedBlobStore) invalidateCache(blobpath string) error {
 	backendr, err := cbs.backendbs.OpenReader(blobpath)
 	if err != nil {
-		return fmt.Errorf("Failed to open backend blob: %v", err)
+		return fmt.Errorf("Failed to open backend blob for cache invalidation: %v", err)
 	}
+	defer func() {
+		if err := backendr.Close(); err != nil {
+			log.Printf("Failed to close backend blob reader for cache invalidation: %v", err)
+		}
+	}()
 
 	bs, ok := cbs.cachebs.(BlobStore)
 	if !ok {
@@ -124,14 +133,13 @@ func (cbs *CachedBlobStore) invalidateCache(blobpath string) error {
 	}
 
 	cachew, err := bs.OpenWriter(blobpath)
+	defer func() {
+		if err := cachew.Close(); err != nil {
+			log.Printf("Failed to close cache blob writer for cache invalidation: %v", err)
+		}
+	}()
 	if _, err := io.Copy(cachew, backendr); err != nil {
 		return fmt.Errorf("Failed to copy blob from backend: %v", err)
-	}
-	if err := backendr.Close(); err != nil {
-		return fmt.Errorf("Failed to close backend blob reader: %v", err)
-	}
-	if err := cachew.Close(); err != nil {
-		return fmt.Errorf("Failed to close cache blob writer: %v", err)
 	}
 
 	// FIXME: check integrity here?
@@ -154,14 +162,20 @@ func (cbs *CachedBlobStore) queryBackendVersion(blobpath string) (BlobVersion, e
 
 	r, err := cbs.backendbs.OpenReader(blobpath)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to open backend blob: %v", err)
+		if err == ENOENT {
+			cbs.ensureBEVerCache()[blobpath] = 0
+			return 0, nil
+		}
+		return -1, fmt.Errorf("Failed to open backend blob for ver query: %v", err)
 	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			log.Printf("Failed to close backend blob handle for querying version: %v", err)
+		}
+	}()
 	ver, err := cbs.queryVersion(r)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to query backend blob ver: %v", err)
-	}
-	if err := r.Close(); err != nil {
-		return -1, fmt.Errorf("Failed to close backend blob handle for querying version: %v", err)
 	}
 
 	cbs.ensureBEVerCache()[blobpath] = ver
@@ -196,7 +210,6 @@ func (cbs *CachedBlobStore) Open(blobpath string, flags int) (BlobHandle, error)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open cache blob: %v", err)
 	}
-
 	cachever, err := cbs.queryVersion(&OffsetReader{cachebh, 0})
 	if err != nil {
 		return nil, fmt.Errorf("Failed to query cached blob ver: %v", err)

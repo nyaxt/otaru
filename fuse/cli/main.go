@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 
 	bfuse "bazil.org/fuse"
 
@@ -119,17 +118,6 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 	return o, nil
 }
 
-type OtaruCloseErrors []error
-
-func (errs OtaruCloseErrors) Error() string {
-	errstrs := make([]string, len(errs))
-	for i, e := range errs {
-		errstrs[i] = e.Error()
-	}
-
-	return "Errors: [" + strings.Join(errstrs, ", ") + "]"
-}
-
 func (o *Otaru) Close() error {
 	errs := []error{}
 
@@ -146,12 +134,14 @@ func (o *Otaru) Close() error {
 	}
 
 	if len(errs) != 0 {
-		return OtaruCloseErrors(errs)
+		return util.Errors(errs)
 	}
 	return nil
 }
 
 func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
 	flag.Usage = Usage
 	flag.Parse()
 

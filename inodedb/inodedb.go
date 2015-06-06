@@ -253,7 +253,7 @@ func NewEmptyDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) (*DB, 
 		return nil, fmt.Errorf("Failed to initilaize db: %v", err)
 	}
 	if err := db.Sync(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to sync db: %v", err)
 	}
 	return db, nil
 }

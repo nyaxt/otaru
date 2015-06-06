@@ -108,3 +108,31 @@ func TestCachedBlobStore_Invalidate(t *testing.T) {
 		return
 	}
 }
+
+func TestCachedBlobStore_NewEntry(t *testing.T) {
+	backendbs := tu.TestFileBlobStoreOfName("backend")
+	cachebs := tu.TestFileBlobStoreOfName("cache")
+
+	bs, err := blobstore.NewCachedBlobStore(backendbs, cachebs, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	if err != nil {
+		t.Errorf("Failed to create CachedBlobStore: %v", err)
+		return
+	}
+
+	if err := tu.WriteVersionedBlobRA(bs, "newentry", 1); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := tu.AssertBlobVersionRA(bs, "newentry", 1); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := tu.AssertBlobVersion(cachebs, "newentry", 1); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := tu.AssertBlobVersion(backendbs, "newentry", 1); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+}

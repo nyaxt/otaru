@@ -68,7 +68,14 @@ func (w *Writer) Close() error {
 
 func (bs *GCSBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
 	ctx := bs.newAuthedContext(context.TODO())
-	return storage.NewReader(ctx, bs.bucketName, blobpath)
+	rc, err := storage.NewReader(ctx, bs.bucketName, blobpath)
+	if err != nil {
+		if err == storage.ErrObjectNotExist {
+			return nil, blobstore.ENOENT
+		}
+		return nil, err
+	}
+	return rc, nil
 }
 
 func (bs *GCSBlobStore) Flags() int {

@@ -107,6 +107,7 @@ func NewChunkIO(bh blobstore.BlobHandle, c btncrypt.Cipher) *ChunkIO {
 func NewChunkIOWithMetadata(bh blobstore.BlobHandle, c btncrypt.Cipher, h ChunkHeader) *ChunkIO {
 	ch := NewChunkIO(bh, c)
 	ch.header = h
+	ch.header.PayloadVersion = 1
 	return ch
 }
 
@@ -116,11 +117,6 @@ func (ch *ChunkIO) ensureHeader() error {
 	}
 
 	if ch.bh.Size() == 0 {
-		w := &blobstore.OffsetWriter{ch.bh, 0}
-		if err := ch.header.WriteTo(w, ch.c); err != nil {
-			return fmt.Errorf("Failed to init header/prologue: %v", err)
-		}
-
 		ch.didReadHeader = true
 		return nil
 	}

@@ -113,5 +113,12 @@ func (f *FileBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
 	}
 
 	realpath := path.Join(f.base, blobpath)
-	return os.Open(realpath)
+	rc, err := os.Open(realpath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ENOENT
+		}
+		return nil, err
+	}
+	return rc, nil
 }
