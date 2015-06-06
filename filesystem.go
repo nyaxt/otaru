@@ -211,7 +211,7 @@ func (fs *FileSystem) getOrCreateOpenFile(id inodedb.ID) *OpenFile {
 
 func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	tryLock := fl.IsWriteAllowed(flags)
-	if tryLock && fl.IsWriteAllowed(fs.bs.Flags()) {
+	if tryLock && !fl.IsWriteAllowed(fs.bs.Flags()) {
 		return nil, EACCES
 	}
 
@@ -426,6 +426,7 @@ func (fh *FileHandle) PRead(offset int64, p []byte) error {
 	if !fl.IsReadAllowed(fh.flags) {
 		return EBADF
 	}
+
 	return fh.of.PRead(offset, p)
 }
 
