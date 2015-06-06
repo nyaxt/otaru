@@ -35,9 +35,9 @@ func NewBlobStoreDBStateSnapshotIO(bs blobstore.RandomAccessBlobStore, c btncryp
 func (sio *BlobStoreDBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
 	currVer := s.Version()
 	if sio.snapshotVer > currVer {
-		fmt.Printf("SaveSnapshot: ASSERT fail: snapshot version %d newer than current ver %d", sio.snapshotVer, currVer)
+		log.Printf("SaveSnapshot: ASSERT fail: snapshot version %d newer than current ver %d", sio.snapshotVer, currVer)
 	} else if sio.snapshotVer == currVer {
-		fmt.Printf("SaveSnapshot: Current ver %d is already snapshotted. No-op.", sio.snapshotVer)
+		log.Printf("SaveSnapshot: Current ver %d is already snapshotted. No-op.", sio.snapshotVer)
 		return nil
 	}
 
@@ -114,5 +114,6 @@ func (sio *BlobStoreDBStateSnapshotIO) RestoreSnapshot() (*inodedb.DBState, erro
 	if err := util.ToErrors(es); err != nil {
 		return nil, err
 	}
+	sio.snapshotVer = state.Version()
 	return state, nil
 }
