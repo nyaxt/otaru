@@ -80,6 +80,10 @@ func (srv *DBService) run() {
 				} else {
 					req.resultC <- nlock
 				}
+			case *DBUnlockNodeRequest:
+				req := req.(*DBUnlockNodeRequest)
+				err := srv.h.UnlockNode(req.nlock)
+				req.resultC <- err
 			default:
 				log.Printf("unknown request passed to DBService: %v", req)
 			}
