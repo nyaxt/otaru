@@ -85,7 +85,18 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		if err != nil {
 			return fmt.Errorf("Failed to open path \"%s\" for writing (isNewChunk: %t): %v", c.BlobPath, isNewChunk, err)
 		}
+		defer func() {
+			if err := bh.Close(); err != nil {
+				log.Printf("blobhandle Close failed: %v", err)
+			}
+		}()
+
 		cio := cfio.newChunkIO(bh, cfio.c)
+		defer func() {
+			if err := cio.Close(); err != nil {
+				log.Printf("cio Close failed: %v", err)
+			}
+		}()
 
 		coff := remo - c.Offset
 		n := IntMin(len(remp), int(maxChunkLen-coff))
@@ -93,9 +104,6 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 			return nil
 		}
 		if err := cio.PWrite(coff, remp[:n]); err != nil {
-			return err
-		}
-		if err := cio.Close(); err != nil {
 			return err
 		}
 		oldLength := c.Length
@@ -245,13 +253,21 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 		if err != nil {
 			return fmt.Errorf("Failed to open path \"%s\" for reading: %v", c.BlobPath, err)
 		}
+		defer func() {
+			if err := bh.Close(); err != nil {
+				log.Printf("blobhandle Close failed: %v", err)
+			}
+		}()
+
 		cio := cfio.newChunkIO(bh, cfio.c)
+		defer func() {
+			if err := cio.Close(); err != nil {
+				log.Printf("cio Close failed: %v", err)
+			}
+		}()
 
 		n := Int64Min(int64(len(p)), c.Length-coff)
 		if err := cio.PRead(coff, remp[:n]); err != nil {
-			return err
-		}
-		if err := cio.Close(); err != nil {
 			return err
 		}
 
