@@ -90,7 +90,7 @@ func (wc *FileWriteCache) Sync(bh blobstore.BlobHandle) error {
 			return err
 		}
 	}
-	wc.ps = wc.ps[:0]
+	wc.ps = wc.ps.Reset()
 
 	return nil
 }

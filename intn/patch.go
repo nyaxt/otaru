@@ -130,3 +130,7 @@ func (ps Patches) Truncate(size int64) Patches {
 
 	return NewPatches()
 }
+
+func (ps Patches) Reset() Patches {
+	return append(ps[:0], PatchSentinel)
+}
