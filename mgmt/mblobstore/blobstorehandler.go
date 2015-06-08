@@ -7,7 +7,9 @@ import (
 	"github.com/nyaxt/otaru/mgmt"
 )
 
-type BlobStoreHandler struct{}
+type BlobStoreHandler struct {
+	cbs *blobstore.CachedBlobStore
+}
 
 func Install(srv *mgmt.Server) {
 	rtr := srv.APIRouter().PathPrefix("/blobstore").Subrouter()
