@@ -25,7 +25,7 @@ type FileNode struct {
 	id inodedb.ID
 }
 
-func (n FileNode) Attr(a *bfuse.Attr) {
+func (n FileNode) Attr(ctx context.Context, a *bfuse.Attr) error {
 	attr, err := n.fs.Attr(n.id)
 	if err != nil {
 		panic("fs.Attr failed for FileNode")
@@ -38,6 +38,7 @@ func (n FileNode) Attr(a *bfuse.Attr) {
 	a.Ctime = time.Now()
 	a.Crtime = time.Now()
 	a.Size = uint64(attr.Size)
+	return nil
 }
 
 func Bazil2OtaruFlags(bf bfuse.OpenFlags) int {

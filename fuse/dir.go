@@ -19,7 +19,7 @@ type DirNode struct {
 	id inodedb.ID
 }
 
-func (d DirNode) Attr(a *bfuse.Attr) {
+func (d DirNode) Attr(ctx context.Context, a *bfuse.Attr) error {
 	log.Printf("DirNode Attr id: %d", d.id)
 
 	attr, err := d.fs.Attr(d.id)
@@ -34,6 +34,7 @@ func (d DirNode) Attr(a *bfuse.Attr) {
 	a.Ctime = time.Now()
 	a.Crtime = time.Now()
 	a.Size = uint64(attr.Size)
+	return nil
 }
 
 func (d DirNode) Lookup(ctx context.Context, name string) (bfs.Node, error) {
