@@ -13,6 +13,7 @@ import (
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/gcloud/gcs"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/mgmt"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -30,7 +31,8 @@ type Otaru struct {
 	IDBBE *inodedb.DB
 	IDBS  *inodedb.DBService
 
-	FS *otaru.FileSystem
+	FS   *otaru.FileSystem
+	MGMT *mgmt.Server
 }
 
 func NewOtaru(mkfs bool, password string, projectName string, bucketName string, cacheDir string, localDebug bool) (*Otaru, error) {
@@ -106,6 +108,12 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 
 	o.IDBS = inodedb.NewDBService(o.IDBBE)
 	o.FS = otaru.NewFileSystem(o.IDBS, o.CBS, o.C)
+	o.MGMT = mgmt.NewServer()
+	o.setupMgmtAPIs()
+	if err := o.runMgmtServer(); err != nil {
+		o.Close()
+		return nil, fmt.Errorf("Mgmt server run failed: %v", err)
+	}
 
 	return o, nil
 }

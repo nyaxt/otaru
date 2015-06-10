@@ -1,6 +1,7 @@
 package flags
 
 import (
+	"bytes"
 	"syscall"
 )
 
@@ -27,4 +28,30 @@ func IsWriteAllowed(flags int) bool {
 func IsReadWriteAllowed(flags int) bool {
 	mode := flags & syscall.O_ACCMODE
 	return mode == O_RDWR
+}
+
+func IsCreateAllowed(flags int) bool {
+	return flags&O_CREATE != 0
+}
+
+func IsCreateExclusive(flags int) bool {
+	return IsCreateAllowed(flags) && flags&O_EXCL != 0
+}
+
+func FlagsToString(flags int) string {
+	var b bytes.Buffer
+	if IsReadAllowed(flags) {
+		b.WriteString("R")
+	}
+	if IsWriteAllowed(flags) {
+		b.WriteString("W")
+	}
+	if IsCreateAllowed(flags) {
+		b.WriteString("C")
+	}
+	if IsCreateExclusive(flags) {
+		b.WriteString("X")
+	}
+
+	return b.String()
 }
