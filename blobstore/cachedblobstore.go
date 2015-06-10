@@ -100,6 +100,8 @@ func (bh *CachedBlobHandle) writeBack() error {
 	return nil
 }
 
+func (bh *CachedBlobHandle) IsDirty() bool { return bh.isDirty }
+
 var _ = util.Syncer(&CachedBlobHandle{})
 
 func (bh *CachedBlobHandle) Sync() error {
