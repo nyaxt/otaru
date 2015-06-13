@@ -46,6 +46,10 @@ func TestCachedBlobStore(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
+	if err := bs.Sync(); err != nil {
+		t.Errorf("Sync failed: %v", err)
+		return
+	}
 
 	if err := tu.AssertBlobVersionRA(bs, "backendonly", 10); err != nil {
 		t.Errorf("%v", err)
@@ -99,6 +103,11 @@ func TestCachedBlobStore_Invalidate(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
+
+	if err := bs.Sync(); err != nil {
+		t.Errorf("Sync failed: %v", err)
+		return
+	}
 	if err := tu.AssertBlobVersion(cachebs, "backendnewer", 4); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -125,6 +134,10 @@ func TestCachedBlobStore_NewEntry(t *testing.T) {
 	}
 	if err := tu.AssertBlobVersionRA(bs, "newentry", 1); err != nil {
 		t.Errorf("%v", err)
+		return
+	}
+	if err := bs.Sync(); err != nil {
+		t.Errorf("Sync failed: %v", err)
 		return
 	}
 	if err := tu.AssertBlobVersion(cachebs, "newentry", 1); err != nil {
