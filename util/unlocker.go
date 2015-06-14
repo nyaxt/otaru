@@ -4,13 +4,13 @@ import (
 	"sync"
 )
 
-type EnsureUnlocker struct{ lk sync.Locker }
+type EnsureUnlocker struct{ L sync.Locker }
 
 func (eu *EnsureUnlocker) Unlock() {
-	if eu.lk == nil {
+	if eu.L == nil {
 		return
 	}
 
-	eu.lk.Unlock()
-	eu.lk = nil
+	eu.L.Unlock()
+	eu.L = nil
 }

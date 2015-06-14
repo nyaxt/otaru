@@ -6,6 +6,7 @@ import (
 	"log"
 	"sync"
 	"syscall"
+	"time"
 
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/util"
@@ -41,7 +42,9 @@ type CachedBlobEntry struct {
 	blobpath string
 	cachebh  BlobHandle
 
-	isDirty bool
+	isDirty   bool
+	lastWrite time.Time
+	lastSync  time.Time
 
 	handles map[*CachedBlobHandle]struct{}
 }
@@ -71,6 +74,22 @@ func (be *CachedBlobEntry) PRead(offset int64, p []byte) error {
 	return be.cachebh.PRead(offset, p)
 }
 
+func (be *CachedBlobEntry) LastWrite() time.Time { return be.lastWrite }
+func (be *CachedBlobEntry) LastSync() time.Time  { return be.lastSync }
+
+func (be *CachedBlobEntry) markDirty() {
+	be.lastWrite = time.Now()
+
+	if be.isDirty {
+		return
+	}
+
+	be.isDirty = true
+	if be.lastSync.IsZero() {
+		be.lastSync = time.Now()
+	}
+}
+
 func (be *CachedBlobEntry) PWrite(offset int64, p []byte) error {
 	be.mu.Lock()
 	defer be.mu.Unlock()
@@ -78,7 +97,7 @@ func (be *CachedBlobEntry) PWrite(offset int64, p []byte) error {
 	if len(p) == 0 {
 		return nil
 	}
-	be.isDirty = true
+	be.markDirty()
 	return be.cachebh.PWrite(offset, p)
 }
 
@@ -93,7 +112,7 @@ func (be *CachedBlobEntry) Truncate(newsize int64) error {
 	if be.cachebh.Size() == newsize {
 		return nil
 	}
-	be.isDirty = true
+	be.markDirty()
 	return be.cachebh.Truncate(newsize)
 }
 
@@ -104,6 +123,8 @@ func (be *CachedBlobEntry) writeBack() error {
 
 	be.mu.Lock()
 	defer be.mu.Unlock()
+
+	be.lastSync = time.Now()
 
 	cachever, err := be.cbs.queryVersion(&OffsetReader{be.cachebh, 0})
 	if err != nil {
@@ -167,6 +188,70 @@ func (be *CachedBlobEntry) Sync() error {
 		}
 	}
 	return util.ToErrors(errs)
+}
+
+func (cbs *CachedBlobStore) Sync() error {
+	cbs.mu.Lock()
+	defer cbs.mu.Unlock()
+
+	errs := []error{}
+	for blobpath, be := range cbs.entries {
+		log.Printf("Sync entry: %+v", be)
+
+		if err := be.Sync(); err != nil {
+			errs = append(errs, fmt.Errorf("Failed to sync \"%s\": %v", blobpath, err))
+		}
+	}
+	return util.ToErrors(errs)
+}
+
+const (
+	syncTimeoutDuration  = 300 * time.Second
+	writeTimeoutDuration = 30 * time.Second
+)
+
+func (cbs *CachedBlobStore) chooseSyncEntry() *CachedBlobEntry {
+	cbs.mu.Lock()
+	eu := util.EnsureUnlocker{&cbs.mu}
+	defer eu.Unlock()
+
+	// Sync priorities:
+	//   1. >300 sec since last sync
+	//   2. >30 sec since last write
+
+	now := time.Now()
+
+	var oldestSync, oldestWrite *CachedBlobEntry
+	oldestSyncT := now
+	oldestWriteT := now
+
+	for _, be := range cbs.entries {
+		if oldestSyncT.After(be.LastSync()) {
+			oldestSyncT = be.LastSync()
+			oldestSync = be
+		}
+		if oldestWriteT.After(be.LastWrite()) {
+			oldestWriteT = be.LastWrite()
+			oldestWrite = be
+		}
+	}
+
+	if now.Sub(oldestWriteT) > writeTimeoutDuration {
+		return oldestWrite
+	}
+	if now.Sub(oldestSyncT) > syncTimeoutDuration {
+		return oldestSync
+	}
+	return nil
+}
+
+func (cbs *CachedBlobStore) SyncOneEntry() error {
+	be := cbs.chooseSyncEntry()
+	if be == nil {
+		return ENOENT
+	}
+
+	return be.Sync()
 }
 
 func (cbs *CachedBlobStore) invalidateCache(blobpath string) error {
@@ -322,21 +407,6 @@ func (cbs *CachedBlobStore) Flags() int {
 type CachedBlobHandle struct {
 	be    *CachedBlobEntry
 	flags int
-}
-
-func (cbs *CachedBlobStore) Sync() error {
-	cbs.mu.Lock()
-	defer cbs.mu.Unlock()
-
-	errs := []error{}
-	for blobpath, be := range cbs.entries {
-		log.Printf("Sync entry: %+v", be)
-
-		if err := be.Sync(); err != nil {
-			errs = append(errs, fmt.Errorf("Failed to sync \"%s\": %v", blobpath, err))
-		}
-	}
-	return util.ToErrors(errs)
 }
 
 func (bh *CachedBlobHandle) PRead(offset int64, p []byte) error {
