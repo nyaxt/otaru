@@ -35,6 +35,8 @@ type CachedBlobStore struct {
 	entries map[string]*CachedBlobEntry
 }
 
+const maxEntries = 512
+
 type CachedBlobEntry struct {
 	mu sync.Mutex
 
@@ -42,7 +44,9 @@ type CachedBlobEntry struct {
 	blobpath string
 	cachebh  BlobHandle
 
-	isDirty   bool
+	isDirty bool
+
+	lastUsed  time.Time
 	lastWrite time.Time
 	lastSync  time.Time
 	syncCount int
@@ -53,6 +57,8 @@ type CachedBlobEntry struct {
 func (be *CachedBlobEntry) OpenHandle(flags int) *CachedBlobHandle {
 	be.mu.Lock()
 	defer be.mu.Unlock()
+
+	be.lastUsed = time.Now()
 
 	bh := &CachedBlobHandle{be, flags}
 	be.handles[bh] = struct{}{}
@@ -72,6 +78,8 @@ func (be *CachedBlobEntry) PRead(offset int64, p []byte) error {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
+	be.lastUsed = time.Now()
+
 	return be.cachebh.PRead(offset, p)
 }
 
@@ -79,7 +87,9 @@ func (be *CachedBlobEntry) LastWrite() time.Time { return be.lastWrite }
 func (be *CachedBlobEntry) LastSync() time.Time  { return be.lastSync }
 
 func (be *CachedBlobEntry) markDirty() {
-	be.lastWrite = time.Now()
+	now := time.Now()
+	be.lastUsed = now
+	be.lastWrite = now
 
 	if be.isDirty {
 		return
@@ -196,6 +206,7 @@ type CachedBlobEntryInfo struct {
 	BlobPath              string    `json:"blobpath"`
 	IsDirty               bool      `json:"is_dirty"`
 	SyncCount             int       `json:"sync_count"`
+	LastUsed              time.Time `json:"last_used"`
 	LastWrite             time.Time `json:"last_write"`
 	LastSync              time.Time `json:"last_sync"`
 	NumberOfHandles       int       `json:"number_of_handles"`
@@ -217,6 +228,7 @@ func (be *CachedBlobEntry) Info() *CachedBlobEntryInfo {
 		BlobPath:              be.blobpath,
 		IsDirty:               be.isDirty,
 		SyncCount:             be.syncCount,
+		LastUsed:              be.lastUsed,
 		LastWrite:             be.lastWrite,
 		LastSync:              be.lastSync,
 		NumberOfHandles:       len(be.handles),
