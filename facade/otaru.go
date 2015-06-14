@@ -25,6 +25,7 @@ type Otaru struct {
 	FBS *blobstore.FileBlobStore
 	BBS blobstore.BlobStore
 	CBS *blobstore.CachedBlobStore
+	CSS *blobstore.CacheSyncScheduler
 
 	SIO   *otaru.BlobStoreDBStateSnapshotIO
 	TxIO  inodedb.DBTransactionLogIO
@@ -78,6 +79,7 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 		o.Close()
 		return nil, fmt.Errorf("Failed to init CachedBlobStore: %v", err)
 	}
+	o.CSS = blobstore.NewCacheSyncScheduler(o.CBS)
 
 	o.SIO = otaru.NewBlobStoreDBStateSnapshotIO(o.CBS, o.C)
 
@@ -135,6 +137,10 @@ func (o *Otaru) Close() error {
 		if err := o.IDBBE.Sync(); err != nil {
 			errs = append(errs, err)
 		}
+	}
+
+	if o.CSS != nil {
+		o.CSS.Stop()
 	}
 
 	return util.ToErrors(errs)

@@ -27,4 +27,14 @@ func Install(srv *mgmt.Server, cbs *blobstore.CachedBlobStore) {
 		}
 		w.Write(b)
 	})
+
+	rtr.HandleFunc("/entries", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "json")
+		entries := cbs.DumpEntriesInfo()
+		b, err := json.Marshal(entries)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		w.Write(b)
+	})
 }

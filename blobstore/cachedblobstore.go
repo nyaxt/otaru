@@ -45,6 +45,7 @@ type CachedBlobEntry struct {
 	isDirty   bool
 	lastWrite time.Time
 	lastSync  time.Time
+	syncCount int
 
 	handles map[*CachedBlobHandle]struct{}
 }
@@ -124,6 +125,7 @@ func (be *CachedBlobEntry) writeBack() error {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
+	be.syncCount++
 	be.lastSync = time.Now()
 
 	cachever, err := be.cbs.queryVersion(&OffsetReader{be.cachebh, 0})
@@ -190,6 +192,38 @@ func (be *CachedBlobEntry) Sync() error {
 	return util.ToErrors(errs)
 }
 
+type CachedBlobEntryInfo struct {
+	BlobPath              string    `json:"blobpath"`
+	IsDirty               bool      `json:"is_dirty"`
+	SyncCount             int       `json:"sync_count"`
+	LastWrite             time.Time `json:"last_write"`
+	LastSync              time.Time `json:"last_sync"`
+	NumberOfHandles       int       `json:"number_of_handles"`
+	NumberOfWriterHandles int       `json:"number_of_writer_handles"`
+}
+
+func (be *CachedBlobEntry) Info() *CachedBlobEntryInfo {
+	be.mu.Lock()
+	defer be.mu.Unlock()
+
+	numWriters := 0
+	for h, _ := range be.handles {
+		if fl.IsWriteAllowed(h.Flags()) {
+			numWriters++
+		}
+	}
+
+	return &CachedBlobEntryInfo{
+		BlobPath:              be.blobpath,
+		IsDirty:               be.isDirty,
+		SyncCount:             be.syncCount,
+		LastWrite:             be.lastWrite,
+		LastSync:              be.lastSync,
+		NumberOfHandles:       len(be.handles),
+		NumberOfWriterHandles: numWriters,
+	}
+}
+
 func (cbs *CachedBlobStore) Sync() error {
 	cbs.mu.Lock()
 	defer cbs.mu.Unlock()
@@ -207,7 +241,7 @@ func (cbs *CachedBlobStore) Sync() error {
 
 const (
 	syncTimeoutDuration  = 300 * time.Second
-	writeTimeoutDuration = 30 * time.Second
+	writeTimeoutDuration = 3 * time.Second
 )
 
 func (cbs *CachedBlobStore) chooseSyncEntry() *CachedBlobEntry {
@@ -217,7 +251,7 @@ func (cbs *CachedBlobStore) chooseSyncEntry() *CachedBlobEntry {
 
 	// Sync priorities:
 	//   1. >300 sec since last sync
-	//   2. >30 sec since last write
+	//   2. >3 sec since last write
 
 	now := time.Now()
 
@@ -226,6 +260,10 @@ func (cbs *CachedBlobStore) chooseSyncEntry() *CachedBlobEntry {
 	oldestWriteT := now
 
 	for _, be := range cbs.entries {
+		if !be.IsDirty() {
+			continue
+		}
+
 		if oldestSyncT.After(be.LastSync()) {
 			oldestSyncT = be.LastSync()
 			oldestSync = be
@@ -335,6 +373,21 @@ func NewCachedBlobStore(backendbs BlobStore, cachebs RandomAccessBlobStore, flag
 	}, nil
 }
 
+func (cbs *CachedBlobStore) Flags() int {
+	return cbs.flags
+}
+
+func (cbs *CachedBlobStore) DumpEntriesInfo() []*CachedBlobEntryInfo {
+	cbs.mu.Lock()
+	defer cbs.mu.Unlock()
+
+	infos := make([]*CachedBlobEntryInfo, 0, len(cbs.entries))
+	for _, be := range cbs.entries {
+		infos = append(infos, be.Info())
+	}
+	return infos
+}
+
 func (cbs *CachedBlobStore) openCacheEntry(blobpath string) (*CachedBlobEntry, error) {
 	cbs.mu.Lock()
 	defer cbs.mu.Unlock() // FIXME: maybe release this earlier
@@ -400,14 +453,12 @@ func (cbs *CachedBlobStore) Open(blobpath string, flags int) (BlobHandle, error)
 	return be.OpenHandle(flags), nil
 }
 
-func (cbs *CachedBlobStore) Flags() int {
-	return cbs.flags
-}
-
 type CachedBlobHandle struct {
 	be    *CachedBlobEntry
 	flags int
 }
+
+func (bh *CachedBlobHandle) Flags() int { return bh.flags }
 
 func (bh *CachedBlobHandle) PRead(offset int64, p []byte) error {
 	if !fl.IsReadAllowed(bh.flags) {
