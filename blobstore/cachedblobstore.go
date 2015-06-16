@@ -22,6 +22,210 @@ type BlobVersion int64
 
 type QueryVersionFunc func(r io.Reader) (BlobVersion, error)
 
+type CachedBlobEntriesManager struct {
+	reqC chan interface{}
+
+	entries map[string]*CachedBlobEntry
+}
+
+type SyncAllRequest struct {
+	resultC chan error
+}
+
+type ChooseSyncEntryRequest struct {
+	resultC chan *CachedBlobEntry
+}
+
+type DumpEntriesInfoRequest struct {
+	resultC chan []*CachedBlobEntryInfo
+}
+
+type OpenEntryRequest struct {
+	blobpath string
+	resultC  chan interface{}
+}
+
+func NewCachedBlobEntriesManager() CachedBlobEntriesManager {
+	return CachedBlobEntriesManager{
+		reqC:    make(chan interface{}),
+		entries: make(map[string]*CachedBlobEntry),
+	}
+}
+
+func (mgr *CachedBlobEntriesManager) Run() {
+	for req := range mgr.reqC {
+		switch req.(type) {
+		case *SyncAllRequest:
+			req := req.(*SyncAllRequest)
+			req.resultC <- mgr.doSyncAll()
+		case *ChooseSyncEntryRequest:
+			req := req.(*ChooseSyncEntryRequest)
+			req.resultC <- mgr.doChooseSyncEntry()
+		case *DumpEntriesInfoRequest:
+			req := req.(*DumpEntriesInfoRequest)
+			req.resultC <- mgr.doDumpEntriesInfo()
+		case *OpenEntryRequest:
+			req := req.(*OpenEntryRequest)
+			be, err := mgr.doOpenEntry(req.blobpath)
+			if err != nil {
+				req.resultC <- err
+			} else {
+				req.resultC <- be
+			}
+		}
+	}
+}
+
+func (mgr *CachedBlobEntriesManager) doSyncAll() error {
+	errs := []error{}
+	for blobpath, be := range mgr.entries {
+		if err := be.Sync(); err != nil {
+			errs = append(errs, fmt.Errorf("Failed to sync \"%s\": %v", blobpath, err))
+		}
+	}
+	return util.ToErrors(errs)
+}
+
+func (mgr *CachedBlobEntriesManager) SyncAll() error {
+	req := &SyncAllRequest{resultC: make(chan error)}
+	mgr.reqC <- req
+	return <-req.resultC
+}
+
+func (mgr *CachedBlobEntriesManager) doChooseSyncEntry() *CachedBlobEntry {
+	// Sync priorities:
+	//   1. >300 sec since last sync
+	//   2. >3 sec since last write
+
+	now := time.Now()
+
+	var oldestSync, oldestWrite *CachedBlobEntry
+	oldestSyncT := now
+	oldestWriteT := now
+
+	for _, be := range mgr.entries {
+		if be.state == cacheEntryDirty {
+			continue
+		}
+
+		if oldestSyncT.After(be.LastSync()) {
+			oldestSyncT = be.LastSync()
+			oldestSync = be
+		}
+		if oldestWriteT.After(be.LastWrite()) {
+			oldestWriteT = be.LastWrite()
+			oldestWrite = be
+		}
+	}
+
+	if now.Sub(oldestWriteT) > writeTimeoutDuration {
+		return oldestWrite
+	}
+	if now.Sub(oldestSyncT) > syncTimeoutDuration {
+		return oldestSync
+	}
+	return nil
+}
+
+func (mgr *CachedBlobEntriesManager) ChooseSyncEntry() *CachedBlobEntry {
+	req := &ChooseSyncEntryRequest{resultC: make(chan *CachedBlobEntry)}
+	mgr.reqC <- req
+	return <-req.resultC
+}
+
+func (mgr *CachedBlobEntriesManager) doDumpEntriesInfo() []*CachedBlobEntryInfo {
+	infos := make([]*CachedBlobEntryInfo, 0, len(mgr.entries))
+	for _, be := range mgr.entries {
+		infos = append(infos, be.Info())
+	}
+	return infos
+}
+
+func (mgr *CachedBlobEntriesManager) DumpEntriesInfo() []*CachedBlobEntryInfo {
+	req := &DumpEntriesInfoRequest{resultC: make(chan []*CachedBlobEntryInfo)}
+	mgr.reqC <- req
+	return <-req.resultC
+}
+
+func (mgr *CachedBlobEntriesManager) doOpenEntry(blobpath string) (*CachedBlobEntry, error) {
+	be, ok := mgr.entries[blobpath]
+	if ok {
+		return be, nil
+	}
+
+	if err := mgr.closeOldCacheEntriesIfNeeded(); err != nil {
+		return be, err
+	}
+
+	be = &CachedBlobEntry{state: cacheEntryUninitialized, blobpath: blobpath}
+	mgr.entries[blobpath] = be
+	return be, nil
+}
+
+func (mgr *CachedBlobEntriesManager) OpenEntry(blobpath string) (*CachedBlobEntry, error) {
+	req := &OpenEntryRequest{
+		blobpath: blobpath,
+		resultC:  make(chan interface{}),
+	}
+	mgr.reqC <- req
+	res := <-req.resultC
+	if err, ok := res.(error); ok {
+		return nil, err
+	}
+	return res.(*CachedBlobEntry), nil
+}
+
+func (mgr *CachedBlobEntriesManager) tryCloseEntry(be *CachedBlobEntry) {
+	if err := be.Close(); err != nil {
+		log.Printf("Failed to close cache entry \"%s\": %v", be.blobpath, err)
+		return
+	}
+
+	delete(mgr.entries, be.blobpath)
+}
+
+const inactiveCloseTimeout = 10 * time.Second
+
+func (mgr *CachedBlobEntriesManager) closeOldCacheEntriesIfNeeded() error {
+	if len(mgr.entries) <= maxEntries {
+		return nil
+	}
+
+	threshold := time.Now().Add(-inactiveCloseTimeout)
+
+	oldEntries := make([]*CachedBlobEntry, 0)
+	var oldestEntry *CachedBlobEntry
+
+	for _, be := range mgr.entries {
+		if len(be.handles) != 0 {
+			continue
+		}
+
+		if oldestEntry == nil || be.lastUsed.Before(oldestEntry.lastUsed) {
+			oldestEntry = be
+		}
+		if be.lastUsed.Before(threshold) {
+			oldEntries = append(oldEntries, be)
+		}
+	}
+
+	for _, be := range oldEntries {
+		mgr.tryCloseEntry(be)
+	}
+
+	if len(mgr.entries) > maxEntries {
+		if oldestEntry != nil {
+			mgr.tryCloseEntry(oldestEntry)
+		}
+	}
+
+	if len(mgr.entries) > maxEntries {
+		return ENFILE // give up
+	}
+
+	return nil
+}
+
 type CachedBlobStore struct {
 	backendbs BlobStore
 	cachebs   RandomAccessBlobStore
@@ -33,10 +237,38 @@ type CachedBlobStore struct {
 	queryVersion QueryVersionFunc
 	beVerCache   map[string]BlobVersion
 
-	entries map[string]*CachedBlobEntry
+	entriesmgr CachedBlobEntriesManager
 }
 
 const maxEntries = 128
+
+type cacheEntryState int
+
+const (
+	cacheEntryUninitialized cacheEntryState = iota
+	cacheEntryClean         cacheEntryState = iota
+	cacheEntryDirty         cacheEntryState = iota
+	cacheEntryClosed        cacheEntryState = iota
+)
+
+func (s cacheEntryState) IsActive() bool {
+	return s == cacheEntryClean || s == cacheEntryDirty
+}
+
+func (s cacheEntryState) String() string {
+	switch s {
+	case cacheEntryUninitialized:
+		return "cacheEntryUninitialized"
+	case cacheEntryClean:
+		return "cacheEntryClean"
+	case cacheEntryDirty:
+		return "cacheEntryDirty"
+	case cacheEntryClosed:
+		return "cacheEntryClosed"
+	default:
+		return "<unknown cacheEntryState>"
+	}
+}
 
 type CachedBlobEntry struct {
 	mu sync.Mutex
@@ -45,8 +277,7 @@ type CachedBlobEntry struct {
 	blobpath string
 	cachebh  BlobHandle
 
-	isDirty  bool
-	isClosed bool
+	state cacheEntryState
 
 	lastUsed  time.Time
 	lastWrite time.Time
@@ -56,9 +287,58 @@ type CachedBlobEntry struct {
 	handles map[*CachedBlobHandle]struct{}
 }
 
-func (be *CachedBlobEntry) OpenHandle(flags int) (*CachedBlobHandle, error) {
+func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
+	cachebh, err := cbs.cachebs.Open(be.blobpath, fl.O_RDWRCREATE)
+	if err != nil {
+		return fmt.Errorf("Failed to open cache blob: %v", err)
+	}
+	cachever, err := cbs.queryVersion(&OffsetReader{cachebh, 0})
+	if err != nil {
+		return fmt.Errorf("Failed to query cached blob ver: %v", err)
+	}
+	backendver, err := cbs.queryBackendVersion(be.blobpath)
+	if err != nil {
+		return err
+	}
+
+	be.cbs = cbs
+	be.cachebh = cachebh
+	be.handles = make(map[*CachedBlobHandle]struct{})
+
+	if cachever > backendver {
+		log.Printf("FIXME: cache is newer than backend when open")
+		be.state = cacheEntryDirty
+	} else if cachever == backendver {
+		// ok
+	} else {
+		if err := cbs.invalidateCache(be.blobpath); err != nil {
+			return err
+		}
+
+		// reopen cachebh
+		if err := be.cachebh.Close(); err != nil {
+			return fmt.Errorf("Failed to close cache blob for re-opening: %v", err)
+		}
+		var err error
+		be.cachebh, err = cbs.cachebs.Open(be.blobpath, fl.O_RDWRCREATE)
+		if err != nil {
+			return fmt.Errorf("Failed to reopen cache blob: %v", err)
+		}
+	}
+
+	be.state = cacheEntryClean
+	return nil
+}
+
+func (be *CachedBlobEntry) OpenHandle(cbs *CachedBlobStore, flags int) (*CachedBlobHandle, error) {
 	be.mu.Lock()
 	defer be.mu.Unlock()
+
+	if be.state == cacheEntryUninitialized {
+		if err := be.initializeWithLock(cbs); err != nil {
+			return nil, err
+		}
+	}
 
 	be.lastUsed = time.Now()
 
@@ -88,16 +368,19 @@ func (be *CachedBlobEntry) PRead(offset int64, p []byte) error {
 func (be *CachedBlobEntry) LastWrite() time.Time { return be.lastWrite }
 func (be *CachedBlobEntry) LastSync() time.Time  { return be.lastSync }
 
-func (be *CachedBlobEntry) markDirty() {
+func (be *CachedBlobEntry) markDirtyWithLock() {
 	now := time.Now()
 	be.lastUsed = now
 	be.lastWrite = now
 
-	if be.isDirty {
+	if be.state == cacheEntryDirty {
 		return
 	}
+	if be.state != cacheEntryClean {
+		log.Fatalf("markDirty called from unexpected state: %+v", be.infoWithLock())
+	}
+	be.state = cacheEntryDirty
 
-	be.isDirty = true
 	if be.lastSync.IsZero() {
 		be.lastSync = time.Now()
 	}
@@ -110,7 +393,7 @@ func (be *CachedBlobEntry) PWrite(offset int64, p []byte) error {
 	if len(p) == 0 {
 		return nil
 	}
-	be.markDirty()
+	be.markDirtyWithLock()
 	return be.cachebh.PWrite(offset, p)
 }
 
@@ -118,7 +401,7 @@ func (be *CachedBlobEntry) Size() int64 {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
-	if be.isClosed {
+	if !be.state.IsActive() {
 		return 0
 	}
 
@@ -132,12 +415,12 @@ func (be *CachedBlobEntry) Truncate(newsize int64) error {
 	if be.cachebh.Size() == newsize {
 		return nil
 	}
-	be.markDirty()
+	be.markDirtyWithLock()
 	return be.cachebh.Truncate(newsize)
 }
 
 func (be *CachedBlobEntry) writeBackWithLock() error {
-	if !be.isDirty {
+	if be.state != cacheEntryDirty {
 		return nil
 	}
 
@@ -150,20 +433,20 @@ func (be *CachedBlobEntry) writeBackWithLock() error {
 	if err != nil {
 		return fmt.Errorf("Failed to open backend blob writer: %v", err)
 	}
+	defer func() {
+		if err := w.Close(); err != nil {
+			fmt.Printf("Failed to close backend blob writer: %v", err)
+		}
+	}()
 	r := io.LimitReader(&OffsetReader{be.cachebh, 0}, be.Size())
 	if _, err := io.Copy(w, r); err != nil {
 		return fmt.Errorf("Failed to copy dirty data to backend blob writer: %v", err)
 	}
-	if err := w.Close(); err != nil {
-		return fmt.Errorf("Failed to close backend blob writer: %v", err)
-	}
 
 	be.cbs.beVerCache[be.blobpath] = cachever
-	be.isDirty = false
+	be.state = cacheEntryClean
 	return nil
 }
-
-func (be *CachedBlobEntry) IsDirty() bool { return be.isDirty }
 
 var _ = util.Syncer(&CachedBlobEntry{})
 
@@ -171,8 +454,11 @@ func (be *CachedBlobEntry) Sync() error {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
-	if be.IsClosed {
-		log.Printf("Attempted to sync already closed entry: %+v", be.infoWithLock())
+	if !be.state.IsActive() {
+		log.Printf("Attempted to sync already uninitialized/closed entry: %+v", be.infoWithLock())
+		return nil
+	}
+	if be.state == cacheEntryClean {
 		return nil
 	}
 
@@ -181,12 +467,8 @@ func (be *CachedBlobEntry) Sync() error {
 	errC := make(chan error)
 
 	go func() {
-		if be.isDirty {
-			if err := be.writeBackWithLock(); err != nil {
-				errC <- fmt.Errorf("Failed to writeback dirty: %v", err)
-			} else {
-				errC <- nil
-			}
+		if err := be.writeBackWithLock(); err != nil {
+			errC <- fmt.Errorf("Failed to writeback dirty: %v", err)
 		} else {
 			errC <- nil
 		}
@@ -220,8 +502,8 @@ func (be *CachedBlobEntry) Close() error {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
-	if be.IsClosed {
-		log.Printf("Attempted to close already closed entry: %+v", be.infoWithLock())
+	if !be.state.IsActive() {
+		log.Printf("Attempted to close uninitialized/already closed entry: %+v", be.infoWithLock())
 		return nil
 	}
 
@@ -235,16 +517,15 @@ func (be *CachedBlobEntry) Close() error {
 		return fmt.Errorf("Failed to close cache bh: %v", err)
 	}
 
-	be.IsClosed = true
+	be.state = cacheEntryClosed
 	be.syncCount++
 	be.lastSync = time.Now()
-	return util.ToErrors(errs)
+	return nil
 }
 
 type CachedBlobEntryInfo struct {
 	BlobPath              string    `json:"blobpath"`
-	IsDirty               bool      `json:"is_dirty"`
-	IsClosed              bool      `json:"is_closed"`
+	State                 string    `json:"is_closed"`
 	SyncCount             int       `json:"sync_count"`
 	LastUsed              time.Time `json:"last_used"`
 	LastWrite             time.Time `json:"last_write"`
@@ -263,8 +544,7 @@ func (be *CachedBlobEntry) infoWithLock() *CachedBlobEntryInfo {
 
 	return &CachedBlobEntryInfo{
 		BlobPath:              be.blobpath,
-		IsDirty:               be.isDirty,
-		IsClosed:              be.isClosed,
+		State:                 be.state.String(),
 		SyncCount:             be.syncCount,
 		LastUsed:              be.lastUsed,
 		LastWrite:             be.lastWrite,
@@ -282,16 +562,7 @@ func (be *CachedBlobEntry) Info() *CachedBlobEntryInfo {
 }
 
 func (cbs *CachedBlobStore) Sync() error {
-	cbs.mu.Lock()
-	defer cbs.mu.Unlock()
-
-	errs := []error{}
-	for blobpath, be := range cbs.entries {
-		if err := be.Sync(); err != nil {
-			errs = append(errs, fmt.Errorf("Failed to sync \"%s\": %v", blobpath, err))
-		}
-	}
-	return util.ToErrors(errs)
+	return cbs.entriesmgr.SyncAll()
 }
 
 const (
@@ -299,46 +570,8 @@ const (
 	writeTimeoutDuration = 3 * time.Second
 )
 
-func (cbs *CachedBlobStore) chooseSyncEntry() *CachedBlobEntry {
-	cbs.mu.Lock()
-	defer cbs.mu.Unlock()
-
-	// Sync priorities:
-	//   1. >300 sec since last sync
-	//   2. >3 sec since last write
-
-	now := time.Now()
-
-	var oldestSync, oldestWrite *CachedBlobEntry
-	oldestSyncT := now
-	oldestWriteT := now
-
-	for _, be := range cbs.entries {
-		if !be.IsDirty() {
-			continue
-		}
-
-		if oldestSyncT.After(be.LastSync()) {
-			oldestSyncT = be.LastSync()
-			oldestSync = be
-		}
-		if oldestWriteT.After(be.LastWrite()) {
-			oldestWriteT = be.LastWrite()
-			oldestWrite = be
-		}
-	}
-
-	if now.Sub(oldestWriteT) > writeTimeoutDuration {
-		return oldestWrite
-	}
-	if now.Sub(oldestSyncT) > syncTimeoutDuration {
-		return oldestSync
-	}
-	return nil
-}
-
 func (cbs *CachedBlobStore) SyncOneEntry() error {
-	be := cbs.chooseSyncEntry()
+	be := cbs.entriesmgr.ChooseSyncEntry()
 	if be == nil {
 		return ENOENT
 	}
@@ -417,136 +650,20 @@ func NewCachedBlobStore(backendbs BlobStore, cachebs RandomAccessBlobStore, flag
 		return nil, fmt.Errorf("CachedBlobStore requested, but cachebs doesn't allow writes")
 	}
 
-	return &CachedBlobStore{
+	cbs := &CachedBlobStore{
 		backendbs:    backendbs,
 		cachebs:      cachebs,
 		flags:        flags,
 		queryVersion: queryVersion,
 		beVerCache:   make(map[string]BlobVersion),
-		entries:      make(map[string]*CachedBlobEntry),
-	}, nil
+		entriesmgr:   NewCachedBlobEntriesManager(),
+	}
+	go cbs.entriesmgr.Run()
+	return cbs, nil
 }
 
 func (cbs *CachedBlobStore) Flags() int {
 	return cbs.flags
-}
-
-func (cbs *CachedBlobStore) DumpEntriesInfo() []*CachedBlobEntryInfo {
-	cbs.mu.Lock()
-	defer cbs.mu.Unlock()
-
-	infos := make([]*CachedBlobEntryInfo, 0, len(cbs.entries))
-	for _, be := range cbs.entries {
-		infos = append(infos, be.Info())
-	}
-	return infos
-}
-
-func (cbs *CachedBlobStore) openCacheEntry(blobpath string) (*CachedBlobEntry, error) {
-	cbs.mu.Lock()
-	defer cbs.mu.Unlock()
-
-	be, ok := cbs.entries[blobpath]
-	if ok {
-		return be, nil
-	}
-
-	if len(cbs.entries) > maxEntries {
-		if err := cbs.closeOldCacheEntriesWithLock(); err != nil {
-			return be, err
-		}
-	}
-
-	cachebh, err := cbs.cachebs.Open(blobpath, fl.O_RDWRCREATE)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to open cache blob: %v", err)
-	}
-	cachever, err := cbs.queryVersion(&OffsetReader{cachebh, 0})
-	if err != nil {
-		return nil, fmt.Errorf("Failed to query cached blob ver: %v", err)
-	}
-	backendver, err := cbs.queryBackendVersion(blobpath)
-	if err != nil {
-		return nil, err
-	}
-
-	be = &CachedBlobEntry{
-		cbs: cbs, blobpath: blobpath, cachebh: cachebh,
-		isDirty: false, isClosed: false,
-		handles: make(map[*CachedBlobHandle]struct{}),
-	}
-	if cachever > backendver {
-		log.Printf("FIXME: cache is newer than backend when open")
-		be.isDirty = true
-	} else if cachever == backendver {
-		// ok
-	} else {
-		if err := cbs.invalidateCache(blobpath); err != nil {
-			return nil, err
-		}
-
-		// reopen cachebh
-		if err := be.cachebh.Close(); err != nil {
-			return nil, fmt.Errorf("Failed to close cache blob for re-opening: %v", err)
-		}
-		var err error
-		be.cachebh, err = cbs.cachebs.Open(blobpath, fl.O_RDWRCREATE)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to reopen cache blob: %v", err)
-		}
-	}
-
-	cbs.entries[blobpath] = be
-	return be, nil
-}
-
-func (cbs *CachedBlobStore) tryCloseEntryWithLock(be *CachedBlobEntry) {
-	// Note: This func assumes that cbs.mu is already taken
-	if err := be.Close(); err != nil {
-		log.Printf("Failed to close cache entry \"%s\": %v", be.blobpath, err)
-		return
-	}
-
-	delete(cbs.entries, be.blobpath)
-}
-
-const inactiveCloseTimeout = 10 * time.Second
-
-func (cbs *CachedBlobStore) closeOldCacheEntriesWithLock() error {
-	// Note: This func assumes that cbs.mu is already taken
-	threshold := time.Now().Add(-inactiveCloseTimeout)
-
-	oldEntries := make([]*CachedBlobEntry, 0)
-	var oldestEntry *CachedBlobEntry
-
-	for _, be := range cbs.entries {
-		if len(be.handles) != 0 {
-			continue
-		}
-
-		if oldestEntry == nil || be.lastUsed.Before(oldestEntry.lastUsed) {
-			oldestEntry = be
-		}
-		if be.lastUsed.Before(threshold) {
-			oldEntries = append(oldEntries, be)
-		}
-	}
-
-	for _, be := range oldEntries {
-		cbs.tryCloseEntryWithLock(be)
-	}
-
-	if len(cbs.entries) > maxEntries {
-		if oldestEntry != nil {
-			cbs.tryCloseEntry(oldestEntry)
-		}
-	}
-
-	if len(cbs.entries) > maxEntries {
-		return ENFILE // give up
-	}
-
-	return nil
 }
 
 func (cbs *CachedBlobStore) Open(blobpath string, flags int) (BlobHandle, error) {
@@ -554,12 +671,15 @@ func (cbs *CachedBlobStore) Open(blobpath string, flags int) (BlobHandle, error)
 		return nil, EPERM
 	}
 
-	be, err := cbs.openCacheEntry(blobpath)
+	be, err := cbs.entriesmgr.OpenEntry(blobpath)
 	if err != nil {
 		return nil, err
 	}
+	return be.OpenHandle(cbs, flags)
+}
 
-	return be.OpenHandle(flags), nil
+func (cbs *CachedBlobStore) DumpEntriesInfo() []*CachedBlobEntryInfo {
+	return cbs.entriesmgr.DumpEntriesInfo()
 }
 
 type CachedBlobHandle struct {
