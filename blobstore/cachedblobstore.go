@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	EPERM = syscall.Errno(syscall.EPERM)
+	EPERM  = syscall.Errno(syscall.EPERM)
+	ENFILE = syscall.Errno(syscall.ENFILE)
 )
 
 // FIXME: handle overflows
@@ -35,7 +36,7 @@ type CachedBlobStore struct {
 	entries map[string]*CachedBlobEntry
 }
 
-const maxEntries = 512
+const maxEntries = 128
 
 type CachedBlobEntry struct {
 	mu sync.Mutex
@@ -44,7 +45,8 @@ type CachedBlobEntry struct {
 	blobpath string
 	cachebh  BlobHandle
 
-	isDirty bool
+	isDirty  bool
+	isClosed bool
 
 	lastUsed  time.Time
 	lastWrite time.Time
@@ -54,7 +56,7 @@ type CachedBlobEntry struct {
 	handles map[*CachedBlobHandle]struct{}
 }
 
-func (be *CachedBlobEntry) OpenHandle(flags int) *CachedBlobHandle {
+func (be *CachedBlobEntry) OpenHandle(flags int) (*CachedBlobHandle, error) {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
@@ -63,7 +65,7 @@ func (be *CachedBlobEntry) OpenHandle(flags int) *CachedBlobHandle {
 	bh := &CachedBlobHandle{be, flags}
 	be.handles[bh] = struct{}{}
 
-	return bh
+	return bh, nil
 }
 
 func (be *CachedBlobEntry) CloseHandle(bh *CachedBlobHandle) {
@@ -113,6 +115,13 @@ func (be *CachedBlobEntry) PWrite(offset int64, p []byte) error {
 }
 
 func (be *CachedBlobEntry) Size() int64 {
+	be.mu.Lock()
+	defer be.mu.Unlock()
+
+	if be.isClosed {
+		return 0
+	}
+
 	return be.cachebh.Size()
 }
 
@@ -127,16 +136,10 @@ func (be *CachedBlobEntry) Truncate(newsize int64) error {
 	return be.cachebh.Truncate(newsize)
 }
 
-func (be *CachedBlobEntry) writeBack() error {
+func (be *CachedBlobEntry) writeBackWithLock() error {
 	if !be.isDirty {
 		return nil
 	}
-
-	be.mu.Lock()
-	defer be.mu.Unlock()
-
-	be.syncCount++
-	be.lastSync = time.Now()
 
 	cachever, err := be.cbs.queryVersion(&OffsetReader{be.cachebh, 0})
 	if err != nil {
@@ -165,13 +168,21 @@ func (be *CachedBlobEntry) IsDirty() bool { return be.isDirty }
 var _ = util.Syncer(&CachedBlobEntry{})
 
 func (be *CachedBlobEntry) Sync() error {
-	// don't need to lock be.mu here. writeBack() will take it.
+	be.mu.Lock()
+	defer be.mu.Unlock()
+
+	if be.IsClosed {
+		log.Printf("Attempted to sync already closed entry: %+v", be.infoWithLock())
+		return nil
+	}
+
+	log.Printf("Sync entry: %+v", be.infoWithLock())
 
 	errC := make(chan error)
 
 	go func() {
 		if be.isDirty {
-			if err := be.writeBack(); err != nil {
+			if err := be.writeBackWithLock(); err != nil {
 				errC <- fmt.Errorf("Failed to writeback dirty: %v", err)
 			} else {
 				errC <- nil
@@ -184,7 +195,7 @@ func (be *CachedBlobEntry) Sync() error {
 	go func() {
 		if cs, ok := be.cachebh.(util.Syncer); ok {
 			if err := cs.Sync(); err != nil {
-				errC <- fmt.Errorf("Failed to sync cache: %v", err)
+				errC <- fmt.Errorf("Failed to sync cache blob: %v", err)
 			} else {
 				errC <- nil
 			}
@@ -199,12 +210,41 @@ func (be *CachedBlobEntry) Sync() error {
 			errs = append(errs, err)
 		}
 	}
+
+	be.syncCount++
+	be.lastSync = time.Now()
+	return util.ToErrors(errs)
+}
+
+func (be *CachedBlobEntry) Close() error {
+	be.mu.Lock()
+	defer be.mu.Unlock()
+
+	if be.IsClosed {
+		log.Printf("Attempted to close already closed entry: %+v", be.infoWithLock())
+		return nil
+	}
+
+	log.Printf("Close entry: %+v", be.infoWithLock())
+
+	if err := be.writeBackWithLock(); err != nil {
+		return fmt.Errorf("Failed to writeback dirty: %v", err)
+	}
+
+	if err := be.cachebh.Close(); err != nil {
+		return fmt.Errorf("Failed to close cache bh: %v", err)
+	}
+
+	be.IsClosed = true
+	be.syncCount++
+	be.lastSync = time.Now()
 	return util.ToErrors(errs)
 }
 
 type CachedBlobEntryInfo struct {
 	BlobPath              string    `json:"blobpath"`
 	IsDirty               bool      `json:"is_dirty"`
+	IsClosed              bool      `json:"is_closed"`
 	SyncCount             int       `json:"sync_count"`
 	LastUsed              time.Time `json:"last_used"`
 	LastWrite             time.Time `json:"last_write"`
@@ -213,10 +253,7 @@ type CachedBlobEntryInfo struct {
 	NumberOfWriterHandles int       `json:"number_of_writer_handles"`
 }
 
-func (be *CachedBlobEntry) Info() *CachedBlobEntryInfo {
-	be.mu.Lock()
-	defer be.mu.Unlock()
-
+func (be *CachedBlobEntry) infoWithLock() *CachedBlobEntryInfo {
 	numWriters := 0
 	for h, _ := range be.handles {
 		if fl.IsWriteAllowed(h.Flags()) {
@@ -227,6 +264,7 @@ func (be *CachedBlobEntry) Info() *CachedBlobEntryInfo {
 	return &CachedBlobEntryInfo{
 		BlobPath:              be.blobpath,
 		IsDirty:               be.isDirty,
+		IsClosed:              be.isClosed,
 		SyncCount:             be.syncCount,
 		LastUsed:              be.lastUsed,
 		LastWrite:             be.lastWrite,
@@ -236,14 +274,19 @@ func (be *CachedBlobEntry) Info() *CachedBlobEntryInfo {
 	}
 }
 
+func (be *CachedBlobEntry) Info() *CachedBlobEntryInfo {
+	be.mu.Lock()
+	defer be.mu.Unlock()
+
+	return be.infoWithLock()
+}
+
 func (cbs *CachedBlobStore) Sync() error {
 	cbs.mu.Lock()
 	defer cbs.mu.Unlock()
 
 	errs := []error{}
 	for blobpath, be := range cbs.entries {
-		log.Printf("Sync entry: %+v", be)
-
 		if err := be.Sync(); err != nil {
 			errs = append(errs, fmt.Errorf("Failed to sync \"%s\": %v", blobpath, err))
 		}
@@ -258,8 +301,7 @@ const (
 
 func (cbs *CachedBlobStore) chooseSyncEntry() *CachedBlobEntry {
 	cbs.mu.Lock()
-	eu := util.EnsureUnlocker{&cbs.mu}
-	defer eu.Unlock()
+	defer cbs.mu.Unlock()
 
 	// Sync priorities:
 	//   1. >300 sec since last sync
@@ -402,11 +444,17 @@ func (cbs *CachedBlobStore) DumpEntriesInfo() []*CachedBlobEntryInfo {
 
 func (cbs *CachedBlobStore) openCacheEntry(blobpath string) (*CachedBlobEntry, error) {
 	cbs.mu.Lock()
-	defer cbs.mu.Unlock() // FIXME: maybe release this earlier
+	defer cbs.mu.Unlock()
 
 	be, ok := cbs.entries[blobpath]
 	if ok {
 		return be, nil
+	}
+
+	if len(cbs.entries) > maxEntries {
+		if err := cbs.closeOldCacheEntriesWithLock(); err != nil {
+			return be, err
+		}
 	}
 
 	cachebh, err := cbs.cachebs.Open(blobpath, fl.O_RDWRCREATE)
@@ -424,7 +472,7 @@ func (cbs *CachedBlobStore) openCacheEntry(blobpath string) (*CachedBlobEntry, e
 
 	be = &CachedBlobEntry{
 		cbs: cbs, blobpath: blobpath, cachebh: cachebh,
-		isDirty: false,
+		isDirty: false, isClosed: false,
 		handles: make(map[*CachedBlobHandle]struct{}),
 	}
 	if cachever > backendver {
@@ -450,6 +498,55 @@ func (cbs *CachedBlobStore) openCacheEntry(blobpath string) (*CachedBlobEntry, e
 
 	cbs.entries[blobpath] = be
 	return be, nil
+}
+
+func (cbs *CachedBlobStore) tryCloseEntryWithLock(be *CachedBlobEntry) {
+	// Note: This func assumes that cbs.mu is already taken
+	if err := be.Close(); err != nil {
+		log.Printf("Failed to close cache entry \"%s\": %v", be.blobpath, err)
+		return
+	}
+
+	delete(cbs.entries, be.blobpath)
+}
+
+const inactiveCloseTimeout = 10 * time.Second
+
+func (cbs *CachedBlobStore) closeOldCacheEntriesWithLock() error {
+	// Note: This func assumes that cbs.mu is already taken
+	threshold := time.Now().Add(-inactiveCloseTimeout)
+
+	oldEntries := make([]*CachedBlobEntry, 0)
+	var oldestEntry *CachedBlobEntry
+
+	for _, be := range cbs.entries {
+		if len(be.handles) != 0 {
+			continue
+		}
+
+		if oldestEntry == nil || be.lastUsed.Before(oldestEntry.lastUsed) {
+			oldestEntry = be
+		}
+		if be.lastUsed.Before(threshold) {
+			oldEntries = append(oldEntries, be)
+		}
+	}
+
+	for _, be := range oldEntries {
+		cbs.tryCloseEntryWithLock(be)
+	}
+
+	if len(cbs.entries) > maxEntries {
+		if oldestEntry != nil {
+			cbs.tryCloseEntry(oldestEntry)
+		}
+	}
+
+	if len(cbs.entries) > maxEntries {
+		return ENFILE // give up
+	}
+
+	return nil
 }
 
 func (cbs *CachedBlobStore) Open(blobpath string, flags int) (BlobHandle, error) {
