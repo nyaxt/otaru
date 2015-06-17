@@ -438,7 +438,7 @@ func (be *CachedBlobEntry) writeBackWithLock() error {
 			fmt.Printf("Failed to close backend blob writer: %v", err)
 		}
 	}()
-	r := io.LimitReader(&OffsetReader{be.cachebh, 0}, be.Size())
+	r := io.LimitReader(&OffsetReader{be.cachebh, 0}, be.cachebh.Size())
 	if _, err := io.Copy(w, r); err != nil {
 		return fmt.Errorf("Failed to copy dirty data to backend blob writer: %v", err)
 	}
