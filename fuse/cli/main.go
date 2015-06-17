@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path"
+	"syscall"
 
 	bfuse "bazil.org/fuse"
 
@@ -57,9 +59,26 @@ func main() {
 		log.Printf("NewOtaru failed: %v", err)
 		os.Exit(1)
 	}
-	defer func() {
-		if err := o.Close(); err != nil {
-			log.Printf("Otaru.Close() returned errs: %v", err)
+	closeOtaruAndExit := func() {
+		if err := bfuse.Unmount(mountpoint); err != nil {
+			log.Printf("umount err: %v", err)
+		}
+		if o != nil {
+			if err := o.Close(); err != nil {
+				log.Printf("Otaru.Close() returned errs: %v", err)
+			}
+		}
+		os.Exit(0)
+	}
+	defer closeOtaruAndExit()
+
+	sigC := make(chan os.Signal, 1)
+	signal.Notify(sigC, os.Interrupt)
+	signal.Notify(sigC, syscall.SIGTERM)
+	go func() {
+		for s := range sigC {
+			log.Printf("Received signal: %v", s)
+			closeOtaruAndExit()
 		}
 	}()
 
@@ -69,4 +88,5 @@ func main() {
 	if err := fuse.ServeFUSE(mountpoint, o.FS, nil); err != nil {
 		log.Fatalf("ServeFUSE failed: %v", err)
 	}
+	log.Printf("ServeFUSE end!")
 }
