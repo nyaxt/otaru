@@ -258,15 +258,15 @@ func (s cacheEntryState) IsActive() bool {
 func (s cacheEntryState) String() string {
 	switch s {
 	case cacheEntryUninitialized:
-		return "cacheEntryUninitialized"
+		return "Uninitialized"
 	case cacheEntryClean:
-		return "cacheEntryClean"
+		return "Clean"
 	case cacheEntryDirty:
-		return "cacheEntryDirty"
+		return "Dirty"
 	case cacheEntryClosed:
-		return "cacheEntryClosed"
+		return "Closed"
 	default:
-		return "<unknown cacheEntryState>"
+		return "<unknown>"
 	}
 }
 
@@ -525,13 +525,13 @@ func (be *CachedBlobEntry) Close() error {
 
 type CachedBlobEntryInfo struct {
 	BlobPath              string    `json:"blobpath"`
-	State                 string    `json:"is_closed"`
+	State                 string    `json:"state"`
 	SyncCount             int       `json:"sync_count"`
 	LastUsed              time.Time `json:"last_used"`
 	LastWrite             time.Time `json:"last_write"`
 	LastSync              time.Time `json:"last_sync"`
-	NumberOfHandles       int       `json:"number_of_handles"`
 	NumberOfWriterHandles int       `json:"number_of_writer_handles"`
+	NumberOfHandles       int       `json:"number_of_handles"`
 }
 
 func (be *CachedBlobEntry) infoWithLock() *CachedBlobEntryInfo {
@@ -549,8 +549,8 @@ func (be *CachedBlobEntry) infoWithLock() *CachedBlobEntryInfo {
 		LastUsed:              be.lastUsed,
 		LastWrite:             be.lastWrite,
 		LastSync:              be.lastSync,
-		NumberOfHandles:       len(be.handles),
 		NumberOfWriterHandles: numWriters,
+		NumberOfHandles:       len(be.handles),
 	}
 }
 

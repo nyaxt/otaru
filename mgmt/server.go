@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 )
 
 type Server struct {
@@ -17,7 +18,7 @@ func NewServer() *Server {
 
 	rtr.HandleFunc("/healthz", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte("ok\n"))
+		w.Write([]byte("OK"))
 	})
 
 	apirtr := rtr.PathPrefix("/api").Subrouter()
@@ -25,9 +26,13 @@ func NewServer() *Server {
 	// FIXME: Migrate to github.com/elazarl/go-bindata-assetfs
 	rtr.Handle("/", http.FileServer(http.Dir("../www")))
 
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"http://localhost:9000"}, // gulp devsrv
+	})
+
 	httpsrv := &http.Server{
 		Addr:    ":10246",
-		Handler: rtr,
+		Handler: c.Handler(rtr),
 	}
 	return &Server{rtr: rtr, apirtr: apirtr, httpsrv: httpsrv}
 }
