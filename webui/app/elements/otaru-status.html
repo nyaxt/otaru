@@ -90,17 +90,18 @@ Polymer({
 (function() {
   Polymer({
     is: 'otaru-status',
-    created: function() {
+    created() {
       this.query = new OtaruQuery({
         endpointURL: 'http://localhost:10246/healthz',
         onData: (data) => this.$.ui.setAttribute('value', data),
         onError: (err) => this.$.ui.setAttribute('value', 'Fetch failed!'),
+        text: true,
       });
     },
-    attached: function() {
+    attached() {
       this.query.start();
     },
-    detached: function() {
+    detached() {
       this.query.stop();
     },
   });

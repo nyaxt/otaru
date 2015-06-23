@@ -8,6 +8,8 @@ class OtaruQuery {
     this.endpointURL = opts.endpointURL;
     this.onData = opts.onData;
     this.onError = opts.onError || this._defaultOnError;
+    this.text = opts.text || false;
+    this.requestInterval = opts.requestInterval || 3000;
 
     this.shouldFetch = false; 
     this.state = 'inactive';
@@ -26,7 +28,7 @@ class OtaruQuery {
   _waitAndRequestIfNeeded() {
     if (this.shouldFetch) {
       this.state = 'wait';
-      this.timer = setTimeout(() => this._requestIfNeeded(), 3000);
+      this.timer = setTimeout(() => this._requestIfNeeded(), this.requestInterval);
     }
   }
 
@@ -36,22 +38,30 @@ class OtaruQuery {
       this.timer = null;
     }
     if (this.shouldFetch) {
-      fetch(this.endpointURL)
-        .catch(this._onError.bind(this))
-        .then(this._onResponse.bind(this));
+      let f = fetch(this.endpointURL).catch(this._onError.bind(this))
+      if (this.text) {
+        f = f.then((res) => {
+          if (res === undefined) return;
+          return res.text();
+        });
+      } else {
+        f = f.then((res) => {
+          if (res === undefined) return;
+          return res.json();
+        });
+      }
+      f.then(this._onResponse.bind(this));
       this.state = 'inflight';
     } else {
       this.state = 'inactive';
     }
   }
 
-  _onResponse(res) {
-    if (res === undefined) return;
-
-    res.text().then(function(resText) {
-      this.onData(resText);
-      this._waitAndRequestIfNeeded();
-    }.bind(this));
+  _onResponse(data) {
+    if (data !== undefined) {
+      this.onData(data);
+    }
+    this._waitAndRequestIfNeeded();
   }
 
   _onError(err) {

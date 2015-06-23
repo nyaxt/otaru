@@ -1,4 +1,5 @@
 <link rel="import" href="/bower_components/iron-ajax/iron-ajax.html">
+<link rel="import" href="/elements/otaru-reltime.html">
 
 <dom-module id='otaru-cache-entries'>
   <style>
@@ -54,23 +55,48 @@
         </tr>
       </thead>
       <tbody>
-        <tr>
-          <td class='blobpath'>fjdkslafj1229038920184</td>
-          <td class='state'>Clean</td>
-          <td class='sync_count'>123</td>
-          <td class='last_used'>5<span class='unit'>s ago</span></td>
-          <td class='last_write'>10<span class='unit'>s ago</span></td>
-          <td class='last_sync'>10<span class='unit'>s ago</span></td>
-          <td class='number_of_handles'>3<span class='unit'>/</span>10</td>
-        </tr>
+        <template is='dom-repeat' items='{{entries}}'>
+          <tr>
+            <td class='blobpath'>{{item.blobpath}}</td>
+            <td class='state'>{{item.state}}</td>
+            <td class='sync_count'>{{item.sync_count}}</td>
+            <td class='last_used'>{{item.last_used}}</td>
+            <td class='last_write'><otaru-reltime value='{{item.last_write}}'></otaru-reltime></td>
+            <td class='last_sync'>10<span class='unit'>s ago</span></td>
+            <td class='number_of_handles'>{{item.number_of_writer_handles}}<span class='unit'>/</span>{{item.number_of_handles}}</td>
+          </tr>
+        </template>
       </tbody>
     </table>
   </template>
 </dom-module>
 <script>
 (function() {
+"use strict";
+
 Polymer({
   is: 'otaru-cache-entries',
+  ready() {
+    this.entries = [];
+  },
+  created() {
+    this.query = new OtaruQuery({
+      endpointURL: 'http://localhost:10246/api/blobstore/entries',
+      onData: this._onData.bind(this),
+    });
+  },
+  attached() {
+    this.query.start(); 
+  },
+  detached() {
+    this.query.stop(); 
+  },
+  _onData(data) {
+    this.splice('entries', 0, this.entries.length);
+    for (let e of data) {
+      this.push('entries', e); 
+    }
+  }
 });
 })();
 </script>

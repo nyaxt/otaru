@@ -26,3 +26,5 @@ _testmain.go
 *.prof
 
 mgmt/www/bc/*
+
+.DS_Store

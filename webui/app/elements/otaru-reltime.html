@@ -1,0 +1,24 @@
+<dom-module id='otaru-reltime'>
+  <template>
+    <span>{{reltime}}</span><span class='unit'><span>{{relunit}}</span> ago</span>
+  </template>
+</dom-module>
+<script>
+(function() {
+"use strict";
+
+Polymer({
+  is: 'otaru-reltime',
+  properties: {
+    value: {
+      type: Date,
+      observer: '_valueChanged',
+    }, 
+  },
+  _valueChanged(newValue, oldValue) {
+    this.reltime = 123; 
+    this.relunit = 's'; 
+  }
+});
+})();
+</script>
