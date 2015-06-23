@@ -1,0 +1,108 @@
+<link rel="import" href="/bower_components/iron-icons/iron-icons.html">
+<script src="/bower_components/fetch/fetch.js"></script>
+<script src="/scripts/otaru-query.js"></script>
+
+<dom-module id="otaru-status-ui">
+  <style>
+    :host {
+      display: block;
+      text-align: right;
+    }
+
+    #box {
+      margin: 10px;
+      border: 1px solid #666; 
+      padding: 5px 20px;
+      vertical-align: middle;
+
+      font-size: 12px;
+      background-color: lightyellow;
+    }
+
+    #box.ok {
+      background-color: lightgreen;
+    }
+
+    #box iron-icon {
+      --iron-icon-width: 15px;
+      --iron-icon-height: 15px;
+    }
+
+    iron-icon {
+      animation: appeal 1s ease infinite;
+    }
+
+    .ok iron-icon {
+      animation: spin 2s ease infinite;
+    }
+
+    @keyframes spin {
+      0% { transform:rotate(0deg); }
+      70% { transform:rotate(355deg); }
+      100% { transform:rotate(360deg); }
+    }
+
+    @keyframes appeal {
+      0% { transform:scale(1.0); }
+      50% { transform:scale(1.5); }
+      100% { transform:scale(1.0); }
+    }
+  </style>
+  <template>
+    <span id='box'>
+      <span>{{value}}</span>
+      <iron-icon icon='{{icon}}'></iron-icon>
+    </span>
+  </template>
+</dom-module>
+<script>
+(function() {
+Polymer({
+  is: 'otaru-status-ui',
+  properties: {
+    value: {
+      type: String, 
+      value: "Loading",
+      observer: '_valueChanged'
+    },
+    icon: {
+      type: String,
+      computed: "_chooseIcon(value)"
+    }
+  },
+  _valueChanged: function(newValue) {
+    this.$.box.classList.toggle("ok", newValue == "OK"); 
+  },
+  _chooseIcon: function(value) {
+    if (value == "OK") return "autorenew";
+    return "error-outline";
+  },
+});
+})();
+</script>
+
+<dom-module id="otaru-status">
+  <template>
+    <otaru-status-ui id='ui'></otaru-status-ui> 
+  </template>
+</dom-module>
+<script>
+(function() {
+  Polymer({
+    is: 'otaru-status',
+    created: function() {
+      this.query = new OtaruQuery({
+        endpointURL: 'http://localhost:10246/healthz',
+        onData: (data) => this.$.ui.setAttribute('value', data),
+        onError: (err) => this.$.ui.setAttribute('value', 'Fetch failed!'),
+      });
+    },
+    attached: function() {
+      this.query.start();
+    },
+    detached: function() {
+      this.query.stop();
+    },
+  });
+})();
+</script>

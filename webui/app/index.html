@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Otaru WebUI</title>
+  <meta name="description" content="The Web UI for managing Otaru filesystem.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#3F51B5">
+
+  <!-- build:css /styles/vendor.css-->
+  <!-- bower:css-->
+  <!-- endbower-->
+  <!-- endbuild-->
+
+  <!-- build:css /styles/app.css-->
+  <link rel="stylesheet" href="/styles/app.css" shim-shadowdom>
+  <!-- endbuild-->
+
+  <!-- build:js /bower_components/webcomponentsjs/webcomponents.min.js-->
+  <script src="/bower_components/webcomponentsjs/webcomponents.js"></script>
+  <!-- endbuild-->
+  <script>
+    window.Polymer = window.Polymer || {};
+    window.Polymer.dom = 'shadow';
+  </script>
+
+  <!-- replace /elements/elements.vulcanized.html-->
+  <link rel="import" href="/elements/elements.html">
+  <!-- endreplace-->
+
+  <style is="custom-style">
+    body {
+      font-family: 'Source Code Pro', Menlo, Consolas, Monaco, monospace;
+      padding: 0;
+    }
+
+    h1,h2,h3,h4,h5 {
+      margin: 5px 0; 
+    }
+
+    h1 {
+      font-size: 24pt; 
+      padding-left: 20px;
+    }
+
+    h2 {
+      padding: 10px 0;
+    }
+
+    h3 {
+      padding: 5px 0;
+    }
+
+    paper-drawer-panel {
+      --paper-drawer-panel-left-drawer-container: {
+        background-color: #ccc;
+      };
+    }
+
+    #mainpanel [main] {
+      background-color: #fcfcfc;
+      padding: 20px;
+    }
+
+    .label {
+      float: left;
+      width: 100px;
+      color: #777;
+    }
+
+    .value {
+      color: #333;
+    }
+  </style>
+</head>
+<body unresolved>
+  <!--
+  <paper-toolbar>
+    <paper-icon-button icon="menu" on-tap="menuAction"></paper-icon-button>
+    <h1 title>Otaru WebUI</h1>
+    <paper-icon-button icon="more-horiz" on-tap="moreAction"></paper-icon-button>
+    <paper-tabs>
+      <paper-tab>Blobstore</paper-tab>
+    </paper-tabs>
+  </paper-toolbar>
+  -->
+  <paper-drawer-panel id='mainpanel'>
+    <div drawer>
+      <h1>Otaru</h1>
+      <otaru-status></otaru-status>
+      <otaru-menu>
+        <otaru-menu-item>Blobstore</otaru-menu-item> 
+        <otaru-menu-item>INodeDB</otaru-menu-item> 
+        <otaru-menu-item>Inspect</otaru-menu-item> 
+      </otaru-menu>
+      <script>document.querySelector("otaru-menu").select(0)</script>
+    </div>
+    <div main>
+      <h2>CachedBlobStore</h2> 
+      <div>
+        <div class='label'>Flags:</div>
+        <div class='value'>RWC</div>
+        <div class='label'>Backend:</div>
+        <div class='value'>GCSBlobStore</div>
+        <div class='label'>Cache:</div>
+        <div class='value'>FileBlobStore</div>
+      </div>
+
+      <h3>Entries</h3>
+      <otaru-cache-entries></otaru-cache-entries>
+    </div>
+  </paper-drawer-panel>
+
+  <!-- build:js /scripts/app.js-->
+  <!-- bower:js-->
+  <!-- endbower-->
+  <script src="/scripts/app.js" defer></script>
+  <!-- endbuild-->
+</body>
+</html>

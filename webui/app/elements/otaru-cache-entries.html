@@ -1,0 +1,76 @@
+<link rel="import" href="/bower_components/iron-ajax/iron-ajax.html">
+
+<dom-module id='otaru-cache-entries'>
+  <style>
+    table {
+      border-collapse: collapse; 
+    }
+
+    tr {
+      text-align: left; 
+
+      border-bottom: 1px solid #ccc; 
+    }
+
+    thead tr {
+      border-bottom: 1px solid #333;
+    }
+
+    td,th {
+      padding: 5px 20px; 
+      color: #333;
+    }
+
+    th {
+      text-align: left; 
+      font-weight: normal;
+
+      color: #777;
+    }
+
+    .blobpath {
+      padding-left: 5px; 
+    }
+
+    .number_of_handles {
+      padding-right: 5px; 
+    }
+
+    .unit {
+      color: #777;
+    }
+  </style>
+  <template>
+    <table>
+      <thead>
+        <tr>
+          <th class='blobpath'>Blobpath</th>
+          <th class='state'>State</th>
+          <th class='sync_count'># Sync</th>
+          <th class='last_used'>Used</th>
+          <th class='last_write'>Write</th>
+          <th class='last_sync'>Sync</th>
+          <th class='number_of_handles'># handles (W/*)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class='blobpath'>fjdkslafj1229038920184</td>
+          <td class='state'>Clean</td>
+          <td class='sync_count'>123</td>
+          <td class='last_used'>5<span class='unit'>s ago</span></td>
+          <td class='last_write'>10<span class='unit'>s ago</span></td>
+          <td class='last_sync'>10<span class='unit'>s ago</span></td>
+          <td class='number_of_handles'>3<span class='unit'>/</span>10</td>
+        </tr>
+      </tbody>
+    </table>
+  </template>
+</dom-module>
+<script>
+(function() {
+Polymer({
+  is: 'otaru-cache-entries',
+});
+})();
+</script>
