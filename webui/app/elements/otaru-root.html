@@ -1,0 +1,85 @@
+<link rel="import" href="/bower_components/paper-drawer-panel/paper-drawer-panel.html">
+<link rel="import" href="/elements/otaru-status.html">
+<link rel="import" href="/elements/otaru-menu.html">
+<link rel="import" href="/elements/otaru-cache-entries.html">
+
+<dom-module id="otaru-root">
+  <style>
+    paper-drawer-panel {
+      font-family: 'Source Code Pro', Menlo, Consolas, Monaco, monospace;
+    }
+
+    h1,h2,h3,h4,h5 {
+      margin: 5px 0; 
+    }
+
+    h1 {
+      font-size: 24pt; 
+      padding-left: 20px;
+    }
+
+    h2 {
+      padding: 10px 0;
+    }
+
+    h3 {
+      padding: 5px 0;
+    }
+
+    paper-drawer-panel {
+      --paper-drawer-panel-left-drawer-container: {
+        background-color: #ccc;
+      };
+    }
+
+    #mainpanel [main] {
+      background-color: #fcfcfc;
+      padding: 20px;
+    }
+
+    .label {
+      float: left;
+      width: 100px;
+      color: #777;
+    }
+
+    .value {
+      color: #333;
+    }
+  </style>
+  <template> 
+    <paper-drawer-panel id='mainpanel'>
+      <div drawer>
+        <h1>Otaru</h1>
+        <otaru-status></otaru-status>
+        <otaru-menu>
+          <otaru-menu-item>Blobstore</otaru-menu-item> 
+          <otaru-menu-item>INodeDB</otaru-menu-item> 
+          <otaru-menu-item>Inspect</otaru-menu-item> 
+        </otaru-menu>
+        <script>document.querySelector("otaru-menu").select(0)</script>
+      </div>
+      <div main>
+        <h2>CachedBlobStore</h2> 
+        <div>
+          <div class='label'>Flags:</div>
+          <div class='value'>RWC</div>
+          <div class='label'>Backend:</div>
+          <div class='value'>GCSBlobStore</div>
+          <div class='label'>Cache:</div>
+          <div class='value'>FileBlobStore</div>
+        </div>
+
+        <h3>Entries</h3>
+        <otaru-cache-entries></otaru-cache-entries>
+      </div>
+    </paper-drawer-panel>
+  </template>
+</dom-module>
+<script>
+(function() {
+Polymer({
+  is: 'otaru-root',
+});
+})();
+</script>
