@@ -19,7 +19,7 @@
     }
 
     h2 {
-      padding: 10px 0;
+      padding: 0 0 10px;
     }
 
     h3 {
@@ -29,12 +29,13 @@
     paper-drawer-panel {
       --paper-drawer-panel-left-drawer-container: {
         background-color: #ccc;
+        box-shadow: inset -3px 0px 5px 0px rgba(0,0,0,0.1);
       };
     }
 
     #mainpanel [main] {
       background-color: #fcfcfc;
-      padding: 20px;
+      padding: 0 20px;
     }
 
     .label {
@@ -52,15 +53,14 @@
       <div drawer>
         <h1>Otaru</h1>
         <otaru-status></otaru-status>
-        <otaru-menu>
-          <otaru-menu-item>Blobstore</otaru-menu-item> 
-          <otaru-menu-item>INodeDB</otaru-menu-item> 
-          <otaru-menu-item>Inspect</otaru-menu-item> 
+        <otaru-menu id='menu' attr-for-selected='val' selected='{{activeTab}}'>
+          <otaru-menu-item val='blobstore'>Blobstore</otaru-menu-item> 
+          <otaru-menu-item val='inodedb'>INodeDB</otaru-menu-item> 
+          <otaru-menu-item val='inspect'>Inspect</otaru-menu-item> 
         </otaru-menu>
-        <script>document.querySelector("otaru-menu").select(0)</script>
       </div>
       <div main>
-        <h2>CachedBlobStore</h2> 
+        <h2>CachedBlobStore</h2>
         <div>
           <div class='label'>Flags:</div>
           <div class='value'>RWC</div>
@@ -78,8 +78,21 @@
 </dom-module>
 <script>
 (function() {
+"use strict";
+
 Polymer({
   is: 'otaru-root',
+  properties: {
+    activeTab: {
+      observer: '_activeTabChanged' 
+    },
+  },
+  ready() {
+    this.$.menu.select('blobstore');
+  },
+  _activeTabChanged(newValue) {
+    console.log(newValue); 
+  }
 });
 })();
 </script>
