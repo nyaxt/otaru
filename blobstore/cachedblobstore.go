@@ -104,7 +104,7 @@ func (mgr *CachedBlobEntriesManager) doChooseSyncEntry() *CachedBlobEntry {
 	oldestWriteT := now
 
 	for _, be := range mgr.entries {
-		if be.state == cacheEntryDirty {
+		if be.state != cacheEntryDirty {
 			continue
 		}
 
