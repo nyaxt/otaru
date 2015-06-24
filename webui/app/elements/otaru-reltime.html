@@ -1,6 +1,18 @@
 <dom-module id='otaru-reltime'>
+  <style>
+    .unit {
+      color: #777;
+    }
+
+    .never {
+      color: #f77; 
+    }
+  </style>
   <template>
-    <span>{{reltime}}</span><span class='unit'><span>{{relunit}}</span> ago</span>
+    <span class='never' hidden$="{{!never}}">never</span>
+    <span hidden$="{{never}}">
+      <span>{{reltime}}</span><span class='unit'><span>{{relunit}}</span> ago</span>
+    </span>
   </template>
 </dom-module>
 <script>
@@ -13,12 +25,44 @@ Polymer({
     value: {
       type: Date,
       observer: '_valueChanged',
-    }, 
+    },
+    never: {
+      type: Boolean,
+      value: false,
+    }
   },
   _valueChanged(newValue, oldValue) {
-    this.reltime = 123; 
-    this.relunit = 's'; 
-  }
+    if (typeof newValue === 'string')
+      this.value = new Date(newValue);
+
+    if (newValue === '0001-01-01T00:00:00Z') {
+      this.never = true;
+      return;
+    }
+    this.never = false;
+
+    this.updateRelTime();
+  },
+  updateRelTime() {
+    if (this.never)
+      return;
+
+    let now = new Date;
+    let diff = now.getTime() - this.value.getTime();
+
+    let relsecs = diff / 1000;
+    if (relsecs < 120) {
+      this.reltime = Math.floor(relsecs);
+      this.relunit = 's'; 
+      return;
+    }
+  
+    let relmins = relsecs / 60;
+    // if (relmins < 60) {
+    this.reltime = Math.floor(relmins);
+    this.relunit = 'm'; 
+  },
+  negate(b) { return !b; },
 });
 })();
 </script>

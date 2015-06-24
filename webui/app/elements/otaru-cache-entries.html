@@ -36,10 +36,6 @@
     .number_of_handles {
       padding-right: 5px; 
     }
-
-    .unit {
-      color: #777;
-    }
   </style>
   <template>
     <table>
@@ -60,9 +56,9 @@
             <td class='blobpath'>{{item.blobpath}}</td>
             <td class='state'>{{item.state}}</td>
             <td class='sync_count'>{{item.sync_count}}</td>
-            <td class='last_used'>{{item.last_used}}</td>
+            <td class='last_used'><otaru-reltime value='{{item.last_used}}'></otaru-reltime></td>
             <td class='last_write'><otaru-reltime value='{{item.last_write}}'></otaru-reltime></td>
-            <td class='last_sync'>10<span class='unit'>s ago</span></td>
+            <td class='last_sync'><otaru-reltime value='{{item.last_sync}}'></otaru-reltime></td>
             <td class='number_of_handles'>{{item.number_of_writer_handles}}<span class='unit'>/</span>{{item.number_of_handles}}</td>
           </tr>
         </template>
@@ -93,6 +89,7 @@ Polymer({
   },
   _onData(data) {
     this.splice('entries', 0, this.entries.length);
+    data.sort((a, b) => (new Date(a.last_used).getTime()) < (new Date(b.last_used).getTime()))
     for (let e of data) {
       this.push('entries', e); 
     }
