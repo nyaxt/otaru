@@ -56,7 +56,7 @@
       </div>
       <div main>
         <h2>CachedBlobStore</h2>
-        <otaru-blobstore></otaru-blobstore>
+        <div id='page'></div>
       </div>
     </paper-drawer-panel>
   </template>
@@ -75,8 +75,17 @@ Polymer({
   ready() {
     this.$.menu.select('blobstore');
   },
-  _activeTabChanged(newValue) {
-    console.log(newValue); 
+  _activeTabChanged(newValue, oldValue) {
+    if (newValue == oldValue) return;
+
+    let pageDiv = this.$.page;
+    if (pageDiv.firstChild) {
+      pageDiv.removeChild(pageDiv.firstChild);
+    }
+
+    let pageTagName = 'otaru-'+this.$.menu.selected;
+    let pageTag = document.createElement(pageTagName);
+    pageDiv.appendChild(pageTag);
   }
 });
 })();
