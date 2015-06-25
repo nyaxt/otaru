@@ -1,7 +1,7 @@
 <link rel="import" href="/bower_components/paper-drawer-panel/paper-drawer-panel.html">
 <link rel="import" href="/elements/otaru-status.html">
 <link rel="import" href="/elements/otaru-menu.html">
-<link rel="import" href="/elements/otaru-cache-entries.html">
+<link rel="import" href="/elements/otaru-blobstore.html">
 
 <dom-module id="otaru-root">
   <style>
@@ -11,19 +11,20 @@
 
     h1,h2,h3,h4,h5 {
       margin: 5px 0; 
-
-      color: rgba(255,255,255,0.8);
     }
 
     h1 {
       font-size: 24pt; 
       padding-left: 20px;
+      color: #eee;
     }
 
     h2 {
       margin: 0;
       border-bottom: 1px solid black;
       padding: 8px 20px;
+
+      background-color: #eee;
     }
 
     h3 {
@@ -34,29 +35,12 @@
 
     paper-drawer-panel {
       --paper-drawer-panel-left-drawer-container: {
-        background-color: rgba(0,0,0,0.5);
+        background-color: #888;
         box-shadow: inset -3px 0px 5px 0px rgba(0,0,0,0.1);
       };
     }
 
     #mainpanel [main] {
-      /* background-color: rgb(1,1,1,0.1); */
-    }
-
-    .content {
-      padding: 20px; 
-      background-color: rgba(255,255,255,0.8);
-      height: 100%;
-    }
-
-    .label {
-      float: left;
-      width: 100px;
-      color: #777;
-    }
-
-    .value {
-      color: #333;
     }
   </style>
   <template> 
@@ -72,19 +56,7 @@
       </div>
       <div main>
         <h2>CachedBlobStore</h2>
-        <div class='content'>
-          <div>
-            <div class='label'>Flags:</div>
-            <div class='value'>RWC</div>
-            <div class='label'>Backend:</div>
-            <div class='value'>GCSBlobStore</div>
-            <div class='label'>Cache:</div>
-            <div class='value'>FileBlobStore</div>
-          </div>
-
-          <h3>Entries</h3>
-          <otaru-cache-entries></otaru-cache-entries>
-        </div>
+        <otaru-blobstore></otaru-blobstore>
       </div>
     </paper-drawer-panel>
   </template>

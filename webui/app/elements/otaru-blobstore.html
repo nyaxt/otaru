@@ -1,0 +1,49 @@
+<link rel="import" href="/elements/otaru-cache-entries.html">
+
+<dom-module id='otaru-blobstore'>
+  <style>
+    :host {
+      display: block;
+
+      padding: 20px; 
+      height: 100%;
+    }
+
+    .label {
+      float: left;
+      width: 100px;
+      color: #777;
+    }
+
+    .value {
+      color: #333;
+    }
+  </style>
+  <template>
+    <div>
+      <div class='label'>Flags:</div>
+      <div class='value'>RWC</div>
+      <div class='label'>Backend:</div>
+      <div class='value'>GCSBlobStore</div>
+      <div class='label'>Cache:</div>
+      <div class='value'>FileBlobStore</div>
+    </div>
+
+    <h3>Entries</h3>
+    <otaru-cache-entries></otaru-cache-entries>
+  </template>
+
+</dom-module>
+<script>
+(function() {
+"use strict";
+
+Polymer({
+  is: 'otaru-blobstore',
+  properties: {
+  },
+  ready() {
+  },
+});
+})();
+</script>
