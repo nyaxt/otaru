@@ -2,6 +2,8 @@ package inodedb
 
 import (
 	"log"
+
+	"github.com/nyaxt/otaru/util"
 )
 
 type DBTransactionRequest struct {
@@ -31,6 +33,10 @@ type DBUnlockNodeRequest struct {
 	resultC chan error
 }
 
+type DBSyncRequest struct {
+	resultC chan error
+}
+
 type DBStatRequest struct {
 	resultC chan DBServiceStats
 }
@@ -45,6 +51,7 @@ type DBService struct {
 }
 
 var _ = DBHandler(&DBService{})
+var _ = util.Syncer(&DBService{})
 
 func NewDBService(h DBHandler) *DBService {
 	s := &DBService{
@@ -88,6 +95,13 @@ func (srv *DBService) run() {
 				req := req.(*DBUnlockNodeRequest)
 				err := srv.h.UnlockNode(req.nlock)
 				req.resultC <- err
+			case *DBSyncRequest:
+				req := req.(*DBSyncRequest)
+				if s, ok := srv.h.(util.Syncer); ok {
+					req.resultC <- s.Sync()
+				} else {
+					req.resultC <- nil
+				}
 			case *DBStatRequest:
 				req := req.(*DBStatRequest)
 				if prov, ok := srv.h.(DBServiceStatsProvider); ok {
@@ -140,6 +154,12 @@ func (srv *DBService) LockNode(id ID) (NodeLock, error) {
 
 func (srv *DBService) UnlockNode(nlock NodeLock) error {
 	req := &DBUnlockNodeRequest{nlock: nlock, resultC: make(chan error)}
+	srv.reqC <- req
+	return <-req.resultC
+}
+
+func (srv *DBService) Sync() error {
+	req := &DBSyncRequest{resultC: make(chan error)}
 	srv.reqC <- req
 	return <-req.resultC
 }

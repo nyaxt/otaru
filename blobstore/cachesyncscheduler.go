@@ -6,10 +6,8 @@ import (
 )
 
 type CacheSyncScheduler struct {
-	cbs *CachedBlobStore
-
-	lastSync time.Time
-	quitC    chan struct{}
+	cbs   *CachedBlobStore
+	quitC chan struct{}
 }
 
 func NewCacheSyncScheduler(cbs *CachedBlobStore) *CacheSyncScheduler {

@@ -31,6 +31,7 @@ type Otaru struct {
 	TxIO  inodedb.DBTransactionLogIO
 	IDBBE *inodedb.DB
 	IDBS  *inodedb.DBService
+	IDBSS *util.SyncScheduler
 
 	FS   *otaru.FileSystem
 	MGMT *mgmt.Server
@@ -111,6 +112,8 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 	}
 
 	o.IDBS = inodedb.NewDBService(o.IDBBE)
+	o.IDBSS = util.NewSyncScheduler(o.IDBS)
+
 	o.FS = otaru.NewFileSystem(o.IDBS, o.CBS, o.C)
 	o.MGMT = mgmt.NewServer()
 	o.setupMgmtAPIs()
@@ -129,6 +132,10 @@ func (o *Otaru) Close() error {
 		if err := o.FS.Sync(); err != nil {
 			errs = append(errs, err)
 		}
+	}
+
+	if o.IDBSS != nil {
+		o.IDBSS.Stop()
 	}
 
 	if o.IDBS != nil {
