@@ -91,10 +91,35 @@ Polymer({
     },
   },
   ready() {
-    this.$.menu.select('inodedb');
+    this._tabFromCurrentURL();
+  },
+  attached() {
+    this._popStateListener = this._tabFromCurrentURL.bind(this);
+    window.addEventListener('popstate', this._popStateListener);
+  },
+  detached() {
+    if (this._popStateListener) {
+      window.removeEventListener('popstate', this._popStateListener);
+      this._popStateListener = null;
+    }
+  },
+  _tabURL(activeTab) {
+    if (activeTab === undefined)
+      activeTab = this.activeTab;
+
+    return '#'+activeTab;
   },
   _activeTabChanged(newValue, oldValue) {
-    if (newValue == oldValue) return;
+    if (this._ignoreActiveTabChangedOnce) {
+      this._ignoreActiveTabChangedOnce = false;
+      return; 
+    }
+
+    if (newValue == oldValue) {
+      console.log('replaceState: '+this._tabURL());
+      window.history.replaceState(null, this.pageTitle, this._tabURL());
+      return;
+    }
 
     let pageDiv = this.$.page;
     if (pageDiv.firstChild) {
@@ -106,6 +131,18 @@ Polymer({
     pageDiv.appendChild(pageTag);
 
     this.pageTitle = PageTitleMap[this.activeTab];
+
+    console.log('pushState: '+this._tabURL());
+    window.history.pushState(null, this.pageTitle, this._tabURL());
+  },
+  _tabFromCurrentURL() {
+    let hash = document.location.hash;
+    let match = /#(\w+)/.exec(hash);
+    if (match && match[1] !== '') {
+      let tab = match[1];
+      this._ignoreActiveTabChangedOnce = true;
+      this.activeTab = tab;
+    }
   }
 });
 })();
