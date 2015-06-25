@@ -330,6 +330,7 @@ func (db *DB) ApplyTransaction(tx DBTransaction) (TxID, error) {
 	}
 
 	db.state.version = tx.TxID
+	db.stats.LastTx = time.Now()
 	return tx.TxID, nil
 }
 

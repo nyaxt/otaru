@@ -15,8 +15,12 @@
   <template>
     <table>
       <tr>
-        <td class='label'>Sync:</td>
+        <td class='label'>Last Sync:</td>
         <td class='value'><otaru-reltime value="{{stats.last_sync}}"></otaru-reltime></td>
+      </tr>
+      <tr>
+        <td class='label'>Last Transaction:</td>
+        <td class='value'><otaru-reltime value="{{stats.last_tx}}"></otaru-reltime></td>
       </tr>
       <tr>
         <td class='label'>LastID:</td>

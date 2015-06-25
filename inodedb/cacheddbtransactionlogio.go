@@ -62,6 +62,8 @@ func (txio *CachedDBTransactionLogIO) QueryTransactions(minID TxID) ([]DBTransac
 }
 
 func (txio *CachedDBTransactionLogIO) QueryCachedTransactions(minID TxID) ([]DBTransaction, error) {
+	// FIXME: Optimize? no need to scan over all ringbuf contents
+
 	result := []DBTransaction{}
 	for _, tx := range txio.ringbuf[txio.next:] {
 		if tx.TxID >= minID {

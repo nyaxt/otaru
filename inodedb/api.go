@@ -48,9 +48,10 @@ type DBHandler interface {
 }
 
 type DBServiceStats struct {
-	// === Fields that is kept up to date on DBHandler ===
+	// === Fields that are kept up to date by DBHandler ===
 
 	LastSync time.Time `json:"last_sync"`
+	LastTx   time.Time `json:"last_tx"`
 
 	// === Fields dynamically filled in on GetStats() ===
 
