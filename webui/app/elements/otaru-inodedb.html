@@ -3,20 +3,38 @@
 <dom-module id='otaru-inodedb'>
   <style>
     .label {
-      float: left;
-      width: 100px;
       color: #777;
+      min-width: 100px;
     }
 
     .value {
+      padding-left: 20px;
       color: #333;
     }
   </style>
   <template>
-    <div>
-      <div class='label'>Sync</div>
-      <div class='value'><otaru-reltime value="{{stats.last_sync}}"></otaru-reltime></div>
-    </div>
+    <table>
+      <tr>
+        <td class='label'>Sync:</td>
+        <td class='value'><otaru-reltime value="{{stats.last_sync}}"></otaru-reltime></td>
+      </tr>
+      <tr>
+        <td class='label'>LastID:</td>
+        <td class='value'>{{stats.last_id}}</td>
+      </tr>
+      <tr>
+        <td class='label'>Version:</td>
+        <td class='value'>{{stats.version}}</td>
+      </tr>
+      <tr>
+        <td class='label'>LastTicket:</td>
+        <td class='value'>{{stats.last_ticket}}</td>
+      </tr>
+      <tr>
+        <td class='label'># Node Locks:</td>
+        <td class='value'>{{stats.number_of_node_locks}}</td>
+      </tr>
+    </table>
   </template>
 
 </dom-module>

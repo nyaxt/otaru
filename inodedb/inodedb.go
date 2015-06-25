@@ -386,5 +386,11 @@ func (db *DB) Sync() error {
 }
 
 func (db *DB) GetStats() DBServiceStats {
-	return db.stats
+	stats := db.stats
+	stats.LastID = db.state.lastID
+	stats.Version = db.state.version
+	stats.LastTicket = db.state.lastTicket
+	stats.NumberOfNodeLocks = len(db.state.nodeLocks)
+
+	return stats
 }

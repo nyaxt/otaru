@@ -48,35 +48,18 @@ type DBHandler interface {
 }
 
 type DBServiceStats struct {
+	// === Fields that is kept up to date on DBHandler ===
+
 	LastSync time.Time `json:"last_sync"`
+
+	// === Fields dynamically filled in on GetStats() ===
+
+	LastID            ID     `json:"last_id"`
+	Version           TxID   `json:"version"`
+	LastTicket        Ticket `json:"last_ticket"`
+	NumberOfNodeLocks int    `json:"number_of_node_locks"`
 }
 
 type DBServiceStatsProvider interface {
 	GetStats() DBServiceStats
 }
-
-/*
-
-File write:
-- Acquire lock when opened with write perm
-{
-  - get old chunks
-  - cs <- add new chunk ** not cancellable **
-  - save new cs
-}
-- keep renewing the lock
-- release the lock when done
-
-Rename:
-atomic {
-  - link new dir
-  - unlink old dir
-}
-
-CreateFile:
-atomic {
-  - create new file node
-  - link new dir
-}
-
-*/
