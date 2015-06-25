@@ -15,11 +15,11 @@
   <template>
     <div>
       <div class='label'>Flags:</div>
-      <div class='value'>RWC</div>
+      <div class='value'>{{config.flags}}</div>
       <div class='label'>Backend:</div>
-      <div class='value'>GCSBlobStore</div>
+      <div class='value'>{{config.backend_impl_name}}</div>
       <div class='label'>Cache:</div>
-      <div class='value'>FileBlobStore</div>
+      <div class='value'>{{config.cache_impl_name}}</div>
     </div>
 
     <h3>Entries</h3>
@@ -34,9 +34,26 @@
 Polymer({
   is: 'otaru-blobstore',
   properties: {
+    config: {
+      type: Object,
+      value: {}
+    }
   },
-  ready() {
+  created() {
+    this.query = new OtaruQuery({
+      endpointURL: 'http://localhost:10246/api/blobstore/config',
+      onData: this._onConfig.bind(this),
+    });
   },
+  attached() {
+    this.query.start(); 
+  },
+  detached() {
+    this.query.stop(); 
+  },
+  _onConfig(data) {
+    this.config = data;
+  }
 });
 })();
 </script>
