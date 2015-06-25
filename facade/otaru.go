@@ -48,13 +48,15 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 		return nil, fmt.Errorf("Failed to init Cipher: %v", err)
 	}
 
-	o.Clisrc, err = auth.GetGCloudClientSource(
-		path.Join(os.Getenv("HOME"), ".otaru", "credentials.json"),
-		path.Join(os.Getenv("HOME"), ".otaru", "tokencache.json"),
-		false)
-	if err != nil {
-		o.Close()
-		return nil, fmt.Errorf("Failed to init GCloudClientSource: %v", err)
+	if !localDebug {
+		o.Clisrc, err = auth.GetGCloudClientSource(
+			path.Join(os.Getenv("HOME"), ".otaru", "credentials.json"),
+			path.Join(os.Getenv("HOME"), ".otaru", "tokencache.json"),
+			false)
+		if err != nil {
+			o.Close()
+			return nil, fmt.Errorf("Failed to init GCloudClientSource: %v", err)
+		}
 	}
 
 	o.FBS, err = blobstore.NewFileBlobStore(cacheDir, oflags.O_RDWRCREATE)

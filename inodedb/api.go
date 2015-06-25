@@ -1,5 +1,9 @@
 package inodedb
 
+import (
+	"time"
+)
+
 type NodeView interface {
 	// GetVersion() TxID
 
@@ -41,6 +45,14 @@ type DBHandler interface {
 	// FIXME: this should actually take NodeLock for renew ticket operation
 	LockNode(id ID) (NodeLock, error)
 	UnlockNode(nlock NodeLock) error
+}
+
+type DBServiceStats struct {
+	LastSync time.Time `json:"last_sync"`
+}
+
+type DBServiceStatsProvider interface {
+	GetStats() DBServiceStats
 }
 
 /*

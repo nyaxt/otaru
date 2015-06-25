@@ -26,5 +26,6 @@ _testmain.go
 *.prof
 
 mgmt/www/bc/*
+fuse/cli/cli
 
 .DS_Store

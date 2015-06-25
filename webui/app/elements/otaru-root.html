@@ -2,6 +2,7 @@
 <link rel="import" href="/elements/otaru-status.html">
 <link rel="import" href="/elements/otaru-menu.html">
 <link rel="import" href="/elements/otaru-blobstore.html">
+<link rel="import" href="/elements/otaru-inodedb.html">
 
 <dom-module id="otaru-root">
   <style>
@@ -42,6 +43,14 @@
 
     #mainpanel [main] {
     }
+
+    #page {
+      display: block;
+
+      padding: 20px; 
+      height: 100%;
+    }
+
   </style>
   <template> 
     <paper-drawer-panel id='mainpanel'>
@@ -55,7 +64,7 @@
         </otaru-menu>
       </div>
       <div main>
-        <h2>CachedBlobStore</h2>
+        <h2>{{pageTitle}}</h2>
         <div id='page'></div>
       </div>
     </paper-drawer-panel>
@@ -65,11 +74,20 @@
 (function() {
 "use strict";
 
+var PageTitleMap = {
+  blobstore: 'Blobstore',
+  inodedb: 'INodeDB',
+  inspect: 'Inspect',
+};
+
 Polymer({
   is: 'otaru-root',
   properties: {
     activeTab: {
       observer: '_activeTabChanged' 
+    },
+    pageTitle: {
+      type: String,
     },
   },
   ready() {
@@ -83,9 +101,11 @@ Polymer({
       pageDiv.removeChild(pageDiv.firstChild);
     }
 
-    let pageTagName = 'otaru-'+this.$.menu.selected;
+    let pageTagName = 'otaru-'+this.activeTab;
     let pageTag = document.createElement(pageTagName);
     pageDiv.appendChild(pageTag);
+
+    this.pageTitle = PageTitleMap[this.activeTab];
   }
 });
 })();

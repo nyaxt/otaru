@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"syscall"
+	"time"
 
 	bfuse "bazil.org/fuse"
 )
@@ -226,6 +227,8 @@ type DB struct {
 
 	snapshotIO DBStateSnapshotIO
 	txLogIO    DBTransactionLogIO
+
+	stats DBServiceStats
 }
 
 var _ = DBHandler(&DB{})
@@ -377,5 +380,11 @@ func (db *DB) Sync() error {
 	if err := db.snapshotIO.SaveSnapshot(db.state); err != nil {
 		return err
 	}
+
+	db.stats.LastSync = time.Now()
 	return nil
+}
+
+func (db *DB) GetStats() DBServiceStats {
+	return db.stats
 }

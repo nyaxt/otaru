@@ -1,0 +1,52 @@
+<link rel="import" href="/elements/otaru-reltime.html">
+
+<dom-module id='otaru-inodedb'>
+  <style>
+    .label {
+      float: left;
+      width: 100px;
+      color: #777;
+    }
+
+    .value {
+      color: #333;
+    }
+  </style>
+  <template>
+    <div>
+      <div class='label'>Sync</div>
+      <div class='value'><otaru-reltime value="{{stats.last_sync}}"></otaru-reltime></div>
+    </div>
+  </template>
+
+</dom-module>
+<script>
+(function() {
+"use strict";
+
+Polymer({
+  is: 'otaru-inodedb',
+  properties: {
+    stats: {
+      type: Object,
+      value: {}
+    }
+  },
+  created() {
+    this.query = new OtaruQuery({
+      endpointURL: 'http://localhost:10246/api/inodedb/stats',
+      onData: this._onStats.bind(this),
+    });
+  },
+  attached() {
+    this.query.start(); 
+  },
+  detached() {
+    this.query.stop(); 
+  },
+  _onStats(data) {
+    this.stats = data;
+  }
+});
+})();
+</script>

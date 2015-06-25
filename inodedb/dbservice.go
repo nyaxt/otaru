@@ -31,6 +31,10 @@ type DBUnlockNodeRequest struct {
 	resultC chan error
 }
 
+type DBStatRequest struct {
+	resultC chan DBServiceStats
+}
+
 // DBService serializes requests to DBHandler
 type DBService struct {
 	reqC    chan interface{}
@@ -84,6 +88,13 @@ func (srv *DBService) run() {
 				req := req.(*DBUnlockNodeRequest)
 				err := srv.h.UnlockNode(req.nlock)
 				req.resultC <- err
+			case *DBStatRequest:
+				req := req.(*DBStatRequest)
+				if prov, ok := srv.h.(DBServiceStatsProvider); ok {
+					req.resultC <- prov.GetStats()
+				} else {
+					req.resultC <- DBServiceStats{}
+				}
 			default:
 				log.Printf("unknown request passed to DBService: %v", req)
 			}
@@ -129,6 +140,12 @@ func (srv *DBService) LockNode(id ID) (NodeLock, error) {
 
 func (srv *DBService) UnlockNode(nlock NodeLock) error {
 	req := &DBUnlockNodeRequest{nlock: nlock, resultC: make(chan error)}
+	srv.reqC <- req
+	return <-req.resultC
+}
+
+func (srv *DBService) GetStats() DBServiceStats {
+	req := &DBStatRequest{resultC: make(chan DBServiceStats)}
 	srv.reqC <- req
 	return <-req.resultC
 }

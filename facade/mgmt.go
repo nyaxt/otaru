@@ -4,10 +4,12 @@ import (
 	"log"
 
 	"github.com/nyaxt/otaru/mgmt/mblobstore"
+	"github.com/nyaxt/otaru/mgmt/minodedb"
 )
 
 func (o *Otaru) setupMgmtAPIs() error {
 	mblobstore.Install(o.MGMT, o.CBS)
+	minodedb.Install(o.MGMT, o.IDBS)
 
 	return nil
 }
