@@ -682,6 +682,8 @@ func (cbs *CachedBlobStore) DumpEntriesInfo() []*CachedBlobEntryInfo {
 	return cbs.entriesmgr.DumpEntriesInfo()
 }
 
+func (*CachedBlobStore) ImplName() string { return "CachedBlobStore" }
+
 type CachedBlobHandle struct {
 	be    *CachedBlobEntry
 	flags int

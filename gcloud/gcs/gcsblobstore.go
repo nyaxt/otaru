@@ -89,3 +89,5 @@ func (bs *GCSBlobStore) Delete(blobpath string) error {
 	}
 	return nil
 }
+
+func (*GCSBlobStore) ImplName() string { return "GCSBlobStore" }

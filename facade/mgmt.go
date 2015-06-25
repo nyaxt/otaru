@@ -8,7 +8,7 @@ import (
 )
 
 func (o *Otaru) setupMgmtAPIs() error {
-	mblobstore.Install(o.MGMT, o.CBS)
+	mblobstore.Install(o.MGMT, o.BBS, o.CBS)
 	minodedb.Install(o.MGMT, o.IDBS)
 
 	return nil

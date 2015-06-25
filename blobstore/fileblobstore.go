@@ -122,3 +122,5 @@ func (f *FileBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
 	}
 	return rc, nil
 }
+
+func (*FileBlobStore) ImplName() string { return "FileBlobStore" }
