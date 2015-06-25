@@ -10,6 +10,7 @@ class OtaruQuery {
     this.onError = opts.onError || this._defaultOnError;
     this.text = opts.text || false;
     this.requestInterval = opts.requestInterval || 3000;
+    this.oneShot = opts.oneShot || false;
 
     this.shouldFetch = false; 
     this.state = 'inactive';
@@ -60,6 +61,9 @@ class OtaruQuery {
   _onResponse(data) {
     if (data !== undefined) {
       this.onData(data);
+    }
+    if (this.oneShot) {
+      this.shouldFetch = false; 
     }
     this._waitAndRequestIfNeeded();
   }
