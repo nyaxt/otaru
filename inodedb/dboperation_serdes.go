@@ -6,28 +6,41 @@ import (
 	"encoding/json"
 )
 
-func EncodeDBOperationsToJson(ops []DBOperation) ([]byte, error) {
+func SetOpMeta(op DBOperation) error {
+	switch op.(type) {
+	case *InitializeFileSystemOp:
+		op.(*InitializeFileSystemOp).Kind = "InitializeFileSystemOp"
+	case *CreateNodeOp:
+		op.(*CreateNodeOp).Kind = "CreateNodeOp"
+	case *HardLinkOp:
+		op.(*HardLinkOp).Kind = "HardLinkOp"
+	case *UpdateChunksOp:
+		op.(*UpdateChunksOp).Kind = "UpdateChunksOp"
+	case *UpdateSizeOp:
+		op.(*UpdateSizeOp).Kind = "UpdateSizeOp"
+	case *RenameOp:
+		op.(*RenameOp).Kind = "RenameOp"
+	case *RemoveOp:
+		op.(*RemoveOp).Kind = "RemoveOp"
+	default:
+		return fmt.Errorf("Encoder undefined for op: %v", op)
+	}
+	return nil
+}
+
+func SetOpMetas(ops []DBOperation) error {
 	for _, op := range ops {
-		switch op.(type) {
-		case *InitializeFileSystemOp:
-			op.(*InitializeFileSystemOp).Kind = "InitializeFileSystemOp"
-		case *CreateNodeOp:
-			op.(*CreateNodeOp).Kind = "CreateNodeOp"
-		case *HardLinkOp:
-			op.(*HardLinkOp).Kind = "HardLinkOp"
-		case *UpdateChunksOp:
-			op.(*UpdateChunksOp).Kind = "UpdateChunksOp"
-		case *UpdateSizeOp:
-			op.(*UpdateSizeOp).Kind = "UpdateSizeOp"
-		case *RenameOp:
-			op.(*RenameOp).Kind = "RenameOp"
-		case *RemoveOp:
-			op.(*RemoveOp).Kind = "RemoveOp"
-		default:
-			return nil, fmt.Errorf("Encoder undefined for op: %v", op)
+		if err := SetOpMeta(op); err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
+func EncodeDBOperationsToJson(ops []DBOperation) ([]byte, error) {
+	if err := SetOpMetas(ops); err != nil {
+		return nil, err
+	}
 	return json.Marshal(ops)
 }
 

@@ -1,6 +1,7 @@
 package inodedb
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/nyaxt/otaru/util"
@@ -39,6 +40,10 @@ type DBSyncRequest struct {
 
 type DBStatRequest struct {
 	resultC chan DBServiceStats
+}
+
+type DBQueryRecentTransactionsRequest struct {
+	resultC chan interface{}
 }
 
 // DBService serializes requests to DBHandler
@@ -109,6 +114,18 @@ func (srv *DBService) run() {
 				} else {
 					req.resultC <- DBServiceStats{}
 				}
+			case *DBQueryRecentTransactionsRequest:
+				req := req.(*DBQueryRecentTransactionsRequest)
+				if prov, ok := srv.h.(QueryRecentTransactionsProvider); ok {
+					txs, err := prov.QueryRecentTransactions()
+					if err != nil {
+						req.resultC <- err
+					} else {
+						req.resultC <- txs
+					}
+				} else {
+					req.resultC <- fmt.Errorf("DBHandler doesn't support QueryRecentTransactions")
+				}
 			default:
 				log.Printf("unknown request passed to DBService: %v", req)
 			}
@@ -168,4 +185,14 @@ func (srv *DBService) GetStats() DBServiceStats {
 	req := &DBStatRequest{resultC: make(chan DBServiceStats)}
 	srv.reqC <- req
 	return <-req.resultC
+}
+
+func (srv *DBService) QueryRecentTransactions() ([]DBTransaction, error) {
+	req := &DBQueryRecentTransactionsRequest{resultC: make(chan interface{})}
+	srv.reqC <- req
+	res := <-req.resultC
+	if err, ok := res.(error); ok {
+		return nil, err
+	}
+	return res.([]DBTransaction), nil
 }

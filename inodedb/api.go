@@ -63,3 +63,7 @@ type DBServiceStats struct {
 type DBServiceStatsProvider interface {
 	GetStats() DBServiceStats
 }
+
+type QueryRecentTransactionsProvider interface {
+	QueryRecentTransactions() ([]DBTransaction, error)
+}

@@ -208,8 +208,8 @@ func (v dirNodeView) GetEntries() map[string]ID { return v.ss.Entries }
 
 type DBTransaction struct {
 	// FIXME: IssuedAt Time   `json:"issuedat"`
-	TxID
-	Ops []DBOperation
+	TxID `json:"txid"`
+	Ops  []DBOperation `json:'ops'`
 }
 
 type DBStateSnapshotIO interface {
@@ -393,4 +393,21 @@ func (db *DB) GetStats() DBServiceStats {
 	stats.NumberOfNodeLocks = len(db.state.nodeLocks)
 
 	return stats
+}
+
+var _ = QueryRecentTransactionsProvider(&DB{})
+
+func (db *DB) QueryRecentTransactions() ([]DBTransaction, error) {
+	ctxio, ok := db.txLogIO.(*CachedDBTransactionLogIO)
+	if !ok {
+		return nil, fmt.Errorf("TxLogIO backend isn't CachedDBTransactionLogIO")
+	}
+
+	var minID TxID
+	if db.state.version > 17 {
+		minID = db.state.version - 16
+	} else {
+		minID = 1
+	}
+	return ctxio.QueryCachedTransactions(minID)
 }

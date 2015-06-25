@@ -58,6 +58,10 @@ func (txio *CachedDBTransactionLogIO) QueryTransactions(minID TxID) ([]DBTransac
 		return txio.be.QueryTransactions(minID)
 	}
 
+	return txio.QueryCachedTransactions(minID)
+}
+
+func (txio *CachedDBTransactionLogIO) QueryCachedTransactions(minID TxID) ([]DBTransaction, error) {
 	result := []DBTransaction{}
 	for _, tx := range txio.ringbuf[txio.next:] {
 		if tx.TxID >= minID {
