@@ -147,6 +147,12 @@ func (f *FileBlobStore) ListBlobs() ([]string, error) {
 	return blobs, nil
 }
 
+var _ = BlobRemover(&FileBlobStore{})
+
+func (f *FileBlobStore) RemoveBlob(blobpath string) error {
+	return os.Remove(path.Join(f.base, blobpath))
+}
+
 func (*FileBlobStore) ImplName() string { return "FileBlobStore" }
 
 func (f *FileBlobStore) GetBase() string { return f.base }

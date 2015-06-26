@@ -13,6 +13,10 @@ type BlobLister interface {
 	ListBlobs() ([]string, error)
 }
 
+type BlobRemover interface {
+	RemoveBlob(blobpath string) error
+}
+
 type FlagsReader interface {
 	Flags() int
 }
