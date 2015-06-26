@@ -52,7 +52,7 @@ func (cfio *ChunkedFileIO) OverrideNewChunkIOForTesting(newChunkIO func(blobstor
 func (cfio *ChunkedFileIO) newFileChunk(newo int64) (inodedb.FileChunk, error) {
 	bpath, err := blobstore.GenerateNewBlobPath(cfio.bs)
 	if err != nil {
-		return inodedb.FileChunk{}, err
+		return inodedb.FileChunk{}, fmt.Errorf("Failed to generate new blobpath: %v", err)
 	}
 	fc := inodedb.FileChunk{Offset: newo, Length: 0, BlobPath: bpath}
 	fmt.Printf("new chunk %v\n", fc)
@@ -70,7 +70,6 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 	if err != nil {
 		return fmt.Errorf("Failed to read cs array: %v", err)
 	}
-	csUpdated := false
 
 	writeToChunk := func(c *inodedb.FileChunk, isNewChunk bool, maxChunkLen int64) error {
 		if !fl.IsReadWriteAllowed(cfio.bs.Flags()) {
@@ -109,7 +108,9 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		oldLength := c.Length
 		c.Length = int64(cio.Size())
 		if oldLength != c.Length {
-			csUpdated = true
+			if err := cfio.caio.Write(cs); err != nil {
+				return fmt.Errorf("Failed to write updated cs array: %v", err)
+			}
 		}
 
 		remo += int64(n)
@@ -147,7 +148,9 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 			cs = append(cs, inodedb.FileChunk{})
 			copy(cs[i+1:], cs[i:])
 			cs[i] = newc
-			csUpdated = true
+			if err := cfio.caio.Write(cs); err != nil {
+				return fmt.Errorf("Failed to write updated cs array: %v", err)
+			}
 
 			if err := writeToChunk(&newc, NewChunk, maxlen); err != nil {
 				return err
@@ -198,14 +201,11 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		}
 
 		cs = append(cs, newc)
-		csUpdated = true
-	}
-
-	if csUpdated {
 		if err := cfio.caio.Write(cs); err != nil {
 			return fmt.Errorf("Failed to write updated cs array: %v", err)
 		}
 	}
+
 	return nil
 }
 
