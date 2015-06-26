@@ -9,6 +9,10 @@ type BlobStore interface {
 	OpenReader(blobpath string) (io.ReadCloser, error)
 }
 
+type BlobLister interface {
+	ListBlobs() ([]string, error)
+}
+
 type FlagsReader interface {
 	Flags() int
 }

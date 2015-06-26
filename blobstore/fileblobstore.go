@@ -123,4 +123,30 @@ func (f *FileBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
 	return rc, nil
 }
 
+var _ = BlobLister(&FileBlobStore{})
+
+func (f *FileBlobStore) ListBlobs() ([]string, error) {
+	d, err := os.Open(f.base)
+	if err != nil {
+		return nil, fmt.Errorf("Open dir failed: %v", err)
+	}
+	defer d.Close()
+	fis, err := d.Readdir(-1)
+	if err != nil {
+		return nil, fmt.Errorf("Readdir failed: %v", err)
+	}
+
+	blobs := make([]string, 0, len(fis))
+	for _, fi := range fis {
+		if fi.IsDir() {
+			continue
+		}
+		blobs = append(blobs, fi.Name())
+	}
+
+	return blobs, nil
+}
+
 func (*FileBlobStore) ImplName() string { return "FileBlobStore" }
+
+func (f *FileBlobStore) GetBase() string { return f.base }
