@@ -158,7 +158,15 @@ func (fh FileHandle) Flush(ctx context.Context, req *bfuse.FlushRequest) error {
 	return nil
 }
 
+func (fh FileHandle) Release(ctx context.Context, req *bfuse.ReleaseRequest) error {
+	fh.Forget()
+	return nil
+}
+
 func (fh FileHandle) Forget() {
+	if fh.h == nil {
+		return
+	}
 	fh.h.Close()
 	fh.h = nil
 }

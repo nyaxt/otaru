@@ -235,7 +235,9 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 		return nil, err
 	}
 	if v.GetType() != inodedb.FileNodeT {
-		fs.idb.UnlockNode(nlock)
+		if err := fs.idb.UnlockNode(nlock); err != nil {
+			log.Printf("Unlock node failed for non-file node: %v", err)
+		}
 
 		if v.GetType() == inodedb.DirNodeT {
 			return nil, EISDIR
@@ -299,7 +301,9 @@ func (of *OpenFile) downgradeToReadLock() {
 		return
 	}
 
-	of.fs.idb.UnlockNode(of.nlock)
+	if err := of.fs.idb.UnlockNode(of.nlock); err != nil {
+		log.Printf("Unlocking node to downgrade to read lock failed: %v", err)
+	}
 	of.nlock.Ticket = inodedb.NoTicket
 	caio := NewINodeDBChunksArrayIO(of.fs.idb, of.nlock)
 	of.cfio = of.fs.newChunkedFileIO(of.fs.bs, of.fs.c, caio)

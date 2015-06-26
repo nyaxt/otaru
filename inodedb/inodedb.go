@@ -370,6 +370,7 @@ func (db *DB) LockNode(id ID) (NodeLock, error) {
 
 func (db *DB) UnlockNode(nlock NodeLock) error {
 	if err := db.state.checkLock(nlock, true); err != nil {
+		log.Printf("Unlock node failed: %v", err)
 		return err
 	}
 
