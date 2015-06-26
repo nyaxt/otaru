@@ -21,6 +21,14 @@ func TestInitialState(t *testing.T) {
 	if nv.GetType() != i.DirNodeT {
 		t.Errorf("root dir not found!")
 	}
+
+	fbps, errs := db.Fsck()
+	if len(fbps) != 0 {
+		t.Errorf("Fsck returned used fbp on new empty db: %v", fbps)
+	}
+	if len(errs) != 0 {
+		t.Errorf("Fsck returned err on new empty db: %v", errs)
+	}
 }
 
 func TestNewEmptyDB_ShouldFailOnNonEmptySnapsshotIO(t *testing.T) {
@@ -87,5 +95,13 @@ func TestCreateFile(t *testing.T) {
 
 	if err := db.UnlockNode(nlock); err != nil {
 		t.Errorf("Failed to UnlockNode: %v", err)
+	}
+
+	fbps, errs := db.Fsck()
+	if len(fbps) != 0 {
+		t.Errorf("Fsck returned used fbp on db: %v", fbps)
+	}
+	if len(errs) != 0 {
+		t.Errorf("Fsck returned err on db: %v", errs)
 	}
 }

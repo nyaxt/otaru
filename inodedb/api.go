@@ -68,3 +68,7 @@ type DBServiceStatsProvider interface {
 type QueryRecentTransactionsProvider interface {
 	QueryRecentTransactions() ([]DBTransaction, error)
 }
+
+type DBFscker interface {
+	Fsck() ([]string, []error)
+}

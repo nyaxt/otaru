@@ -46,6 +46,15 @@ type DBQueryRecentTransactionsRequest struct {
 	resultC chan interface{}
 }
 
+type fsckResult struct {
+	FoundBlobPaths []string
+	Errs           []error
+}
+
+type DBFsckRequest struct {
+	resultC chan fsckResult
+}
+
 // DBService serializes requests to DBHandler
 type DBService struct {
 	reqC    chan interface{}
@@ -126,6 +135,14 @@ func (srv *DBService) run() {
 				} else {
 					req.resultC <- fmt.Errorf("DBHandler doesn't support QueryRecentTransactions")
 				}
+			case *DBFsckRequest:
+				req := req.(*DBFsckRequest)
+				if prov, ok := srv.h.(DBFscker); ok {
+					foundblobpaths, errs := prov.Fsck()
+					req.resultC <- fsckResult{foundblobpaths, errs}
+				} else {
+					req.resultC <- fsckResult{nil, []error{fmt.Errorf("DBHandler doesn't support Fsck")}}
+				}
 			default:
 				log.Printf("unknown request passed to DBService: %v", req)
 			}
@@ -195,4 +212,11 @@ func (srv *DBService) QueryRecentTransactions() ([]DBTransaction, error) {
 		return nil, err
 	}
 	return res.([]DBTransaction), nil
+}
+
+func (srv *DBService) Fsck() ([]string, []error) {
+	req := &DBFsckRequest{resultC: make(chan fsckResult)}
+	srv.reqC <- req
+	res := <-req.resultC
+	return res.FoundBlobPaths, res.Errs
 }

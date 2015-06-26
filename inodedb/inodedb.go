@@ -387,6 +387,47 @@ func (db *DB) Sync() error {
 	return nil
 }
 
+func (db *DB) fsckRecursive(id ID, foundblobpaths []string, errs []error) ([]string, []error) {
+	n, ok := db.state.nodes[id]
+	if !ok {
+		errs = append(errs, fmt.Errorf("RootDir node not found"))
+		return foundblobpaths, errs
+	}
+	switch n.GetType() {
+	case FileNodeT:
+		fn, ok := n.(*FileNode)
+		if !ok {
+			errs = append(errs, fmt.Errorf("Node ID %d said it is FileNodeT, but cast failed", id))
+		} else {
+			for _, fc := range fn.Chunks {
+				foundblobpaths = append(foundblobpaths, fc.BlobPath)
+			}
+		}
+
+	case DirNodeT:
+		dn, ok := n.(*DirNode)
+		if !ok {
+			errs = append(errs, fmt.Errorf("Node ID %d said it is FileNodeT, but cast failed", id))
+		} else {
+			for _, cid := range dn.Entries {
+				foundblobpaths, errs = db.fsckRecursive(cid, foundblobpaths, errs)
+			}
+		}
+
+	default:
+		errs = append(errs, fmt.Errorf("Node ID %d has unknown type %v", n.GetType()))
+	}
+	return foundblobpaths, errs
+}
+
+func (db *DB) Fsck() ([]string, []error) {
+	foundblobpaths := make([]string, 0)
+	errs := make([]error, 0)
+	return db.fsckRecursive(RootDirID, foundblobpaths, errs)
+}
+
+var _ = DBServiceStatsProvider(&DB{})
+
 func (db *DB) GetStats() DBServiceStats {
 	stats := db.stats
 	stats.LastID = db.state.lastID
