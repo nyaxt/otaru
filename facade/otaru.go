@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"time"
 
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
@@ -25,13 +26,13 @@ type Otaru struct {
 	FBS *blobstore.FileBlobStore
 	BBS blobstore.BlobStore
 	CBS *blobstore.CachedBlobStore
-	CSS *blobstore.CacheSyncScheduler
+	CSS *util.PeriodicRunner
 
 	SIO   *otaru.BlobStoreDBStateSnapshotIO
 	TxIO  inodedb.DBTransactionLogIO
 	IDBBE *inodedb.DB
 	IDBS  *inodedb.DBService
-	IDBSS *util.SyncScheduler
+	IDBSS *util.PeriodicRunner
 
 	FS   *otaru.FileSystem
 	MGMT *mgmt.Server
@@ -112,7 +113,7 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 	}
 
 	o.IDBS = inodedb.NewDBService(o.IDBBE)
-	o.IDBSS = util.NewSyncScheduler(o.IDBS)
+	o.IDBSS = util.NewSyncScheduler(o.IDBS, 30*time.Second)
 
 	o.FS = otaru.NewFileSystem(o.IDBS, o.CBS, o.C)
 	o.MGMT = mgmt.NewServer()
