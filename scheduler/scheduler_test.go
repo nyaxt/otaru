@@ -49,7 +49,26 @@ func TestScheduler_RunAt(t *testing.T) {
 	counter = 0
 
 	s := scheduler.NewScheduler()
-	s.RunAt(HogeTask{}, time.Now().Add(100*time.Millisecond))
+	id := s.RunAt(HogeTask{}, time.Now().Add(100*time.Millisecond))
+	if id != scheduler.ID(1) {
+		t.Errorf("first task not ID 1 but %d", id)
+	}
+
+	var v *scheduler.JobView
+	for ; v == nil; v = s.Query(id) {
+		// retry until we get valid v
+	}
+
+	if v.ID != id {
+		t.Errorf("ID mismatch")
+	}
+	if v.State != scheduler.JobScheduled {
+		t.Errorf("wrong state")
+	}
+	if v.Result != nil {
+		t.Errorf("result non-nil before run")
+	}
+
 	s.RunAllAndStop()
 
 	if counter != 1 {

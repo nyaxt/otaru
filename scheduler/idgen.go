@@ -7,9 +7,9 @@ import (
 type ID uint32
 
 type idGen struct {
-	nextJobID ID
+	lastID ID
 }
 
 func (g *idGen) genID() ID {
-	return ID(atomic.AddUint32((*uint32)(&g.nextJobID), 1))
+	return ID(atomic.AddUint32((*uint32)(&g.lastID), 1))
 }
