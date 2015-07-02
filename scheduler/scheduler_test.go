@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/nyaxt/otaru/scheduler"
 )
 
@@ -28,7 +30,7 @@ func (h HogeResult) Err() error { return nil }
 
 type HogeTask struct{}
 
-func (HogeTask) Run() scheduler.Result {
+func (HogeTask) Run(context.Context) scheduler.Result {
 	counter++
 	return HogeResult{counter}
 }
@@ -37,7 +39,7 @@ func TestScheduler_RunTask(t *testing.T) {
 	counter = 0
 
 	s := scheduler.NewScheduler()
-	s.RunImmediately(HogeTask{})
+	s.RunImmediately(HogeTask{}, nil)
 	s.RunAllAndStop()
 
 	if counter != 1 {
@@ -48,15 +50,34 @@ func TestScheduler_RunTask(t *testing.T) {
 func TestScheduler_RunAt(t *testing.T) {
 	counter = 0
 
+	start := time.Now()
 	s := scheduler.NewScheduler()
-	id := s.RunAt(HogeTask{}, time.Now().Add(100*time.Millisecond))
+
+	cbjoin := make(chan struct{})
+	cb := func(v *scheduler.JobView) {
+		if v.State != scheduler.JobFinished {
+			t.Errorf("wrong state")
+		}
+		if v.CreatedAt.Before(start) {
+			t.Errorf("wrong CreatedAt")
+		}
+		if v.ScheduledAt.Before(v.CreatedAt) {
+			t.Errorf("wrong ScheduledAt")
+		}
+		if v.Result.(HogeResult).counterSnapshot != 1 {
+			t.Errorf("wrong result")
+		}
+		cbjoin <- struct{}{}
+	}
+	id := s.RunAt(HogeTask{}, time.Now().Add(100*time.Millisecond), cb)
 	if id != scheduler.ID(1) {
 		t.Errorf("first task not ID 1 but %d", id)
 	}
 
-	var v *scheduler.JobView
-	for ; v == nil; v = s.Query(id) {
-		// retry until we get valid v
+	v := s.Query(id)
+	if v == nil {
+		t.Errorf("id should be queryable immediately after RunAt return")
+		return
 	}
 
 	if v.ID != id {
@@ -74,4 +95,83 @@ func TestScheduler_RunAt(t *testing.T) {
 	if counter != 1 {
 		t.Errorf("err")
 	}
+	<-cbjoin
+}
+
+type LongTaskResult time.Time
+
+func (LongTaskResult) Err() error { return nil }
+
+type LongTask time.Duration
+
+func (lt LongTask) Run(ctx context.Context) scheduler.Result {
+	ticker := time.NewTicker(time.Duration(lt))
+	defer ticker.Stop()
+	select {
+	case <-ticker.C:
+		return LongTaskResult(time.Now())
+	case <-ctx.Done():
+		return nil
+	}
+}
+
+func TestScheduler_AbortTaskBeforeRun(t *testing.T) {
+	s := scheduler.NewScheduler()
+
+	cbjoin := make(chan struct{})
+	cb := func(v *scheduler.JobView) {
+		if v.State != scheduler.JobAborted {
+			t.Errorf("wrong State")
+		}
+		if v.Result != nil {
+			t.Errorf("Aborted task has non-nil Result")
+		}
+		cbjoin <- struct{}{}
+	}
+	id := s.RunAt(LongTask(time.Second), time.Now().Add(100*time.Millisecond), cb)
+	s.Abort(id)
+
+	s.RunAllAndStop()
+	<-cbjoin
+}
+
+func TestScheduler_AbortTaskDuringRun(t *testing.T) {
+	s := scheduler.NewScheduler()
+
+	cbjoin := make(chan struct{})
+	cb := func(v *scheduler.JobView) {
+		if v.State != scheduler.JobAborted {
+			t.Errorf("wrong State")
+		}
+		if v.Result != nil {
+			t.Errorf("Aborted task has non-nil Result")
+		}
+		cbjoin <- struct{}{}
+	}
+	id := s.RunImmediately(LongTask(time.Second), cb)
+	time.Sleep(50 * time.Millisecond)
+	s.Abort(id)
+
+	s.RunAllAndStop()
+	<-cbjoin
+}
+
+func TestScheduler_AbortTaskAfterRun(t *testing.T) {
+	s := scheduler.NewScheduler()
+
+	cbjoin := make(chan struct{})
+	cb := func(v *scheduler.JobView) {
+		if v.State != scheduler.JobFinished {
+			t.Errorf("wrong State")
+		}
+		if v.Result == nil {
+			t.Errorf("Finished task has nil Result")
+		}
+		cbjoin <- struct{}{}
+	}
+	id := s.RunImmediately(HogeTask{}, cb)
+	<-cbjoin
+	s.Abort(id)
+
+	s.RunAllAndStop()
 }
