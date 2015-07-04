@@ -96,7 +96,7 @@ func (j *job) View() *JobView {
 
 type jobQuery struct {
 	ID
-	resultC chan *JobView
+	resultC chan []*JobView
 }
 
 type abortReq struct {
@@ -177,7 +177,17 @@ func (s *Scheduler) RunImmediately(task Task, cb DoneCallback) ID {
 func (s *Scheduler) Query(id ID) *JobView {
 	q := &jobQuery{
 		ID:      id,
-		resultC: make(chan *JobView),
+		resultC: make(chan []*JobView),
+	}
+	s.queryC <- q
+	rs := <-q.resultC
+	return rs[0]
+}
+
+func (s *Scheduler) QueryAll() []*JobView {
+	q := &jobQuery{
+		ID:      allJobs,
+		resultC: make(chan []*JobView),
 	}
 	s.queryC <- q
 	return <-q.resultC
@@ -193,8 +203,8 @@ func (s *Scheduler) abortInternal(id ID) {
 }
 
 func (s *Scheduler) Abort(id ID) {
-	if id == AbortAll {
-		// AbortAll should only be used internally
+	if id == allJobs {
+		// allJobs should only be used internally
 		return
 	}
 
@@ -215,7 +225,7 @@ func (s *Scheduler) stop() {
 func (s *Scheduler) RunAllAndStop() { s.stop() }
 
 func (s *Scheduler) AbortAllAndStop() {
-	s.abortInternal(AbortAll)
+	s.abortInternal(allJobs)
 	s.stop()
 }
 
@@ -284,12 +294,21 @@ func (s *Scheduler) schedulerMain() {
 			if q == nil {
 				continue
 			}
+			if q.ID == allJobs {
+				jvs := make([]*JobView, 0, len(jobs))
+				for _, j := range jobs {
+					jvs = append(jvs, j.View())
+				}
+				q.resultC <- jvs
+				continue
+			}
+
 			id := q.ID
 			j, ok := jobs[id]
 			if !ok {
 				q.resultC <- nil
 			} else {
-				q.resultC <- j.View()
+				q.resultC <- []*JobView{j.View()}
 			}
 
 		case req := <-s.abortC:
@@ -297,7 +316,7 @@ func (s *Scheduler) schedulerMain() {
 				continue
 			}
 
-			if req.ID == AbortAll {
+			if req.ID == allJobs {
 				for _, j := range jobs {
 					abortJob(j)
 				}

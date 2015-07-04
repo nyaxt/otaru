@@ -188,3 +188,18 @@ func TestScheduler_AbortAllAndStop(t *testing.T) {
 		t.Errorf("took >1sec to abort all and stop")
 	}
 }
+
+func TestScheduler_QueryAll(t *testing.T) {
+	s := scheduler.NewScheduler()
+
+	s.RunImmediately(LongTask(time.Second), nil)
+	s.RunImmediately(LongTask(time.Second), nil)
+	s.RunImmediately(LongTask(time.Second), nil)
+
+	jvs := s.QueryAll()
+	if len(jvs) != 3 {
+		t.Errorf("Expected to see 3 jobs but saw %d", len(jvs))
+	}
+
+	s.AbortAllAndStop()
+}

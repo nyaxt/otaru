@@ -6,7 +6,7 @@ import (
 
 type ID uint32
 
-const AbortAll ID = 0
+const allJobs ID = 0
 
 type idGen struct {
 	lastID ID
