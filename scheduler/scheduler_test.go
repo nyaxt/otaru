@@ -175,3 +175,16 @@ func TestScheduler_AbortTaskAfterRun(t *testing.T) {
 
 	s.RunAllAndStop()
 }
+
+func TestScheduler_AbortAllAndStop(t *testing.T) {
+	s := scheduler.NewScheduler()
+
+	s.RunImmediately(LongTask(time.Second), nil)
+	s.RunAt(LongTask(time.Second), time.Now().Add(300*time.Millisecond), nil)
+
+	start := time.Now()
+	s.AbortAllAndStop()
+	if time.Since(start) > time.Second {
+		t.Errorf("took >1sec to abort all and stop")
+	}
+}

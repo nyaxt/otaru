@@ -105,7 +105,8 @@ type abortReq struct {
 }
 
 type Scheduler struct {
-	numRunners int
+	numRunners  int
+	numWaitJobs int
 
 	idGen
 
@@ -115,8 +116,6 @@ type Scheduler struct {
 	runC          chan *job
 	joinScheduleC chan struct{}
 	joinRunnerC   chan struct{}
-
-	numWaitJobs int
 }
 
 const schedulerTickDuration = 300 * time.Millisecond
@@ -124,6 +123,7 @@ const schedulerTickDuration = 300 * time.Millisecond
 func NewScheduler() *Scheduler {
 	s := &Scheduler{
 		numRunners:    4, // FIXME
+		numWaitJobs:   0,
 		idGen:         idGen{0},
 		scheduleC:     make(chan *job, 1),
 		queryC:        make(chan *jobQuery, 1),
@@ -139,6 +139,18 @@ func NewScheduler() *Scheduler {
 	}
 
 	return s
+}
+
+type Stats struct {
+	NumRunners  int `json:"num_runners"`
+	NumWaitJobs int `json:"num_wait_jobs"`
+}
+
+func (s *Scheduler) GetStats() *Stats {
+	return &Stats{
+		NumRunners:  s.numRunners,
+		NumWaitJobs: s.numWaitJobs,
+	}
 }
 
 func (s *Scheduler) RunAt(task Task, at time.Time, cb DoneCallback) ID {
@@ -171,7 +183,7 @@ func (s *Scheduler) Query(id ID) *JobView {
 	return <-q.resultC
 }
 
-func (s *Scheduler) Abort(id ID) {
+func (s *Scheduler) abortInternal(id ID) {
 	req := &abortReq{
 		ID:    id,
 		doneC: make(chan struct{}),
@@ -180,14 +192,49 @@ func (s *Scheduler) Abort(id ID) {
 	<-req.doneC
 }
 
-func (s *Scheduler) RunAllAndStop() {
+func (s *Scheduler) Abort(id ID) {
+	if id == AbortAll {
+		// AbortAll should only be used internally
+		return
+	}
+
+	s.abortInternal(id)
+}
+
+func (s *Scheduler) stop() {
 	close(s.scheduleC)
 	close(s.queryC)
+	close(s.abortC)
 
 	<-s.joinScheduleC
 	for i := 0; i < s.numRunners; i++ {
 		<-s.joinRunnerC
 	}
+}
+
+func (s *Scheduler) RunAllAndStop() { s.stop() }
+
+func (s *Scheduler) AbortAllAndStop() {
+	s.abortInternal(AbortAll)
+	s.stop()
+}
+
+func abortJob(j *job) {
+	j.mu.Lock()
+	switch j.State {
+	case JobScheduled:
+		j.State = JobAborted
+		if j.DoneCallback != nil {
+			go j.DoneCallback(j.ViewWithLock())
+		}
+	case JobStarted:
+		j.cancelfn()
+	case JobFinished:
+		// Job has already finished. Too late.
+	case JobAborted:
+		// Job is already aborted. Nothing to do.
+	}
+	j.mu.Unlock()
 }
 
 func (s *Scheduler) schedulerMain() {
@@ -246,27 +293,26 @@ func (s *Scheduler) schedulerMain() {
 			}
 
 		case req := <-s.abortC:
+			if req == nil {
+				continue
+			}
+
+			if req.ID == AbortAll {
+				for _, j := range jobs {
+					abortJob(j)
+				}
+
+				req.doneC <- struct{}{}
+				continue
+			}
+
 			j, ok := jobs[req.ID]
 			if !ok {
 				log.Printf("Abort target job ID %d doesn't exist.", req.ID)
 				req.doneC <- struct{}{}
 				continue
 			}
-			j.mu.Lock()
-			switch j.State {
-			case JobScheduled:
-				j.State = JobAborted
-				if j.DoneCallback != nil {
-					go j.DoneCallback(j.ViewWithLock())
-				}
-			case JobStarted:
-				j.cancelfn()
-			case JobFinished:
-				// Job has already finished. Too late.
-			case JobAborted:
-				// Job is already aborted. Nothing to do.
-			}
-			j.mu.Unlock()
+			abortJob(j)
 			req.doneC <- struct{}{}
 
 		case <-tick.C:

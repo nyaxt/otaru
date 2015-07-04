@@ -15,11 +15,14 @@ import (
 	"github.com/nyaxt/otaru/gcloud/gcs"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/mgmt"
+	"github.com/nyaxt/otaru/scheduler"
 	"github.com/nyaxt/otaru/util"
 )
 
 type Otaru struct {
 	C btncrypt.Cipher
+
+	S *scheduler.Scheduler
 
 	Clisrc auth.ClientSource
 
@@ -49,6 +52,8 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 		o.Close()
 		return nil, fmt.Errorf("Failed to init Cipher: %v", err)
 	}
+
+	o.S = scheduler.NewScheduler()
 
 	if !localDebug {
 		o.Clisrc, err = auth.GetGCloudClientSource(
@@ -128,6 +133,10 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 
 func (o *Otaru) Close() error {
 	errs := []error{}
+
+	if o.S != nil {
+		o.S.AbortAllAndStop()
+	}
 
 	if o.FS != nil {
 		if err := o.FS.Sync(); err != nil {
