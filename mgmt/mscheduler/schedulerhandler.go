@@ -13,4 +13,7 @@ func Install(srv *mgmt.Server, s *scheduler.Scheduler) {
 	rtr.HandleFunc("/stats", mgmt.JSONHandler(func(req *http.Request) interface{} {
 		return s.GetStats()
 	}))
+	rtr.HandleFunc("/all", mgmt.JSONHandler(func(req *http.Request) interface{} {
+		return s.QueryAll()
+	}))
 }
