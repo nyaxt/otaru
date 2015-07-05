@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"sync"
 	"syscall"
 
 	bfuse "bazil.org/fuse"
@@ -59,7 +60,11 @@ func main() {
 		log.Printf("NewOtaru failed: %v", err)
 		os.Exit(1)
 	}
+	var muClose sync.Mutex
 	closeOtaruAndExit := func() {
+		muClose.Lock()
+		defer muClose.Unlock()
+
 		if err := bfuse.Unmount(mountpoint); err != nil {
 			log.Printf("umount err: %v", err)
 		}
@@ -67,6 +72,7 @@ func main() {
 			if err := o.Close(); err != nil {
 				log.Printf("Otaru.Close() returned errs: %v", err)
 			}
+			o = nil
 		}
 		os.Exit(0)
 	}
