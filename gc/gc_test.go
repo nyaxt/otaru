@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/nyaxt/otaru/gc"
+
+	"golang.org/x/net/context"
 )
 
 type MockGCBlobStore struct {
@@ -35,7 +37,7 @@ func TestGC_Basic(t *testing.T) {
 		usedbs: []string{"x", "y", "z"},
 	}
 
-	if err := gc.GC(bs, idb, false); err != nil {
+	if err := gc.GC(context.TODO(), bs, idb, false); err != nil {
 		t.Errorf("GC err: %v", err)
 	}
 

@@ -12,6 +12,12 @@ type Result interface {
 	Err() error
 }
 
+type ErrorResult struct {
+	Error error
+}
+
+func (er ErrorResult) Err() error { return er.Error }
+
 type Task interface {
 	Run(ctx context.Context) Result
 }
