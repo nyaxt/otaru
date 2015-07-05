@@ -40,6 +40,10 @@ type DumpEntriesInfoRequest struct {
 	resultC chan []*CachedBlobEntryInfo
 }
 
+type ListBlobsRequest struct {
+	resultC chan []string
+}
+
 type OpenEntryRequest struct {
 	blobpath string
 	resultC  chan interface{}
@@ -64,6 +68,9 @@ func (mgr *CachedBlobEntriesManager) Run() {
 		case *DumpEntriesInfoRequest:
 			req := req.(*DumpEntriesInfoRequest)
 			req.resultC <- mgr.doDumpEntriesInfo()
+		case *ListBlobsRequest:
+			req := req.(*ListBlobsRequest)
+			req.resultC <- mgr.doListBlobs()
 		case *OpenEntryRequest:
 			req := req.(*OpenEntryRequest)
 			be, err := mgr.doOpenEntry(req.blobpath)
@@ -143,6 +150,20 @@ func (mgr *CachedBlobEntriesManager) doDumpEntriesInfo() []*CachedBlobEntryInfo 
 
 func (mgr *CachedBlobEntriesManager) DumpEntriesInfo() []*CachedBlobEntryInfo {
 	req := &DumpEntriesInfoRequest{resultC: make(chan []*CachedBlobEntryInfo)}
+	mgr.reqC <- req
+	return <-req.resultC
+}
+
+func (mgr *CachedBlobEntriesManager) doListBlobs() []string {
+	bpaths := make([]string, 0, len(mgr.entries))
+	for _, be := range mgr.entries {
+		bpaths = append(bpaths, be.blobpath)
+	}
+	return bpaths
+}
+
+func (mgr *CachedBlobEntriesManager) ListBlobs() []string {
+	req := &ListBlobsRequest{resultC: make(chan []string)}
 	mgr.reqC <- req
 	return <-req.resultC
 }
@@ -683,6 +704,37 @@ func (cbs *CachedBlobStore) DumpEntriesInfo() []*CachedBlobEntryInfo {
 }
 
 func (*CachedBlobStore) ImplName() string { return "CachedBlobStore" }
+
+var _ = BlobLister(&CachedBlobStore{})
+
+func (cbs *CachedBlobStore) ListBlobs() ([]string, error) {
+	belister, ok := cbs.backendbs.(BlobLister)
+	if !ok {
+		return nil, fmt.Errorf("Backendbs \"%v\" doesn't support listing blobs.", util.TryGetImplName(cbs.backendbs))
+	}
+
+	belist, err := belister.ListBlobs()
+	if err != nil {
+		return nil, fmt.Errorf("Backendbs failed to ListBlobs: %v", err)
+	}
+	cachelist := cbs.entriesmgr.ListBlobs()
+	cachelistset := make(map[string]struct{})
+	for _, blobpath := range cachelist {
+		cachelistset[blobpath] = struct{}{}
+	}
+
+	// list = append(cachelist, ...belist but entries already in cachelist)
+	list := cachelist
+	for _, blobpath := range belist {
+		if _, ok := cachelistset[blobpath]; ok {
+			// already in cachelist
+			continue
+		}
+		list = append(list, blobpath)
+	}
+
+	return list, nil
+}
 
 type CachedBlobHandle struct {
 	be    *CachedBlobEntry
