@@ -193,3 +193,57 @@ func TestCachedBlobStore_ListBlobs(t *testing.T) {
 		t.Errorf("ListBlobs returned unexpected result: %v", bpaths)
 	}
 }
+
+func TestCachedBlobStore_RemoveBlob(t *testing.T) {
+	backendbs := tu.TestFileBlobStoreOfName("backend")
+	cachebs := tu.TestFileBlobStoreOfName("cache")
+
+	bs, err := blobstore.NewCachedBlobStore(backendbs, cachebs, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	if err != nil {
+		t.Errorf("Failed to create CachedBlobStore: %v", err)
+		return
+	}
+
+	if err := tu.WriteVersionedBlob(backendbs, "backendonly", 1); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := tu.WriteVersionedBlob(cachebs, "cacheonly", 2); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := tu.WriteVersionedBlobRA(bs, "synced", 3); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := bs.Sync(); err != nil {
+		t.Errorf("Sync failed: %v", err)
+		return
+	}
+	if err := tu.WriteVersionedBlobRA(bs, "unsynced", 4); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := bs.RemoveBlob("backendonly"); err != nil {
+		t.Errorf("RemoveBlob failed: %v", err)
+		return
+	}
+	if err := bs.RemoveBlob("synced"); err != nil {
+		t.Errorf("RemoveBlob failed: %v", err)
+		return
+	}
+	if err := bs.RemoveBlob("unsynced"); err != nil {
+		t.Errorf("RemoveBlob failed: %v", err)
+		return
+	}
+
+	bpaths, err := bs.ListBlobs()
+	if err != nil {
+		t.Errorf("ListBlobs failed: %v", err)
+		return
+	}
+	if len(bpaths) > 0 {
+		t.Errorf("Left over blobs: %v", bpaths)
+	}
+}

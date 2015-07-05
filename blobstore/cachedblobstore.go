@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"sync"
 	"syscall"
 	"time"
@@ -44,6 +45,11 @@ type ListBlobsRequest struct {
 	resultC chan []string
 }
 
+type RemoveBlobRequest struct {
+	blobpath string
+	resultC  chan error
+}
+
 type OpenEntryRequest struct {
 	blobpath string
 	resultC  chan interface{}
@@ -71,6 +77,9 @@ func (mgr *CachedBlobEntriesManager) Run() {
 		case *ListBlobsRequest:
 			req := req.(*ListBlobsRequest)
 			req.resultC <- mgr.doListBlobs()
+		case *RemoveBlobRequest:
+			req := req.(*RemoveBlobRequest)
+			req.resultC <- mgr.doRemoveBlob(req.blobpath)
 		case *OpenEntryRequest:
 			req := req.(*OpenEntryRequest)
 			be, err := mgr.doOpenEntry(req.blobpath)
@@ -157,6 +166,9 @@ func (mgr *CachedBlobEntriesManager) DumpEntriesInfo() []*CachedBlobEntryInfo {
 func (mgr *CachedBlobEntriesManager) doListBlobs() []string {
 	bpaths := make([]string, 0, len(mgr.entries))
 	for _, be := range mgr.entries {
+		if !be.state.IsActive() {
+			continue
+		}
 		bpaths = append(bpaths, be.blobpath)
 	}
 	return bpaths
@@ -164,6 +176,25 @@ func (mgr *CachedBlobEntriesManager) doListBlobs() []string {
 
 func (mgr *CachedBlobEntriesManager) ListBlobs() []string {
 	req := &ListBlobsRequest{resultC: make(chan []string)}
+	mgr.reqC <- req
+	return <-req.resultC
+}
+
+func (mgr *CachedBlobEntriesManager) doRemoveBlob(blobpath string) error {
+	be, ok := mgr.entries[blobpath]
+	if !ok {
+		return nil
+	}
+	if err := be.Close(abandonAndClose); err != nil {
+		return fmt.Errorf("Failed to abandon cache entry to be removed \"%s\": %v", be.blobpath, err)
+	}
+
+	delete(mgr.entries, blobpath)
+	return nil
+}
+
+func (mgr *CachedBlobEntriesManager) RemoveBlob(blobpath string) error {
+	req := &RemoveBlobRequest{blobpath: blobpath, resultC: make(chan error)}
 	mgr.reqC <- req
 	return <-req.resultC
 }
@@ -197,7 +228,7 @@ func (mgr *CachedBlobEntriesManager) OpenEntry(blobpath string) (*CachedBlobEntr
 }
 
 func (mgr *CachedBlobEntriesManager) tryCloseEntry(be *CachedBlobEntry) {
-	if err := be.Close(); err != nil {
+	if err := be.Close(writebackAndClose); err != nil {
 		log.Printf("Failed to close cache entry \"%s\": %v", be.blobpath, err)
 		return
 	}
@@ -519,9 +550,18 @@ func (be *CachedBlobEntry) Sync() error {
 	return util.ToErrors(errs)
 }
 
-func (be *CachedBlobEntry) Close() error {
+const (
+	abandonAndClose   = true
+	writebackAndClose = false
+)
+
+func (be *CachedBlobEntry) Close(abandon bool) error {
 	be.mu.Lock()
 	defer be.mu.Unlock()
+
+	if len(be.handles) > 0 {
+		return fmt.Errorf("Entry has %d handles", len(be.handles))
+	}
 
 	if !be.state.IsActive() {
 		log.Printf("Attempted to close uninitialized/already closed entry: %+v", be.infoWithLock())
@@ -530,8 +570,12 @@ func (be *CachedBlobEntry) Close() error {
 
 	log.Printf("Close entry: %+v", be.infoWithLock())
 
-	if err := be.writeBackWithLock(); err != nil {
-		return fmt.Errorf("Failed to writeback dirty: %v", err)
+	if !abandon {
+		if err := be.writeBackWithLock(); err != nil {
+			return fmt.Errorf("Failed to writeback dirty: %v", err)
+		}
+		be.syncCount++
+		be.lastSync = time.Now()
 	}
 
 	if err := be.cachebh.Close(); err != nil {
@@ -539,8 +583,6 @@ func (be *CachedBlobEntry) Close() error {
 	}
 
 	be.state = cacheEntryClosed
-	be.syncCount++
-	be.lastSync = time.Now()
 	return nil
 }
 
@@ -734,6 +776,23 @@ func (cbs *CachedBlobStore) ListBlobs() ([]string, error) {
 	}
 
 	return list, nil
+}
+
+var _ = BlobRemover(&CachedBlobStore{})
+
+func (cbs *CachedBlobStore) RemoveBlob(blobpath string) error {
+	backendrm, ok := cbs.backendbs.(BlobRemover)
+	if !ok {
+		return fmt.Errorf("Backendbs \"%v\" doesn't support removing blobs.", util.TryGetImplName(cbs.backendbs))
+	}
+	if err := cbs.entriesmgr.RemoveBlob(blobpath); err != nil {
+		return err
+	}
+	if err := backendrm.RemoveBlob(blobpath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Backendbs RemoveBlob failed: %v", err)
+	}
+
+	return nil
 }
 
 type CachedBlobHandle struct {
