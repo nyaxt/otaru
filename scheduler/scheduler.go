@@ -181,6 +181,9 @@ func (s *Scheduler) Query(id ID) *JobView {
 	}
 	s.queryC <- q
 	rs := <-q.resultC
+	if rs == nil {
+		return nil
+	}
 	return rs[0]
 }
 
@@ -212,6 +215,7 @@ func (s *Scheduler) Abort(id ID) {
 }
 
 func (s *Scheduler) stop() {
+	log.Printf("scheduler stop start")
 	close(s.scheduleC)
 	close(s.queryC)
 	close(s.abortC)
@@ -220,6 +224,7 @@ func (s *Scheduler) stop() {
 	for i := 0; i < s.numRunners; i++ {
 		<-s.joinRunnerC
 	}
+	log.Printf("scheduler stop done")
 }
 
 func (s *Scheduler) RunAllAndStop() { s.stop() }
