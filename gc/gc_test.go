@@ -45,3 +45,21 @@ func TestGC_Basic(t *testing.T) {
 		t.Errorf("GC removed unexpected blobs: %v", bs.removedbs)
 	}
 }
+
+func TestGC_EmptyRun(t *testing.T) {
+	bs := &MockGCBlobStore{
+		bs:        []string{"x", "y", "z"},
+		removedbs: []string{},
+	}
+	idb := &MockFscker{
+		usedbs: []string{"x", "y", "z"},
+	}
+
+	// vvv should not panic.
+	if err := gc.GC(context.TODO(), bs, idb, false); err != nil {
+		t.Errorf("GC err: %v", err)
+	}
+	if len(bs.removedbs) > 0 {
+		t.Errorf("GC removed unexpected blobs: %v", bs.removedbs)
+	}
+}

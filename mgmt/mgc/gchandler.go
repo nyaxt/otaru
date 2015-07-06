@@ -18,7 +18,9 @@ func Install(srv *mgmt.Server, s *scheduler.Scheduler, bs gc.GCableBlobStore, id
 			return
 		}
 
-		dryrun := true // FIXME
+		dryrunp := req.URL.Query().Get("dryrun")
+		dryrun := len(dryrunp) > 0
+
 		jv := s.RunImmediatelyBlock(&gc.GCTask{bs, idb, dryrun})
 		if err := jv.Result.Err(); err != nil {
 			http.Error(w, "GC task failed with error", http.StatusInternalServerError)

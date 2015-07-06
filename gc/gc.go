@@ -59,7 +59,7 @@ func GC(ctx context.Context, bs GCableBlobStore, idb inodedb.DBFscker, dryrun bo
 	}
 
 	log.Printf("Listing unused blobpaths.")
-	unusedbs := make([]string, 0, util.IntMin(len(allbs)-len(usedbs), 0))
+	unusedbs := make([]string, 0, util.IntMax(len(allbs)-len(usedbs), 0))
 	for _, b := range allbs {
 		if _, ok := usedbset[b]; ok {
 			continue
