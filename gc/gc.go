@@ -17,6 +17,8 @@ type GCableBlobStore interface {
 	blobstore.BlobRemover
 }
 
+var INodeDBBlobpaths = []string{"INODEDB_SNAPSHOT"} // FIXME: use otaru.INodeDBSnapshotBlobpath after dep refactor
+
 func GC(ctx context.Context, bs GCableBlobStore, idb inodedb.DBFscker, dryrun bool) error {
 	start := time.Now()
 
@@ -27,7 +29,7 @@ func GC(ctx context.Context, bs GCableBlobStore, idb inodedb.DBFscker, dryrun bo
 	}
 	log.Printf("List blobs done. %d blobs found.", len(allbs))
 	if err := ctx.Err(); err != nil {
-		log.Printf("Detected cancel. Bailing out")
+		log.Printf("Detected cancel. Bailing out.")
 		return err
 	}
 	log.Printf("Starting INodeDB fsck.")
@@ -37,9 +39,13 @@ func GC(ctx context.Context, bs GCableBlobStore, idb inodedb.DBFscker, dryrun bo
 	}
 	log.Printf("Fsck done. %d used blobs found.", len(usedbs))
 	if err := ctx.Err(); err != nil {
-		log.Printf("Detected cancel. Bailing out")
+		log.Printf("Detected cancel. Bailing out.")
 		return err
 	}
+
+	log.Printf("Adding in inodedb used bloblists: %v", INodeDBBlobpaths)
+	usedbs = append(usedbs, INodeDBBlobpaths...)
+
 	log.Printf("Converting used blob list to a hashset")
 	usedbset := make(map[string]struct{})
 	for _, b := range usedbs {
@@ -48,7 +54,7 @@ func GC(ctx context.Context, bs GCableBlobStore, idb inodedb.DBFscker, dryrun bo
 	log.Printf("Convert used blob list to a hashset: Done.")
 
 	if err := ctx.Err(); err != nil {
-		log.Printf("Detected cancel. Bailing out")
+		log.Printf("Detected cancel. Bailing out.")
 		return err
 	}
 
@@ -66,7 +72,7 @@ func GC(ctx context.Context, bs GCableBlobStore, idb inodedb.DBFscker, dryrun bo
 
 	for _, b := range unusedbs {
 		if err := ctx.Err(); err != nil {
-			log.Printf("Detected cancel. Bailing out")
+			log.Printf("Detected cancel. Bailing out.")
 			return err
 		}
 
