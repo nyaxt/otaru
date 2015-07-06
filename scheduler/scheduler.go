@@ -180,6 +180,12 @@ func (s *Scheduler) RunImmediately(task Task, cb DoneCallback) ID {
 	return s.RunAt(task, ZeroTime, cb)
 }
 
+func (s *Scheduler) RunImmediatelyBlock(task Task) *JobView {
+	doneC := make(chan *JobView)
+	s.RunAt(task, ZeroTime, func(v *JobView) { doneC <- v; close(doneC) })
+	return <-doneC
+}
+
 func (s *Scheduler) Query(id ID) *JobView {
 	q := &jobQuery{
 		ID:      id,

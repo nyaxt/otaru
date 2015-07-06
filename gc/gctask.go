@@ -13,7 +13,7 @@ type GCTask struct {
 	DryRun bool
 }
 
-func (t *GCTask) Run(ctx context.Context) scheduler.ErrorResult {
+func (t *GCTask) Run(ctx context.Context) scheduler.Result {
 	err := GC(ctx, t.BS, t.IDB, t.DryRun)
 	return scheduler.ErrorResult{err}
 }
