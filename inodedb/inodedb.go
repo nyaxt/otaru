@@ -343,7 +343,7 @@ func (db *DB) Sync() error {
 func (db *DB) fsckRecursive(id ID, foundblobpaths []string, errs []error) ([]string, []error) {
 	n, ok := db.state.nodes[id]
 	if !ok {
-		errs = append(errs, fmt.Errorf("RootDir node not found"))
+		errs = append(errs, fmt.Errorf("Node ID %d not found", id))
 		return foundblobpaths, errs
 	}
 	switch n.GetType() {
