@@ -55,11 +55,13 @@ func (cfio *ChunkedFileIO) newFileChunk(newo int64) (inodedb.FileChunk, error) {
 		return inodedb.FileChunk{}, fmt.Errorf("Failed to generate new blobpath: %v", err)
 	}
 	fc := inodedb.FileChunk{Offset: newo, Length: 0, BlobPath: bpath}
-	fmt.Printf("new chunk %v\n", fc)
+	log.Printf("new chunk %+v", fc)
 	return fc, nil
 }
 
 func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
+	log.Printf("PWrite: offset=%d, len=%d", offset, len(p))
+	// log.Printf("PWrite: p=%v", p)
 	remo := offset
 	remp := p
 	if len(remp) == 0 {

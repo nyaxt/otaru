@@ -1,6 +1,8 @@
 package otaru
 
 import (
+	"log"
+
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/intn"
 	"github.com/nyaxt/otaru/util"
@@ -16,6 +18,9 @@ func NewFileWriteCache() *FileWriteCache {
 
 func (wc *FileWriteCache) PWrite(offset int64, p []byte) error {
 	newp := intn.Patch{Offset: offset, P: p}
+	log.Printf("PWrite: %v", newp)
+	// log.Printf("PWrite: p=%v", p)
+
 	wc.ps = wc.ps.Merge(newp)
 	return nil
 }
@@ -86,6 +91,12 @@ func (wc *FileWriteCache) NeedsSync() bool {
 
 func (wc *FileWriteCache) Sync(bh blobstore.BlobHandle) error {
 	for _, p := range wc.ps {
+		if p.IsSentinel() {
+			continue
+		}
+
+		log.Printf("Sync: %v", p)
+		// log.Printf("Sync: p=%v", p.P)
 		if err := bh.PWrite(p.Offset, p.P); err != nil {
 			return err
 		}

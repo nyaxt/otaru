@@ -341,7 +341,10 @@ func (of *OpenFile) PWrite(offset int64, p []byte) error {
 		return err
 	}
 
-	if err := of.wc.PWrite(offset, p); err != nil {
+	// Pass wc.PWrite a copy of "p", as wc.PWrite expects its slice to be never modified afterwards.
+	pcopy := make([]byte, len(p))
+	copy(pcopy, p)
+	if err := of.wc.PWrite(offset, pcopy); err != nil {
 		return err
 	}
 

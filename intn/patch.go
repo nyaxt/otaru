@@ -1,9 +1,13 @@
 package intn
 
 import (
-	// "fmt"
+	"fmt"
+	//"log"
 	"math"
 )
+
+// var Printf = log.Printf
+var Printf = func(...interface{}) {}
 
 type Patch struct {
 	Offset int64
@@ -18,9 +22,17 @@ func (p Patch) Right() int64 {
 	return p.Offset + int64(len(p.P))
 }
 
+func (p Patch) String() string {
+	return fmt.Sprintf("{Offset: %d, len(P): %d}", p.Offset, len(p.P))
+}
+
 type Patches []Patch
 
 var PatchSentinel = Patch{Offset: math.MaxInt64}
+
+func (p Patch) IsSentinel() bool {
+	return p.Offset == PatchSentinel.Offset
+}
 
 func NewPatches() Patches {
 	return Patches{PatchSentinel}
@@ -66,12 +78,12 @@ func (ps Patches) Replace(lefti, righti int, newp Patch) Patches {
 
 func (ps Patches) Merge(newp Patch) Patches {
 	lefti, righti := ps.FindLRIndex(newp)
-	// fmt.Printf("newp: %v li, ri (%d, %d)\n", newp, lefti, righti)
+	Printf("newp: %v li, ri (%d, %d)\n", newp, lefti, righti)
 
 	if lefti < len(ps)-1 {
 		psl := &ps[lefti]
 		if newp.Left() > ps[lefti].Left() {
-			// fmt.Printf("Trim L !!!\n")
+			Printf("Trim L !!!\n")
 			//    [lefti] ...
 			//       [<------newp---...
 
@@ -86,7 +98,7 @@ func (ps Patches) Merge(newp Patch) Patches {
 	if righti >= 0 {
 		psr := &ps[righti]
 		if psr.Right() > newp.Right() {
-			// fmt.Printf("Trim R !!!\n")
+			Printf("Trim R !!!\n")
 			//            ... [righti]
 			//         ---newp--->]
 
@@ -100,7 +112,7 @@ func (ps Patches) Merge(newp Patch) Patches {
 	}
 
 	if lefti > righti {
-		// fmt.Printf("Insert!!!\n")
+		Printf("Insert!!!\n")
 
 		// Insert newp @ index lefti
 		newps := append(ps, PatchSentinel)
