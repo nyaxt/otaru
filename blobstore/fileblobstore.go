@@ -15,11 +15,11 @@ const (
 	ENOENT = syscall.Errno(syscall.ENOENT)
 )
 
-type fileBlobHandle struct {
+type FileBlobHandle struct {
 	fp *os.File
 }
 
-func (h fileBlobHandle) PRead(offset int64, p []byte) error {
+func (h FileBlobHandle) PRead(offset int64, p []byte) error {
 	if _, err := h.fp.Seek(offset, os.SEEK_SET); err != nil {
 		return err
 	}
@@ -29,14 +29,14 @@ func (h fileBlobHandle) PRead(offset int64, p []byte) error {
 	return nil
 }
 
-func (h fileBlobHandle) PWrite(offset int64, p []byte) error {
+func (h FileBlobHandle) PWrite(offset int64, p []byte) error {
 	if _, err := h.fp.WriteAt(p, offset); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (h fileBlobHandle) Size() int64 {
+func (h FileBlobHandle) Size() int64 {
 	fi, err := h.fp.Stat()
 	if err != nil {
 		log.Fatalf("Stat failed: %v", err)
@@ -45,14 +45,14 @@ func (h fileBlobHandle) Size() int64 {
 	return fi.Size()
 }
 
-func (h fileBlobHandle) Truncate(size int64) error {
+func (h FileBlobHandle) Truncate(size int64) error {
 	if err := h.fp.Truncate(size); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (h fileBlobHandle) Close() error {
+func (h FileBlobHandle) Close() error {
 	return h.fp.Close()
 }
 
@@ -91,7 +91,7 @@ func (f *FileBlobStore) Open(blobpath string, flags int) (BlobHandle, error) {
 		}
 		return nil, err
 	}
-	return &fileBlobHandle{fp}, nil
+	return &FileBlobHandle{fp}, nil
 }
 
 func (f *FileBlobStore) Flags() int {
