@@ -39,6 +39,9 @@ type FileSystem struct {
 
 	muOpenFiles sync.Mutex
 	openFiles   map[inodedb.ID]*OpenFile
+
+	muOrigPath sync.Mutex
+	origpath   map[inodedb.ID]string
 }
 
 func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher) *FileSystem {
@@ -52,9 +55,32 @@ func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c 
 		},
 
 		openFiles: make(map[inodedb.ID]*OpenFile),
+		origpath:  make(map[inodedb.ID]string),
 	}
+	fs.setOrigPathForId(inodedb.RootDirID, "/")
 
 	return fs
+}
+
+func (fs *FileSystem) tryGetOrigPath(id inodedb.ID) string {
+	fs.muOrigPath.Lock()
+	defer fs.muOrigPath.Unlock()
+
+	origpath, ok := fs.origpath[id]
+	if !ok {
+		return "<unknown>"
+	}
+	return origpath
+}
+
+func (fs *FileSystem) setOrigPathForId(id inodedb.ID, origpath string) {
+	fs.muOrigPath.Lock()
+	defer fs.muOrigPath.Unlock()
+
+	if len(origpath) == 0 {
+		delete(fs.origpath, id)
+	}
+	fs.origpath[id] = origpath
 }
 
 func (fs *FileSystem) Sync() error {
@@ -84,6 +110,12 @@ func (fs *FileSystem) DirEntries(id inodedb.ID) (map[string]inodedb.ID, error) {
 	}
 
 	dv := v.(*inodedb.DirNodeView)
+
+	dirorigpath := fs.tryGetOrigPath(id)
+	for name, id := range dv.Entries {
+		fs.setOrigPathForId(id, fmt.Sprintf("%s/%s", dirorigpath, name))
+	}
+
 	return dv.Entries, err
 }
 
@@ -98,6 +130,8 @@ func (fs *FileSystem) Rename(srcDirID inodedb.ID, srcName string, dstDirID inode
 		return err
 	}
 
+	// FIXME: fs.setOrigPathForId
+
 	return nil
 }
 
@@ -110,6 +144,8 @@ func (fs *FileSystem) Remove(dirID inodedb.ID, name string) error {
 	if _, err := fs.idb.ApplyTransaction(tx); err != nil {
 		return err
 	}
+
+	// FIXME: fs.setOrigPathForId
 
 	return nil
 }
@@ -125,7 +161,8 @@ func (fs *FileSystem) createNode(dirID inodedb.ID, name string, typ inodedb.Type
 		}
 	}()
 
-	origpath := name // FIXME
+	dirorigpath := fs.tryGetOrigPath(dirID)
+	origpath := fmt.Sprintf("%s/%s", dirorigpath, name)
 
 	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
 		&inodedb.CreateNodeOp{NodeLock: nlock, OrigPath: origpath, Type: typ},
@@ -134,6 +171,8 @@ func (fs *FileSystem) createNode(dirID inodedb.ID, name string, typ inodedb.Type
 	if _, err := fs.idb.ApplyTransaction(tx); err != nil {
 		return 0, err
 	}
+
+	fs.setOrigPathForId(nlock.ID, origpath)
 
 	return nlock.ID, nil
 }
@@ -191,6 +230,8 @@ type OpenFile struct {
 	wc    *FileWriteCache
 	cfio  blobstore.BlobHandle
 
+	origFilename string
+
 	handles []*FileHandle
 
 	mu sync.Mutex
@@ -204,7 +245,14 @@ func (fs *FileSystem) getOrCreateOpenFile(id inodedb.ID) *OpenFile {
 	if ok {
 		return of
 	}
-	of = &OpenFile{fs: fs, wc: NewFileWriteCache(), handles: make([]*FileHandle, 0, 1)}
+	of = &OpenFile{
+		fs: fs,
+		wc: NewFileWriteCache(),
+
+		origFilename: "<unknown>",
+
+		handles: make([]*FileHandle, 0, 1),
+	}
 	fs.openFiles[id] = of
 	return of
 }
@@ -248,6 +296,7 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	of.nlock = nlock
 	caio := NewINodeDBChunksArrayIO(fs.idb, nlock)
 	of.cfio = fs.newChunkedFileIO(fs.bs, fs.c, caio)
+	of.cfio.SetOrigFilename(of.origFilename)
 	return of.OpenHandleWithoutLock(flags), nil
 }
 

@@ -117,20 +117,6 @@ func (s *DBState) Version() TxID {
 	return s.version
 }
 
-type FileChunk struct {
-	Offset   int64
-	Length   int64
-	BlobPath string
-}
-
-func (fc FileChunk) Left() int64 {
-	return fc.Offset
-}
-
-func (fc FileChunk) Right() int64 {
-	return fc.Offset + fc.Length
-}
-
 type FileNode struct {
 	INodeCommon
 	Size   int64

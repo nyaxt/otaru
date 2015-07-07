@@ -29,25 +29,35 @@ type ChunkedFileIO struct {
 	bs blobstore.RandomAccessBlobStore
 	c  btncrypt.Cipher
 
-	caio ChunksArrayIO
+	caio       ChunksArrayIO
+	newChunkIO func(blobstore.BlobHandle, btncrypt.Cipher, int64) blobstore.BlobHandle
 
-	newChunkIO func(blobstore.BlobHandle, btncrypt.Cipher) blobstore.BlobHandle
+	origFilename string
 }
 
 func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, caio ChunksArrayIO) *ChunkedFileIO {
-	return &ChunkedFileIO{
+	cio := &ChunkedFileIO{
 		bs: bs,
 		c:  c,
 
 		caio: caio,
 
-		newChunkIO: func(bh blobstore.BlobHandle, c btncrypt.Cipher) blobstore.BlobHandle { return NewChunkIO(bh, c) },
+		origFilename: "<unknown>",
 	}
+	cio.newChunkIO = func(bh blobstore.BlobHandle, c btncrypt.Cipher, offset int64) blobstore.BlobHandle {
+		return NewChunkIOWithMetadata(
+			bh, c,
+			ChunkHeader{OrigFilename: cio.origFilename, OrigOffset: offset},
+		)
+	}
+	return cio
 }
 
-func (cfio *ChunkedFileIO) OverrideNewChunkIOForTesting(newChunkIO func(blobstore.BlobHandle, btncrypt.Cipher) blobstore.BlobHandle) {
+func (cfio *ChunkedFileIO) OverrideNewChunkIOForTesting(newChunkIO func(blobstore.BlobHandle, btncrypt.Cipher, int64) blobstore.BlobHandle) {
 	cfio.newChunkIO = newChunkIO
 }
+
+func (cfio *ChunkedFileIO) SetOrigFilename(name string) { cfio.origFilename = name }
 
 func (cfio *ChunkedFileIO) newFileChunk(newo int64) (inodedb.FileChunk, error) {
 	bpath, err := blobstore.GenerateNewBlobPath(cfio.bs)
@@ -92,7 +102,7 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 			}
 		}()
 
-		cio := cfio.newChunkIO(bh, cfio.c)
+		cio := cfio.newChunkIO(bh, cfio.c, c.Offset)
 		defer func() {
 			if err := cio.Close(); err != nil {
 				log.Printf("cio Close failed: %v", err)
@@ -261,7 +271,7 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 			}
 		}()
 
-		cio := cfio.newChunkIO(bh, cfio.c)
+		cio := cfio.newChunkIO(bh, cfio.c, c.Offset)
 		defer func() {
 			if err := cio.Close(); err != nil {
 				log.Printf("cio Close failed: %v", err)
@@ -327,7 +337,7 @@ func (cfio *ChunkedFileIO) Truncate(size int64) error {
 			if err != nil {
 				return err
 			}
-			cio := cfio.newChunkIO(bh, cfio.c)
+			cio := cfio.newChunkIO(bh, cfio.c, c.Offset)
 			if err := cio.Truncate(chunksize); err != nil {
 				return err
 			}
