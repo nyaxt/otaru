@@ -117,18 +117,6 @@ func (s *DBState) Version() TxID {
 	return s.version
 }
 
-type INodeCommon struct {
-	ID
-
-	// OrigPath contains filepath passed to first create and does not necessary follow "rename" operations.
-	// To be used for recovery/debug purposes only
-	OrigPath string
-}
-
-func (n INodeCommon) GetID() ID {
-	return n.ID
-}
-
 type FileChunk struct {
 	Offset   int64
 	Length   int64
@@ -153,27 +141,16 @@ var _ = INode(&FileNode{})
 
 func (fn *FileNode) GetType() Type { return FileNodeT }
 
-type fileNodeView struct {
-	ss FileNode
-}
-
 func (fn *FileNode) View() NodeView {
-	v := &fileNodeView{
-		ss: FileNode{
-			INodeCommon: fn.INodeCommon,
-			Size:        fn.Size,
-			Chunks:      make([]FileChunk, len(fn.Chunks)),
-		},
+	v := &FileNodeView{
+		INodeCommon: fn.INodeCommon,
+		Size:        fn.Size,
+		Chunks:      make([]FileChunk, len(fn.Chunks)),
 	}
-	copy(v.ss.Chunks, fn.Chunks)
+	copy(v.Chunks, fn.Chunks)
 
 	return v
 }
-
-func (v fileNodeView) GetID() ID              { return v.ss.GetID() }
-func (v fileNodeView) GetType() Type          { return v.ss.GetType() }
-func (v fileNodeView) GetSize() int64         { return v.ss.Size }
-func (v fileNodeView) GetChunks() []FileChunk { return v.ss.Chunks }
 
 type DirNode struct {
 	INodeCommon
@@ -184,27 +161,17 @@ var _ = INode(&DirNode{})
 
 func (dn *DirNode) GetType() Type { return DirNodeT }
 
-type dirNodeView struct {
-	ss DirNode
-}
-
 func (dn *DirNode) View() NodeView {
-	v := &dirNodeView{
-		ss: DirNode{
-			INodeCommon: dn.INodeCommon,
-			Entries:     make(map[string]ID),
-		},
+	v := &DirNodeView{
+		INodeCommon: dn.INodeCommon,
+		Entries:     make(map[string]ID),
 	}
 	for name, id := range dn.Entries {
-		v.ss.Entries[name] = id
+		v.Entries[name] = id
 	}
 
 	return v
 }
-
-func (v dirNodeView) GetID() ID                 { return v.ss.GetID() }
-func (v dirNodeView) GetType() Type             { return v.ss.GetType() }
-func (v dirNodeView) GetEntries() map[string]ID { return v.ss.Entries }
 
 type DBTransaction struct {
 	// FIXME: IssuedAt Time   `json:"issuedat"`

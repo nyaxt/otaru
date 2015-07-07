@@ -83,8 +83,8 @@ func (fs *FileSystem) DirEntries(id inodedb.ID) (map[string]inodedb.ID, error) {
 		return nil, ENOTDIR
 	}
 
-	dv := v.(inodedb.DirNodeView)
-	return dv.GetEntries(), err
+	dv := v.(*inodedb.DirNodeView)
+	return dv.Entries, err
 }
 
 func (fs *FileSystem) Rename(srcDirID inodedb.ID, srcName string, dstDirID inodedb.ID, dstName string) error {
@@ -159,8 +159,8 @@ func (fs *FileSystem) Attr(id inodedb.ID) (Attr, error) {
 	}
 
 	size := int64(0)
-	if fn, ok := v.(inodedb.FileNodeView); ok {
-		size = fn.GetSize()
+	if fn, ok := v.(*inodedb.FileNodeView); ok {
+		size = fn.Size
 	}
 
 	a := Attr{
@@ -325,11 +325,11 @@ func (of *OpenFile) sizeMayFailWithoutLock() (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("Failed to QueryNode inodedb: %v", err)
 	}
-	fv, ok := v.(inodedb.FileNodeView)
+	fv, ok := v.(*inodedb.FileNodeView)
 	if !ok {
 		return 0, fmt.Errorf("Non-FileNodeView returned from QueryNode. Type: %v", v.GetType())
 	}
-	return fv.GetSize(), nil
+	return fv.Size, nil
 }
 
 func (of *OpenFile) PWrite(offset int64, p []byte) error {

@@ -23,12 +23,12 @@ func (caio *INodeDBChunksArrayIO) Read() ([]inodedb.FileChunk, error) {
 		return nil, err
 	}
 
-	fn, ok := v.(inodedb.FileNodeView)
+	fn, ok := v.(*inodedb.FileNodeView)
 	if !ok {
 		return nil, fmt.Errorf("Target node view is not a file.")
 	}
 
-	return fn.GetChunks(), nil
+	return fn.Chunks, nil
 }
 
 func (caio *INodeDBChunksArrayIO) Write(cs []inodedb.FileChunk) error {

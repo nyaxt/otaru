@@ -4,6 +4,18 @@ import (
 	"time"
 )
 
+type INodeCommon struct {
+	ID
+
+	// OrigPath contains filepath passed to first create and does not necessary follow "rename" operations.
+	// To be used for recovery/debug purposes only
+	OrigPath string
+}
+
+func (n INodeCommon) GetID() ID {
+	return n.ID
+}
+
 type NodeView interface {
 	// GetVersion() TxID
 
@@ -11,16 +23,24 @@ type NodeView interface {
 	GetType() Type
 }
 
-type FileNodeView interface {
-	NodeView
-	GetSize() int64
-	GetChunks() []FileChunk
+type FileNodeView struct {
+	INodeCommon `json:",inline"`
+	Size        int64       `json:"size"`
+	Chunks      []FileChunk `json:"chunks"`
 }
 
-type DirNodeView interface {
-	NodeView
-	GetEntries() map[string]ID
+var _ = NodeView(&FileNodeView{})
+
+func (v FileNodeView) GetType() Type { return FileNodeT }
+
+type DirNodeView struct {
+	INodeCommon `json:",inline"`
+	Entries     map[string]ID `json:"entries"`
 }
+
+var _ = NodeView(&DirNodeView{})
+
+func (v DirNodeView) GetType() Type { return DirNodeT }
 
 type Ticket uint64
 
