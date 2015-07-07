@@ -3,18 +3,19 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
 
 	"github.com/nyaxt/otaru"
-	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/util"
 )
 
 var (
 	flagPasswordFile = flag.String("passwordFile", path.Join(os.Getenv("HOME"), ".otaru", "password.txt"), "Path of a text file storing password")
+	flagHeader       = flag.Bool("header", false, "Show header")
 )
 
 func Usage() {
@@ -39,8 +40,7 @@ func main() {
 	if err != nil {
 		log.Printf("Failed to read file: %s", filepath)
 	}
-	bh := blobstore.FileBlobHandle{f}
-	defer bh.Close()
+	defer f.Close()
 
 	password := util.StringFromFileOrDie(*flagPasswordFile, "password")
 	key := btncrypt.KeyFromPassword(password)
@@ -50,7 +50,14 @@ func main() {
 		return
 	}
 
-	cio := otaru.NewChunkIO(bh, c)
-	defer cio.Close()
-	log.Printf("Header: %v", cio.Header())
+	cr, err := otaru.NewChunkReader(f, c)
+	if err != nil {
+		log.Printf("Failed to init ChunkReader: %v", err)
+		return
+	}
+
+	if *flagHeader {
+		log.Printf("Header: %+v", cr.Header())
+	}
+	io.Copy(os.Stdout, cr)
 }
