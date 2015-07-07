@@ -16,28 +16,28 @@ const (
 )
 
 type FileBlobHandle struct {
-	fp *os.File
+	Fp *os.File
 }
 
 func (h FileBlobHandle) PRead(offset int64, p []byte) error {
-	if _, err := h.fp.Seek(offset, os.SEEK_SET); err != nil {
+	if _, err := h.Fp.Seek(offset, os.SEEK_SET); err != nil {
 		return err
 	}
-	if _, err := io.ReadFull(h.fp, p); err != nil {
+	if _, err := io.ReadFull(h.Fp, p); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (h FileBlobHandle) PWrite(offset int64, p []byte) error {
-	if _, err := h.fp.WriteAt(p, offset); err != nil {
+	if _, err := h.Fp.WriteAt(p, offset); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (h FileBlobHandle) Size() int64 {
-	fi, err := h.fp.Stat()
+	fi, err := h.Fp.Stat()
 	if err != nil {
 		log.Fatalf("Stat failed: %v", err)
 	}
@@ -46,14 +46,14 @@ func (h FileBlobHandle) Size() int64 {
 }
 
 func (h FileBlobHandle) Truncate(size int64) error {
-	if err := h.fp.Truncate(size); err != nil {
+	if err := h.Fp.Truncate(size); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (h FileBlobHandle) Close() error {
-	return h.fp.Close()
+	return h.Fp.Close()
 }
 
 type FileBlobStore struct {
