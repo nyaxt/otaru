@@ -68,8 +68,10 @@ func (fs *FileSystem) tryGetOrigPath(id inodedb.ID) string {
 
 	origpath, ok := fs.origpath[id]
 	if !ok {
+		log.Printf("Failed to lookup orig path for ID %d", id)
 		return "<unknown>"
 	}
+	log.Printf("Orig path for ID %d is \"%s\"", id, origpath)
 	return origpath
 }
 
@@ -249,12 +251,14 @@ func (fs *FileSystem) getOrCreateOpenFile(id inodedb.ID) *OpenFile {
 		fs: fs,
 		wc: NewFileWriteCache(),
 
-		origFilename: "<unknown>",
-
 		handles: make([]*FileHandle, 0, 1),
 	}
 	fs.openFiles[id] = of
 	return of
+}
+
+type origFilenameSetter interface {
+	SetOrigFilename(name string)
 }
 
 func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
@@ -296,7 +300,9 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	of.nlock = nlock
 	caio := NewINodeDBChunksArrayIO(fs.idb, nlock)
 	of.cfio = fs.newChunkedFileIO(fs.bs, fs.c, caio)
-	of.cfio.SetOrigFilename(of.origFilename)
+	if setter, ok := of.cfio.(origFilenameSetter); ok {
+		setter.SetOrigFilename(fs.tryGetOrigPath(nlock.ID))
+	}
 	return of.OpenHandleWithoutLock(flags), nil
 }
 

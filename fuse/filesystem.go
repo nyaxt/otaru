@@ -27,7 +27,7 @@ func ServeFUSE(mountpoint string, ofs *otaru.FileSystem, ready chan<- bool) erro
 		bfuse.VolumeName("Otaru"),
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("bfuse.Mount failed: %v", err)
 	}
 	defer c.Close()
 
