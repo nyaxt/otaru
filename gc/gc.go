@@ -9,6 +9,7 @@ import (
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -16,8 +17,6 @@ type GCableBlobStore interface {
 	blobstore.BlobLister
 	blobstore.BlobRemover
 }
-
-var INodeDBBlobpaths = []string{"INODEDB_SNAPSHOT"} // FIXME: use otaru.INodeDBSnapshotBlobpath after dep refactor
 
 func GC(ctx context.Context, bs GCableBlobStore, idb inodedb.DBFscker, dryrun bool) error {
 	start := time.Now()
@@ -43,9 +42,6 @@ func GC(ctx context.Context, bs GCableBlobStore, idb inodedb.DBFscker, dryrun bo
 		return err
 	}
 
-	log.Printf("Adding in inodedb used bloblists: %v", INodeDBBlobpaths)
-	usedbs = append(usedbs, INodeDBBlobpaths...)
-
 	log.Printf("Converting used blob list to a hashset")
 	usedbset := make(map[string]struct{})
 	for _, b := range usedbs {
@@ -64,6 +60,12 @@ func GC(ctx context.Context, bs GCableBlobStore, idb inodedb.DBFscker, dryrun bo
 		if _, ok := usedbset[b]; ok {
 			continue
 		}
+
+		if metadata.IsMetadataBlobpath(b) {
+			log.Printf("Marking metadata blobpath as used: %s", b)
+			continue
+		}
+
 		unusedbs = append(unusedbs, b)
 	}
 

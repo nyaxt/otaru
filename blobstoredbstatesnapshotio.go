@@ -12,11 +12,8 @@ import (
 	"github.com/nyaxt/otaru/btncrypt"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/util"
-)
-
-const (
-	INodeDBSnapshotBlobpath = "INODEDB_SNAPSHOT"
 )
 
 type BlobStoreDBStateSnapshotIO struct {
@@ -41,7 +38,7 @@ func (sio *BlobStoreDBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
 		return nil
 	}
 
-	raw, err := sio.bs.Open(INodeDBSnapshotBlobpath, fl.O_RDWR|fl.O_CREATE)
+	raw, err := sio.bs.Open(metadata.INodeDBSnapshotBlobpath, fl.O_RDWR|fl.O_CREATE)
 	if err != nil {
 		return err
 	}
@@ -50,7 +47,7 @@ func (sio *BlobStoreDBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
 	}
 
 	cio := NewChunkIOWithMetadata(raw, sio.c, ChunkHeader{
-		OrigFilename: "*INODEDB_SNAPSHOT*",
+		OrigFilename: metadata.INodeDBSnapshotBlobpath,
 		OrigOffset:   0,
 	})
 	bufio := bufio.NewWriter(&blobstore.OffsetWriter{cio, 0})
@@ -82,7 +79,7 @@ func (sio *BlobStoreDBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
 }
 
 func (sio *BlobStoreDBStateSnapshotIO) RestoreSnapshot() (*inodedb.DBState, error) {
-	raw, err := sio.bs.Open(INodeDBSnapshotBlobpath, fl.O_RDONLY)
+	raw, err := sio.bs.Open(metadata.INodeDBSnapshotBlobpath, fl.O_RDONLY)
 	if err != nil {
 		return nil, err
 	}

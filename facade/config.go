@@ -13,11 +13,12 @@ import (
 )
 
 type Config struct {
-	PasswordFile string
-	ProjectName  string
-	BucketName   string
-	CacheDir     string
-	LocalDebug   bool
+	PasswordFile                 string
+	ProjectName                  string
+	BucketName                   string
+	UseSeparateBucketForMetadata bool
+	CacheDir                     string
+	LocalDebug                   bool
 
 	Password string
 }
@@ -29,8 +30,9 @@ func NewConfigFromTomlFile(configpath string) (*Config, error) {
 	}
 
 	cfg := &Config{
-		PasswordFile: path.Join(os.Getenv("HOME"), ".otaru", "password.txt"),
-		CacheDir:     "/var/cache/otaru",
+		PasswordFile:                 path.Join(os.Getenv("HOME"), ".otaru", "password.txt"),
+		UseSeparateBucketForMetadata: false,
+		CacheDir:                     "/var/cache/otaru",
 	}
 	if err := toml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("Failed to parse config file: %v", err)

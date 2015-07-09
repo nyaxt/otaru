@@ -30,7 +30,7 @@ func (idb *MockFscker) Fsck() ([]string, []error) { return idb.usedbs, nil }
 
 func TestGC_Basic(t *testing.T) {
 	bs := &MockGCBlobStore{
-		bs:        []string{"a", "b", "x", "y", "z", "INODEDB_SNAPSHOT"},
+		bs:        []string{"a", "b", "x", "y", "z", "META_INODEDB_SNAPSHOT"},
 		removedbs: []string{},
 	}
 	idb := &MockFscker{

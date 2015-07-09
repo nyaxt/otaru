@@ -15,12 +15,12 @@ var (
 
 type BlobMatcher func(blobpath string) bool
 
-type muxEntry struct {
+type MuxEntry struct {
 	BlobMatcher
 	BlobStore
 }
 
-type Mux []muxEntry
+type Mux []MuxEntry
 
 var _ = BlobStore(Mux{})
 
@@ -107,3 +107,7 @@ func (m Mux) RemoveBlob(blobpath string) error {
 	}
 	return remover.RemoveBlob(blobpath)
 }
+
+var _ = util.ImplNamed(Mux{})
+
+func (Mux) ImplName() string { return "blobstore.Mux" }

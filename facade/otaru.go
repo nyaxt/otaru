@@ -14,6 +14,7 @@ import (
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/gcloud/gcs"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/mgmt"
 	"github.com/nyaxt/otaru/scheduler"
 	"github.com/nyaxt/otaru/util"
@@ -26,10 +27,14 @@ type Otaru struct {
 
 	Clisrc auth.ClientSource
 
-	FBS *blobstore.FileBlobStore
-	BBS blobstore.BlobStore
-	CBS *blobstore.CachedBlobStore
-	CSS *util.PeriodicRunner
+	MetadataBS blobstore.BlobStore
+	DefaultBS  blobstore.BlobStore
+
+	BackendBS blobstore.BlobStore
+
+	CacheTgtBS *blobstore.FileBlobStore
+	CBS        *blobstore.CachedBlobStore
+	CSS        *util.PeriodicRunner
 
 	SIO   *otaru.BlobStoreDBStateSnapshotIO
 	TxIO  inodedb.DBTransactionLogIO
@@ -66,24 +71,38 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		}
 	}
 
-	o.FBS, err = blobstore.NewFileBlobStore(cfg.CacheDir, oflags.O_RDWRCREATE)
+	o.CacheTgtBS, err = blobstore.NewFileBlobStore(cfg.CacheDir, oflags.O_RDWRCREATE)
 	if err != nil {
 		o.Close()
 		return nil, fmt.Errorf("Failed to init FileBlobStore: %v", err)
 	}
 
 	if !cfg.LocalDebug {
-		o.BBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, cfg.BucketName, o.Clisrc, oflags.O_RDWRCREATE)
+		o.DefaultBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, cfg.BucketName, o.Clisrc, oflags.O_RDWRCREATE)
+		if err != nil {
+			o.Close()
+			return nil, fmt.Errorf("Failed to init GCSBlobStore: %v", err)
+		}
+		if !cfg.UseSeparateBucketForMetadata {
+			o.BackendBS = o.DefaultBS
+		} else {
+			o.MetadataBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, fmt.Sprintf("%s-meta", cfg.BucketName), o.Clisrc, oflags.O_RDWRCREATE)
+			if err != nil {
+				o.Close()
+				return nil, fmt.Errorf("Failed to init GCSBlobStore (metadata): %v", err)
+			}
+
+			o.BackendBS = blobstore.Mux{
+				blobstore.MuxEntry{metadata.IsMetadataBlobpath, o.MetadataBS},
+				blobstore.MuxEntry{nil, o.DefaultBS},
+			}
+		}
 	} else {
-		o.BBS, err = blobstore.NewFileBlobStore(path.Join(os.Getenv("HOME"), ".otaru", "bbs"), oflags.O_RDWRCREATE)
-	}
-	if err != nil {
-		o.Close()
-		return nil, fmt.Errorf("Failed to init GCSBlobStore: %v", err)
+		o.BackendBS, err = blobstore.NewFileBlobStore(path.Join(os.Getenv("HOME"), ".otaru", "bbs"), oflags.O_RDWRCREATE)
 	}
 
 	queryFn := otaru.NewQueryChunkVersion(o.C)
-	o.CBS, err = blobstore.NewCachedBlobStore(o.BBS, o.FBS, oflags.O_RDWRCREATE /* FIXME */, queryFn)
+	o.CBS, err = blobstore.NewCachedBlobStore(o.BackendBS, o.CacheTgtBS, oflags.O_RDWRCREATE /* FIXME */, queryFn)
 	if err != nil {
 		o.Close()
 		return nil, fmt.Errorf("Failed to init CachedBlobStore: %v", err)
