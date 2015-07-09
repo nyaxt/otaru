@@ -86,7 +86,8 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		if !cfg.UseSeparateBucketForMetadata {
 			o.BackendBS = o.DefaultBS
 		} else {
-			o.MetadataBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, fmt.Sprintf("%s-meta", cfg.BucketName), o.Clisrc, oflags.O_RDWRCREATE)
+			metabucketname := fmt.Sprintf("%s-meta", cfg.BucketName)
+			o.MetadataBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, metabucketname, o.Clisrc, oflags.O_RDWRCREATE)
 			if err != nil {
 				o.Close()
 				return nil, fmt.Errorf("Failed to init GCSBlobStore (metadata): %v", err)

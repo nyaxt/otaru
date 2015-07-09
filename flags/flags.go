@@ -57,12 +57,11 @@ func FlagsToString(flags int) string {
 }
 
 func Mask(a, b int) int {
-	ret := 0
-
 	rok := IsReadAllowed(a) && IsReadAllowed(b)
 	wok := IsWriteAllowed(a) && IsWriteAllowed(b)
 	cok := IsCreateAllowed(a) && IsCreateAllowed(b)
 
+	ret := 0
 	if rok && wok {
 		ret = O_RDWR
 	} else if rok {

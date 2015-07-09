@@ -273,7 +273,7 @@ func (ch *ChunkIO) PRead(offset int64, p []byte) error {
 
 		n := len(remp)
 		valid := len(f.P) - inframeOffset // valid payload after offset
-		log.Printf("CHunkIO: PRead n: %d. valid: %d", n, valid)
+		log.Printf("ChunkIO: PRead n: %d. valid: %d", n, valid)
 		if n > valid {
 			if f.IsLastFrame {
 				return fmt.Errorf("Attempted to read beyond written size: %d. inframeOffset: %d, framePayloadLen: %d", remo, inframeOffset, len(f.P))

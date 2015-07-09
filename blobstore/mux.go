@@ -65,7 +65,7 @@ func (m Mux) Open(blobpath string, flags int) (BlobHandle, error) {
 }
 
 func (m Mux) Flags() int {
-	flags := fl.O_VALIDMASK
+	flags := fl.O_RDWRCREATE
 
 	for _, e := range m {
 		if flagsreader, ok := e.BlobStore.(FlagsReader); ok {
