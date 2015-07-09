@@ -92,7 +92,7 @@ func TestGCSBlobStore_WriteReadDelete(t *testing.T) {
 	}
 
 	// Delete
-	if err := bs.Delete("hoge"); err != nil {
-		t.Errorf("Failed to delete blob: %v", err)
+	if err := bs.RemoveBlob("hoge"); err != nil {
+		t.Errorf("Failed to remove blob: %v", err)
 	}
 }

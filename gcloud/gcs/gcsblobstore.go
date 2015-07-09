@@ -82,7 +82,9 @@ func (bs *GCSBlobStore) Flags() int {
 	return bs.flags
 }
 
-func (bs *GCSBlobStore) Delete(blobpath string) error {
+var _ = blobstore.BlobRemover(&GCSBlobStore{})
+
+func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
 	ctx := bs.newAuthedContext(context.TODO())
 	if err := storage.DeleteObject(ctx, bs.bucketName, blobpath); err != nil {
 		return err
