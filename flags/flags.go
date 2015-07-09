@@ -55,3 +55,25 @@ func FlagsToString(flags int) string {
 
 	return b.String()
 }
+
+func Mask(a, b int) int {
+	ret := 0
+
+	rok := IsReadAllowed(a) && IsReadAllowed(b)
+	wok := IsWriteAllowed(a) && IsWriteAllowed(b)
+	cok := IsCreateAllowed(a) && IsCreateAllowed(b)
+
+	if rok && wok {
+		ret = O_RDWR
+	} else if rok {
+		ret = O_RDONLY
+	} else if wok {
+		ret = O_WRONLY
+	}
+
+	if cok {
+		ret |= O_CREATE
+	}
+
+	return ret
+}
