@@ -14,7 +14,6 @@ import (
 
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/fuse"
-	"github.com/nyaxt/otaru/util"
 )
 
 var Usage = func() {
@@ -24,12 +23,8 @@ var Usage = func() {
 }
 
 var (
-	flagMkfs         = flag.Bool("mkfs", false, "Reset metadata if no existing metadata exists")
-	flagPasswordFile = flag.String("passwordFile", path.Join(os.Getenv("HOME"), ".otaru", "password.txt"), "Path of a text file storing password")
-	flagProjectName  = flag.String("projectName", "", "google cloud project name")
-	flagBucketName   = flag.String("bucketName", "", "google cloud storage bucket name")
-	flagCacheDir     = flag.String("cachedir", "/var/cache/otaru", "Path to blob cache dir")
-	flagLocalDebug   = flag.Bool("localDebug", false, "Use local filesystem instead of GCP (for offline debug purposes)")
+	flagMkfs       = flag.Bool("mkfs", false, "Reset metadata if no existing metadata exists")
+	flagConfigFile = flag.String("config", path.Join(os.Getenv("HOME"), ".otaru", "config.toml"), "Config filepath")
 )
 
 func main() {
@@ -38,14 +33,9 @@ func main() {
 	flag.Usage = Usage
 	flag.Parse()
 
-	password := util.StringFromFileOrDie(*flagPasswordFile, "password")
-	if *flagProjectName == "" {
-		log.Printf("Please specify a valid project name")
-		Usage()
-		os.Exit(2)
-	}
-	if *flagBucketName == "" {
-		log.Printf("Please specify a valid bucket name")
+	cfg, err := facade.NewConfigFromTomlFile(*flagConfigFile)
+	if err != nil {
+		log.Printf("%v", err)
 		Usage()
 		os.Exit(2)
 	}
@@ -55,7 +45,7 @@ func main() {
 	}
 	mountpoint := flag.Arg(0)
 
-	o, err := facade.NewOtaru(*flagMkfs, password, *flagProjectName, *flagBucketName, *flagCacheDir, *flagLocalDebug)
+	o, err := facade.NewOtaru(cfg, &facade.OneshotConfig{Mkfs: *flagMkfs})
 	if err != nil {
 		log.Printf("NewOtaru failed: %v", err)
 		os.Exit(1)

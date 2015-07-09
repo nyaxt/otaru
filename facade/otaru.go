@@ -41,12 +41,12 @@ type Otaru struct {
 	MGMT *mgmt.Server
 }
 
-func NewOtaru(mkfs bool, password string, projectName string, bucketName string, cacheDir string, localDebug bool) (*Otaru, error) {
+func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	o := &Otaru{}
 
 	var err error
 
-	key := btncrypt.KeyFromPassword(password)
+	key := btncrypt.KeyFromPassword(cfg.Password)
 	o.C, err = btncrypt.NewCipher(key)
 	if err != nil {
 		o.Close()
@@ -55,7 +55,7 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 
 	o.S = scheduler.NewScheduler()
 
-	if !localDebug {
+	if !cfg.LocalDebug {
 		o.Clisrc, err = auth.GetGCloudClientSource(
 			path.Join(os.Getenv("HOME"), ".otaru", "credentials.json"),
 			path.Join(os.Getenv("HOME"), ".otaru", "tokencache.json"),
@@ -66,14 +66,14 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 		}
 	}
 
-	o.FBS, err = blobstore.NewFileBlobStore(cacheDir, oflags.O_RDWRCREATE)
+	o.FBS, err = blobstore.NewFileBlobStore(cfg.CacheDir, oflags.O_RDWRCREATE)
 	if err != nil {
 		o.Close()
 		return nil, fmt.Errorf("Failed to init FileBlobStore: %v", err)
 	}
 
-	if !localDebug {
-		o.BBS, err = gcs.NewGCSBlobStore(projectName, bucketName, o.Clisrc, oflags.O_RDWRCREATE)
+	if !cfg.LocalDebug {
+		o.BBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, cfg.BucketName, o.Clisrc, oflags.O_RDWRCREATE)
 	} else {
 		o.BBS, err = blobstore.NewFileBlobStore(path.Join(os.Getenv("HOME"), ".otaru", "bbs"), oflags.O_RDWRCREATE)
 	}
@@ -92,8 +92,8 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 
 	o.SIO = otaru.NewBlobStoreDBStateSnapshotIO(o.CBS, o.C)
 
-	if !localDebug {
-		o.TxIO, err = datastore.NewDBTransactionLogIO(projectName, bucketName, o.C, o.Clisrc)
+	if !cfg.LocalDebug {
+		o.TxIO, err = datastore.NewDBTransactionLogIO(cfg.ProjectName, cfg.BucketName, o.C, o.Clisrc)
 	} else {
 		o.TxIO = inodedb.NewSimpleDBTransactionLogIO()
 		err = nil
@@ -103,7 +103,7 @@ func NewOtaru(mkfs bool, password string, projectName string, bucketName string,
 		return nil, fmt.Errorf("Failed to init gcloud DBTransactionLogIO: %v", err)
 	}
 
-	if mkfs {
+	if oneshotcfg.Mkfs {
 		o.IDBBE, err = inodedb.NewEmptyDB(o.SIO, o.TxIO)
 		if err != nil {
 			o.Close()
