@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"reflect"
 	"testing"
 
 	"github.com/nyaxt/otaru/flags"
@@ -88,6 +89,19 @@ func TestGCSBlobStore_WriteReadDelete(t *testing.T) {
 		if err := r.Close(); err != nil {
 			t.Errorf("Failed to close reader: %v", err)
 			return
+		}
+	}
+
+	// ListBlobs
+	{
+		bpaths, err := bs.ListBlobs()
+		if err != nil {
+			t.Errorf("Failed to ListBlobs(): %v", err)
+			return
+		}
+
+		if !reflect.DeepEqual([]string{"hoge"}, bpaths) {
+			t.Errorf("Unexpected BlobList: %v", bpaths)
 		}
 	}
 

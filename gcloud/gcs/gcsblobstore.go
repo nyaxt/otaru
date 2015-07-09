@@ -82,6 +82,28 @@ func (bs *GCSBlobStore) Flags() int {
 	return bs.flags
 }
 
+var _ = blobstore.BlobLister(&GCSBlobStore{})
+
+func (bs *GCSBlobStore) ListBlobs() ([]string, error) {
+	ctx := bs.newAuthedContext(context.TODO())
+	ret := make([]string, 0)
+
+	q := &storage.Query{}
+	for q != nil {
+		res, err := storage.ListObjects(ctx, bs.bucketName, q)
+		if err != nil {
+			return nil, err
+		}
+		for _, o := range res.Results {
+			blobpath := o.Name
+			ret = append(ret, blobpath)
+		}
+		q = res.Next
+	}
+
+	return ret, nil
+}
+
 var _ = blobstore.BlobRemover(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
