@@ -389,9 +389,11 @@ func (be *CachedBlobEntry) invalidateCache(cbs *CachedBlobStore) error {
 		if nr > 0 {
 			nw, ew := cachew.Write(buf[:nr])
 			if nw > 0 {
+				be.mu.Lock()
 				validlen += int64(nw)
 				atomic.StoreInt64(&be.validlen, validlen)
 				be.validlenExtended.Broadcast()
+				be.mu.Unlock()
 			}
 			if ew != nil {
 				return fmt.Errorf("Failed to write backend blob content to cache: %v", err)
