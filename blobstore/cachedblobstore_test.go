@@ -275,4 +275,16 @@ func TestCachedBlobStore_RemoveBlob(t *testing.T) {
 	if len(bpaths) > 0 {
 		t.Errorf("Left over blobs: %v", bpaths)
 	}
+
+	for _, bp := range []string{"backendonly", "synced", "unsynced"} {
+		if err := tu.AssertBlobVersionRA(bs, bp, 0); err != nil {
+			t.Errorf("left over blob in bs: %s", bp)
+		}
+		if err := tu.AssertBlobVersion(cachebs, bp, 0); err != nil {
+			t.Errorf("left over blob in cachebs: %s", bp)
+		}
+		if err := tu.AssertBlobVersion(backendbs, bp, 0); err != nil {
+			t.Errorf("left over blob in backendbs: %s", bp)
+		}
+	}
 }
