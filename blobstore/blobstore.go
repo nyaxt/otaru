@@ -13,6 +13,10 @@ type BlobLister interface {
 	ListBlobs() ([]string, error)
 }
 
+type BlobSizer interface {
+	BlobSize(blobpath string) (int64, error)
+}
+
 type BlobRemover interface {
 	RemoveBlob(blobpath string) error
 }

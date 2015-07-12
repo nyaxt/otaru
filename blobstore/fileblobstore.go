@@ -147,6 +147,19 @@ func (f *FileBlobStore) ListBlobs() ([]string, error) {
 	return blobs, nil
 }
 
+var _ = BlobSizer(&FileBlobStore{})
+
+func (f *FileBlobStore) BlobSize(blobpath string) (int64, error) {
+	realpath := path.Join(f.base, blobpath)
+
+	fi, err := os.Stat(realpath)
+	if err != nil {
+		return -1, err
+	}
+
+	return fi.Size(), nil
+}
+
 var _ = BlobRemover(&FileBlobStore{})
 
 func (f *FileBlobStore) RemoveBlob(blobpath string) error {
