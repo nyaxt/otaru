@@ -211,9 +211,9 @@ func (mgr *CachedBlobEntriesManager) doOpenEntry(blobpath string) (*CachedBlobEn
 	}
 
 	be = &CachedBlobEntry{
-		state:      cacheEntryUninitialized,
-		blobpath:   blobpath,
-		backendlen: -1,
+		state:    cacheEntryUninitialized,
+		blobpath: blobpath,
+		bloblen:  -1,
 	}
 	be.validlenExtended = sync.NewCond(&be.mu)
 	mgr.entries[blobpath] = be
@@ -343,7 +343,7 @@ type CachedBlobEntry struct {
 
 	state cacheEntryState
 
-	backendlen       int64
+	bloblen          int64
 	validlen         int64
 	validlenExtended *sync.Cond
 
@@ -443,15 +443,15 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 	if cachever > backendver {
 		log.Printf("FIXME: cache is newer than backend when open")
 		be.state = cacheEntryDirty
-		be.backendlen = cachebh.Size()
-		be.validlen = be.backendlen
+		be.bloblen = cachebh.Size()
+		be.validlen = be.bloblen
 	} else if cachever == backendver {
 		be.state = cacheEntryClean
-		be.backendlen = cachebh.Size()
-		be.validlen = be.backendlen
+		be.bloblen = cachebh.Size()
+		be.validlen = be.bloblen
 	} else {
 		blobsizer := cbs.backendbs.(BlobSizer)
-		be.backendlen, err = blobsizer.BlobSize(be.blobpath)
+		be.bloblen, err = blobsizer.BlobSize(be.blobpath)
 		if err != nil {
 			be.closeWithLock(abandonAndClose)
 			return fmt.Errorf("Failed to query backend blobsize: %v", err)
@@ -511,7 +511,7 @@ func (be *CachedBlobEntry) PRead(offset int64, p []byte) error {
 
 	be.lastUsed = time.Now()
 
-	requiredlen := util.Int64Min(offset+int64(len(p)), be.backendlen)
+	requiredlen := util.Int64Min(offset+int64(len(p)), be.bloblen)
 	for atomic.LoadInt64(&be.validlen) < requiredlen {
 		log.Printf("Waiting for cache to be fulfilled: reqlen: %d, validlen: %d", requiredlen, be.validlen)
 		be.validlenExtended.Wait()
@@ -556,11 +556,20 @@ func (be *CachedBlobEntry) PWrite(offset int64, p []byte) error {
 		return nil
 	}
 	be.markDirtyWithLock()
-	return be.cachebh.PWrite(offset, p)
+	if err := be.cachebh.PWrite(offset, p); err != nil {
+		return err
+	}
+
+	right := offset + int64(len(p))
+	if right > be.bloblen {
+		be.bloblen = right
+		be.validlen = right
+	}
+	return nil
 }
 
 func (be *CachedBlobEntry) Size() int64 {
-	return be.backendlen
+	return be.bloblen
 }
 
 func (be *CachedBlobEntry) Truncate(newsize int64) error {
@@ -574,11 +583,16 @@ func (be *CachedBlobEntry) Truncate(newsize int64) error {
 		be.validlenExtended.Wait()
 	}
 
-	if be.backendlen == newsize {
+	if be.bloblen == newsize {
 		return nil
 	}
 	be.markDirtyWithLock()
-	return be.cachebh.Truncate(newsize)
+	if err := be.cachebh.Truncate(newsize); err != nil {
+		return err
+	}
+	be.bloblen = newsize
+	be.validlen = newsize
+	return nil
 }
 
 func (be *CachedBlobEntry) writeBackWithLock() error {
@@ -717,7 +731,7 @@ func (be *CachedBlobEntry) Close(abandon bool) error {
 type CachedBlobEntryInfo struct {
 	BlobPath              string    `json:"blobpath"`
 	State                 string    `json:"state"`
-	BackendLen            int64     `json:"backend_len"`
+	BlobLen               int64     `json:"blob_len"`
 	ValidLen              int64     `json:"valid_len"`
 	SyncCount             int       `json:"sync_count"`
 	LastUsed              time.Time `json:"last_used"`
@@ -738,7 +752,7 @@ func (be *CachedBlobEntry) infoWithLock() *CachedBlobEntryInfo {
 	return &CachedBlobEntryInfo{
 		BlobPath:              be.blobpath,
 		State:                 be.state.String(),
-		BackendLen:            be.backendlen,
+		BlobLen:               be.bloblen,
 		ValidLen:              atomic.LoadInt64(&be.validlen),
 		SyncCount:             be.syncCount,
 		LastUsed:              be.lastUsed,

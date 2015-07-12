@@ -152,6 +152,35 @@ func TestCachedBlobStore_NewEntry(t *testing.T) {
 	}
 }
 
+func TestCachedBlobStore_AutoExpandLen(t *testing.T) {
+	backendbs := tu.TestFileBlobStoreOfName("backend")
+	cachebs := tu.TestFileBlobStoreOfName("cache")
+
+	bs, err := blobstore.NewCachedBlobStore(backendbs, cachebs, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	if err != nil {
+		t.Errorf("Failed to create CachedBlobStore: %v", err)
+		return
+	}
+
+	bh, err := bs.Open("hoge", flags.O_RDWRCREATE)
+	if err != nil {
+		t.Errorf("Failed to open blobhandle")
+	}
+	defer bh.Close()
+
+	if size := bh.Size(); size != 0 {
+		t.Errorf("New bh size non-zero: %d", size)
+	}
+
+	if err := bh.PWrite(0, []byte("Hello")); err != nil {
+		t.Errorf("PWrite failed: %v", err)
+	}
+
+	if size := bh.Size(); size != 5 {
+		t.Errorf("bh size not auto expanded! size  %d", size)
+	}
+}
+
 func TestCachedBlobStore_ListBlobs(t *testing.T) {
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")

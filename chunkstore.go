@@ -168,6 +168,7 @@ func (ch *ChunkIO) expandLengthBy(by int) error {
 	}
 
 	ch.header.PayloadLen = uint32(ch.PayloadLen() + by)
+	log.Printf("ChunkIO expandLength +%d = %d", by, ch.header.PayloadLen)
 	ch.needsHeaderUpdate = true
 
 	return nil
