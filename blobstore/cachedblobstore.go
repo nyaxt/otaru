@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -383,15 +382,13 @@ func (be *CachedBlobEntry) invalidateCache(cbs *CachedBlobStore) error {
 	}()
 
 	buf := make([]byte, invalidateBlockSize)
-	validlen := int64(0)
 	for {
 		nr, er := backendr.Read(buf)
 		if nr > 0 {
 			nw, ew := cachew.Write(buf[:nr])
 			if nw > 0 {
 				be.mu.Lock()
-				validlen += int64(nw)
-				atomic.StoreInt64(&be.validlen, validlen)
+				be.validlen += int64(nw)
 				be.validlenExtended.Broadcast()
 				be.mu.Unlock()
 			}
@@ -462,7 +459,7 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 		go func() {
 			if err := be.invalidateCache(cbs); err != nil {
 				log.Printf("invalidate cache failed: %v", err)
-				atomic.StoreInt64(&be.validlen, 0)
+				be.validlen = 0
 				be.mu.Lock()
 				be.state = cacheEntryUninitialized
 				be.mu.Unlock()
@@ -512,7 +509,7 @@ func (be *CachedBlobEntry) PRead(offset int64, p []byte) error {
 	be.lastUsed = time.Now()
 
 	requiredlen := util.Int64Min(offset+int64(len(p)), be.bloblen)
-	for atomic.LoadInt64(&be.validlen) < requiredlen {
+	for be.validlen < requiredlen {
 		log.Printf("Waiting for cache to be fulfilled: reqlen: %d, validlen: %d", requiredlen, be.validlen)
 		be.validlenExtended.Wait()
 	}
@@ -753,7 +750,7 @@ func (be *CachedBlobEntry) infoWithLock() *CachedBlobEntryInfo {
 		BlobPath:              be.blobpath,
 		State:                 be.state.String(),
 		BlobLen:               be.bloblen,
-		ValidLen:              atomic.LoadInt64(&be.validlen),
+		ValidLen:              be.validlen,
 		SyncCount:             be.syncCount,
 		LastUsed:              be.lastUsed,
 		LastWrite:             be.lastWrite,
