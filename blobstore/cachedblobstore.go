@@ -289,9 +289,9 @@ type CachedBlobStore struct {
 
 	flags int
 
-	mu sync.Mutex
-
 	queryVersion QueryVersionFunc
+
+	muBeVerCache sync.Mutex
 	beVerCache   map[string]BlobVersion
 
 	entriesmgr CachedBlobEntriesManager
@@ -619,7 +619,9 @@ func (be *CachedBlobEntry) writeBackWithLock() error {
 		return fmt.Errorf("Failed to copy dirty data to backend blob writer: %v", err)
 	}
 
+	be.cbs.muBeVerCache.Lock()
 	be.cbs.beVerCache[be.blobpath] = cachever
+	be.cbs.muBeVerCache.Unlock()
 	be.state = cacheEntryClean
 	return nil
 }
@@ -786,6 +788,8 @@ func (cbs *CachedBlobStore) SyncOneEntry() error {
 }
 
 func (cbs *CachedBlobStore) queryBackendVersion(blobpath string) (BlobVersion, error) {
+	cbs.muBeVerCache.Lock()
+	defer cbs.muBeVerCache.Unlock() // FIXME: unlock earlier?
 	if ver, ok := cbs.beVerCache[blobpath]; ok {
 		log.Printf("return cached ver for \"%s\" -> %d", blobpath, ver)
 		return ver, nil
@@ -905,7 +909,9 @@ func (cbs *CachedBlobStore) RemoveBlob(blobpath string) error {
 	if err := cbs.entriesmgr.RemoveBlob(blobpath); err != nil {
 		return err
 	}
+	cbs.muBeVerCache.Lock()
 	delete(cbs.beVerCache, blobpath)
+	cbs.muBeVerCache.Unlock()
 	if err := backendrm.RemoveBlob(blobpath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("Backendbs RemoveBlob failed: %v", err)
 	}
