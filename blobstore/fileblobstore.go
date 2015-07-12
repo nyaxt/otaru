@@ -154,6 +154,9 @@ func (f *FileBlobStore) BlobSize(blobpath string) (int64, error) {
 
 	fi, err := os.Stat(realpath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return -1, ENOENT
+		}
 		return -1, err
 	}
 

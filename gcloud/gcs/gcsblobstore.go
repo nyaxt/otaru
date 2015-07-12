@@ -104,6 +104,22 @@ func (bs *GCSBlobStore) ListBlobs() ([]string, error) {
 	return ret, nil
 }
 
+var _ = blobstore.BlobSizer(&GCSBlobStore{})
+
+func (bs *GCSBlobStore) BlobSize(blobpath string) (int64, error) {
+	ctx := bs.newAuthedContext(context.TODO())
+
+	obj, err := storage.StatObject(ctx, bs.bucketName, blobpath)
+	if err != nil {
+		if err == storage.ErrObjectNotExist {
+			return -1, blobstore.ENOENT
+		}
+		return -1, err
+	}
+
+	return obj.Size, nil
+}
+
 var _ = blobstore.BlobRemover(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
