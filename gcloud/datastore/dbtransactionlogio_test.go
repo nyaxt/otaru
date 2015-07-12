@@ -54,8 +54,30 @@ func TestDBTransactionIO_PutQuery(t *testing.T) {
 
 	if err := txio.AppendTransaction(tx); err != nil {
 		t.Errorf("AppendTransaction failed: %v", err)
+		return
 	}
 
+	// query before sync
+	{
+		txs, err := txio.QueryTransactions(123)
+		if err != nil {
+			t.Errorf("QueryTransactions failed: %v", err)
+			return
+		}
+		if len(txs) != 1 {
+			t.Errorf("QueryTransactions >=123 result invalid len: %+v", txs)
+			return
+		}
+
+		if !reflect.DeepEqual(txs[0], tx) {
+			t.Errorf("serdes mismatch: %+v", txs)
+		}
+	}
+
+	// query after sync
+	if err := txio.Sync(); err != nil {
+		t.Errorf("Sync failed: %v", err)
+	}
 	{
 		txs, err := txio.QueryTransactions(123)
 		if err != nil {
