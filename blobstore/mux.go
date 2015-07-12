@@ -94,6 +94,20 @@ func (m Mux) ListBlobs() ([]string, error) {
 	return ret, nil
 }
 
+var _ = BlobSizer(Mux{})
+
+func (m Mux) BlobSize(blobpath string) (int64, error) {
+	bs := m.findBlobStoreFor(blobpath)
+	if bs == nil {
+		return -1, ErrEmptyMux
+	}
+	sizer, ok := bs.(BlobSizer)
+	if !ok {
+		return -1, fmt.Errorf("Backend blobstore \"%s\" don't support BlobSize()", util.TryGetImplName(bs))
+	}
+	return sizer.BlobSize(blobpath)
+}
+
 var _ = BlobRemover(Mux{})
 
 func (m Mux) RemoveBlob(blobpath string) error {
