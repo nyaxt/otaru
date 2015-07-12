@@ -900,11 +900,20 @@ func (cbs *CachedBlobStore) RemoveBlob(blobpath string) error {
 	if !ok {
 		return fmt.Errorf("Backendbs \"%v\" doesn't support removing blobs.", util.TryGetImplName(cbs.backendbs))
 	}
+	cacherm, ok := cbs.cachebs.(BlobRemover)
+	if !ok {
+		return fmt.Errorf("Cachebs \"%v\" doesn't support removing blobs.", util.TryGetImplName(cbs.cachebs))
+	}
+
 	if err := cbs.entriesmgr.RemoveBlob(blobpath); err != nil {
 		return err
 	}
+	delete(cbs.beVerCache, blobpath)
 	if err := backendrm.RemoveBlob(blobpath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("Backendbs RemoveBlob failed: %v", err)
+	}
+	if err := cacherm.RemoveBlob(blobpath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Cachebs RemoveBlob failed: %v", err)
 	}
 
 	return nil
