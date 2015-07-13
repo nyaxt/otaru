@@ -17,7 +17,8 @@ type Config struct {
 	ProjectName                  string
 	BucketName                   string
 	UseSeparateBucketForMetadata bool
-	CacheDir                     string
+	BlobCacheDir                 string
+	MetadataCacheDir             string
 	LocalDebug                   bool
 
 	Password string
@@ -32,7 +33,8 @@ func NewConfigFromTomlFile(configpath string) (*Config, error) {
 	cfg := &Config{
 		PasswordFile:                 path.Join(os.Getenv("HOME"), ".otaru", "password.txt"),
 		UseSeparateBucketForMetadata: false,
-		CacheDir:                     "/var/cache/otaru",
+		BlobCacheDir:                 "/var/cache/otaru/blob",
+		MetadataCacheDir:             "/var/cache/otaru/metadata",
 	}
 	if err := toml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("Failed to parse config file: %v", err)
@@ -61,6 +63,9 @@ func NewConfigFromTomlFile(configpath string) (*Config, error) {
 	if cfg.BucketName == "" {
 		return nil, fmt.Errorf("Config Error: BucketName must be given.")
 	}
+
+	os.MkdirAll(cfg.BlobCacheDir, 0700)
+	os.MkdirAll(cfg.MetadataCacheDir, 0700)
 
 	return cfg, nil
 }

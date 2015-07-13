@@ -21,6 +21,8 @@ import (
 )
 
 type Otaru struct {
+	*Config
+
 	C btncrypt.Cipher
 
 	S *scheduler.Scheduler
@@ -47,7 +49,7 @@ type Otaru struct {
 }
 
 func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
-	o := &Otaru{}
+	o := &Otaru{Config: cfg}
 
 	var err error
 
@@ -71,7 +73,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		}
 	}
 
-	o.CacheTgtBS, err = blobstore.NewFileBlobStore(cfg.CacheDir, oflags.O_RDWRCREATE)
+	o.CacheTgtBS, err = blobstore.NewFileBlobStore(cfg.BlobCacheDir, oflags.O_RDWRCREATE)
 	if err != nil {
 		o.Close()
 		return nil, fmt.Errorf("Failed to init FileBlobStore: %v", err)
@@ -107,6 +109,9 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	if err != nil {
 		o.Close()
 		return nil, fmt.Errorf("Failed to init CachedBlobStore: %v", err)
+	}
+	if err := o.CBS.LoadStateFromPath(cfg.MetadataCacheDir); err != nil {
+		log.Printf("Loading CachedBlobStore state from local cache failed. Starting with clean state: %v", err)
 	}
 	o.CSS = blobstore.NewCacheSyncScheduler(o.CBS)
 
@@ -180,6 +185,12 @@ func (o *Otaru) Close() error {
 
 	if o.CSS != nil {
 		o.CSS.Stop()
+	}
+
+	if o.CBS != nil {
+		if err := o.CBS.SaveStateToPath(o.cfg.MetadataCacheDir); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	return util.ToErrors(errs)
