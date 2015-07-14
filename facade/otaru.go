@@ -9,6 +9,7 @@ import (
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
+	"github.com/nyaxt/otaru/chunkstore"
 	oflags "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
@@ -102,7 +103,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		o.BackendBS, err = blobstore.NewFileBlobStore(path.Join(os.Getenv("HOME"), ".otaru", "bbs"), oflags.O_RDWRCREATE)
 	}
 
-	queryFn := otaru.NewQueryChunkVersion(o.C)
+	queryFn := chunkstore.NewQueryChunkVersion(o.C)
 	o.CBS, err = blobstore.NewCachedBlobStore(o.BackendBS, o.CacheTgtBS, oflags.O_RDWRCREATE /* FIXME */, queryFn)
 	if err != nil {
 		o.Close()

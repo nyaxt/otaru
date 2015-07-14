@@ -1,8 +1,9 @@
-package otaru
+package chunkstore
 
 import (
 	"fmt"
 	"log"
+	"syscall"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
@@ -11,9 +12,9 @@ import (
 	. "github.com/nyaxt/otaru/util" // FIXME
 )
 
-const (
-	ChunkSplitSize = 256 * 1024 * 1024 // 256MB
-)
+const EPERM = syscall.Errno(syscall.EPERM)
+
+const ChunkSplitSize = 256 * 1024 * 1024 // 256MB
 
 const (
 	NewChunk      = true

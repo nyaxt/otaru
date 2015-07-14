@@ -10,6 +10,7 @@ import (
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
+	"github.com/nyaxt/otaru/chunkstore"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/metadata"
@@ -46,7 +47,7 @@ func (sio *BlobStoreDBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
 		return err
 	}
 
-	cio := NewChunkIOWithMetadata(raw, sio.c, ChunkHeader{
+	cio := chunkstore.NewChunkIOWithMetadata(raw, sio.c, chunkstore.ChunkHeader{
 		OrigFilename: metadata.INodeDBSnapshotBlobpath,
 		OrigOffset:   0,
 	})
@@ -84,7 +85,7 @@ func (sio *BlobStoreDBStateSnapshotIO) RestoreSnapshot() (*inodedb.DBState, erro
 		return nil, err
 	}
 
-	cio := NewChunkIO(raw, sio.c)
+	cio := chunkstore.NewChunkIO(raw, sio.c)
 	log.Printf("serialized blob size: %d", cio.Size())
 	zr, err := zlib.NewReader(&io.LimitedReader{&blobstore.OffsetReader{cio, 0}, cio.Size()})
 	if err != nil {

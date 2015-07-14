@@ -1,8 +1,8 @@
-package otaru_test
+package chunkstore_test
 
 import (
-	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/chunkstore"
 	. "github.com/nyaxt/otaru/testutils"
 
 	"bytes"
@@ -49,7 +49,7 @@ func Test_genTestData(t *testing.T) {
 
 func genFrameByChunkWriter(t *testing.T, p []byte) []byte {
 	buf := new(bytes.Buffer)
-	cw, err := otaru.NewChunkWriter(buf, TestCipher(), otaru.ChunkHeader{PayloadLen: uint32(len(p))})
+	cw, err := chunkstore.NewChunkWriter(buf, TestCipher(), chunkstore.ChunkHeader{PayloadLen: uint32(len(p))})
 	if err != nil {
 		t.Errorf("Failed to create chunk writer: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestChunkIO_Read_HelloWorld(t *testing.T) {
 		return
 	}
 	testbh := &TestBlobHandle{b}
-	cio := otaru.NewChunkIO(testbh, TestCipher())
+	cio := chunkstore.NewChunkIO(testbh, TestCipher())
 
 	readtgt := make([]byte, len(HelloWorld))
 	if err := cio.PRead(0, readtgt); err != nil {
@@ -98,7 +98,7 @@ func TestChunkIO_Read_1MB(t *testing.T) {
 		return
 	}
 	testbh := &TestBlobHandle{b}
-	cio := otaru.NewChunkIO(testbh, TestCipher())
+	cio := chunkstore.NewChunkIO(testbh, TestCipher())
 
 	// Full read
 	readtgt := make([]byte, len(td))
@@ -134,7 +134,7 @@ func TestChunkIO_Write_UpdateHello(t *testing.T) {
 		return
 	}
 	testbh := &TestBlobHandle{b}
-	cio := otaru.NewChunkIO(testbh, TestCipher())
+	cio := chunkstore.NewChunkIO(testbh, TestCipher())
 
 	if cio.Header().PayloadVersion != 1 {
 		t.Errorf("Initial PayloadVersion != 1")
@@ -165,7 +165,7 @@ func TestChunkIO_Write_UpdateHello(t *testing.T) {
 		return
 	}
 
-	queryFn := otaru.NewQueryChunkVersion(TestCipher())
+	queryFn := chunkstore.NewQueryChunkVersion(TestCipher())
 	ver, err := queryFn(&blobstore.OffsetReader{testbh, 0})
 	if err != nil {
 		t.Errorf("PayloadVersion query failed")
@@ -182,7 +182,7 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 		return
 	}
 	testbh := &TestBlobHandle{b}
-	cio := otaru.NewChunkIO(testbh, TestCipher())
+	cio := chunkstore.NewChunkIO(testbh, TestCipher())
 	origver := cio.Header().PayloadVersion
 
 	// Full update
@@ -233,7 +233,7 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 
 func Test_ChunkIOWrite_NewHello_ChunkReaderRead(t *testing.T) {
 	testbh := &TestBlobHandle{}
-	cio := otaru.NewChunkIO(testbh, TestCipher())
+	cio := chunkstore.NewChunkIO(testbh, TestCipher())
 	if err := cio.PWrite(0, HelloWorld); err != nil {
 		t.Errorf("failed to PWrite to ChunkIO: %v", err)
 		return
@@ -252,7 +252,7 @@ func Test_ChunkIOWrite_NewHello_ChunkReaderRead(t *testing.T) {
 		return
 	}
 
-	cr, err := otaru.NewChunkReader(bytes.NewBuffer(testbh.Buf), TestCipher())
+	cr, err := chunkstore.NewChunkReader(bytes.NewBuffer(testbh.Buf), TestCipher())
 	if err != nil {
 		t.Errorf("failed to create chunk reader: %v", err)
 		return
@@ -283,7 +283,7 @@ func checkZero(t *testing.T, p []byte, off int, length int) {
 
 func Test_ChunkIOWrite_ZeroFillPadding(t *testing.T) {
 	testbh := &TestBlobHandle{}
-	cio := otaru.NewChunkIO(testbh, TestCipher())
+	cio := chunkstore.NewChunkIO(testbh, TestCipher())
 
 	// [ zero ][ hello ]
 	//    10      12
@@ -341,7 +341,7 @@ func Test_ChunkIOWrite_ZeroFillPadding(t *testing.T) {
 
 func Test_ChunkIOWrite_OverflowUpdate(t *testing.T) {
 	testbh := &TestBlobHandle{}
-	cio := otaru.NewChunkIO(testbh, TestCipher())
+	cio := chunkstore.NewChunkIO(testbh, TestCipher())
 	if err := cio.PWrite(0, HelloWorld); err != nil {
 		t.Errorf("failed to PWrite to ChunkIO: %v", err)
 		return
@@ -355,7 +355,7 @@ func Test_ChunkIOWrite_OverflowUpdate(t *testing.T) {
 		return
 	}
 
-	cr, err := otaru.NewChunkReader(bytes.NewBuffer(testbh.Buf), TestCipher())
+	cr, err := chunkstore.NewChunkReader(bytes.NewBuffer(testbh.Buf), TestCipher())
 	if err != nil {
 		t.Errorf("failed to create chunk reader: %v", err)
 		return
@@ -380,7 +380,7 @@ type eofReader struct{}
 func (eofReader) Read([]byte) (int, error) { return 0, io.EOF }
 
 func Test_QueryChunkVersion_EOF(t *testing.T) {
-	queryFn := otaru.NewQueryChunkVersion(TestCipher())
+	queryFn := chunkstore.NewQueryChunkVersion(TestCipher())
 	ver, err := queryFn(&eofReader{})
 	if err != nil {
 		t.Errorf("NewQueryChunkVersion should return no err on EOF")

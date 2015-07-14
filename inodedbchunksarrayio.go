@@ -3,6 +3,7 @@ package otaru
 import (
 	"fmt"
 
+	"github.com/nyaxt/otaru/chunkstore"
 	"github.com/nyaxt/otaru/inodedb"
 )
 
@@ -11,7 +12,7 @@ type INodeDBChunksArrayIO struct {
 	nlock inodedb.NodeLock
 }
 
-var _ = ChunksArrayIO(&INodeDBChunksArrayIO{})
+var _ = chunkstore.ChunksArrayIO(&INodeDBChunksArrayIO{})
 
 func NewINodeDBChunksArrayIO(db inodedb.DBHandler, nlock inodedb.NodeLock) *INodeDBChunksArrayIO {
 	return &INodeDBChunksArrayIO{db: db, nlock: nlock}

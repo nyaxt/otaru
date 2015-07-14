@@ -8,8 +8,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/btncrypt"
+	"github.com/nyaxt/otaru/chunkstore"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -50,7 +50,7 @@ func main() {
 		return
 	}
 
-	cr, err := otaru.NewChunkReader(f, c)
+	cr, err := chunkstore.NewChunkReader(f, c)
 	if err != nil {
 		log.Printf("Failed to init ChunkReader: %v", err)
 		return

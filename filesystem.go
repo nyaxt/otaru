@@ -8,6 +8,7 @@ import (
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
+	"github.com/nyaxt/otaru/chunkstore"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/util"
@@ -35,7 +36,7 @@ type FileSystem struct {
 	bs blobstore.RandomAccessBlobStore
 	c  btncrypt.Cipher
 
-	newChunkedFileIO func(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, caio ChunksArrayIO) blobstore.BlobHandle
+	newChunkedFileIO func(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, caio chunkstore.ChunksArrayIO) blobstore.BlobHandle
 
 	muOpenFiles sync.Mutex
 	openFiles   map[inodedb.ID]*OpenFile
@@ -50,8 +51,8 @@ func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c 
 		bs:  bs,
 		c:   c,
 
-		newChunkedFileIO: func(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, caio ChunksArrayIO) blobstore.BlobHandle {
-			return NewChunkedFileIO(bs, c, caio)
+		newChunkedFileIO: func(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, caio chunkstore.ChunksArrayIO) blobstore.BlobHandle {
+			return chunkstore.NewChunkedFileIO(bs, c, caio)
 		},
 
 		openFiles: make(map[inodedb.ID]*OpenFile),
@@ -98,7 +99,7 @@ func (fs *FileSystem) Sync() error {
 	return util.ToErrors(es)
 }
 
-func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(blobstore.RandomAccessBlobStore, btncrypt.Cipher, ChunksArrayIO) blobstore.BlobHandle) {
+func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(blobstore.RandomAccessBlobStore, btncrypt.Cipher, chunkstore.ChunksArrayIO) blobstore.BlobHandle) {
 	fs.newChunkedFileIO = newChunkedFileIO
 }
 
