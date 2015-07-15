@@ -1,20 +1,25 @@
-package blobstore // FIXME: make blobstore.cached pkg
+package cachedblobstore // FIXME: make blobstore.cached pkg
 
 import (
 	"fmt"
 	"log"
 	"sync"
+	"syscall"
+
+	"github.com/nyaxt/otaru/blobstore"
 )
 
+const ENOENT = syscall.Errno(syscall.ENOENT)
+
 type CachedBackendVersion struct {
-	backendbs    BlobStore
+	backendbs    blobstore.BlobStore
 	queryVersion QueryVersionFunc
 
 	mu    sync.Mutex
 	cache map[string]BlobVersion
 }
 
-func NewCachedBackendVersion(backendbs BlobStore, queryVersion QueryVersionFunc) *CachedBackendVersion {
+func NewCachedBackendVersion(backendbs blobstore.BlobStore, queryVersion QueryVersionFunc) *CachedBackendVersion {
 	return &CachedBackendVersion{
 		backendbs:    backendbs,
 		queryVersion: queryVersion,

@@ -8,6 +8,7 @@ import (
 
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
 	oflags "github.com/nyaxt/otaru/flags"
@@ -34,7 +35,7 @@ type Otaru struct {
 	BackendBS blobstore.BlobStore
 
 	CacheTgtBS *blobstore.FileBlobStore
-	CBS        *blobstore.CachedBlobStore
+	CBS        *cachedblobstore.CachedBlobStore
 	CSS        *util.PeriodicRunner
 
 	SIO   *otaru.BlobStoreDBStateSnapshotIO
@@ -104,12 +105,12 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	}
 
 	queryFn := chunkstore.NewQueryChunkVersion(o.C)
-	o.CBS, err = blobstore.NewCachedBlobStore(o.BackendBS, o.CacheTgtBS, oflags.O_RDWRCREATE /* FIXME */, queryFn)
+	o.CBS, err = cachedblobstore.New(o.BackendBS, o.CacheTgtBS, oflags.O_RDWRCREATE /* FIXME */, queryFn)
 	if err != nil {
 		o.Close()
 		return nil, fmt.Errorf("Failed to init CachedBlobStore: %v", err)
 	}
-	o.CSS = blobstore.NewCacheSyncScheduler(o.CBS)
+	o.CSS = cachedblobstore.NewCacheSyncScheduler(o.CBS)
 
 	o.SIO = otaru.NewBlobStoreDBStateSnapshotIO(o.CBS, o.C)
 

@@ -1,4 +1,4 @@
-package blobstore
+package cachedblobstore
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nyaxt/otaru/blobstore"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/util"
 )
@@ -284,8 +285,8 @@ func (mgr *CachedBlobEntriesManager) closeOldCacheEntriesIfNeeded() error {
 }
 
 type CachedBlobStore struct {
-	backendbs BlobStore
-	cachebs   RandomAccessBlobStore
+	backendbs blobstore.BlobStore
+	cachebs   blobstore.RandomAccessBlobStore
 
 	flags int
 
@@ -336,7 +337,7 @@ type CachedBlobEntry struct {
 
 	cbs      *CachedBlobStore
 	blobpath string
-	cachebh  BlobHandle
+	cachebh  blobstore.BlobHandle
 
 	state cacheEntryState
 
@@ -367,7 +368,7 @@ func (be *CachedBlobEntry) invalidateCache(cbs *CachedBlobStore) error {
 		}
 	}()
 
-	bs, ok := cbs.cachebs.(BlobStore)
+	bs, ok := cbs.cachebs.(blobstore.BlobStore)
 	if !ok {
 		return fmt.Errorf("FIXME: only cachebs supporting OpenWriter is currently supported")
 	}
@@ -420,7 +421,7 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 		be.closeWithLock(abandonAndClose)
 		return fmt.Errorf("Failed to open cache blob: %v", err)
 	}
-	cachever, err := cbs.queryVersion(&OffsetReader{cachebh, 0})
+	cachever, err := cbs.queryVersion(&blobstore.OffsetReader{cachebh, 0})
 	if err != nil {
 		be.closeWithLock(abandonAndClose)
 		return fmt.Errorf("Failed to query cached blob ver: %v", err)
@@ -445,7 +446,7 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 		be.bloblen = cachebh.Size()
 		be.validlen = be.bloblen
 	} else {
-		blobsizer := cbs.backendbs.(BlobSizer)
+		blobsizer := cbs.backendbs.(blobstore.BlobSizer)
 		be.bloblen, err = blobsizer.BlobSize(be.blobpath)
 		if err != nil {
 			be.closeWithLock(abandonAndClose)
@@ -598,7 +599,7 @@ func (be *CachedBlobEntry) writeBackWithLock() error {
 		return nil
 	}
 
-	cachever, err := be.cbs.queryVersion(&OffsetReader{be.cachebh, 0})
+	cachever, err := be.cbs.queryVersion(&blobstore.OffsetReader{be.cachebh, 0})
 	if err != nil {
 		return fmt.Errorf("Failed to query cached blob ver: %v", err)
 	}
@@ -612,7 +613,7 @@ func (be *CachedBlobEntry) writeBackWithLock() error {
 			fmt.Printf("Failed to close backend blob writer: %v", err)
 		}
 	}()
-	r := io.LimitReader(&OffsetReader{be.cachebh, 0}, be.cachebh.Size())
+	r := io.LimitReader(&blobstore.OffsetReader{be.cachebh, 0}, be.cachebh.Size())
 	if _, err := io.Copy(w, r); err != nil {
 		return fmt.Errorf("Failed to copy dirty data to backend blob writer: %v", err)
 	}
@@ -783,9 +784,9 @@ func (cbs *CachedBlobStore) SyncOneEntry() error {
 	return be.Sync()
 }
 
-func NewCachedBlobStore(backendbs BlobStore, cachebs RandomAccessBlobStore, flags int, queryVersion QueryVersionFunc) (*CachedBlobStore, error) {
+func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore, flags int, queryVersion QueryVersionFunc) (*CachedBlobStore, error) {
 	if fl.IsWriteAllowed(flags) {
-		if fr, ok := backendbs.(FlagsReader); ok {
+		if fr, ok := backendbs.(fl.FlagsReader); ok {
 			if !fl.IsWriteAllowed(fr.Flags()) {
 				return nil, fmt.Errorf("Writable CachedBlobStore requested, but backendbs doesn't allow writes")
 			}
@@ -823,7 +824,7 @@ func (cbs *CachedBlobStore) Flags() int {
 	return cbs.flags
 }
 
-func (cbs *CachedBlobStore) Open(blobpath string, flags int) (BlobHandle, error) {
+func (cbs *CachedBlobStore) Open(blobpath string, flags int) (blobstore.BlobHandle, error) {
 	if !fl.IsWriteAllowed(cbs.flags) && fl.IsWriteAllowed(flags) {
 		return nil, EPERM
 	}
@@ -841,10 +842,10 @@ func (cbs *CachedBlobStore) DumpEntriesInfo() []*CachedBlobEntryInfo {
 
 func (*CachedBlobStore) ImplName() string { return "CachedBlobStore" }
 
-var _ = BlobLister(&CachedBlobStore{})
+var _ = blobstore.BlobLister(&CachedBlobStore{})
 
 func (cbs *CachedBlobStore) ListBlobs() ([]string, error) {
-	belister, ok := cbs.backendbs.(BlobLister)
+	belister, ok := cbs.backendbs.(blobstore.BlobLister)
 	if !ok {
 		return nil, fmt.Errorf("Backendbs \"%v\" doesn't support listing blobs.", util.TryGetImplName(cbs.backendbs))
 	}
@@ -872,14 +873,14 @@ func (cbs *CachedBlobStore) ListBlobs() ([]string, error) {
 	return list, nil
 }
 
-var _ = BlobRemover(&CachedBlobStore{})
+var _ = blobstore.BlobRemover(&CachedBlobStore{})
 
 func (cbs *CachedBlobStore) RemoveBlob(blobpath string) error {
-	backendrm, ok := cbs.backendbs.(BlobRemover)
+	backendrm, ok := cbs.backendbs.(blobstore.BlobRemover)
 	if !ok {
 		return fmt.Errorf("Backendbs \"%v\" doesn't support removing blobs.", util.TryGetImplName(cbs.backendbs))
 	}
-	cacherm, ok := cbs.cachebs.(BlobRemover)
+	cacherm, ok := cbs.cachebs.(blobstore.BlobRemover)
 	if !ok {
 		return fmt.Errorf("Cachebs \"%v\" doesn't support removing blobs.", util.TryGetImplName(cbs.cachebs))
 	}

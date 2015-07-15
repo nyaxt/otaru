@@ -15,6 +15,10 @@ const (
 	O_VALIDMASK  int = O_RDONLY | O_WRONLY | O_RDWR | O_CREATE | O_EXCL
 )
 
+type FlagsReader interface {
+	Flags() int
+}
+
 func IsReadAllowed(flags int) bool {
 	mode := flags & syscall.O_ACCMODE
 	return mode == O_RDONLY || mode == O_RDWR

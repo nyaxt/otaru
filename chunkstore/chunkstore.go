@@ -7,6 +7,7 @@ import (
 	"math"
 
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/util"
 )
@@ -19,8 +20,8 @@ var (
 	ZeroContent = make([]byte, ContentFramePayloadLength)
 )
 
-func NewQueryChunkVersion(c btncrypt.Cipher) blobstore.QueryVersionFunc {
-	return func(r io.Reader) (blobstore.BlobVersion, error) {
+func NewQueryChunkVersion(c btncrypt.Cipher) cachedblobstore.QueryVersionFunc {
+	return func(r io.Reader) (cachedblobstore.BlobVersion, error) {
 		var h ChunkHeader
 		if err := h.ReadFrom(r, c); err != nil {
 			if err == io.EOF {
@@ -29,7 +30,7 @@ func NewQueryChunkVersion(c btncrypt.Cipher) blobstore.QueryVersionFunc {
 			return 0, err
 		}
 
-		return blobstore.BlobVersion(h.PayloadVersion), nil
+		return cachedblobstore.BlobVersion(h.PayloadVersion), nil
 	}
 }
 

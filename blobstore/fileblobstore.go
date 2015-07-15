@@ -13,6 +13,7 @@ import (
 
 const (
 	ENOENT = syscall.Errno(syscall.ENOENT)
+	EPERM  = syscall.Errno(syscall.EPERM)
 )
 
 type FileBlobHandle struct {

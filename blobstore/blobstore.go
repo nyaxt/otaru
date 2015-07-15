@@ -20,7 +20,3 @@ type BlobSizer interface {
 type BlobRemover interface {
 	RemoveBlob(blobpath string) error
 }
-
-type FlagsReader interface {
-	Flags() int
-}

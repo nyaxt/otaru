@@ -4,12 +4,13 @@ import (
 	"net/http"
 
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/mgmt"
 	"github.com/nyaxt/otaru/util"
 )
 
-func Install(srv *mgmt.Server, bbs blobstore.BlobStore, cbs *blobstore.CachedBlobStore) {
+func Install(srv *mgmt.Server, bbs blobstore.BlobStore, cbs *cachedblobstore.CachedBlobStore) {
 	rtr := srv.APIRouter().PathPrefix("/blobstore").Subrouter()
 
 	rtr.HandleFunc("/config", mgmt.JSONHandler(func(req *http.Request) interface{} {

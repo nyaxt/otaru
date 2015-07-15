@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
 	"github.com/nyaxt/otaru/flags"
 )
 
@@ -27,7 +28,7 @@ func TestFileBlobStoreOfName(name string) *blobstore.FileBlobStore {
 	return fbs
 }
 
-func TestQueryVersion(r io.Reader) (blobstore.BlobVersion, error) {
+func TestQueryVersion(r io.Reader) (cachedblobstore.BlobVersion, error) {
 	b := make([]byte, 1)
 	if _, err := r.Read(b); err != nil {
 		if err == io.EOF {
@@ -37,10 +38,10 @@ func TestQueryVersion(r io.Reader) (blobstore.BlobVersion, error) {
 		return -1, fmt.Errorf("Failed to read 1 byte: %v", err)
 	}
 
-	return blobstore.BlobVersion(b[0]), nil
+	return cachedblobstore.BlobVersion(b[0]), nil
 }
 
-func AssertBlobVersion(bs blobstore.BlobStore, blobpath string, expected blobstore.BlobVersion) error {
+func AssertBlobVersion(bs blobstore.BlobStore, blobpath string, expected cachedblobstore.BlobVersion) error {
 	r, err := bs.OpenReader(blobpath)
 	if err != nil {
 		if expected == 0 && os.IsNotExist(err) {
@@ -63,7 +64,7 @@ func AssertBlobVersion(bs blobstore.BlobStore, blobpath string, expected blobsto
 	return nil
 }
 
-func AssertBlobVersionRA(bs blobstore.RandomAccessBlobStore, blobpath string, expected blobstore.BlobVersion) error {
+func AssertBlobVersionRA(bs blobstore.RandomAccessBlobStore, blobpath string, expected cachedblobstore.BlobVersion) error {
 	h, err := bs.Open(blobpath, flags.O_RDONLY)
 	if err != nil {
 		return fmt.Errorf("Failed to open reader: %v", err)

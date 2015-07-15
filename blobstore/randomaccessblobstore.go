@@ -2,6 +2,8 @@ package blobstore
 
 import (
 	"io"
+
+	"github.com/nyaxt/otaru/flags"
 )
 
 type SizeQueryable interface {
@@ -17,5 +19,5 @@ type BlobHandle interface {
 
 type RandomAccessBlobStore interface {
 	Open(blobpath string, flags int) (BlobHandle, error)
-	FlagsReader
+	flags.FlagsReader
 }

@@ -64,11 +64,13 @@ func (m Mux) Open(blobpath string, flags int) (BlobHandle, error) {
 	return rabs.Open(blobpath, flags)
 }
 
+var _ = fl.FlagsReader(Mux{})
+
 func (m Mux) Flags() int {
 	flags := fl.O_RDWRCREATE
 
 	for _, e := range m {
-		if flagsreader, ok := e.BlobStore.(FlagsReader); ok {
+		if flagsreader, ok := e.BlobStore.(fl.FlagsReader); ok {
 			flags = fl.Mask(flags, flagsreader.Flags())
 		}
 	}
