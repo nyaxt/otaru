@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/blobstore/version"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/util"
 )
@@ -18,11 +19,6 @@ const (
 	EPERM  = syscall.Errno(syscall.EPERM)
 	ENFILE = syscall.Errno(syscall.ENFILE)
 )
-
-// FIXME: handle overflows
-type BlobVersion int64
-
-type QueryVersionFunc func(r io.Reader) (BlobVersion, error)
 
 type CachedBlobEntriesManager struct {
 	reqC chan interface{}
@@ -290,7 +286,7 @@ type CachedBlobStore struct {
 
 	flags int
 
-	queryVersion QueryVersionFunc
+	queryVersion version.QueryFunc
 	bever        *CachedBackendVersion
 
 	entriesmgr CachedBlobEntriesManager
@@ -784,7 +780,7 @@ func (cbs *CachedBlobStore) SyncOneEntry() error {
 	return be.Sync()
 }
 
-func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore, flags int, queryVersion QueryVersionFunc) (*CachedBlobStore, error) {
+func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore, flags int, queryVersion version.QueryFunc) (*CachedBlobStore, error) {
 	if fl.IsWriteAllowed(flags) {
 		if fr, ok := backendbs.(fl.FlagsReader); ok {
 			if !fl.IsWriteAllowed(fr.Flags()) {

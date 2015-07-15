@@ -29,3 +29,5 @@ mgmt/www/bc/*
 fuse/cli/cli
 
 .DS_Store
+
+dep.png

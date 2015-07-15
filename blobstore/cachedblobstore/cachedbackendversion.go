@@ -7,35 +7,36 @@ import (
 	"syscall"
 
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/blobstore/version"
 )
 
 const ENOENT = syscall.Errno(syscall.ENOENT)
 
 type CachedBackendVersion struct {
 	backendbs    blobstore.BlobStore
-	queryVersion QueryVersionFunc
+	queryVersion version.QueryFunc
 
 	mu    sync.Mutex
-	cache map[string]BlobVersion
+	cache map[string]version.Version
 }
 
-func NewCachedBackendVersion(backendbs blobstore.BlobStore, queryVersion QueryVersionFunc) *CachedBackendVersion {
+func NewCachedBackendVersion(backendbs blobstore.BlobStore, queryVersion version.QueryFunc) *CachedBackendVersion {
 	return &CachedBackendVersion{
 		backendbs:    backendbs,
 		queryVersion: queryVersion,
 
-		cache: make(map[string]BlobVersion),
+		cache: make(map[string]version.Version),
 	}
 }
 
-func (cbv *CachedBackendVersion) Set(blobpath string, ver BlobVersion) {
+func (cbv *CachedBackendVersion) Set(blobpath string, ver version.Version) {
 	cbv.mu.Lock()
 	defer cbv.mu.Unlock()
 
 	cbv.cache[blobpath] = ver
 }
 
-func (cbv *CachedBackendVersion) Query(blobpath string) (BlobVersion, error) {
+func (cbv *CachedBackendVersion) Query(blobpath string) (version.Version, error) {
 	cbv.mu.Lock()
 	defer cbv.mu.Unlock() // FIXME: unlock earlier?
 
