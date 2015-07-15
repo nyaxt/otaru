@@ -2,62 +2,13 @@ package inodedb
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/nyaxt/otaru/util"
 )
 
-type DBTransactionRequest struct {
-	tx      DBTransaction
-	resultC chan interface{}
-}
-
-type queryNodeResult struct {
-	v     NodeView
-	nlock NodeLock
-	err   error
-}
-
-type DBQueryNodeRequest struct {
-	id      ID
-	tryLock bool
-	resultC chan queryNodeResult
-}
-
-type DBLockNodeRequest struct {
-	id      ID
-	resultC chan interface{}
-}
-
-type DBUnlockNodeRequest struct {
-	nlock   NodeLock
-	resultC chan error
-}
-
-type DBSyncRequest struct {
-	resultC chan error
-}
-
-type DBStatRequest struct {
-	resultC chan DBServiceStats
-}
-
-type DBQueryRecentTransactionsRequest struct {
-	resultC chan interface{}
-}
-
-type fsckResult struct {
-	FoundBlobPaths []string
-	Errs           []error
-}
-
-type DBFsckRequest struct {
-	resultC chan fsckResult
-}
-
 // DBService serializes requests to DBHandler
 type DBService struct {
-	reqC    chan interface{}
+	reqC    chan func()
 	quitC   chan struct{}
 	exitedC chan struct{}
 
@@ -69,7 +20,7 @@ var _ = util.Syncer(&DBService{})
 
 func NewDBService(h DBHandler) *DBService {
 	s := &DBService{
-		reqC:    make(chan interface{}),
+		reqC:    make(chan func()),
 		quitC:   make(chan struct{}),
 		exitedC: make(chan struct{}),
 		h:       h,
@@ -83,72 +34,11 @@ func NewDBService(h DBHandler) *DBService {
 func (srv *DBService) run() {
 	for {
 		select {
-		case req := <-srv.reqC:
-			switch req.(type) {
-			case *DBTransactionRequest:
-				req := req.(*DBTransactionRequest)
-				txid, err := srv.h.ApplyTransaction(req.tx)
-				if err != nil {
-					req.resultC <- err
-				} else {
-					req.resultC <- txid
-				}
-			case *DBQueryNodeRequest:
-				req := req.(*DBQueryNodeRequest)
-				v, nlock, err := srv.h.QueryNode(req.id, req.tryLock)
-				req.resultC <- queryNodeResult{v, nlock, err}
-			case *DBLockNodeRequest:
-				req := req.(*DBLockNodeRequest)
-				nlock, err := srv.h.LockNode(req.id)
-				if err != nil {
-					req.resultC <- err
-				} else {
-					req.resultC <- nlock
-				}
-			case *DBUnlockNodeRequest:
-				req := req.(*DBUnlockNodeRequest)
-				err := srv.h.UnlockNode(req.nlock)
-				req.resultC <- err
-			case *DBSyncRequest:
-				req := req.(*DBSyncRequest)
-				if s, ok := srv.h.(util.Syncer); ok {
-					req.resultC <- s.Sync()
-				} else {
-					req.resultC <- nil
-				}
-			case *DBStatRequest:
-				req := req.(*DBStatRequest)
-				if prov, ok := srv.h.(DBServiceStatsProvider); ok {
-					req.resultC <- prov.GetStats()
-				} else {
-					req.resultC <- DBServiceStats{}
-				}
-			case *DBQueryRecentTransactionsRequest:
-				req := req.(*DBQueryRecentTransactionsRequest)
-				if prov, ok := srv.h.(QueryRecentTransactionsProvider); ok {
-					txs, err := prov.QueryRecentTransactions()
-					if err != nil {
-						req.resultC <- err
-					} else {
-						req.resultC <- txs
-					}
-				} else {
-					req.resultC <- fmt.Errorf("DBHandler doesn't support QueryRecentTransactions")
-				}
-			case *DBFsckRequest:
-				req := req.(*DBFsckRequest)
-				if prov, ok := srv.h.(DBFscker); ok {
-					foundblobpaths, errs := prov.Fsck()
-					req.resultC <- fsckResult{foundblobpaths, errs}
-				} else {
-					req.resultC <- fsckResult{nil, []error{fmt.Errorf("DBHandler doesn't support Fsck")}}
-				}
-			default:
-				log.Printf("unknown request passed to DBService: %v", req)
-			}
+		case f := <-srv.reqC:
+			f()
 		case <-srv.quitC:
 			// FIXME: ensure that no req is pending
-			srv.exitedC <- struct{}{}
+			close(srv.exitedC)
 			return
 		}
 	}
@@ -159,64 +49,94 @@ func (srv *DBService) Quit() {
 	<-srv.exitedC
 }
 
-func (srv *DBService) ApplyTransaction(tx DBTransaction) (TxID, error) {
-	req := &DBTransactionRequest{tx: tx, resultC: make(chan interface{})}
-	srv.reqC <- req
-	res := <-req.resultC
-	if txid, ok := res.(TxID); ok {
-		return txid, nil
+func (srv *DBService) ApplyTransaction(tx DBTransaction) (txid TxID, err error) {
+	ch := make(chan struct{})
+	srv.reqC <- func() {
+		txid, err = srv.h.ApplyTransaction(tx)
+		close(ch)
 	}
-	return 0, res.(error)
+	<-ch
+	return
 }
 
-func (srv *DBService) QueryNode(id ID, tryLock bool) (NodeView, NodeLock, error) {
-	req := &DBQueryNodeRequest{id: id, tryLock: tryLock, resultC: make(chan queryNodeResult)}
-	srv.reqC <- req
-	res := <-req.resultC
-	return res.v, res.nlock, res.err
-}
-
-func (srv *DBService) LockNode(id ID) (NodeLock, error) {
-	req := &DBLockNodeRequest{id: id, resultC: make(chan interface{})}
-	srv.reqC <- req
-	res := <-req.resultC
-	if nlock, ok := res.(NodeLock); ok {
-		return nlock, nil
+func (srv *DBService) QueryNode(id ID, tryLock bool) (v NodeView, nlock NodeLock, err error) {
+	ch := make(chan struct{})
+	srv.reqC <- func() {
+		v, nlock, err = srv.h.QueryNode(id, tryLock)
+		close(ch)
 	}
-	return NodeLock{}, res.(error)
+	<-ch
+	return
 }
 
-func (srv *DBService) UnlockNode(nlock NodeLock) error {
-	req := &DBUnlockNodeRequest{nlock: nlock, resultC: make(chan error)}
-	srv.reqC <- req
-	return <-req.resultC
-}
-
-func (srv *DBService) Sync() error {
-	req := &DBSyncRequest{resultC: make(chan error)}
-	srv.reqC <- req
-	return <-req.resultC
-}
-
-func (srv *DBService) GetStats() DBServiceStats {
-	req := &DBStatRequest{resultC: make(chan DBServiceStats)}
-	srv.reqC <- req
-	return <-req.resultC
-}
-
-func (srv *DBService) QueryRecentTransactions() ([]DBTransaction, error) {
-	req := &DBQueryRecentTransactionsRequest{resultC: make(chan interface{})}
-	srv.reqC <- req
-	res := <-req.resultC
-	if err, ok := res.(error); ok {
-		return nil, err
+func (srv *DBService) LockNode(id ID) (nlock NodeLock, err error) {
+	ch := make(chan struct{})
+	srv.reqC <- func() {
+		nlock, err = srv.h.LockNode(id)
+		close(ch)
 	}
-	return res.([]DBTransaction), nil
+	<-ch
+	return
 }
 
-func (srv *DBService) Fsck() ([]string, []error) {
-	req := &DBFsckRequest{resultC: make(chan fsckResult)}
-	srv.reqC <- req
-	res := <-req.resultC
-	return res.FoundBlobPaths, res.Errs
+func (srv *DBService) UnlockNode(nlock NodeLock) (err error) {
+	ch := make(chan struct{})
+	srv.reqC <- func() {
+		err = srv.h.UnlockNode(nlock)
+		close(ch)
+	}
+	<-ch
+	return
+}
+
+func (srv *DBService) Sync() (err error) {
+	ch := make(chan struct{})
+	srv.reqC <- func() {
+		if s, ok := srv.h.(util.Syncer); ok {
+			err = s.Sync()
+		}
+		close(ch)
+	}
+	<-ch
+	return
+}
+
+func (srv *DBService) GetStats() (stats DBServiceStats) {
+	ch := make(chan struct{})
+	srv.reqC <- func() {
+		if prov, ok := srv.h.(DBServiceStatsProvider); ok {
+			stats = prov.GetStats()
+		}
+		close(ch)
+	}
+	<-ch
+	return
+}
+
+func (srv *DBService) QueryRecentTransactions() (txs []DBTransaction, err error) {
+	ch := make(chan struct{})
+	srv.reqC <- func() {
+		if prov, ok := srv.h.(QueryRecentTransactionsProvider); ok {
+			txs, err = prov.QueryRecentTransactions()
+		} else {
+			err = fmt.Errorf("DBHandler doesn't support QueryRecentTransactions")
+		}
+		close(ch)
+	}
+	<-ch
+	return
+}
+
+func (srv *DBService) Fsck() (foundblobpaths []string, errs []error) {
+	ch := make(chan struct{})
+	srv.reqC <- func() {
+		if prov, ok := srv.h.(DBFscker); ok {
+			foundblobpaths, errs = prov.Fsck()
+		} else {
+			foundblobpaths, errs = nil, []error{fmt.Errorf("DBHandler doesn't support Fsck")}
+		}
+		close(ch)
+	}
+	<-ch
+	return
 }
