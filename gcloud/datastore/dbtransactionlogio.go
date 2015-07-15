@@ -115,9 +115,19 @@ func (txio *DBTransactionLogIO) Sync() error {
 		stxs = append(stxs, stx)
 	}
 
-	if _, err := datastore.PutMulti(ctx, keys, stxs); err != nil {
+	dstx, err := datastore.NewTransaction(ctx, datastore.Serializable)
+	if err != nil {
 		return err
 	}
+
+	if _, err := dstx.PutMulti(keys, stxs); err != nil {
+		return err
+	}
+
+	if _, err := dstx.Commit(); err != nil {
+		return err
+	}
+
 	log.Printf("Committed %d txs", len(stxs))
 	return nil
 }
@@ -136,7 +146,12 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 
 	ctx := txio.getContext()
 
-	q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Filter("TxID >=", int64(minID)).Order("TxID")
+	dstx, err := datastore.NewTransaction(ctx, datastore.Serializable)
+	if err != nil {
+		return nil, err
+	}
+
+	q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Filter("TxID >=", int64(minID)).Order("TxID").Transaction(dstx)
 	it := q.Run(ctx)
 	for {
 		var stx storedbtx
@@ -154,6 +169,11 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 		}
 
 		result = append(result, tx)
+	}
+
+	// FIXME: not sure if Rollback() is better
+	if _, err := dstx.Commit(); err != nil {
+		return nil, err
 	}
 	log.Printf("QueryTransactions(%v) took %s", minID, time.Since(start))
 	return result, nil
@@ -175,8 +195,13 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 
 	ctx := txio.getContext()
 
+	dstx, err := datastore.NewTransaction(ctx, datastore.Serializable)
+	if err != nil {
+		return err
+	}
+
 	keys := []*datastore.Key{}
-	q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Filter("TxID <", int64(smallerThanID)).KeysOnly()
+	q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Filter("TxID <", int64(smallerThanID)).KeysOnly().Transaction(dstx)
 	it := q.Run(ctx)
 	for {
 		k, err := it.Next(nil)
@@ -191,10 +216,13 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 	}
 
 	log.Printf("keys to delete: %v", keys)
-	if err := datastore.DeleteMulti(ctx, keys); err != nil {
+	if err := dstx.DeleteMulti(keys); err != nil {
 		return err
 	}
 
+	if _, err := dstx.Commit(); err != nil {
+		return err
+	}
 	log.Printf("DeleteTransactions(%v) took %s", smallerThanID, time.Since(start))
 	return nil
 }
