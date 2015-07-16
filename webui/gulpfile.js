@@ -24,11 +24,11 @@ gulp.task('fonts', getTask('fonts'));
 // Scan Your HTML For Assets & Optimize Them
 gulp.task('html', getTask('html'));
 
+// Transpile ES6 -> ES5
+gulp.task('babel', getTask('babel'));
+
 // Optimize Images
 gulp.task('images', getTask('images'));
-
-// Lint JavaScript
-gulp.task('jshint', require('./gulp/tasks/jshint')(gulp, plugins, browserSync));
 
 // Inject bower components
 gulp.task('wiredep', getTask('wiredep'));
@@ -74,9 +74,6 @@ gulp.task('copy-build-element', getTask('copy-build-element'));
 // Gzip text files
 gulp.task('gzip', getTask('gzip'));
 
-// Updating all references in manifest to revved files
-gulp.task('revreplace', getTask('revreplace'));
-
 // Vulcanize imports
 gulp.task('vulcanize', getTask('vulcanize'));
 
@@ -84,9 +81,8 @@ gulp.task('vulcanize', getTask('vulcanize'));
 gulp.task('default', ['clean'], function (cb) {
   require('run-sequence')(
     ['copy'],
-    ['jshint', 'images', 'fonts', 'html'],
+    ['images', 'fonts', 'html', 'babel'],
     'vulcanize',
-    'revreplace',
 //    'gzip',
 //    'build-size',
     cb);
