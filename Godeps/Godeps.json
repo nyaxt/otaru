@@ -1,0 +1,77 @@
+{
+	"ImportPath": "github.com/nyaxt/otaru",
+	"GoVersion": "go1.4.2",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "bazil.org/fuse",
+			"Rev": "18419ee53958df28fcfc9490fe6123bd59e237bb"
+		},
+		{
+			"ImportPath": "github.com/bradfitz/http2",
+			"Rev": "f8202bc903bda493ebba4aa54922d78430c2c42f"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/proto",
+			"Rev": "ab974be44dc3b7b8a1fb306fb32fe9b9f3864b3d"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "9cb89f07ca03c6a28d1e237ba033bc6a29422fd6"
+		},
+		{
+			"ImportPath": "github.com/naoina/go-stringutil",
+			"Rev": "360db0db4b01d34e12a2ec042c09e7d37fece761"
+		},
+		{
+			"ImportPath": "github.com/naoina/toml",
+			"Rev": "5811abcabb29d6af0fdf060f96d328962bd3cd5e"
+		},
+		{
+			"ImportPath": "github.com/rs/cors",
+			"Rev": "e3d1862a4bc15e474edd22093665cad54e89adb4"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/pbkdf2",
+			"Rev": "4d8f0cfeca8290cfc0091edf678a138ce669b1bb"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "d9558e5c97f85372afee28cf2b6059d7d3818919"
+		},
+		{
+			"ImportPath": "golang.org/x/net/internal/timeseries",
+			"Rev": "d9558e5c97f85372afee28cf2b6059d7d3818919"
+		},
+		{
+			"ImportPath": "golang.org/x/net/trace",
+			"Rev": "d9558e5c97f85372afee28cf2b6059d7d3818919"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2",
+			"Rev": "8914e5017ca260f2a3a1575b1e6868874050d95e"
+		},
+		{
+			"ImportPath": "google.golang.org/api/googleapi",
+			"Rev": "661ac69e128b9f939c5b7b73b963a74808ec3220"
+		},
+		{
+			"ImportPath": "google.golang.org/api/storage/v1",
+			"Rev": "661ac69e128b9f939c5b7b73b963a74808ec3220"
+		},
+		{
+			"ImportPath": "google.golang.org/cloud",
+			"Rev": "f925ac6fddb170ae890f5cf83fb6cdb0bbdd0a9e"
+		},
+		{
+			"ImportPath": "google.golang.org/grpc",
+			"Rev": "91c8b79535eb6045d70ec671d302213f88a3ab95"
+		}
+	]
+}
