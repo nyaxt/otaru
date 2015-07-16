@@ -74,27 +74,18 @@ gulp.task('gzip', getTask('gzip'));
 // Vulcanize imports
 gulp.task('vulcanize', getTask('vulcanize'));
 
+// Babel js
+gulp.task('babel', getTask('babel'));
+
 // Build Production Files, the Default Task
 gulp.task('default', ['clean'], function (cb) {
   require('run-sequence')(
     ['copy'],
     ['images', 'fonts', 'html'],
     'vulcanize',
-//    'gzip',
-//    'build-size',
+    'babel',
     cb);
 });
-
-// Build Production Files for element
-gulp.task('build:el', ['clean'], function (cb) {
-  require('run-sequence')(
-    ['copy-build-element'],
-    ['jshint'],
-//    'gzip',
-//    'build-size',
-    cb);
-});
-
 
 // Deploy Tasks
 // ------------
