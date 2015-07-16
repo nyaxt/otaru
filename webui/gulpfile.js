@@ -24,9 +24,6 @@ gulp.task('fonts', getTask('fonts'));
 // Scan Your HTML For Assets & Optimize Them
 gulp.task('html', getTask('html'));
 
-// Transpile ES6 -> ES5
-gulp.task('babel', getTask('babel'));
-
 // Optimize Images
 gulp.task('images', getTask('images'));
 
@@ -81,7 +78,7 @@ gulp.task('vulcanize', getTask('vulcanize'));
 gulp.task('default', ['clean'], function (cb) {
   require('run-sequence')(
     ['copy'],
-    ['images', 'fonts', 'html', 'babel'],
+    ['images', 'fonts', 'html'],
     'vulcanize',
 //    'gzip',
 //    'build-size',

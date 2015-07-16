@@ -37,9 +37,5 @@
     "psi": "^1.0.6",
     "run-sequence": "^1.1.1",
     "wiredep": "^3.0.0-beta"
-  },
-  "dependencies": {
-    "gulp-babel": "^5.1.0",
-    "gulp-sourcemaps": "^1.5.2"
   }
 }

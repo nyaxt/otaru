@@ -9,14 +9,9 @@ module.exports = function (gulp, plugins, config) { return function () {
       inline: true, // Inline all scripts and stylesheets.
       strip: true   // Strip comments and empty text nodes from output.
     }))
+    .pipe(gulp.dest('dist/elements'))
     // Minify JavaScript with UglifyJS
     .pipe(plugins.if('*.js', plugins.uglify({preserveComments: 'some'})))
     .pipe(gulp.dest('dist/elements'))
-    // Revving file
-    .pipe(plugins.rev())
-    .pipe(gulp.dest('dist/elements'))
-    .pipe(plugins.size({title: 'vulcanize'}))
-    // Write rev-manifest.json to .tmp
-    .pipe(plugins.revAll.manifest())
-    .pipe(gulp.dest('.tmp'));
+    .pipe(plugins.size({title: 'vulcanize'}));
 };};
