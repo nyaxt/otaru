@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path"
 	"sync"
 	"syscall"
 
@@ -23,8 +22,8 @@ var Usage = func() {
 }
 
 var (
-	flagMkfs       = flag.Bool("mkfs", false, "Reset metadata if no existing metadata exists")
-	flagConfigFile = flag.String("config", path.Join(os.Getenv("HOME"), ".otaru", "config.toml"), "Config filepath")
+	flagMkfs      = flag.Bool("mkfs", false, "Reset metadata if no existing metadata exists")
+	flagConfigDir = flag.String("configDir", facade.DefaultConfigDir(), "Config dirpath")
 )
 
 func main() {
@@ -33,7 +32,7 @@ func main() {
 	flag.Usage = Usage
 	flag.Parse()
 
-	cfg, err := facade.NewConfigFromTomlFile(*flagConfigFile)
+	cfg, err := facade.NewConfig(*flagConfigDIr)
 	if err != nil {
 		log.Printf("%v", err)
 		Usage()
