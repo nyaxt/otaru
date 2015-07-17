@@ -3,6 +3,9 @@ package mgmt
 import (
 	"net/http"
 
+	"github.com/nyaxt/otaru/webui"
+
+	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 )
@@ -23,8 +26,8 @@ func NewServer() *Server {
 
 	apirtr := rtr.PathPrefix("/api").Subrouter()
 
-	// FIXME: Migrate to github.com/elazarl/go-bindata-assetfs
-	rtr.Handle("/", http.FileServer(http.Dir("../www")))
+	rtr.Handle("/", http.FileServer(
+		&assetfs.AssetFS{Asset: webui.Asset, AssetDir: webui.AssetDir, Prefix: "dist"}))
 
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"http://localhost:9000"}, // gulp devsrv
