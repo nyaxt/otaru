@@ -1,0 +1,13 @@
+machine:
+  services:
+    - docker
+
+
+dependencies:
+  override:
+    - docker info
+    - docker build -t otaru .
+
+test:
+  override:
+    - docker run --rm otaru go test ./...
