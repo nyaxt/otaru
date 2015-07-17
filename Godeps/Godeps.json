@@ -14,6 +14,10 @@
 			"Rev": "f8202bc903bda493ebba4aa54922d78430c2c42f"
 		},
 		{
+			"ImportPath": "github.com/elazarl/go-bindata-assetfs",
+			"Rev": "3dcc96556217539f50599357fb481ac0dc7439b9"
+		},
+		{
 			"ImportPath": "github.com/golang/protobuf/proto",
 			"Rev": "ab974be44dc3b7b8a1fb306fb32fe9b9f3864b3d"
 		},
