@@ -73,6 +73,10 @@ function otaru::gcloud_verify_storage() {
 function otaru::gcloud_verify_credentials_json() {
 	if [[ -f $OTARUDIR/credentials.json ]]; then
 		echo "credentials.json found. Good!"
+		(grep -q client_secret $OTARUDIR/credentials.json) || {
+			echo "client_secret not found in credentials.json.">/dev/stderr
+			exit 1
+		}
 	else
 		echo "credentials.json not found. Please create one at https://console.developers.google.com/project/$PROJECT_NAME/apiui/credential and place it as $OTARUDIR/credentials.json.">/dev/stderr
 		exit 1
