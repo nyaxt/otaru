@@ -1,7 +1,7 @@
 FROM golang:1.4
 ENV GOOS linux
 ENV GOARCH amd64
-RUN go get github.com/tools/godep
+RUN go get github.com/tools/godep && go get github.com/jteeuwen/go-bindata/...
 
 # Below copied from joyent/docker-node
 #
@@ -52,7 +52,7 @@ VOLUME /out
 COPY . /go/src/github.com/nyaxt/otaru
 WORKDIR /go/src/github.com/nyaxt/otaru
 
-RUN cd /go/src/github.com/nyaxt/otaru/webui && npm install && bower --allow-root install && gulp
+RUN cd /go/src/github.com/nyaxt/otaru/webui && npm install && bower --allow-root install && gulp && go-bindata -pkg webui dist/...
 RUN godep go install github.com/nyaxt/otaru/fuse/cli
 
 CMD cp /go/bin/cli /out/cli
