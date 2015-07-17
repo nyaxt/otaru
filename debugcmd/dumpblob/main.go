@@ -10,11 +10,12 @@ import (
 
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
+	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/util"
 )
 
 var (
-	flagPasswordFile = flag.String("passwordFile", path.Join(os.Getenv("HOME"), ".otaru", "password.txt"), "Path of a text file storing password")
+	flagPasswordFile = flag.String("passwordFile", path.Join(facade.DefaultConfigDir(), "password.txt"), "Path of a text file storing password")
 	flagHeader       = flag.Bool("header", false, "Show header")
 )
 

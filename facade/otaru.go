@@ -63,10 +63,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	o.S = scheduler.NewScheduler()
 
 	if !cfg.LocalDebug {
-		o.Clisrc, err = auth.GetGCloudClientSource(
-			path.Join(os.Getenv("HOME"), ".otaru", "credentials.json"),
-			path.Join(os.Getenv("HOME"), ".otaru", "tokencache.json"),
-			false)
+		o.Clisrc, err = auth.GetGCloudClientSource(cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
 		if err != nil {
 			o.Close()
 			return nil, fmt.Errorf("Failed to init GCloudClientSource: %v", err)

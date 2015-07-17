@@ -32,7 +32,7 @@ func main() {
 	flag.Usage = Usage
 	flag.Parse()
 
-	cfg, err := facade.NewConfig(*flagConfigDIr)
+	cfg, err := facade.NewConfig(*flagConfigDir)
 	if err != nil {
 		log.Printf("%v", err)
 		Usage()

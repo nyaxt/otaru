@@ -2,34 +2,19 @@ package datastore_test
 
 import (
 	"log"
-	"os"
-	"path"
 	"reflect"
 	"testing"
 
-	"github.com/nyaxt/otaru/gcloud/auth"
+	authtu "github.com/nyaxt/otaru/gcloud/auth/testutils"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/inodedb"
 	tu "github.com/nyaxt/otaru/testutils"
-	"github.com/nyaxt/otaru/util"
 )
 
-func testClientSource() auth.ClientSource {
-	homedir := os.Getenv("HOME")
-	clisrc, err := auth.GetGCloudClientSource(
-		path.Join(homedir, ".otaru", "credentials.json"),
-		path.Join(homedir, ".otaru", "tokencache.json"),
-		false)
-	if err != nil {
-		log.Fatalf("Failed to create testClientSource: %v", err)
-	}
-	return clisrc
-}
-
 func testDBTransactionIOWithRootKey(rootKeyStr string) *datastore.DBTransactionLogIO {
-	homedir := os.Getenv("HOME")
-	projectName := util.StringFromFileOrDie(path.Join(homedir, ".otaru", "projectname.txt"), "projectName")
-	bs, err := datastore.NewDBTransactionLogIO(projectName, rootKeyStr, tu.TestCipher(), testClientSource())
+	projectName := authtu.TestConfig().ProjectName
+
+	bs, err := datastore.NewDBTransactionLogIO(projectName, rootKeyStr, tu.TestCipher(), authtu.TestClientSource())
 	if err != nil {
 		log.Fatalf("Failed to create DBTransactionLogIO: %v", err)
 	}
@@ -37,7 +22,7 @@ func testDBTransactionIOWithRootKey(rootKeyStr string) *datastore.DBTransactionL
 }
 
 func testDBTransactionIO() *datastore.DBTransactionLogIO {
-	return testDBTransactionIOWithRootKey("otaru-test")
+	return testDBTransactionIOWithRootKey(authtu.TestBucketName())
 }
 
 func TestDBTransactionIO_PutQuery(t *testing.T) {
@@ -106,8 +91,11 @@ func TestDBTransactionIO_PutQuery(t *testing.T) {
 }
 
 func TestDBTransactionIO_DeleteAll_IsIsolated(t *testing.T) {
-	txio := testDBTransactionIOWithRootKey("otaru-test")
-	txio2 := testDBTransactionIOWithRootKey("otaru-test2")
+	key1 := authtu.TestBucketName()
+	key2 := authtu.TestBucketName() + "-2"
+
+	txio := testDBTransactionIOWithRootKey(key1)
+	txio2 := testDBTransactionIOWithRootKey(key2)
 
 	if err := txio.DeleteAllTransactions(); err != nil {
 		t.Errorf("DeleteTransactions failed: %v", err)

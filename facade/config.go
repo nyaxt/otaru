@@ -62,7 +62,7 @@ func NewConfig(configdir string) (*Config, error) {
 			return nil, fmt.Errorf("Failed to stat password file \"%s\": %v", cfg.PasswordFile, err)
 		}
 		if fi.Mode()&os.ModePerm != 0400 {
-			log.Printf("Password file \"%s\" permission is not 0400", cfg.PasswordFile)
+			log.Printf("Warning: Password file \"%s\" permission is not 0400", cfg.PasswordFile)
 		}
 
 		cfg.Password, err = util.StringFromFile(cfg.PasswordFile)

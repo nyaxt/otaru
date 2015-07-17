@@ -4,37 +4,20 @@ import (
 	"bytes"
 	"io"
 	"log"
-	"os"
-	"path"
 	"reflect"
 	"testing"
 
 	"github.com/nyaxt/otaru/flags"
-	"github.com/nyaxt/otaru/gcloud/auth"
+	authtu "github.com/nyaxt/otaru/gcloud/auth/testutils"
 	"github.com/nyaxt/otaru/gcloud/gcs"
-	. "github.com/nyaxt/otaru/testutils"
-	"github.com/nyaxt/otaru/util"
+	tu "github.com/nyaxt/otaru/testutils"
 )
 
-func testClientSource() auth.ClientSource {
-	homedir := os.Getenv("HOME")
-	clisrc, err := auth.GetGCloudClientSource(
-		path.Join(homedir, ".otaru", "credentials.json"),
-		path.Join(homedir, ".otaru", "tokencache.json"),
-		false)
-	if err != nil {
-		log.Fatalf("Failed to create testClientSource: %v", err)
-	}
-	return clisrc
-}
-
 func testGCSBlobStore() *gcs.GCSBlobStore {
-	homedir := os.Getenv("HOME")
-	projectName := util.StringFromFileOrDie(path.Join(homedir, ".otaru", "projectname.txt"), "projectName")
 	bs, err := gcs.NewGCSBlobStore(
-		projectName,
-		"otaru-test",
-		testClientSource(),
+		authtu.TestConfig().ProjectName,
+		authtu.TestBucketName(),
+		authtu.TestClientSource(),
 		flags.O_RDWR,
 	)
 	if err != nil {
@@ -54,12 +37,12 @@ func TestGCSBlobStore_WriteReadDelete(t *testing.T) {
 			return
 		}
 
-		n, err := w.Write(HelloWorld)
+		n, err := w.Write(tu.HelloWorld)
 		if err != nil {
 			t.Errorf("Write failed: %v", err)
 			return
 		}
-		if n != len(HelloWorld) {
+		if n != len(tu.HelloWorld) {
 			t.Errorf("Write returned unexpected len: %d", n)
 			return
 		}
@@ -77,12 +60,12 @@ func TestGCSBlobStore_WriteReadDelete(t *testing.T) {
 			return
 		}
 
-		buf := make([]byte, len(HelloWorld))
+		buf := make([]byte, len(tu.HelloWorld))
 		if _, err = io.ReadFull(r, buf); err != nil {
 			t.Errorf("ReadFull failed: %v", err)
 			return
 		}
-		if !bytes.Equal(HelloWorld, buf) {
+		if !bytes.Equal(tu.HelloWorld, buf) {
 			t.Errorf("Read content != Write content")
 		}
 
