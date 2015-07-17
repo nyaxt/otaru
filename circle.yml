@@ -10,4 +10,5 @@ dependencies:
 
 test:
   override:
-    - docker run --rm otaru go test ./...
+    - if [[ ! -d ./otaru-testconf ]]; then echo $TESTCONFTGZ | base64 -d | tar xzf - ; fi
+    - docker run --rm otaru -e "OTARUDIR=/otaru-testconf" -v ./otaru-testconf:/otaru-testconf godep go test ./...

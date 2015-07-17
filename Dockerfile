@@ -47,7 +47,7 @@ RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-
 # === end docker-node
 RUN npm install -g gulp bower
 
-VOLUME /out
+VOLUME ["/out", "/otaru-testconf"]
 
 COPY . /go/src/github.com/nyaxt/otaru
 WORKDIR /go/src/github.com/nyaxt/otaru
