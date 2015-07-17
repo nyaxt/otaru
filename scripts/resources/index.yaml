@@ -1,0 +1,7 @@
+indexes:
+
+- kind: OtaruINodeDBTx
+  ancestor: yes
+  properties:
+  - name: TxID
+    direction: asc
