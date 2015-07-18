@@ -8,6 +8,7 @@ import (
 	"path"
 	"syscall"
 	"testing"
+	"time"
 
 	bfuse "bazil.org/fuse"
 
@@ -49,6 +50,8 @@ func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string
 		log.Fatalf("Failed to create mountpoint: %v", err)
 	}
 
+	bfuse.Unmount(mountpoint)
+
 	done := make(chan bool)
 	ready := make(chan bool)
 	go func() {
@@ -62,6 +65,7 @@ func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string
 
 	f(mountpoint)
 
+	time.Sleep(100 * time.Millisecond)
 	if err := bfuse.Unmount(mountpoint); err != nil {
 		t.Errorf("umount failed: %v", err)
 	}
