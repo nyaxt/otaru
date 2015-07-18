@@ -2,6 +2,7 @@ package fuse_test
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -103,7 +104,51 @@ func TestServeFUSE_WriteReadFile(t *testing.T) {
 			t.Errorf("Failed to read file: %v", err)
 		}
 		if !bytes.Equal(HelloWorld, b) {
-			t.Errorf("Content mismatch!: %v", err)
+			t.Errorf("Content mismatch!: %v", b)
+		}
+	})
+}
+
+func TestServeFUSE_WriteAppend(t *testing.T) {
+	maybeSkipTest(t)
+	fs := fusetestFileSystem()
+
+	var exp bytes.Buffer
+	fusetestCommon(t, fs, func(mountpoint string) {
+		if err := ioutil.WriteFile(path.Join(mountpoint, "foobar.log"), HelloWorld, 0644); err != nil {
+			t.Errorf("failed to write file: %v", err)
+		}
+		exp.Write(HelloWorld)
+	})
+	fusetestCommon(t, fs, func(mountpoint string) {
+		// According to POSIX:
+		// O_APPEND
+		//     If set, the file offset will be set to the end of the file prior to each write.
+		// ref: http://pubs.opengroup.org/onlinepubs/7908799/xsh/open.html
+		f, err := os.OpenFile(path.Join(mountpoint, "foobar.log"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		if err != nil {
+			t.Errorf("failed to open file: %v", err)
+		}
+		defer f.Close()
+
+		for _, seek := range []int64{0, 10, 5, 3} {
+			if _, err := f.Seek(seek, 0); err != nil {
+				t.Errorf("Seek failed: %v", err)
+			}
+			l := fmt.Sprintf("Write after seek %d", seek)
+			if _, err := f.WriteString(l); err != nil {
+				t.Errorf("Failed write: %v", err)
+			}
+			exp.WriteString(l)
+		}
+	})
+	fusetestCommon(t, fs, func(mountpoint string) {
+		b, err := ioutil.ReadFile(path.Join(mountpoint, "foobar.log"))
+		if err != nil {
+			t.Errorf("Failed to read file: %v", err)
+		}
+		if !bytes.Equal(exp.Bytes(), b) {
+			t.Errorf("Content mismatch!: %v", string(b))
 		}
 	})
 }

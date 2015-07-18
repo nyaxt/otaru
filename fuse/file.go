@@ -52,7 +52,7 @@ func Bazil2OtaruFlags(bf bfuse.OpenFlags) int {
 	}
 
 	if bf&bfuse.OpenAppend != 0 {
-		log.Printf("FIXME: Append not supported yet !!!!!!!!!!!")
+		ret |= oflags.O_APPEND
 	}
 	if bf&bfuse.OpenCreate != 0 {
 		ret |= oflags.O_CREATE
@@ -64,7 +64,7 @@ func Bazil2OtaruFlags(bf bfuse.OpenFlags) int {
 		log.Printf("FIXME: OpenSync not supported yet !!!!!!!!!!!")
 	}
 	if bf&bfuse.OpenTruncate != 0 {
-		log.Printf("FIXME: OpenTruncate not supported yet !!!!!!!!!!!")
+		ret |= oflags.O_TRUNCATE
 	}
 
 	return ret

@@ -11,8 +11,10 @@ const (
 	O_RDWR       int = syscall.O_RDWR
 	O_CREATE     int = syscall.O_CREAT
 	O_EXCL       int = syscall.O_EXCL
+	O_TRUNCATE   int = syscall.O_TRUNC
+	O_APPEND     int = syscall.O_APPEND
 	O_RDWRCREATE int = O_RDWR | O_CREATE
-	O_VALIDMASK  int = O_RDONLY | O_WRONLY | O_RDWR | O_CREATE | O_EXCL
+	O_VALIDMASK  int = O_RDONLY | O_WRONLY | O_RDWR | O_CREATE | O_EXCL | O_TRUNCATE | O_APPEND
 )
 
 type FlagsReader interface {
@@ -42,6 +44,14 @@ func IsCreateExclusive(flags int) bool {
 	return IsCreateAllowed(flags) && flags&O_EXCL != 0
 }
 
+func IsWriteTruncate(flags int) bool {
+	return IsWriteAllowed(flags) && flags&O_TRUNCATE != 0
+}
+
+func IsWriteAppend(flags int) bool {
+	return IsWriteAllowed(flags) && flags&O_APPEND != 0
+}
+
 func FlagsToString(flags int) string {
 	var b bytes.Buffer
 	if IsReadAllowed(flags) {
@@ -55,6 +65,12 @@ func FlagsToString(flags int) string {
 	}
 	if IsCreateExclusive(flags) {
 		b.WriteString("X")
+	}
+	if IsWriteTruncate(flags) {
+		b.WriteString("T")
+	}
+	if IsWriteAppend(flags) {
+		b.WriteString("A")
 	}
 
 	return b.String()

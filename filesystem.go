@@ -292,7 +292,15 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	caio := NewINodeDBChunksArrayIO(fs.idb, nlock)
 	of.cfio = chunkstore.NewChunkedFileIO(fs.bs, fs.c, caio)
 	of.cfio.SetOrigFilename(fs.tryGetOrigPath(nlock.ID))
-	return of.OpenHandleWithoutLock(flags), nil
+
+	if fl.IsWriteTruncate(flags) {
+		if err := of.truncateWithLock(0); err != nil {
+			return nil, fmt.Errorf("Failed to truncate file: %v", err)
+		}
+	}
+
+	fh := of.OpenHandleWithoutLock(flags)
+	return fh, nil
 }
 
 func (of *OpenFile) OpenHandleWithoutLock(flags int) *FileHandle {
@@ -385,10 +393,7 @@ func (of *OpenFile) PWrite(p []byte, offset int64) error {
 		return err
 	}
 
-	// Pass wc.PWrite a copy of "p", as wc.PWrite expects its slice to be never modified afterwards.
-	pcopy := make([]byte, len(p))
-	copy(pcopy, p)
-	if err := of.wc.PWrite(pcopy, offset); err != nil {
+	if err := of.wc.PWrite(p, offset); err != nil {
 		return err
 	}
 
@@ -400,7 +405,36 @@ func (of *OpenFile) PWrite(p []byte, offset int64) error {
 
 	right := offset + int64(len(p))
 	if right > currentSize {
-		return of.updateSizeWithoutLock(right)
+		if err := of.updateSizeWithoutLock(right); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (of *OpenFile) Append(p []byte) error {
+	of.mu.Lock()
+	defer of.mu.Unlock()
+
+	currentSize, err := of.sizeMayFailWithoutLock()
+	if err != nil {
+		return err
+	}
+
+	if err := of.wc.PWrite(p, currentSize); err != nil {
+		return err
+	}
+
+	if of.wc.NeedsSync() {
+		if err := of.wc.Sync(of.cfio); err != nil {
+			return err
+		}
+	}
+
+	right := currentSize + int64(len(p))
+	if err := of.updateSizeWithoutLock(right); err != nil {
+		return err
 	}
 
 	return nil
@@ -438,6 +472,10 @@ func (of *OpenFile) Truncate(newsize int64) error {
 	of.mu.Lock()
 	defer of.mu.Unlock()
 
+	return of.truncateWithLock(newsize)
+}
+
+func (of *OpenFile) truncateWithLock(newsize int64) error {
 	oldsize, err := of.sizeMayFailWithoutLock()
 	if err != nil {
 		return err
@@ -461,6 +499,10 @@ func (fh *FileHandle) ID() inodedb.ID {
 func (fh *FileHandle) PWrite(p []byte, offset int64) error {
 	if !fl.IsWriteAllowed(fh.flags) {
 		return EBADF
+	}
+
+	if fl.IsWriteAppend(fh.flags) {
+		return fh.of.Append(p)
 	}
 
 	return fh.of.PWrite(p, offset)

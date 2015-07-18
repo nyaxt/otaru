@@ -18,9 +18,12 @@ func NewFileWriteCache() *FileWriteCache {
 }
 
 func (wc *FileWriteCache) PWrite(p []byte, offset int64) error {
-	newp := intn.Patch{Offset: offset, P: p}
+	pcopy := make([]byte, len(p))
+	copy(pcopy, p)
+
+	newp := intn.Patch{Offset: offset, P: pcopy}
 	log.Printf("PWrite: %v", newp)
-	// log.Printf("PWrite: p=%v", p)
+	// log.Printf("PWrite: p=%v", pcopy)
 
 	wc.ps = wc.ps.Merge(newp)
 	return nil
