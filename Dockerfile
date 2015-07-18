@@ -3,6 +3,11 @@ ENV GOOS linux
 ENV GOARCH amd64
 RUN go get github.com/tools/godep && go get github.com/jteeuwen/go-bindata/...
 
+RUN apt-get update && apt-get install -y \
+    g++ fuse \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 # Below copied from joyent/docker-node
 #
 # LICENSE:
