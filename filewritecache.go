@@ -2,6 +2,7 @@ package otaru
 
 import (
 	"log"
+	"math"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/intn"
@@ -25,14 +26,24 @@ func (wc *FileWriteCache) PWrite(offset int64, p []byte) error {
 	return nil
 }
 
-func (wc *FileWriteCache) PReadThrough(offset int64, p []byte, r blobstore.PReader) error {
-	nr := int64(len(p))
+type ReadAter interface {
+	ReadAt(p []byte, offset int64) (int, error)
+}
+
+func zerofill(p []byte) {
+	for i := range p {
+		p[i] = 0
+	}
+}
+
+func (wc *FileWriteCache) ReadAtThrough(p []byte, offset int64, r ReadAter) (int, error) {
+	nr := 0
 	remo := offset
 	remp := p
 
 	for _, patch := range wc.ps {
-		if nr <= 0 {
-			return nil
+		if len(remp) == 0 {
+			return nr, nil
 		}
 
 		if remo > patch.Right() {
@@ -40,34 +51,49 @@ func (wc *FileWriteCache) PReadThrough(offset int64, p []byte, r blobstore.PRead
 		}
 
 		if remo < patch.Left() {
-			fallbackLen := util.Int64Min(nr, patch.Left()-remo)
+			fallbackLen64 := util.Int64Min(int64(len(remp)), patch.Left()-remo)
+			if fallbackLen64 > math.MaxInt32 {
+				panic("Logic error: fallbackLen should always be in int32 range")
+			}
+			fallbackLen := int(fallbackLen64)
 
-			if err := r.PRead(remo, remp[:fallbackLen]); err != nil {
-				return err
+			n, err := r.ReadAt(remp[:fallbackLen], remo)
+			if err != nil {
+				return nr + n, err
+			}
+			if n < fallbackLen {
+				zerofill(remp[n:fallbackLen])
 			}
 
+			nr += fallbackLen
 			remp = remp[fallbackLen:]
-			nr -= fallbackLen
-			remo += fallbackLen
+			remo += int64(fallbackLen)
 		}
 
-		if nr <= 0 {
-			return nil
+		if len(remp) == 0 {
+			return nr, nil
 		}
 
-		applyOffset := remo - patch.Offset
-		applyLen := util.Int64Min(int64(len(patch.P))-applyOffset, nr)
+		applyOffset64 := remo - patch.Offset
+		if applyOffset64 > math.MaxInt32 {
+			panic("Logic error: applyOffset should always be in int32 range")
+		}
+		applyOffset := int(applyOffset64)
+		applyLen := util.IntMin(len(patch.P)-applyOffset, len(remp))
 		copy(remp[:applyLen], patch.P[applyOffset:])
 
+		nr += applyLen
 		remp = remp[applyLen:]
-		nr -= applyLen
-		remo += applyLen
+		remo += int64(applyLen)
 	}
 
-	if err := r.PRead(remo, remp); err != nil {
-		return err
+	n, err := r.ReadAt(remp, remo)
+	if err != nil {
+		return nr, err
 	}
-	return nil
+	nr += n
+
+	return nr, nil
 }
 
 func (wc *FileWriteCache) ContentLen() int64 {

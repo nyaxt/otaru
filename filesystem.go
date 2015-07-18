@@ -418,11 +418,11 @@ func (of *OpenFile) PWrite(offset int64, p []byte) error {
 	return nil
 }
 
-func (of *OpenFile) PRead(offset int64, p []byte) error {
+func (of *OpenFile) ReadAt(p []byte, offset int64) (int, error) {
 	of.mu.Lock()
 	defer of.mu.Unlock()
 
-	return of.wc.PReadThrough(offset, p, of.cfio)
+	return of.wc.ReadAtThrough(p, offset, of.cfio)
 }
 
 func (of *OpenFile) Sync() error {
@@ -478,12 +478,12 @@ func (fh *FileHandle) PWrite(offset int64, p []byte) error {
 	return fh.of.PWrite(offset, p)
 }
 
-func (fh *FileHandle) PRead(offset int64, p []byte) error {
+func (fh *FileHandle) ReadAt(p []byte, offset int64) (int, error) {
 	if !fl.IsReadAllowed(fh.flags) {
-		return EBADF
+		return 0, EBADF
 	}
 
-	return fh.of.PRead(offset, p)
+	return fh.of.ReadAt(p, offset)
 }
 
 func (fh *FileHandle) Sync() error {
