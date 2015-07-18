@@ -2,9 +2,9 @@ machine:
   services:
     - docker
 
-
 dependencies:
   override:
+    - sudo apt-get update && sudo apt-get install -qy fuse
     - docker info
     - docker build -t otaru .
 
