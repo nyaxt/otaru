@@ -17,6 +17,12 @@ import (
 	. "github.com/nyaxt/otaru/testutils"
 )
 
+func maybeSkipTest(t *testing.T) {
+	if os.Getenv("SKIP_FUSE_TEST") == "1" {
+		t.Skip("Skipping FUSE test")
+	}
+}
+
 func fusetestFileSystem() *otaru.FileSystem {
 	sio := inodedb.NewSimpleDBStateSnapshotIO()
 	txio := inodedb.NewSimpleDBTransactionLogIO()
@@ -63,11 +69,13 @@ func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string
 }
 
 func TestServeFUSE_DoNothing(t *testing.T) {
+	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 	fusetestCommon(t, fs, func(mountpoint string) {})
 }
 
 func TestServeFUSE_WriteReadFile(t *testing.T) {
+	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
 	fusetestCommon(t, fs, func(mountpoint string) {
@@ -97,6 +105,7 @@ func TestServeFUSE_WriteReadFile(t *testing.T) {
 }
 
 func TestServeFUSE_RenameFile(t *testing.T) {
+	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
 	fusetestCommon(t, fs, func(mountpoint string) {
@@ -122,6 +131,7 @@ func TestServeFUSE_RenameFile(t *testing.T) {
 }
 
 func TestServeFUSE_RemoveFile(t *testing.T) {
+	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
 	fusetestCommon(t, fs, func(mountpoint string) {
@@ -151,6 +161,7 @@ func TestServeFUSE_RemoveFile(t *testing.T) {
 }
 
 func TestServeFUSE_Mkdir(t *testing.T) {
+	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
 	fusetestCommon(t, fs, func(mountpoint string) {
@@ -178,6 +189,7 @@ func TestServeFUSE_Mkdir(t *testing.T) {
 }
 
 func TestServeFUSE_MoveFile(t *testing.T) {
+	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
 	fusetestCommon(t, fs, func(mountpoint string) {
@@ -213,6 +225,7 @@ func TestServeFUSE_MoveFile(t *testing.T) {
 }
 
 func TestServeFUSE_Rmdir(t *testing.T) {
+	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
 	fusetestCommon(t, fs, func(mountpoint string) {
