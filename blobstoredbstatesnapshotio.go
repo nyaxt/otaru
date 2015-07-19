@@ -1,20 +1,14 @@
 package otaru
 
 import (
-	"bufio"
-	"compress/zlib"
 	"encoding/gob"
-	"fmt"
-	"io"
 	"log"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
-	"github.com/nyaxt/otaru/chunkstore"
-	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/metadata"
-	"github.com/nyaxt/otaru/util"
+	"github.com/nyaxt/otaru/metadata/statesnapshot"
 )
 
 type BlobStoreDBStateSnapshotIO struct {
@@ -39,77 +33,28 @@ func (sio *BlobStoreDBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
 		return nil
 	}
 
-	raw, err := sio.bs.Open(metadata.INodeDBSnapshotBlobpath, fl.O_RDWR|fl.O_CREATE)
-	if err != nil {
-		return err
-	}
-	if err := raw.Truncate(0); err != nil {
+	if err := statesnapshot.Save(
+		metadata.INodeDBSnapshotBlobpath, sio.c, sio.bs,
+		func(enc *gob.Encoder) error { return s.EncodeToGob(enc) },
+	); err != nil {
 		return err
 	}
 
-	cio := chunkstore.NewChunkIOWithMetadata(raw, sio.c, chunkstore.ChunkHeader{
-		OrigFilename: metadata.INodeDBSnapshotBlobpath,
-		OrigOffset:   0,
-	})
-	bufio := bufio.NewWriter(&blobstore.OffsetWriter{cio, 0})
-	zw := zlib.NewWriter(bufio)
-	enc := gob.NewEncoder(zw)
-
-	es := []error{}
-	if err := s.EncodeToGob(enc); err != nil {
-		es = append(es, fmt.Errorf("Failed to encode DBState: %v", err))
-	}
-	if err := zw.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close zlib Writer: %v", err))
-	}
-	if err := bufio.Flush(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close bufio: %v", err))
-	}
-	if err := cio.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close ChunkIO: %v", err))
-	}
-	if err := raw.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close blobhandle: %v", err))
-	}
-
-	if err := util.ToErrors(es); err != nil {
-		return err
-	}
 	sio.snapshotVer = s.Version()
 	return nil
 }
 
 func (sio *BlobStoreDBStateSnapshotIO) RestoreSnapshot() (*inodedb.DBState, error) {
-	raw, err := sio.bs.Open(metadata.INodeDBSnapshotBlobpath, fl.O_RDONLY)
-	if err != nil {
-		return nil, err
-	}
+	var state *inodedb.DBState
 
-	cio := chunkstore.NewChunkIO(raw, sio.c)
-	log.Printf("serialized blob size: %d", cio.Size())
-	zr, err := zlib.NewReader(&io.LimitedReader{&blobstore.OffsetReader{cio, 0}, cio.Size()})
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("LoadINodeDBFromBlobStore: zlib init success!")
-	dec := gob.NewDecoder(zr)
-
-	es := []error{}
-	state, err := inodedb.DecodeDBStateFromGob(dec)
-	if err != nil {
-		es = append(es, fmt.Errorf("Failed to decode dbstate: %v", err))
-	}
-	if err := zr.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close zlib Reader: %v", err))
-	}
-	if err := cio.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close ChunkIO: %v", err))
-	}
-	if err := raw.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close BlobHandle: %v", err))
-	}
-
-	if err := util.ToErrors(es); err != nil {
+	if err := statesnapshot.Restore(
+		metadata.INodeDBSnapshotBlobpath, sio.c, sio.bs,
+		func(dec *gob.Decoder) error {
+			var err error
+			state, err = inodedb.DecodeDBStateFromGob(dec)
+			return err
+		},
+	); err != nil {
 		return nil, err
 	}
 	sio.snapshotVer = state.Version()
