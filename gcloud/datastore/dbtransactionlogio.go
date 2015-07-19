@@ -23,25 +23,23 @@ type DBTransactionLogIO struct {
 	syncer *util.PeriodicRunner
 }
 
-const (
-	kindTransaction = "OtaruINodeDBTx"
-)
+const kindTransaction = "OtaruINodeDBTx"
 
 var _ = inodedb.DBTransactionLogIO(&DBTransactionLogIO{})
 
 func NewDBTransactionLogIO(cfg *Config) *DBTransactionLogIO {
 	txio := &DBTransactionLogIO{
 		cfg:       cfg,
+		rootKey:   datastore.NewKey(cfg.getContext(), kindTransaction, cfg.rootKeyStr, 0, nil),
 		nextbatch: make([]inodedb.DBTransaction, 0),
 	}
-	txio.rootKey = datastore.NewKey(cfg.getContext(), kindTransaction, cfg.rootKeyStr, 0, nil)
 	txio.syncer = util.NewSyncScheduler(txio, 300*time.Millisecond)
 	return txio
 }
 
 type storedbtx struct {
 	TxID    int64
-	OpsJSON []byte
+	OpsJSON []byte `datastore:,noindex`
 }
 
 func encode(c btncrypt.Cipher, tx inodedb.DBTransaction) (*storedbtx, error) {
@@ -81,6 +79,8 @@ func (txio *DBTransactionLogIO) AppendTransaction(tx inodedb.DBTransaction) erro
 }
 
 func (txio *DBTransactionLogIO) Sync() error {
+	start := time.Now()
+
 	txio.mu.Lock()
 	batch := txio.nextbatch
 	txio.nextbatch = make([]inodedb.DBTransaction, 0)
@@ -108,6 +108,7 @@ func (txio *DBTransactionLogIO) Sync() error {
 	}
 
 	if _, err := dstx.PutMulti(keys, stxs); err != nil {
+		dstx.Rollback()
 		return err
 	}
 
@@ -115,7 +116,7 @@ func (txio *DBTransactionLogIO) Sync() error {
 		return err
 	}
 
-	log.Printf("Committed %d txs", len(stxs))
+	log.Printf("Sync() took %s. Committed %d txs", time.Since(start), len(stxs))
 	return nil
 }
 
@@ -147,11 +148,13 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 			if err == datastore.Done {
 				break
 			}
+			dstx.Commit()
 			return []inodedb.DBTransaction{}, err
 		}
 
 		tx, err := decode(txio.cfg.c, &stx)
 		if err != nil {
+			dstx.Commit()
 			return []inodedb.DBTransaction{}, err
 		}
 
@@ -196,6 +199,7 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 			if err == datastore.Done {
 				break
 			}
+			dstx.Rollback()
 			return err
 		}
 
@@ -204,13 +208,14 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 
 	log.Printf("keys to delete: %v", keys)
 	if err := dstx.DeleteMulti(keys); err != nil {
+		dstx.Rollback()
 		return err
 	}
 
 	if _, err := dstx.Commit(); err != nil {
 		return err
 	}
-	log.Printf("DeleteTransactions(%v) took %s", smallerThanID, time.Since(start))
+	log.Printf("DeleteTransactions(%v) deleted %d entries. took %s", smallerThanID, len(keys), time.Since(start))
 	return nil
 }
 
