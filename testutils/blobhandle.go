@@ -9,7 +9,7 @@ type TestBlobHandle struct {
 	Buf []byte
 }
 
-func (bh *TestBlobHandle) PRead(offset int64, p []byte) error {
+func (bh *TestBlobHandle) PRead(p []byte, offset int64) error {
 	if offset < 0 || int64(len(bh.Buf)) < offset+int64(len(p)) {
 		return fmt.Errorf("PRead offset out of bound. buf len: %d while given offset: %d and len: %d", len(bh.Buf), offset, len(p))
 	}

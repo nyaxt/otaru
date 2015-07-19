@@ -281,7 +281,7 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 		}()
 
 		n := Int64Min(int64(len(p)), c.Length-coff)
-		if err := cio.PRead(coff, remp[:n]); err != nil {
+		if err := cio.PRead(remp[:n], coff); err != nil {
 			return int(remo - offset), err
 		}
 

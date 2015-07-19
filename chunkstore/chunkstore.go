@@ -248,7 +248,7 @@ func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
 	return nil
 }
 
-func (ch *ChunkIO) PRead(offset int64, p []byte) error {
+func (ch *ChunkIO) PRead(p []byte, offset int64) error {
 	if err := ch.ensureHeader(); err != nil {
 		return err
 	}

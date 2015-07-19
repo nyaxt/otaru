@@ -76,7 +76,7 @@ func TestChunkIO_Read_HelloWorld(t *testing.T) {
 	cio := chunkstore.NewChunkIO(testbh, TestCipher())
 
 	readtgt := make([]byte, len(HelloWorld))
-	if err := cio.PRead(0, readtgt); err != nil {
+	if err := cio.PRead(readtgt, 0); err != nil {
 		t.Errorf("failed to PRead from ChunkIO: %v", err)
 		return
 	}
@@ -102,7 +102,7 @@ func TestChunkIO_Read_1MB(t *testing.T) {
 
 	// Full read
 	readtgt := make([]byte, len(td))
-	if err := cio.PRead(0, readtgt); err != nil {
+	if err := cio.PRead(readtgt, 0); err != nil {
 		t.Errorf("failed to PRead from ChunkIO: %v", err)
 		return
 	}
@@ -113,7 +113,7 @@ func TestChunkIO_Read_1MB(t *testing.T) {
 
 	// Partial read
 	readtgt = readtgt[:321]
-	if err := cio.PRead(1012345, readtgt); err != nil {
+	if err := cio.PRead(readtgt, 1012345); err != nil {
 		t.Errorf("failed to PRead from ChunkIO: %v", err)
 		return
 	}
@@ -151,7 +151,7 @@ func TestChunkIO_Write_UpdateHello(t *testing.T) {
 	}
 
 	readtgt := make([]byte, len(upd))
-	if err := cio.PRead(0, readtgt); err != nil {
+	if err := cio.PRead(readtgt, 0); err != nil {
 		t.Errorf("failed to PRead from ChunkIO: %v", err)
 		return
 	}
@@ -196,7 +196,7 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 	}
 	origver = cio.Header().PayloadVersion
 	readtgt := make([]byte, len(td))
-	if err := cio.PRead(0, readtgt); err != nil {
+	if err := cio.PRead(readtgt, 0); err != nil {
 		t.Errorf("failed to PRead from ChunkIO: %v", err)
 		return
 	}
@@ -217,7 +217,7 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 	td3 := make([]byte, len(td2))
 	copy(td3, td2)
 	copy(td3[1012345:1012345+321], td[1012345:1012345+321])
-	if err := cio.PRead(0, readtgt); err != nil {
+	if err := cio.PRead(readtgt, 0); err != nil {
 		t.Errorf("failed to PRead from ChunkIO: %v", err)
 		return
 	}
@@ -239,7 +239,7 @@ func Test_ChunkIOWrite_NewHello_ChunkReaderRead(t *testing.T) {
 		return
 	}
 	readtgt := make([]byte, len(HelloWorld))
-	if err := cio.PRead(0, readtgt); err != nil {
+	if err := cio.PRead(readtgt, 0); err != nil {
 		t.Errorf("failed to PRead from ChunkIO: %v", err)
 		return
 	}
@@ -292,7 +292,7 @@ func Test_ChunkIOWrite_ZeroFillPadding(t *testing.T) {
 		return
 	}
 	readtgt := make([]byte, len(HelloWorld))
-	if err := cio.PRead(10, readtgt); err != nil {
+	if err := cio.PRead(readtgt, 10); err != nil {
 		t.Errorf("failed to PRead from ChunkIO: %v", err)
 		return
 	}
@@ -301,7 +301,7 @@ func Test_ChunkIOWrite_ZeroFillPadding(t *testing.T) {
 		return
 	}
 	readtgt2 := make([]byte, 10+len(HelloWorld))
-	if err := cio.PRead(0, readtgt2); err != nil {
+	if err := cio.PRead(readtgt2, 0); err != nil {
 		t.Errorf("failed to PRead from ChunkIO: %v", err)
 		return
 	}
@@ -318,7 +318,7 @@ func Test_ChunkIOWrite_ZeroFillPadding(t *testing.T) {
 		return
 	}
 	readtgt3 := make([]byte, 10+12+512*1024+12)
-	if err := cio.PRead(0, readtgt3); err != nil {
+	if err := cio.PRead(readtgt3, 0); err != nil {
 		t.Errorf("failed to PRead from ChunkIO: %v", err)
 		return
 	}

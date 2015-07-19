@@ -20,7 +20,7 @@ type FileBlobHandle struct {
 	Fp *os.File
 }
 
-func (h FileBlobHandle) PRead(offset int64, p []byte) error {
+func (h FileBlobHandle) PRead(p []byte, offset int64) error {
 	if _, err := h.Fp.Seek(offset, os.SEEK_SET); err != nil {
 		return err
 	}

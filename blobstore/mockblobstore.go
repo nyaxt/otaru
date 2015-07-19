@@ -23,7 +23,7 @@ func NewMockBlobHandle() *MockBlobHandle {
 	}
 }
 
-func (bh *MockBlobHandle) PRead(offset int64, p []byte) error {
+func (bh *MockBlobHandle) PRead(p []byte, offset int64) error {
 	if len(p) == 0 {
 		return nil
 	}

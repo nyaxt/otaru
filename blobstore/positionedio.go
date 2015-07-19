@@ -2,12 +2,12 @@ package blobstore
 
 // PReader implements positioned read
 type PReader interface {
-	PRead(offset int64, p []byte) error
+	PRead(p []byte, offset int64) error
 }
 
 type ZeroFillPReader struct{}
 
-func (ZeroFillPReader) PRead(offset int64, p []byte) error {
+func (ZeroFillPReader) PRead(p []byte, offset int64) error {
 	for i := range p {
 		p[i] = 0
 	}
@@ -31,7 +31,7 @@ type OffsetReader struct {
 }
 
 func (r *OffsetReader) Read(p []byte) (int, error) {
-	if err := r.PReader.PRead(r.Offset, p); err != nil {
+	if err := r.PReader.PRead(p, r.Offset); err != nil {
 		return 0, err
 	}
 

@@ -496,7 +496,7 @@ func (be *CachedBlobEntry) CloseHandle(bh *CachedBlobHandle) {
 	delete(be.handles, bh)
 }
 
-func (be *CachedBlobEntry) PRead(offset int64, p []byte) error {
+func (be *CachedBlobEntry) PRead(p []byte, offset int64) error {
 	// FIXME: may be we should allow stale reads w/o lock
 	be.mu.Lock()
 	defer be.mu.Unlock()
@@ -509,7 +509,7 @@ func (be *CachedBlobEntry) PRead(offset int64, p []byte) error {
 		be.validlenExtended.Wait()
 	}
 
-	return be.cachebh.PRead(offset, p)
+	return be.cachebh.PRead(p, offset)
 }
 
 func (be *CachedBlobEntry) LastWrite() time.Time { return be.lastWrite }
@@ -902,12 +902,12 @@ type CachedBlobHandle struct {
 
 func (bh *CachedBlobHandle) Flags() int { return bh.flags }
 
-func (bh *CachedBlobHandle) PRead(offset int64, p []byte) error {
+func (bh *CachedBlobHandle) PRead(p []byte, offset int64) error {
 	if !fl.IsReadAllowed(bh.flags) {
 		return EPERM
 	}
 
-	return bh.be.PRead(offset, p)
+	return bh.be.PRead(p, offset)
 }
 
 func (bh *CachedBlobHandle) PWrite(offset int64, p []byte) error {
