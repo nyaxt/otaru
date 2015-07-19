@@ -15,13 +15,13 @@ function otaru::parse_config_toml() {
 		echo "otaru config file \"$OTARUCONF\" not found!"
 	fi
 
-	readonly PROJECT_NAME=$(perl -ne 'print $1 if /^[^#]*project_name\s*=\s*"?([\w-_]+)"?/' $OTARUCONF)
+	readonly PROJECT_NAME=$(perl -ne 'print $1 if /^\s*project_name\s*=\s*"?([\w-_]+)"?/' $OTARUCONF)
 	if [[ -z $PROJECT_NAME ]]; then
 		echo "Failed to find \"project_name\" from $OTARUCONF" >/dev/stderr
 		exit 1
 	fi
 
-	readonly BUCKET_NAME=$(perl -ne 'print $1 if /^[^#]*bucket_name\s*=\s*"?([\w-_]+)"?/' $OTARUCONF)
+	readonly BUCKET_NAME=$(perl -ne 'print $1 if /^\s*bucket_name\s*=\s*"?([\w-_]+)"?/' $OTARUCONF)
 	if [[ -z $BUCKET_NAME ]]; then
 		echo "Failed to find \"bucket_name\" from $OTARUCONF" >/dev/stderr
 		exit 1
