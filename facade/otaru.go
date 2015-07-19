@@ -29,6 +29,7 @@ type Otaru struct {
 	S *scheduler.Scheduler
 
 	Clisrc auth.ClientSource
+	DSCfg  *datastore.Config
 
 	MetadataBS blobstore.BlobStore
 	DefaultBS  blobstore.BlobStore
@@ -111,16 +112,12 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	o.CSS = cachedblobstore.NewCacheSyncScheduler(o.CBS)
 
 	o.SIO = blobstoredbstatesnapshotio.New(o.CBS, o.C)
+	o.DSCfg = datastore.NewConfig(cfg.ProjectName, cfg.BucketName, o.C, o.Clisrc)
 
 	if !cfg.LocalDebug {
-		o.TxIO, err = datastore.NewDBTransactionLogIO(cfg.ProjectName, cfg.BucketName, o.C, o.Clisrc)
+		o.TxIO = datastore.NewDBTransactionLogIO(o.DSCfg)
 	} else {
 		o.TxIO = inodedb.NewSimpleDBTransactionLogIO()
-		err = nil
-	}
-	if err != nil {
-		o.Close()
-		return nil, fmt.Errorf("Failed to init gcloud DBTransactionLogIO: %v", err)
 	}
 
 	if oneshotcfg.Mkfs {

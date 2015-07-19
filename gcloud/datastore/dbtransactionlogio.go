@@ -6,21 +6,16 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
-	"google.golang.org/cloud"
 	"google.golang.org/cloud/datastore"
 
 	"github.com/nyaxt/otaru/btncrypt"
-	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/util"
 )
 
 type DBTransactionLogIO struct {
-	projectName string
-	rootKey     *datastore.Key
-	c           btncrypt.Cipher
-	clisrc      auth.ClientSource
+	cfg     *Config
+	rootKey *datastore.Key
 
 	mu        sync.Mutex
 	nextbatch []inodedb.DBTransaction
@@ -34,22 +29,14 @@ const (
 
 var _ = inodedb.DBTransactionLogIO(&DBTransactionLogIO{})
 
-func NewDBTransactionLogIO(projectName, rootKeyStr string, c btncrypt.Cipher, clisrc auth.ClientSource) (*DBTransactionLogIO, error) {
+func NewDBTransactionLogIO(cfg *Config) *DBTransactionLogIO {
 	txio := &DBTransactionLogIO{
-		projectName: projectName,
-		c:           c,
-		clisrc:      clisrc,
-		nextbatch:   make([]inodedb.DBTransaction, 0),
+		cfg:       cfg,
+		nextbatch: make([]inodedb.DBTransaction, 0),
 	}
-	ctx := txio.getContext()
-	txio.rootKey = datastore.NewKey(ctx, kindTransaction, rootKeyStr, 0, nil)
+	txio.rootKey = datastore.NewKey(cfg.getContext(), kindTransaction, cfg.rootKeyStr, 0, nil)
 	txio.syncer = util.NewSyncScheduler(txio, 300*time.Millisecond)
-
-	return txio, nil
-}
-
-func (txio *DBTransactionLogIO) getContext() context.Context {
-	return cloud.NewContext(txio.projectName, txio.clisrc(context.TODO()))
+	return txio
 }
 
 type storedbtx struct {
@@ -103,12 +90,12 @@ func (txio *DBTransactionLogIO) Sync() error {
 		return nil
 	}
 
-	ctx := txio.getContext()
+	ctx := txio.cfg.getContext()
 	keys := make([]*datastore.Key, 0, len(batch))
 	stxs := make([]*storedbtx, 0, len(batch))
 	for _, tx := range batch {
 		keys = append(keys, datastore.NewKey(ctx, kindTransaction, "", int64(tx.TxID), txio.rootKey))
-		stx, err := encode(txio.c, tx)
+		stx, err := encode(txio.cfg.c, tx)
 		if err != nil {
 			return err
 		}
@@ -144,7 +131,7 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 	}
 	txio.mu.Unlock()
 
-	ctx := txio.getContext()
+	ctx := txio.cfg.getContext()
 
 	dstx, err := datastore.NewTransaction(ctx, datastore.Serializable)
 	if err != nil {
@@ -163,7 +150,7 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 			return []inodedb.DBTransaction{}, err
 		}
 
-		tx, err := decode(txio.c, &stx)
+		tx, err := decode(txio.cfg.c, &stx)
 		if err != nil {
 			return []inodedb.DBTransaction{}, err
 		}
@@ -193,7 +180,7 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 	txio.nextbatch = batch
 	txio.mu.Unlock()
 
-	ctx := txio.getContext()
+	ctx := txio.cfg.getContext()
 
 	dstx, err := datastore.NewTransaction(ctx, datastore.Serializable)
 	if err != nil {

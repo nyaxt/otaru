@@ -1,7 +1,6 @@
 package datastore_test
 
 import (
-	"log"
 	"reflect"
 	"testing"
 
@@ -11,14 +10,13 @@ import (
 	tu "github.com/nyaxt/otaru/testutils"
 )
 
-func testDBTransactionIOWithRootKey(rootKeyStr string) *datastore.DBTransactionLogIO {
+func testConfig(rootKeyStr string) *datastore.Config {
 	projectName := authtu.TestConfig().ProjectName
+	return datastore.NewConfig(projectName, rootKeyStr, tu.TestCipher(), authtu.TestClientSource())
+}
 
-	bs, err := datastore.NewDBTransactionLogIO(projectName, rootKeyStr, tu.TestCipher(), authtu.TestClientSource())
-	if err != nil {
-		log.Fatalf("Failed to create DBTransactionLogIO: %v", err)
-	}
-	return bs
+func testDBTransactionIOWithRootKey(rootKeyStr string) *datastore.DBTransactionLogIO {
+	return datastore.NewDBTransactionLogIO(testConfig(rootKeyStr))
 }
 
 func testDBTransactionIO() *datastore.DBTransactionLogIO {
