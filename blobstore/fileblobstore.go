@@ -30,7 +30,7 @@ func (h FileBlobHandle) PRead(p []byte, offset int64) error {
 	return nil
 }
 
-func (h FileBlobHandle) PWrite(offset int64, p []byte) error {
+func (h FileBlobHandle) PWrite(p []byte, offset int64) error {
 	if _, err := h.Fp.WriteAt(p, offset); err != nil {
 		return err
 	}

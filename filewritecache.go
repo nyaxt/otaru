@@ -17,7 +17,7 @@ func NewFileWriteCache() *FileWriteCache {
 	return &FileWriteCache{ps: intn.NewPatches()}
 }
 
-func (wc *FileWriteCache) PWrite(offset int64, p []byte) error {
+func (wc *FileWriteCache) PWrite(p []byte, offset int64) error {
 	newp := intn.Patch{Offset: offset, P: p}
 	log.Printf("PWrite: %v", newp)
 	// log.Printf("PWrite: p=%v", p)
@@ -129,7 +129,7 @@ func (wc *FileWriteCache) Sync(bh blobstore.PWriter) error {
 
 		log.Printf("Sync: %v", p)
 		// log.Printf("Sync: p=%v", p.P)
-		if err := bh.PWrite(p.Offset, p.P); err != nil {
+		if err := bh.PWrite(p.P, p.Offset); err != nil {
 			return err
 		}
 	}

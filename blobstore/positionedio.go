@@ -16,7 +16,7 @@ func (ZeroFillPReader) PRead(p []byte, offset int64) error {
 
 // PWriter implements positioned write
 type PWriter interface {
-	PWrite(offset int64, p []byte) error
+	PWrite(p []byte, offset int64) error
 }
 
 type RandomAccessIO interface {
@@ -46,7 +46,7 @@ type OffsetWriter struct {
 }
 
 func (w *OffsetWriter) Write(p []byte) (int, error) {
-	if err := w.PWriter.PWrite(w.Offset, p); err != nil {
+	if err := w.PWriter.PWrite(p, w.Offset); err != nil {
 		return 0, err
 	}
 

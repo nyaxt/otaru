@@ -18,7 +18,7 @@ func (bh *TestBlobHandle) PRead(p []byte, offset int64) error {
 	return nil
 }
 
-func (bh *TestBlobHandle) PWrite(offset int64, p []byte) error {
+func (bh *TestBlobHandle) PWrite(p []byte, offset int64) error {
 	if offset < 0 || math.MaxInt32 < offset+int64(len(p)) {
 		return fmt.Errorf("PWrite offset out of bound. buf len: %d while given offset: %d and len: %d", len(bh.Buf), offset, len(p))
 	}

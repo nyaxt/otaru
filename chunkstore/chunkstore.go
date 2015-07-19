@@ -293,7 +293,7 @@ func (ch *ChunkIO) PRead(p []byte, offset int64) error {
 	return nil
 }
 
-func (ch *ChunkIO) PWrite(offset int64, p []byte) error {
+func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 	log.Printf("PWrite: offset %d, len %d", offset, len(p))
 	// log.Printf("PWrite: p=%v", p)
 

@@ -22,7 +22,7 @@ func TestGenerateNewBlobPath_Unique(t *testing.T) {
 		if err != nil {
 			t.Errorf("open bpath \"%s\" failed: %v", bpath, err)
 		}
-		if err := bh.PWrite(0, HelloWorld); err != nil {
+		if err := bh.PWrite(HelloWorld, 0); err != nil {
 			t.Errorf("write helloworld to bpath \"%s\" failed: %v", bpath, err)
 		}
 		if err := bh.Close(); err != nil {

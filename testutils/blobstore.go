@@ -106,7 +106,7 @@ func WriteVersionedBlobRA(bs blobstore.RandomAccessBlobStore, blobpath string, v
 	if err != nil {
 		return fmt.Errorf("Failed to open handle: %v", err)
 	}
-	if err := bh.PWrite(0, []byte{version}); err != nil {
+	if err := bh.PWrite([]byte{version}, 0); err != nil {
 		return fmt.Errorf("Failed to blob write: %v", err)
 	}
 	if err := bh.Close(); err != nil {

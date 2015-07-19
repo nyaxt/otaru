@@ -122,7 +122,7 @@ func (fh FileHandle) Write(ctx context.Context, req *bfuse.WriteRequest, resp *b
 		return EBADF
 	}
 
-	if err := fh.h.PWrite(req.Offset, req.Data); err != nil {
+	if err := fh.h.PWrite(req.Data, req.Offset); err != nil {
 		return err
 	}
 	resp.Size = len(req.Data)

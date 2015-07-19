@@ -376,7 +376,7 @@ func (of *OpenFile) sizeMayFailWithoutLock() (int64, error) {
 	return fv.Size, nil
 }
 
-func (of *OpenFile) PWrite(offset int64, p []byte) error {
+func (of *OpenFile) PWrite(p []byte, offset int64) error {
 	of.mu.Lock()
 	defer of.mu.Unlock()
 
@@ -388,7 +388,7 @@ func (of *OpenFile) PWrite(offset int64, p []byte) error {
 	// Pass wc.PWrite a copy of "p", as wc.PWrite expects its slice to be never modified afterwards.
 	pcopy := make([]byte, len(p))
 	copy(pcopy, p)
-	if err := of.wc.PWrite(offset, pcopy); err != nil {
+	if err := of.wc.PWrite(pcopy, offset); err != nil {
 		return err
 	}
 
@@ -458,12 +458,12 @@ func (fh *FileHandle) ID() inodedb.ID {
 	return fh.of.nlock.ID
 }
 
-func (fh *FileHandle) PWrite(offset int64, p []byte) error {
+func (fh *FileHandle) PWrite(p []byte, offset int64) error {
 	if !fl.IsWriteAllowed(fh.flags) {
 		return EBADF
 	}
 
-	return fh.of.PWrite(offset, p)
+	return fh.of.PWrite(p, offset)
 }
 
 func (fh *FileHandle) ReadAt(p []byte, offset int64) (int, error) {

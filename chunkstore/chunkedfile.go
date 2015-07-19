@@ -70,7 +70,7 @@ func (cfio *ChunkedFileIO) newFileChunk(newo int64) (inodedb.FileChunk, error) {
 	return fc, nil
 }
 
-func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
+func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 	log.Printf("PWrite: offset=%d, len=%d", offset, len(p))
 	// log.Printf("PWrite: p=%v", p)
 	remo := offset
@@ -115,7 +115,7 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 		if n < 0 {
 			return nil
 		}
-		if err := cio.PWrite(coff, remp[:n]); err != nil {
+		if err := cio.PWrite(remp[:n], coff); err != nil {
 			return err
 		}
 		oldLength := c.Length

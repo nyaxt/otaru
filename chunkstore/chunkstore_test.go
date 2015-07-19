@@ -141,7 +141,7 @@ func TestChunkIO_Write_UpdateHello(t *testing.T) {
 	}
 
 	upd := []byte("testin write")
-	if err := cio.PWrite(0, upd); err != nil {
+	if err := cio.PWrite(upd, 0); err != nil {
 		t.Errorf("failed to PWrite to ChunkIO: %v", err)
 		return
 	}
@@ -187,7 +187,7 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 
 	// Full update
 	td2 := negateBits(td)
-	if err := cio.PWrite(0, td2); err != nil {
+	if err := cio.PWrite(td2, 0); err != nil {
 		t.Errorf("failed to PWrite into ChunkIO: %v", err)
 		return
 	}
@@ -206,7 +206,7 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 	}
 
 	// Partial update
-	if err := cio.PWrite(1012345, td[1012345:1012345+321]); err != nil {
+	if err := cio.PWrite(td[1012345:1012345+321], 1012345); err != nil {
 		t.Errorf("failed to PWrite into ChunkIO: %v", err)
 		return
 	}
@@ -234,7 +234,7 @@ func TestChunkIO_Write_Update1MB(t *testing.T) {
 func Test_ChunkIOWrite_NewHello_ChunkReaderRead(t *testing.T) {
 	testbh := &TestBlobHandle{}
 	cio := chunkstore.NewChunkIO(testbh, TestCipher())
-	if err := cio.PWrite(0, HelloWorld); err != nil {
+	if err := cio.PWrite(HelloWorld, 0); err != nil {
 		t.Errorf("failed to PWrite to ChunkIO: %v", err)
 		return
 	}
@@ -287,7 +287,7 @@ func Test_ChunkIOWrite_ZeroFillPadding(t *testing.T) {
 
 	// [ zero ][ hello ]
 	//    10      12
-	if err := cio.PWrite(10, HelloWorld); err != nil {
+	if err := cio.PWrite(HelloWorld, 10); err != nil {
 		t.Errorf("failed to PWrite to ChunkIO: %v", err)
 		return
 	}
@@ -313,7 +313,7 @@ func Test_ChunkIOWrite_ZeroFillPadding(t *testing.T) {
 
 	// [ zero ][ hello ][ zero ][ hello ]
 	//    10      12      512k      12
-	if err := cio.PWrite(10+12+512*1024, HelloWorld); err != nil {
+	if err := cio.PWrite(HelloWorld, 10+12+512*1024); err != nil {
 		t.Errorf("failed to PWrite to ChunkIO: %v", err)
 		return
 	}
@@ -342,11 +342,11 @@ func Test_ChunkIOWrite_ZeroFillPadding(t *testing.T) {
 func Test_ChunkIOWrite_OverflowUpdate(t *testing.T) {
 	testbh := &TestBlobHandle{}
 	cio := chunkstore.NewChunkIO(testbh, TestCipher())
-	if err := cio.PWrite(0, HelloWorld); err != nil {
+	if err := cio.PWrite(HelloWorld, 0); err != nil {
 		t.Errorf("failed to PWrite to ChunkIO: %v", err)
 		return
 	}
-	if err := cio.PWrite(7, HogeFugaPiyo); err != nil {
+	if err := cio.PWrite(HogeFugaPiyo, 7); err != nil {
 		t.Errorf("failed to PWrite to ChunkIO: %v", err)
 		return
 	}

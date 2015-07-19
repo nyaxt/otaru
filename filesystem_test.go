@@ -27,7 +27,7 @@ func TestFileWriteRead(t *testing.T) {
 		return
 	}
 
-	err = h.PWrite(0, tu.HelloWorld)
+	err = h.PWrite(tu.HelloWorld, 0)
 	if err != nil {
 		t.Errorf("PWrite failed: %v", err)
 	}

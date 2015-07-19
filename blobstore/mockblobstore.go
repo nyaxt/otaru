@@ -31,7 +31,7 @@ func (bh *MockBlobHandle) PRead(p []byte, offset int64) error {
 	return nil
 }
 
-func (bh *MockBlobHandle) PWrite(offset int64, p []byte) error {
+func (bh *MockBlobHandle) PWrite(p []byte, offset int64) error {
 	if len(p) == 0 {
 		return nil
 	}

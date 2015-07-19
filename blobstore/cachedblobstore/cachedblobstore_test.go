@@ -172,7 +172,7 @@ func TestCachedBlobStore_AutoExpandLen(t *testing.T) {
 		t.Errorf("New bh size non-zero: %d", size)
 	}
 
-	if err := bh.PWrite(0, []byte("Hello")); err != nil {
+	if err := bh.PWrite([]byte("Hello"), 0); err != nil {
 		t.Errorf("PWrite failed: %v", err)
 	}
 

@@ -39,7 +39,7 @@ func TestChunkedFileIO_FileBlobStore(t *testing.T) {
 	fbs := TestFileBlobStore()
 	cfio := chunkstore.NewChunkedFileIO(fbs, TestCipher(), caio)
 
-	if err := cfio.PWrite(0, HelloWorld); err != nil {
+	if err := cfio.PWrite(HelloWorld, 0); err != nil {
 		t.Errorf("PWrite failed: %v", err)
 		return
 	}
@@ -69,11 +69,11 @@ func TestChunkedFileIO_SingleChunk(t *testing.T) {
 	// Disable Chunk framing for testing
 	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c btncrypt.Cipher, offset int64) blobstore.BlobHandle { return bh })
 
-	if err := cfio.PWrite(123, HelloWorld); err != nil {
+	if err := cfio.PWrite(HelloWorld, 123); err != nil {
 		t.Errorf("PWrite failed: %v", err)
 		return
 	}
-	if err := cfio.PWrite(456, HelloWorld); err != nil {
+	if err := cfio.PWrite(HelloWorld, 456); err != nil {
 		t.Errorf("PWrite failed: %v", err)
 		return
 	}
@@ -102,11 +102,11 @@ func TestChunkedFileIO_MultiChunk(t *testing.T) {
 	// Disable Chunk framing for testing
 	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c btncrypt.Cipher, offset int64) blobstore.BlobHandle { return bh })
 
-	if err := cfio.PWrite(chunkstore.ChunkSplitSize+12345, HelloWorld); err != nil {
+	if err := cfio.PWrite(HelloWorld, chunkstore.ChunkSplitSize+12345); err != nil {
 		t.Errorf("PWrite failed: %v", err)
 		return
 	}
-	if err := cfio.PWrite(123, HelloWorld); err != nil {
+	if err := cfio.PWrite(HelloWorld, 123); err != nil {
 		t.Errorf("PWrite failed: %v", err)
 		return
 	}
@@ -130,7 +130,7 @@ func TestChunkedFileIO_MultiChunk(t *testing.T) {
 		t.Errorf("Split chunk write at invalid offset: %d", bh.Log[0].Offset)
 	}
 
-	if err := cfio.PWrite(chunkstore.ChunkSplitSize-5, HelloWorld); err != nil {
+	if err := cfio.PWrite(HelloWorld, chunkstore.ChunkSplitSize-5); err != nil {
 		t.Errorf("PWrite failed: %v", err)
 		return
 	}

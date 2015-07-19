@@ -533,7 +533,7 @@ func (be *CachedBlobEntry) markDirtyWithLock() {
 	}
 }
 
-func (be *CachedBlobEntry) PWrite(offset int64, p []byte) error {
+func (be *CachedBlobEntry) PWrite(p []byte, offset int64) error {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
@@ -548,7 +548,7 @@ func (be *CachedBlobEntry) PWrite(offset int64, p []byte) error {
 		return nil
 	}
 	be.markDirtyWithLock()
-	if err := be.cachebh.PWrite(offset, p); err != nil {
+	if err := be.cachebh.PWrite(p, offset); err != nil {
 		return err
 	}
 
@@ -910,12 +910,12 @@ func (bh *CachedBlobHandle) PRead(p []byte, offset int64) error {
 	return bh.be.PRead(p, offset)
 }
 
-func (bh *CachedBlobHandle) PWrite(offset int64, p []byte) error {
+func (bh *CachedBlobHandle) PWrite(p []byte, offset int64) error {
 	if !fl.IsWriteAllowed(bh.flags) {
 		return EPERM
 	}
 
-	return bh.be.PWrite(offset, p)
+	return bh.be.PWrite(p, offset)
 }
 
 func (bh *CachedBlobHandle) Size() int64 {
