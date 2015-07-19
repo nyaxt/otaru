@@ -2,3 +2,13 @@
 .gitignore
 LICENSE
 README.md
+
+webui/node_modules
+webui/dist
+webui/test/temp
+webui/.sass-cache
+webui/bc
+webui/.tmp
+webui/test/bower_components/
+webui/bower_components/
+webui/npm-debug.log
