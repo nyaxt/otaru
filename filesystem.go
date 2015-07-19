@@ -36,8 +36,6 @@ type FileSystem struct {
 	bs blobstore.RandomAccessBlobStore
 	c  btncrypt.Cipher
 
-	newChunkedFileIO func(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, caio chunkstore.ChunksArrayIO) blobstore.BlobHandle
-
 	muOpenFiles sync.Mutex
 	openFiles   map[inodedb.ID]*OpenFile
 
@@ -50,10 +48,6 @@ func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c 
 		idb: idb,
 		bs:  bs,
 		c:   c,
-
-		newChunkedFileIO: func(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, caio chunkstore.ChunksArrayIO) blobstore.BlobHandle {
-			return chunkstore.NewChunkedFileIO(bs, c, caio)
-		},
 
 		openFiles: make(map[inodedb.ID]*OpenFile),
 		origpath:  make(map[inodedb.ID]string),
@@ -97,10 +91,6 @@ func (fs *FileSystem) Sync() error {
 	// FIXME: sync active handles
 
 	return util.ToErrors(es)
-}
-
-func (fs *FileSystem) OverrideNewChunkedFileIOForTesting(newChunkedFileIO func(blobstore.RandomAccessBlobStore, btncrypt.Cipher, chunkstore.ChunksArrayIO) blobstore.BlobHandle) {
-	fs.newChunkedFileIO = newChunkedFileIO
 }
 
 func (fs *FileSystem) DirEntries(id inodedb.ID) (map[string]inodedb.ID, error) {
@@ -231,7 +221,7 @@ type OpenFile struct {
 	fs    *FileSystem
 	nlock inodedb.NodeLock
 	wc    *FileWriteCache
-	cfio  blobstore.BlobHandle
+	cfio  *chunkstore.ChunkedFileIO
 
 	origFilename string
 
@@ -300,10 +290,8 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 
 	of.nlock = nlock
 	caio := NewINodeDBChunksArrayIO(fs.idb, nlock)
-	of.cfio = fs.newChunkedFileIO(fs.bs, fs.c, caio)
-	if setter, ok := of.cfio.(origFilenameSetter); ok {
-		setter.SetOrigFilename(fs.tryGetOrigPath(nlock.ID))
-	}
+	of.cfio = chunkstore.NewChunkedFileIO(fs.bs, fs.c, caio)
+	of.cfio.SetOrigFilename(fs.tryGetOrigPath(nlock.ID))
 	return of.OpenHandleWithoutLock(flags), nil
 }
 
@@ -362,7 +350,7 @@ func (of *OpenFile) downgradeToReadLock() {
 	}
 	of.nlock.Ticket = inodedb.NoTicket
 	caio := NewINodeDBChunksArrayIO(of.fs.idb, of.nlock)
-	of.cfio = of.fs.newChunkedFileIO(of.fs.bs, of.fs.c, caio)
+	of.cfio = chunkstore.NewChunkedFileIO(of.fs.bs, of.fs.c, caio)
 }
 
 func (of *OpenFile) updateSizeWithoutLock(newsize int64) error {

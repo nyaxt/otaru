@@ -222,18 +222,23 @@ func (cfio *ChunkedFileIO) PWrite(offset int64, p []byte) error {
 	return nil
 }
 
-func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
+func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 	remo := offset
 	remp := p
 
 	if offset < 0 {
-		return fmt.Errorf("negative offset %d given", offset)
+		return 0, fmt.Errorf("negative offset %d given", offset)
 	}
 
 	cs, err := cfio.caio.Read()
 	if err != nil {
-		return fmt.Errorf("Failed to read cs array: %v", err)
+		return 0, fmt.Errorf("Failed to read cs array: %v", err)
 	}
+
+	if !fl.IsReadAllowed(cfio.bs.Flags()) {
+		return 0, EPERM
+	}
+
 	// fmt.Printf("cs: %v\n", cs)
 	for i := 0; i < len(cs) && len(remp) > 0; i++ {
 		c := cs[i]
@@ -254,17 +259,13 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 			remo += n
 			coff = 0
 			if len(remp) == 0 {
-				return nil
+				return int(remo - offset), nil
 			}
-		}
-
-		if !fl.IsReadAllowed(cfio.bs.Flags()) {
-			return EPERM
 		}
 
 		bh, err := cfio.bs.Open(c.BlobPath, fl.O_RDONLY)
 		if err != nil {
-			return fmt.Errorf("Failed to open path \"%s\" for reading: %v", c.BlobPath, err)
+			return int(remo - offset), fmt.Errorf("Failed to open path \"%s\" for reading: %v", c.BlobPath, err)
 		}
 		defer func() {
 			if err := bh.Close(); err != nil {
@@ -281,19 +282,19 @@ func (cfio *ChunkedFileIO) PRead(offset int64, p []byte) error {
 
 		n := Int64Min(int64(len(p)), c.Length-coff)
 		if err := cio.PRead(coff, remp[:n]); err != nil {
-			return err
+			return int(remo - offset), err
 		}
 
 		remo += n
 		remp = remp[n:]
 
 		if len(remp) == 0 {
-			return nil
+			return int(remo - offset), nil
 		}
 	}
 
-	log.Printf("cs: %+v", cs)
-	return fmt.Errorf("Attempt to read over file size by %d", len(remp))
+	// log.Printf("cs: %+v", cs)
+	return int(remo - offset), nil
 }
 
 func (cfio *ChunkedFileIO) Size() int64 {

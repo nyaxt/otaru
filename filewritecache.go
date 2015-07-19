@@ -46,6 +46,10 @@ func (wc *FileWriteCache) ReadAtThrough(p []byte, offset int64, r ReadAter) (int
 			return nr, nil
 		}
 
+		if patch.IsSentinel() {
+			break
+		}
+
 		if remo > patch.Right() {
 			continue
 		}
@@ -58,6 +62,7 @@ func (wc *FileWriteCache) ReadAtThrough(p []byte, offset int64, r ReadAter) (int
 			fallbackLen := int(fallbackLen64)
 
 			n, err := r.ReadAt(remp[:fallbackLen], remo)
+			log.Printf("BeforePatch: ReadAt issued offset %d, len %d bytes, read %d bytes", remo, fallbackLen, n)
 			if err != nil {
 				return nr + n, err
 			}
@@ -88,6 +93,7 @@ func (wc *FileWriteCache) ReadAtThrough(p []byte, offset int64, r ReadAter) (int
 	}
 
 	n, err := r.ReadAt(remp, remo)
+	log.Printf("Last: ReadAt read %d bytes", n)
 	if err != nil {
 		return nr, err
 	}
@@ -115,7 +121,7 @@ func (wc *FileWriteCache) NeedsSync() bool {
 	return false
 }
 
-func (wc *FileWriteCache) Sync(bh blobstore.BlobHandle) error {
+func (wc *FileWriteCache) Sync(bh blobstore.PWriter) error {
 	for _, p := range wc.ps {
 		if p.IsSentinel() {
 			continue

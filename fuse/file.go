@@ -106,9 +106,11 @@ func (fh FileHandle) Read(ctx context.Context, req *bfuse.ReadRequest, resp *bfu
 	}
 
 	resp.Data = resp.Data[:req.Size]
-	if err := fh.h.PRead(req.Offset, resp.Data); err != nil {
+	n, err := fh.h.ReadAt(resp.Data, req.Offset)
+	if err != nil {
 		return err
 	}
+	resp.Data = resp.Data[:n]
 
 	return nil
 }

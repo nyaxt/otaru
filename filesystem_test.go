@@ -4,7 +4,7 @@ import (
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
-	. "github.com/nyaxt/otaru/testutils"
+	tu "github.com/nyaxt/otaru/testutils"
 
 	"bytes"
 	"testing"
@@ -19,25 +19,29 @@ func TestFileWriteRead(t *testing.T) {
 		return
 	}
 
-	bs := TestFileBlobStore()
-	fs := otaru.NewFileSystem(idb, bs, TestCipher())
+	bs := tu.TestFileBlobStore()
+	fs := otaru.NewFileSystem(idb, bs, tu.TestCipher())
 	h, err := fs.OpenFileFullPath("/hello.txt", flags.O_CREATE|flags.O_RDWR, 0666)
 	if err != nil {
 		t.Errorf("OpenFileFullPath failed: %v", err)
 		return
 	}
 
-	err = h.PWrite(0, []byte("hello world!\n"))
+	err = h.PWrite(0, tu.HelloWorld)
 	if err != nil {
 		t.Errorf("PWrite failed: %v", err)
 	}
 
-	buf := make([]byte, 13)
-	err = h.PRead(0, buf)
+	buf := make([]byte, 32)
+	n, err := h.ReadAt(buf, 0)
 	if err != nil {
 		t.Errorf("PRead failed: %v", err)
 	}
-	if !bytes.Equal([]byte("hello world!\n"), buf) {
-		t.Errorf("PRead content != PWrite content")
+	buf = buf[:n]
+	if n != len(tu.HelloWorld) {
+		t.Errorf("n: %d", n)
+	}
+	if !bytes.Equal(tu.HelloWorld, buf) {
+		t.Errorf("PRead content != PWrite content: %v", buf)
 	}
 }

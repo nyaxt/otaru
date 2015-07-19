@@ -44,9 +44,13 @@ func TestChunkedFileIO_FileBlobStore(t *testing.T) {
 		return
 	}
 	readtgt := make([]byte, len(HelloWorld))
-	if err := cfio.PRead(0, readtgt); err != nil {
-		t.Errorf("PRead failed: %v", err)
+	n, err := cfio.ReadAt(readtgt, 0)
+	if err != nil {
+		t.Errorf("ReadAt failed: %v", err)
 		return
+	}
+	if n != len(HelloWorld) {
+		t.Errorf("Unexpected partial read. n=%d", n)
 	}
 	if !bytes.Equal(HelloWorld, readtgt) {
 		t.Errorf("read content invalid: %v", readtgt)
