@@ -248,10 +248,6 @@ func (fs *FileSystem) getOrCreateOpenFile(id inodedb.ID) *OpenFile {
 	return of
 }
 
-type origFilenameSetter interface {
-	SetOrigFilename(name string)
-}
-
 func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	log.Printf("OpenFile(id: %v, flags rok: %t wok: %t)", id, fl.IsReadAllowed(flags), fl.IsWriteAllowed(flags))
 
