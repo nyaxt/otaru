@@ -16,6 +16,7 @@ import (
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/gcloud/gcs"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/inodedb/blobstoredbstatesnapshotio"
 	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/mgmt"
 	"github.com/nyaxt/otaru/scheduler"
@@ -38,7 +39,7 @@ type Otaru struct {
 	CBS        *cachedblobstore.CachedBlobStore
 	CSS        *util.PeriodicRunner
 
-	SIO   *otaru.BlobStoreDBStateSnapshotIO
+	SIO   *blobstoredbstatesnapshotio.DBStateSnapshotIO
 	TxIO  inodedb.DBTransactionLogIO
 	IDBBE *inodedb.DB
 	IDBS  *inodedb.DBService
@@ -109,7 +110,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	}
 	o.CSS = cachedblobstore.NewCacheSyncScheduler(o.CBS)
 
-	o.SIO = otaru.NewBlobStoreDBStateSnapshotIO(o.CBS, o.C)
+	o.SIO = blobstoredbstatesnapshotio.New(o.CBS, o.C)
 
 	if !cfg.LocalDebug {
 		o.TxIO, err = datastore.NewDBTransactionLogIO(cfg.ProjectName, cfg.BucketName, o.C, o.Clisrc)

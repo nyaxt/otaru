@@ -1,4 +1,4 @@
-package otaru
+package blobstoredbstatesnapshotio
 
 import (
 	"encoding/gob"
@@ -11,20 +11,20 @@ import (
 	"github.com/nyaxt/otaru/metadata/statesnapshot"
 )
 
-type BlobStoreDBStateSnapshotIO struct {
+type DBStateSnapshotIO struct {
 	bs blobstore.RandomAccessBlobStore
 	c  btncrypt.Cipher
 
 	snapshotVer inodedb.TxID
 }
 
-var _ = inodedb.DBStateSnapshotIO(&BlobStoreDBStateSnapshotIO{})
+var _ = inodedb.DBStateSnapshotIO(&DBStateSnapshotIO{})
 
-func NewBlobStoreDBStateSnapshotIO(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher) *BlobStoreDBStateSnapshotIO {
-	return &BlobStoreDBStateSnapshotIO{bs: bs, c: c, snapshotVer: -1}
+func New(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher) *DBStateSnapshotIO {
+	return &DBStateSnapshotIO{bs: bs, c: c, snapshotVer: -1}
 }
 
-func (sio *BlobStoreDBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
+func (sio *DBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
 	currVer := s.Version()
 	if sio.snapshotVer > currVer {
 		log.Printf("SaveSnapshot: ASSERT fail: snapshot version %d newer than current ver %d", sio.snapshotVer, currVer)
@@ -44,7 +44,7 @@ func (sio *BlobStoreDBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
 	return nil
 }
 
-func (sio *BlobStoreDBStateSnapshotIO) RestoreSnapshot() (*inodedb.DBState, error) {
+func (sio *DBStateSnapshotIO) RestoreSnapshot() (*inodedb.DBState, error) {
 	var state *inodedb.DBState
 
 	if err := statesnapshot.Restore(
