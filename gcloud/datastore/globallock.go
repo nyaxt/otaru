@@ -45,6 +45,8 @@ type ErrLockTaken struct {
 	Info      string
 }
 
+var _ = error(&ErrLockTaken{})
+
 func (e *ErrLockTaken) Error() string {
 	return fmt.Sprintf("GlobalLock is taken by host \"%s\" at %s. Info: %s", e.HostName, e.CreatedAt, e.Info)
 }
