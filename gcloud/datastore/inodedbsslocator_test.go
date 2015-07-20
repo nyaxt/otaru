@@ -10,7 +10,7 @@ import (
 )
 
 func TestINodeDBSSLocator_PutLocate(t *testing.T) {
-	loc := datastore.NewINodeDBSSLocator(testConfig(authtu.TestBucketName()))
+	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(authtu.TestBucketName()))
 
 	if _, err := loc.DeleteAll(); err != nil {
 		t.Errorf("DeleteAll failed unexpectedly: %v", err)

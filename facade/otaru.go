@@ -41,7 +41,9 @@ type Otaru struct {
 	CBS        *cachedblobstore.CachedBlobStore
 	CSS        *util.PeriodicRunner
 
+	SSLoc blobstoredbstatesnapshotio.SSLocator
 	SIO   *blobstoredbstatesnapshotio.DBStateSnapshotIO
+
 	TxIO  inodedb.DBTransactionLogIO
 	IDBBE *inodedb.DB
 	IDBS  *inodedb.DBService
@@ -117,7 +119,12 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	}
 	o.CSS = cachedblobstore.NewCacheSyncScheduler(o.CBS)
 
-	o.SIO = blobstoredbstatesnapshotio.New(o.CBS, o.C)
+	if !cfg.LocalDebug {
+		o.SSLoc = datastore.NewINodeDBSSLocator(o.DSCfg)
+	} else {
+		panic("Implement mock sslocator that doesn't depend on gcloud/datastore")
+	}
+	o.SIO = blobstoredbstatesnapshotio.New(o.CBS, o.C, o.SSLoc)
 
 	if !cfg.LocalDebug {
 		o.TxIO = datastore.NewDBTransactionLogIO(o.DSCfg)

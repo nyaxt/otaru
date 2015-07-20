@@ -8,7 +8,7 @@ import (
 )
 
 func TestGlobalLocker_LockUnlock(t *testing.T) {
-	l := datastore.NewGlobalLocker(testConfig(authtu.TestBucketName()), "otaru-unittest", "unittest desuyo-")
+	l := datastore.NewGlobalLocker(authtu.TestDSConfig(authtu.TestBucketName()), "otaru-unittest", "unittest desuyo-")
 
 	if err := l.ForceUnlock(); err != nil {
 		t.Errorf("ForceUnlock() failed: %v", err)
@@ -25,8 +25,8 @@ func TestGlobalLocker_LockUnlock(t *testing.T) {
 }
 
 func TestGlobalLocker_ActAsMutex(t *testing.T) {
-	l1 := datastore.NewGlobalLocker(testConfig(authtu.TestBucketName()), "otaru-unittest-1", "hogefuga")
-	l2 := datastore.NewGlobalLocker(testConfig(authtu.TestBucketName()), "otaru-unittest-2", "foobar")
+	l1 := datastore.NewGlobalLocker(authtu.TestDSConfig(authtu.TestBucketName()), "otaru-unittest-1", "hogefuga")
+	l2 := datastore.NewGlobalLocker(authtu.TestDSConfig(authtu.TestBucketName()), "otaru-unittest-2", "foobar")
 
 	if err := l1.ForceUnlock(); err != nil {
 		t.Errorf("ForceUnlock() failed: %v", err)
@@ -48,8 +48,8 @@ func TestGlobalLocker_ActAsMutex(t *testing.T) {
 }
 
 func TestGlobalLocker_ForceUnlock(t *testing.T) {
-	l1 := datastore.NewGlobalLocker(testConfig(authtu.TestBucketName()), "otaru-unittest-1", "hogefuga")
-	l2 := datastore.NewGlobalLocker(testConfig(authtu.TestBucketName()), "otaru-unittest-2", "foobar")
+	l1 := datastore.NewGlobalLocker(authtu.TestDSConfig(authtu.TestBucketName()), "otaru-unittest-1", "hogefuga")
+	l2 := datastore.NewGlobalLocker(authtu.TestDSConfig(authtu.TestBucketName()), "otaru-unittest-2", "foobar")
 
 	if err := l1.ForceUnlock(); err != nil {
 		t.Errorf("ForceUnlock() failed: %v", err)

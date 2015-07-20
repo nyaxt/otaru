@@ -227,6 +227,11 @@ func NewDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) (*DB, error
 	return db, nil
 }
 
+const (
+	writeTxLog = true
+	skipTxLog  = false
+)
+
 func (db *DB) RestoreVersion(version TxID) error {
 	state, err := db.snapshotIO.RestoreSnapshot()
 	if err != nil {
@@ -237,6 +242,7 @@ func (db *DB) RestoreVersion(version TxID) error {
 	db.state = state
 
 	ssver := state.version
+	log.Printf("Restored snapshot of ver %d.", ssver)
 
 	if state.version > version {
 		return fmt.Errorf("Can't rollback to old version %d which is older than snapshot version %d", version, state.version)
@@ -249,7 +255,7 @@ func (db *DB) RestoreVersion(version TxID) error {
 	}
 
 	for _, tx := range txlog {
-		if _, err := db.ApplyTransaction(tx); err != nil {
+		if _, err := db.applyTransactionInternal(tx, skipTxLog); err != nil {
 			db.state = oldState
 			return fmt.Errorf("Failed to replay tx: %v", err)
 		}
@@ -260,11 +266,11 @@ func (db *DB) RestoreVersion(version TxID) error {
 	return nil
 }
 
-func (db *DB) ApplyTransaction(tx DBTransaction) (TxID, error) {
+func (db *DB) applyTransactionInternal(tx DBTransaction, writeTxLogFlag bool) (TxID, error) {
 	if tx.TxID == AnyVersion {
 		tx.TxID = db.state.version + 1
 	} else if tx.TxID != db.state.version+1 {
-		return 0, fmt.Errorf("Skipped tx %d", db.state.version+1)
+		return 0, fmt.Errorf("Attempted to apply tx %d to dbver %d. Next accepted tx is %d", tx.TxID, db.state.version, db.state.version+1)
 	}
 
 	for _, op := range tx.Ops {
@@ -275,16 +281,22 @@ func (db *DB) ApplyTransaction(tx DBTransaction) (TxID, error) {
 			return 0, err
 		}
 	}
-	if err := db.txLogIO.AppendTransaction(tx); err != nil {
-		if rerr := db.RestoreVersion(db.state.version); rerr != nil {
-			log.Fatalf("Failed to write txlog: %v. DB rollback failed!!!: %v", err, rerr)
+	if writeTxLogFlag == writeTxLog {
+		if err := db.txLogIO.AppendTransaction(tx); err != nil {
+			if rerr := db.RestoreVersion(db.state.version); rerr != nil {
+				log.Fatalf("Failed to write txlog: %v. DB rollback failed!!!: %v", err, rerr)
+			}
+			return 0, fmt.Errorf("Failed to write txlog: %v", err)
 		}
-		return 0, fmt.Errorf("Failed to write txlog: %v", err)
 	}
 
 	db.state.version = tx.TxID
 	db.stats.LastTx = time.Now()
 	return tx.TxID, nil
+}
+
+func (db *DB) ApplyTransaction(tx DBTransaction) (TxID, error) {
+	return db.applyTransactionInternal(tx, writeTxLog)
 }
 
 func (db *DB) QueryNode(id ID, tryLock bool) (NodeView, NodeLock, error) {

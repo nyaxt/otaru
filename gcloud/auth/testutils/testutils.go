@@ -5,6 +5,8 @@ import (
 
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/gcloud/auth"
+	"github.com/nyaxt/otaru/gcloud/datastore"
+	tu "github.com/nyaxt/otaru/testutils"
 )
 
 var testConfigCached *facade.Config
@@ -39,4 +41,9 @@ func TestBucketName() string {
 		log.Fatalf("Please specify \"test_bucket_name\" in config.toml to run gcloud tests.")
 	}
 	return name
+}
+
+func TestDSConfig(rootKeyStr string) *datastore.Config {
+	projectName := TestConfig().ProjectName
+	return datastore.NewConfig(projectName, rootKeyStr, tu.TestCipher(), TestClientSource())
 }

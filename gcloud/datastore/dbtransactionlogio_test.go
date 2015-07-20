@@ -7,16 +7,10 @@ import (
 	authtu "github.com/nyaxt/otaru/gcloud/auth/testutils"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/inodedb"
-	tu "github.com/nyaxt/otaru/testutils"
 )
 
-func testConfig(rootKeyStr string) *datastore.Config {
-	projectName := authtu.TestConfig().ProjectName
-	return datastore.NewConfig(projectName, rootKeyStr, tu.TestCipher(), authtu.TestClientSource())
-}
-
 func testDBTransactionIOWithRootKey(rootKeyStr string) *datastore.DBTransactionLogIO {
-	return datastore.NewDBTransactionLogIO(testConfig(rootKeyStr))
+	return datastore.NewDBTransactionLogIO(authtu.TestDSConfig(rootKeyStr))
 }
 
 func testDBTransactionIO() *datastore.DBTransactionLogIO {
