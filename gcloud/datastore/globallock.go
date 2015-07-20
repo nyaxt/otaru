@@ -96,6 +96,10 @@ func (l *GlobalLocker) ForceUnlock() error {
 		return err
 	}
 
+	var e lockEntry
+	if err := dstx.Get(l.lockEntryKey, &e); err != nil {
+		log.Printf("GlobalLocker.ForceUnlock(): Force unlocking existing lock entry: %+v", e)
+	}
 	if err := dstx.Delete(l.lockEntryKey); err != nil {
 		dstx.Rollback()
 		if err == datastore.ErrNoSuchEntity {

@@ -30,6 +30,7 @@ type Otaru struct {
 
 	Clisrc auth.ClientSource
 	DSCfg  *datastore.Config
+	GL     *datastore.GlobalLocker
 
 	MetadataBS blobstore.BlobStore
 	DefaultBS  blobstore.BlobStore
@@ -69,6 +70,11 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		if err != nil {
 			o.Close()
 			return nil, fmt.Errorf("Failed to init GCloudClientSource: %v", err)
+		}
+		o.DSCfg = datastore.NewConfig(cfg.ProjectName, cfg.BucketName, o.C, o.Clisrc)
+		o.GL = datastore.NewGlobalLocker(o.DSCfg, genHostName(), "FIXME: fill info")
+		if err := o.GL.Lock(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -112,7 +118,6 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	o.CSS = cachedblobstore.NewCacheSyncScheduler(o.CBS)
 
 	o.SIO = blobstoredbstatesnapshotio.New(o.CBS, o.C)
-	o.DSCfg = datastore.NewConfig(cfg.ProjectName, cfg.BucketName, o.C, o.Clisrc)
 
 	if !cfg.LocalDebug {
 		o.TxIO = datastore.NewDBTransactionLogIO(o.DSCfg)
@@ -177,6 +182,12 @@ func (o *Otaru) Close() error {
 
 	if o.CSS != nil {
 		o.CSS.Stop()
+	}
+
+	if o.GL != nil {
+		if err := o.GL.Unlock(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	return util.ToErrors(errs)

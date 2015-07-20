@@ -81,6 +81,7 @@ func main() {
 		log.Printf("fusedbg: %v", msg)
 	}
 	if err := fuse.ServeFUSE(mountpoint, o.FS, nil); err != nil {
+		o.Close()
 		log.Fatalf("ServeFUSE failed: %v", err)
 	}
 	log.Printf("ServeFUSE end!")
