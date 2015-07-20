@@ -123,10 +123,33 @@ func closeEnough(a, b time.Time) bool {
 	return math.Abs(a.Sub(b).Seconds()) < 2
 }
 
+const (
+	checkCreatedAt  = false
+	ignoreCreatedAt = true
+)
+
 // Unlock releases the global lock previously taken by this GlobalLocker.
 // If the lock was taken by other GlobalLocker, Unlock will fail with ErrLockTaken.
 // If there was no lock, Unlock will fail with ErrNoLock.
 func (l *GlobalLocker) Unlock() error {
+	return l.unlockInternal(checkCreatedAt)
+}
+
+func (l *GlobalLocker) UnlockIgnoreCreatedAt() error {
+	return l.unlockInternal(ignoreCreatedAt)
+}
+
+func checkLock(a, b lockEntry, checkCreatedAtFlag bool) bool {
+	if checkCreatedAt && !closeEnough(a.CreatedAt, b.CreatedAt) {
+		return false
+	}
+	if a.HostName != b.HostName {
+		return false
+	}
+	return true
+}
+
+func (l *GlobalLocker) unlockInternal(checkCreatedAtFlag bool) error {
 	start := time.Now()
 
 	ctx := l.cfg.getContext()
@@ -144,7 +167,7 @@ func (l *GlobalLocker) Unlock() error {
 			return err
 		}
 	}
-	if !closeEnough(e.CreatedAt, l.lockEntry.CreatedAt) || e.HostName != l.lockEntry.HostName {
+	if !checkLock(l.lockEntry, e, checkCreatedAtFlag) {
 		dstx.Rollback()
 		return &ErrLockTaken{CreatedAt: e.CreatedAt, HostName: e.HostName, Info: e.Info}
 	}
@@ -159,4 +182,27 @@ func (l *GlobalLocker) Unlock() error {
 
 	log.Printf("GlobalLocker.Unlock(%+v) took %s.", l.lockEntry, time.Since(start))
 	return nil
+}
+
+func (l *GlobalLocker) Query() (lockEntry, error) {
+	var e lockEntry
+	start := time.Now()
+
+	ctx := l.cfg.getContext()
+	dstx, err := datastore.NewTransaction(ctx, datastore.Serializable)
+	if err != nil {
+		return e, err
+	}
+	defer dstx.Rollback()
+
+	if err := dstx.Get(l.lockEntryKey, &e); err != nil {
+		if err == datastore.ErrNoSuchEntity {
+			return e, ErrNoLock
+		} else {
+			return e, err
+		}
+	}
+
+	log.Printf("GlobalLocker.Query() took %s.", time.Since(start))
+	return e, nil
 }
