@@ -1,4 +1,4 @@
-package cachedblobstore // FIXME: make blobstore.cached pkg
+package cachedblobstore
 
 import (
 	"encoding/gob"
