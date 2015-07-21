@@ -2,6 +2,7 @@ package facade
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"time"
@@ -117,6 +118,9 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		o.Close()
 		return nil, fmt.Errorf("Failed to init CachedBlobStore: %v", err)
 	}
+	if err := o.CBS.RestoreState(o.C); err != nil {
+		log.Printf("Warning: Attempted to restore cachedblobstore state but failed: %v", err)
+	}
 	o.CSS = cachedblobstore.NewCacheSyncScheduler(o.CBS)
 
 	if !cfg.LocalDebug {
@@ -189,6 +193,12 @@ func (o *Otaru) Close() error {
 
 	if o.CSS != nil {
 		o.CSS.Stop()
+	}
+
+	if o.CBS != nil {
+		if err := o.CBS.SaveState(o.C); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	if o.GL != nil {
