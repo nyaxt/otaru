@@ -18,7 +18,7 @@ type SSLocator interface {
 }
 
 type DBStateSnapshotIO struct {
-	bs blobstore.RandomAccessBlobStore
+	bs blobstore.BlobStore
 	c  btncrypt.Cipher
 
 	loc SSLocator
@@ -28,7 +28,7 @@ type DBStateSnapshotIO struct {
 
 var _ = inodedb.DBStateSnapshotIO(&DBStateSnapshotIO{})
 
-func New(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, loc SSLocator) *DBStateSnapshotIO {
+func New(bs blobstore.BlobStore, c btncrypt.Cipher, loc SSLocator) *DBStateSnapshotIO {
 	return &DBStateSnapshotIO{bs: bs, c: c, loc: loc, snapshotVer: -1}
 }
 

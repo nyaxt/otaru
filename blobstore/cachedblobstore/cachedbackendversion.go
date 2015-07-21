@@ -73,44 +73,4 @@ func (cbv *CachedBackendVersion) Delete(blobpath string) {
 	delete(cbv.cache, blobpath)
 }
 
-/*
-// FIXME: dedupe below w/ blobstoredbstatesnapshotio to separate pkg
-
-func (cbv *CachedBackendVersion) SaveStateToBlobstore(c btncrypt.Cipher, bs BlobStore) {
-	raw, err := bs.OpenWriter(metadata.VersionCacheBlobpath)
-	if err != nil {
-		return err
-	}
-
-	cw := otaru.NewChunkWriter(raw, sio.c, ChunkHeader{
-		OrigFilename: metadata.VersionCacheBlobpath,
-		OrigOffset:   0,
-	})
-	bufio := bufio.NewWriter(cw)
-	zw := zlib.NewWriter(bufio)
-	enc := gob.NewEncoder(zw)
-
-	es := []error{}
-	if err := s.EncodeToGob(enc); err != nil {
-		es = append(es, fmt.Errorf("Failed to encode DBState: %v", err))
-	}
-	if err := zw.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close zlib Writer: %v", err))
-	}
-	if err := bufio.Flush(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close bufio: %v", err))
-	}
-	if err := cio.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close ChunkIO: %v", err))
-	}
-	if err := raw.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close blobhandle: %v", err))
-	}
-
-	if err := util.ToErrors(es); err != nil {
-		return err
-	}
-	sio.snapshotVer = s.Version()
-	return nil
-}
-*/
+// func (cbv *CachedBackendVersion)RestoreStateFromBlobstore(c btncrypt.Cipher, blobstore.RandomAccessBlobStore)

@@ -805,16 +805,51 @@ func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore,
 }
 
 /*
-func (cbs *CachedBlobStore) LoadState(c btncrypt.Cipher) error {
+func (cbs *CachedBlobStore) RestoreState(c btncrypt.Cipher) error {
 	errs := []error{}
 
-	if err := cbs.bever.LoadStateFromBlobstore(c, cbs.backendbs); err != nil {
+	if err := cbs.bever.RestoreStateFromBlobstore(c, cbs.backendbs); err != nil {
 		errs = append(errs, err)
 	}
 
 	return util.ToErrors(errs)
 }
 */
+
+var _ = blobstore.BlobStore(&CachedBlobStore{})
+
+func (cbs *CachedBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
+	bh, err := cbs.Open(blobpath, fl.O_RDONLY)
+	if err != nil {
+		return nil, err
+	}
+	return &struct {
+		blobstore.OffsetReader // for io.Reader
+		blobstore.BlobHandle   // for io.Closer
+	}{
+		blobstore.OffsetReader{bh, 0},
+		bh,
+	}, nil
+}
+
+func (cbs *CachedBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
+	bh, err := cbs.Open(blobpath, fl.O_WRONLY|fl.O_CREATE)
+	if err != nil {
+		return nil, err
+	}
+	if err := bh.Truncate(0); err != nil {
+		return nil, err
+	}
+	return &struct {
+		blobstore.OffsetWriter // for io.Writer
+		blobstore.BlobHandle   // for io.Closer
+	}{
+		blobstore.OffsetWriter{bh, 0},
+		bh,
+	}, nil
+}
+
+var _ = blobstore.RandomAccessBlobStore(&CachedBlobStore{})
 
 func (cbs *CachedBlobStore) Flags() int {
 	return cbs.flags
