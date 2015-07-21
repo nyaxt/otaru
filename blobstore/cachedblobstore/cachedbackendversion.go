@@ -1,6 +1,7 @@
 package cachedblobstore // FIXME: make blobstore.cached pkg
 
 import (
+	"encoding/gob"
 	"fmt"
 	"log"
 	"sync"
@@ -8,6 +9,9 @@ import (
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/version"
+	"github.com/nyaxt/otaru/btncrypt"
+	"github.com/nyaxt/otaru/metadata"
+	"github.com/nyaxt/otaru/metadata/statesnapshot"
 )
 
 const ENOENT = syscall.Errno(syscall.ENOENT)
@@ -73,4 +77,36 @@ func (cbv *CachedBackendVersion) Delete(blobpath string) {
 	delete(cbv.cache, blobpath)
 }
 
-// func (cbv *CachedBackendVersion)RestoreStateFromBlobstore(c btncrypt.Cipher, blobstore.RandomAccessBlobStore)
+func (cbv *CachedBackendVersion) decodeCacheFromGob(dec *gob.Decoder) error {
+	cbv.mu.Lock()
+	defer cbv.mu.Unlock()
+
+	if err := dec.Decode(&cbv.cache); err != nil {
+		return fmt.Errorf("Failed to decode cache map: %v", err)
+	}
+	return nil
+}
+
+func (cbv *CachedBackendVersion) RestoreStateFromBlobstore(c btncrypt.Cipher, bs blobstore.BlobStore) error {
+	return statesnapshot.Restore(
+		metadata.VersionCacheBlobpath, c, bs,
+		func(dec *gob.Decoder) error { return cbv.decodeCacheFromGob(dec) },
+	)
+}
+
+func (cbv *CachedBackendVersion) encodeCacheToGob(enc *gob.Encoder) error {
+	cbv.mu.Lock()
+	defer cbv.mu.Unlock()
+
+	if err := enc.Encode(cbv.cache); err != nil {
+		return fmt.Errorf("Failed to encode cache map: %v", err)
+	}
+	return nil
+}
+
+func (cbv *CachedBackendVersion) SaveStateToBlobstore(c btncrypt.Cipher, bs blobstore.BlobStore) error {
+	return statesnapshot.Save(
+		metadata.VersionCacheBlobpath, c, bs,
+		func(enc *gob.Encoder) error { return cbv.encodeCacheToGob(enc) },
+	)
+}

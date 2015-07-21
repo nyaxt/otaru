@@ -11,6 +11,7 @@ import (
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/version"
+	"github.com/nyaxt/otaru/btncrypt"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/util"
 )
@@ -804,7 +805,6 @@ func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore,
 	return cbs, nil
 }
 
-/*
 func (cbs *CachedBlobStore) RestoreState(c btncrypt.Cipher) error {
 	errs := []error{}
 
@@ -814,7 +814,16 @@ func (cbs *CachedBlobStore) RestoreState(c btncrypt.Cipher) error {
 
 	return util.ToErrors(errs)
 }
-*/
+
+func (cbs *CachedBlobStore) SaveState(c btncrypt.Cipher) error {
+	errs := []error{}
+
+	if err := cbs.bever.SaveStateToBlobstore(c, cbs.backendbs); err != nil {
+		errs = append(errs, err)
+	}
+
+	return util.ToErrors(errs)
+}
 
 var _ = blobstore.BlobStore(&CachedBlobStore{})
 
