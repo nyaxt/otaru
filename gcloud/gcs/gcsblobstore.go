@@ -13,11 +13,21 @@ import (
 	"github.com/nyaxt/otaru/gcloud/auth"
 )
 
+type GCSBlobStoreStats struct {
+	NumOpenWriter int `json:num_open_writer`
+	NumOpenReader int `json:num_open_reader`
+	NumListBlobs  int `json:num_list_blobs`
+	NumBlobSize   int `json:num_blob_size`
+	NumRemoveBlob int `json:num_remove_blob`
+}
+
 type GCSBlobStore struct {
 	projectName string
 	bucketName  string
 	flags       int
 	clisrc      auth.ClientSource
+
+	stats GCSBlobStoreStats
 }
 
 var _ = blobstore.BlobStore(&GCSBlobStore{})
@@ -44,8 +54,9 @@ func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 		return nil, otaru.EPERM
 	}
 
-	ctx := bs.newAuthedContext(context.TODO())
+	bs.stats.NumOpenWriter++
 
+	ctx := bs.newAuthedContext(context.TODO())
 	gcsw := storage.NewWriter(ctx, bs.bucketName, blobpath)
 	gcsw.ContentType = "application/octet-stream"
 	return &Writer{gcsw}, nil
@@ -67,6 +78,8 @@ func (w *Writer) Close() error {
 }
 
 func (bs *GCSBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
+	bs.stats.NumOpenReader++
+
 	ctx := bs.newAuthedContext(context.TODO())
 	rc, err := storage.NewReader(ctx, bs.bucketName, blobpath)
 	if err != nil {
@@ -85,6 +98,8 @@ func (bs *GCSBlobStore) Flags() int {
 var _ = blobstore.BlobLister(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) ListBlobs() ([]string, error) {
+	bs.stats.NumListBlobs++
+
 	ctx := bs.newAuthedContext(context.TODO())
 	ret := make([]string, 0)
 
@@ -107,6 +122,8 @@ func (bs *GCSBlobStore) ListBlobs() ([]string, error) {
 var _ = blobstore.BlobSizer(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) BlobSize(blobpath string) (int64, error) {
+	bs.stats.NumBlobSize++
+
 	ctx := bs.newAuthedContext(context.TODO())
 
 	obj, err := storage.StatObject(ctx, bs.bucketName, blobpath)
@@ -123,6 +140,8 @@ func (bs *GCSBlobStore) BlobSize(blobpath string) (int64, error) {
 var _ = blobstore.BlobRemover(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
+	bs.stats.NumRemoveBlob++
+
 	ctx := bs.newAuthedContext(context.TODO())
 	if err := storage.DeleteObject(ctx, bs.bucketName, blobpath); err != nil {
 		return err
@@ -131,3 +150,5 @@ func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
 }
 
 func (*GCSBlobStore) ImplName() string { return "GCSBlobStore" }
+
+func (bs *GCSBlobStore) GetStats() GCSBlobStoreStats { return bs.stats }
