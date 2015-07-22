@@ -155,7 +155,6 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 
 	o.FS = otaru.NewFileSystem(o.IDBS, o.CBS, o.C)
 	o.MGMT = mgmt.NewServer()
-	o.setupMgmtAPIs()
 	if err := o.runMgmtServer(); err != nil {
 		o.Close()
 		return nil, fmt.Errorf("Mgmt server run failed: %v", err)

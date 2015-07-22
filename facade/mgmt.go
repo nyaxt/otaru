@@ -12,8 +12,8 @@ import (
 )
 
 func (o *Otaru) setupMgmtAPIs() error {
-	mblobstore.Install(o.MGMT, o.BackendBS, o.CBS)
-	if gcsbs, ok := o.BackendBS.(*gcs.GCSBlobStore); ok {
+	mblobstore.Install(o.MGMT, o.DefaultBS, o.CBS)
+	if gcsbs, ok := o.DefaultBS.(*gcs.GCSBlobStore); ok {
 		mgcsblobstore.Install(o.MGMT, gcsbs)
 	}
 	minodedb.Install(o.MGMT, o.IDBS)
