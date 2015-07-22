@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -56,6 +57,16 @@ type INode interface {
 }
 
 type TxID int64
+
+func (id TxID) String() string {
+	if id == LatestVersion {
+		return "LatestVersion"
+	}
+	if id == AnyVersion {
+		return "AnyVersion"
+	}
+	return strconv.FormatInt(int64(id), 10)
+}
 
 const (
 	LatestVersion = math.MaxInt64

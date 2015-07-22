@@ -206,7 +206,7 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 		keys = append(keys, k)
 	}
 
-	log.Printf("keys to delete: %v", keys)
+	//log.Printf("keys to delete: %v", keys)
 	if err := dstx.DeleteMulti(keys); err != nil {
 		dstx.Rollback()
 		return err
