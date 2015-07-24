@@ -10,7 +10,6 @@ import (
 
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/inodedb"
-	"github.com/nyaxt/otaru/util"
 )
 
 type DBTransactionLogIO struct {

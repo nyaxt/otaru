@@ -133,8 +133,9 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	o.SIO = blobstoredbstatesnapshotio.New(o.CBS, o.C, o.SSLoc)
 
 	if !cfg.LocalDebug {
-		o.TxIO = datastore.NewDBTransactionLogIO(o.DSCfg)
-		o.TxIOSS = util.NewSyncScheduler(o.TxIO, 300*time.Millisecond)
+		txio := datastore.NewDBTransactionLogIO(o.DSCfg)
+		o.TxIO = o.TxIO
+		o.TxIOSS = util.NewSyncScheduler(txio, 300*time.Millisecond)
 	} else {
 		o.TxIO = inodedb.NewSimpleDBTransactionLogIO()
 	}
