@@ -20,7 +20,8 @@ type DBTransactionLogIO struct {
 	mu        sync.Mutex
 	nextbatch []inodedb.DBTransaction
 
-	syncer *util.PeriodicRunner
+	muSync     sync.Mutex
+	committing []inodedb.DBTransaction
 }
 
 const kindTransaction = "OtaruINodeDBTx"
@@ -28,13 +29,11 @@ const kindTransaction = "OtaruINodeDBTx"
 var _ = inodedb.DBTransactionLogIO(&DBTransactionLogIO{})
 
 func NewDBTransactionLogIO(cfg *Config) *DBTransactionLogIO {
-	txio := &DBTransactionLogIO{
+	return &DBTransactionLogIO{
 		cfg:       cfg,
 		rootKey:   datastore.NewKey(cfg.getContext(), kindTransaction, cfg.rootKeyStr, 0, nil),
 		nextbatch: make([]inodedb.DBTransaction, 0),
 	}
-	txio.syncer = util.NewSyncScheduler(txio, 300*time.Millisecond)
-	return txio
 }
 
 type storedbtx struct {
@@ -81,10 +80,23 @@ func (txio *DBTransactionLogIO) AppendTransaction(tx inodedb.DBTransaction) erro
 func (txio *DBTransactionLogIO) Sync() error {
 	start := time.Now()
 
+	txio.muSync.Lock()
+	defer txio.muSync.Unlock()
+
 	txio.mu.Lock()
-	batch := txio.nextbatch
+	if len(txio.committing) != 0 {
+		panic("I should be the only one committing.")
+	}
+	txio.committing = txio.nextbatch
+	batch := txio.committing
 	txio.nextbatch = make([]inodedb.DBTransaction, 0)
 	txio.mu.Unlock()
+	rollback := func() {
+		txio.mu.Lock()
+		txio.nextbatch = append(txio.committing, txio.nextbatch...)
+		txio.committing = []inodedb.DBTransaction{}
+		txio.mu.Unlock()
+	}
 
 	if len(batch) == 0 {
 		return nil
@@ -97,6 +109,7 @@ func (txio *DBTransactionLogIO) Sync() error {
 		keys = append(keys, datastore.NewKey(ctx, kindTransaction, "", int64(tx.TxID), txio.rootKey))
 		stx, err := encode(txio.cfg.c, tx)
 		if err != nil {
+			rollback()
 			return err
 		}
 		stxs = append(stxs, stx)
@@ -104,17 +117,24 @@ func (txio *DBTransactionLogIO) Sync() error {
 
 	dstx, err := datastore.NewTransaction(ctx, datastore.Serializable)
 	if err != nil {
+		rollback()
 		return err
 	}
 
 	if _, err := dstx.PutMulti(keys, stxs); err != nil {
+		rollback()
 		dstx.Rollback()
 		return err
 	}
 
 	if _, err := dstx.Commit(); err != nil {
+		rollback()
 		return err
 	}
+
+	txio.mu.Lock()
+	txio.committing = []inodedb.DBTransaction{}
+	txio.mu.Unlock()
 
 	log.Printf("Sync() took %s. Committed %d txs", time.Since(start), len(stxs))
 	return nil
@@ -125,6 +145,11 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 	result := []inodedb.DBTransaction{}
 
 	txio.mu.Lock()
+	for _, tx := range txio.committing {
+		if tx.TxID >= minID {
+			result = append(result, tx)
+		}
+	}
 	for _, tx := range txio.nextbatch {
 		if tx.TxID >= minID {
 			result = append(result, tx)

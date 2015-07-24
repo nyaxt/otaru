@@ -45,7 +45,9 @@ type Otaru struct {
 	SSLoc blobstoredbstatesnapshotio.SSLocator
 	SIO   *blobstoredbstatesnapshotio.DBStateSnapshotIO
 
-	TxIO  inodedb.DBTransactionLogIO
+	TxIO   inodedb.DBTransactionLogIO
+	TxIOSS *util.PeriodicRunner
+
 	IDBBE *inodedb.DB
 	IDBS  *inodedb.DBService
 	IDBSS *util.PeriodicRunner
@@ -132,6 +134,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 
 	if !cfg.LocalDebug {
 		o.TxIO = datastore.NewDBTransactionLogIO(o.DSCfg)
+		o.TxIOSS = util.NewSyncScheduler(o.TxIO, 300*time.Millisecond)
 	} else {
 		o.TxIO = inodedb.NewSimpleDBTransactionLogIO()
 	}
