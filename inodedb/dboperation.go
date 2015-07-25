@@ -1,6 +1,7 @@
 package inodedb
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -241,4 +242,12 @@ func (op *RemoveOp) Apply(s *DBState) error {
 
 	delete(dn.Entries, op.Name)
 	return nil
+}
+
+type AlwaysFailForTestingOp struct {
+	OpMeta `json:",inline"`
+}
+
+func (op *AlwaysFailForTestingOp) Apply(s *DBState) error {
+	return errors.New("Forced fail for testing")
 }

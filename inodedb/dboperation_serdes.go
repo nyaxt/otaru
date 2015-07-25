@@ -22,6 +22,8 @@ func SetOpMeta(op DBOperation) error {
 		op.(*RenameOp).Kind = "RenameOp"
 	case *RemoveOp:
 		op.(*RemoveOp).Kind = "RemoveOp"
+	case *AlwaysFailForTestingOp:
+		op.(*AlwaysFailForTestingOp).Kind = "AlwaysFailForTestingOp"
 	default:
 		return fmt.Errorf("Encoder undefined for op: %v", op)
 	}

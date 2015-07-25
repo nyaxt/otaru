@@ -69,8 +69,8 @@ func (id TxID) String() string {
 }
 
 const (
-	LatestVersion = math.MaxInt64
-	AnyVersion    = 0
+	LatestVersion TxID = math.MaxInt64
+	AnyVersion    TxID = 0
 )
 
 type DBState struct {
@@ -170,12 +170,6 @@ func (dn *DirNode) View() NodeView {
 	return v
 }
 
-type DBTransaction struct {
-	// FIXME: IssuedAt Time   `json:"issuedat"`
-	TxID `json:"txid"`
-	Ops  []DBOperation `json:'ops'`
-}
-
 type DBStateSnapshotIO interface {
 	SaveSnapshot(s *DBState) error
 	RestoreSnapshot() (*DBState, error)
@@ -244,6 +238,8 @@ const (
 )
 
 func (db *DB) RestoreVersion(version TxID) error {
+	log.Printf("RestoreVersion(%s) start.", version)
+
 	state, err := db.snapshotIO.RestoreSnapshot()
 	if err != nil {
 		return fmt.Errorf("Failed to restore snapshot: %v", err)
@@ -258,6 +254,7 @@ func (db *DB) RestoreVersion(version TxID) error {
 	if state.version > version {
 		return fmt.Errorf("Can't rollback to old version %d which is older than snapshot version %d", version, state.version)
 	}
+	log.Printf("RestoreVersion(%s): restored ver: %s", version, ssver)
 
 	txlog, err := db.txLogIO.QueryTransactions(ssver + 1)
 	if txlog == nil || err != nil {
@@ -266,6 +263,7 @@ func (db *DB) RestoreVersion(version TxID) error {
 	}
 
 	for _, tx := range txlog {
+		// log.Printf("RestoreVersion(%s): apply tx ver %s", version, tx.TxID)
 		if _, err := db.applyTransactionInternal(tx, skipTxLog); err != nil {
 			db.state = oldState
 			return fmt.Errorf("Failed to replay tx: %v", err)

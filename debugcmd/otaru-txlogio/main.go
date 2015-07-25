@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
+	"github.com/nyaxt/otaru/inodedb"
 )
 
 var (
@@ -18,7 +20,8 @@ var (
 
 func Usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "  %s [options] {purge}\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s [options] purge\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s [options] query [minID]\n", os.Args[0])
 	flag.PrintDefaults()
 }
 
@@ -34,16 +37,35 @@ func main() {
 		Usage()
 		os.Exit(2)
 	}
-	if flag.NArg() != 1 {
+	minID := inodedb.LatestVersion
+	if flag.NArg() < 1 {
 		Usage()
 		os.Exit(2)
 	}
 	switch flag.Arg(0) {
 	case "purge":
+		if flag.NArg() != 1 {
+			Usage()
+			os.Exit(2)
+		}
+	case "query":
+		switch flag.NArg() {
+		case 1:
+			break
+		case 2:
+			n, err := strconv.ParseInt(flag.Arg(1), 10, 64)
+			if err != nil {
+				Usage()
+				os.Exit(2)
+			}
+			minID = inodedb.TxID(n)
+			break
+		}
 		break
 	default:
 		log.Printf("Unknown cmd: %v", flag.Arg(0))
-		os.Exit(1)
+		Usage()
+		os.Exit(2)
 	}
 
 	clisrc, err := auth.GetGCloudClientSource(cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
@@ -65,7 +87,16 @@ func main() {
 		if err := txlogio.DeleteAllTransactions(); err != nil {
 			log.Printf("DeleteAllTransactions() failed: %v", err)
 		}
-		break
+
+	case "query":
+		txs, err := txlogio.QueryTransactions(minID)
+		if err != nil {
+			log.Printf("QueryTransactions() failed: %v", err)
+		}
+		for _, tx := range txs {
+			fmt.Printf("%s\n", tx)
+		}
+
 	default:
 		log.Printf("Unknown cmd: %v", flag.Arg(0))
 		os.Exit(1)

@@ -61,7 +61,7 @@ func TestNewEmptyDB_ShouldFailOnNonEmptyTxIO(t *testing.T) {
 		&i.HardLinkOp{NodeLock: i.NodeLock{1, i.NoTicket}, Name: "hoge.txt", TargetID: 2},
 	}}
 	if err := txio.AppendTransaction(tx); err != nil {
-		t.Errorf("AppendTransaction failed: %v")
+		t.Errorf("AppendTransaction failed: %v", err)
 		return
 	}
 
@@ -103,5 +103,32 @@ func TestCreateFile(t *testing.T) {
 	}
 	if len(errs) != 0 {
 		t.Errorf("Fsck returned err on db: %v", errs)
+	}
+}
+
+func TestINodeDB_Rollback(t *testing.T) {
+	sio := i.NewSimpleDBStateSnapshotIO()
+	txio := i.NewSimpleDBTransactionLogIO()
+
+	db, err := i.NewEmptyDB(sio, txio)
+	if err != nil {
+		t.Errorf("Failed to NewEmptyDB: %v", err)
+		return
+	}
+
+	tx := i.DBTransaction{Ops: []i.DBOperation{
+		&i.CreateNodeOp{NodeLock: i.NodeLock{2, 123456}, OrigPath: "/hoge.txt", Type: i.FileNodeT},
+		&i.HardLinkOp{NodeLock: i.NodeLock{1, i.NoTicket}, Name: "hoge.txt", TargetID: 2},
+	}}
+	if _, err := db.ApplyTransaction(tx); err != nil {
+		t.Errorf("ApplyTransaction failed: %v", err)
+		return
+	}
+
+	txF := i.DBTransaction{Ops: []i.DBOperation{
+		&i.AlwaysFailForTestingOp{},
+	}}
+	if _, err := db.ApplyTransaction(txF); err == nil {
+		t.Errorf("ApplyTransaction succeeded unexpectedly!")
 	}
 }
