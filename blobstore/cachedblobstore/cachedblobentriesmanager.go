@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -215,4 +216,27 @@ func (mgr *CachedBlobEntriesManager) closeOldCacheEntriesIfNeeded() error {
 	}
 
 	return nil
+}
+
+func (mgr *CachedBlobEntriesManager) DropCacheEntry(blobpath string, blobremover blobstore.BlobRemover) (err error) {
+	ch := make(chan struct{})
+	mgr.reqC <- func() {
+		defer close(ch)
+
+		be, ok := mgr.entries[blobpath]
+		if ok {
+			if err := be.Close(writebackAndClose); err != nil {
+				err = fmt.Errorf("Failed to writeback cache entry to be removed \"%s\": %v", blobpath, err)
+				return
+			}
+		}
+		if err := blobremover.RemoveBlob(blobpath); err != nil {
+			err = fmt.Errorf("Failed to remove cache blob entry from blobstore \"%s\": %v", blobpath, err)
+			return
+		}
+
+		delete(mgr.entries, blobpath)
+	}
+	<-ch
+	return
 }

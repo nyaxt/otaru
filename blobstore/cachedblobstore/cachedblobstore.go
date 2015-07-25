@@ -700,17 +700,17 @@ func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, 
 
 	tsizer, ok := cbs.cachebs.(blobstore.TotalSizer)
 	if !ok {
-		return fmt.Errorf("Cache backend \"%s\" doesn't support TotalSize() method, required to ReduceCache(). aborting.", util.TryGetImplName(cbs.backendbs))
+		return fmt.Errorf("Cache backend \"%s\" doesn't support TotalSize() method, required to ReduceCache(). aborting.", util.TryGetImplName(cbs.cachebs))
 	}
 
-	blobsizer, ok := cbs.backendbs.(blobstore.BlobSizer)
+	blobsizer, ok := cbs.cachebs.(blobstore.BlobSizer)
 	if !ok {
-		return fmt.Errorf("Cache backend \"%s\" doesn't support BlobSize() method, required to ReduceCache(). aborting.", util.TryGetImplName(cbs.backendbs))
+		return fmt.Errorf("Cache backend \"%s\" doesn't support BlobSize() method, required to ReduceCache(). aborting.", util.TryGetImplName(cbs.cachebs))
 	}
 
-	blobremover, ok := cbs.backendbs.(blobstore.BlobRemover)
+	blobremover, ok := cbs.cachebs.(blobstore.BlobRemover)
 	if !ok {
-		return fmt.Errorf("Cache backend \"%s\" doesn't support RemoveBlob() method, required to ReduceCache(). aborting.", util.TryGetImplName(cbs.backendbs))
+		return fmt.Errorf("Cache backend \"%s\" doesn't support RemoveBlob() method, required to ReduceCache(). aborting.", util.TryGetImplName(cbs.cachebs))
 	}
 
 	totalSizeBefore, err := tsizer.TotalSize()
@@ -719,23 +719,28 @@ func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, 
 	}
 
 	needsReduce := totalSizeBefore - desiredSize
-	log.Printf("ReduceCache: Current cache bs total size: %s. Desired size: %s. Needs to reduce %s.",
-		humanize.IBytes(uint64(totalSizeBefore)), humanize.IBytes(uint64(desiredSize)), humanize.IBytes(uint64(needsReduce)))
-
 	if needsReduce < 0 {
 		log.Printf("ReduceCache: No need to reduce cache as its already under desired size! No-op.")
 		return nil
 	}
+	log.Printf("ReduceCache: Current cache bs total size: %s. Desired size: %s. Needs to reduce %s.",
+		humanize.IBytes(uint64(totalSizeBefore)), humanize.IBytes(uint64(desiredSize)), humanize.IBytes(uint64(needsReduce)))
 
 	bps := cbs.usagestats.FindLeastUsed()
 	for _, bp := range bps {
 		size, err := blobsizer.BlobSize(bp)
 		if err != nil {
+			if os.IsNotExist(err) {
+				log.Printf("Attempted to drop blob cache \"%s\", but not found. Maybe it's already removed.", bp)
+				continue
+			}
 			return fmt.Errorf("Failed to query size for cache blob \"%s\": %v", bp, err)
 		}
 
+		log.Printf("ReduceCache: Drop entry \"%s\" to release %s", bp, humanize.IBytes(uint64(size)))
+
 		if !dryrun {
-			if err := blobremover.RemoveBlob(bp); err != nil {
+			if err := cbs.entriesmgr.DropCacheEntry(bp, blobremover); err != nil {
 				return fmt.Errorf("Failed to remove cache blob \"%s\": %v", bp, err)
 			}
 		}

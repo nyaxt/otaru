@@ -389,6 +389,9 @@ func (s *Scheduler) runnerMain() {
 
 		j.mu.Unlock()
 		result := task.Run(ctx)
+		if err := result.Err(); err != nil {
+			log.Printf("Task failed with error: %v", err)
+		}
 		finishedAt := time.Now()
 		j.mu.Lock()
 

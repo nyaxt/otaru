@@ -38,9 +38,10 @@ func Save(blobpath string, c btncrypt.Cipher, bs blobstore.BlobStore, cb EncodeC
 		return err
 	}
 	cw, err := chunkstore.NewChunkWriter(w, c, chunkstore.ChunkHeader{
-		OrigFilename: blobpath,
-		OrigOffset:   0,
-		PayloadLen:   uint32(buf.Len()),
+		PayloadLen:     uint32(buf.Len()),
+		PayloadVersion: 1,
+		OrigFilename:   blobpath,
+		OrigOffset:     0,
 	})
 	if err != nil {
 		return err
