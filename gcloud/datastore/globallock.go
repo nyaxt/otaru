@@ -35,7 +35,7 @@ func NewGlobalLocker(cfg *Config, hostname string, info string) *GlobalLocker {
 			Info:     info,
 		},
 	}
-	l.lockEntryKey = datastore.NewKey(cfg.getContext(), kindINodeDBSS, "", 1, l.rootKey)
+	l.lockEntryKey = datastore.NewKey(cfg.getContext(), kindGlobalLock, "", 1, l.rootKey)
 	return l
 }
 
