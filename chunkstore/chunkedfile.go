@@ -9,7 +9,7 @@ import (
 	"github.com/nyaxt/otaru/btncrypt"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
-	. "github.com/nyaxt/otaru/util" // FIXME
+	"github.com/nyaxt/otaru/util"
 )
 
 const EPERM = syscall.Errno(syscall.EPERM)
@@ -111,7 +111,7 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 		}()
 
 		coff := remo - c.Offset
-		n := IntMin(len(remp), int(maxChunkLen-coff))
+		n := util.IntMin(len(remp), int(maxChunkLen-coff))
 		if n < 0 {
 			return nil
 		}
@@ -252,7 +252,7 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 		coff := remo - c.Left()
 		if coff < 0 {
 			// Fill gap with zero
-			n := Int64Min(int64(len(remp)), -coff)
+			n := util.Int64Min(int64(len(remp)), -coff)
 			for j := int64(0); j < n; j++ {
 				remp[j] = 0
 			}
@@ -280,7 +280,7 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 			}
 		}()
 
-		n := Int64Min(int64(len(p)), c.Length-coff)
+		n := util.Int64Min(int64(len(p)), c.Length-coff)
 		if err := cio.PRead(remp[:n], coff); err != nil {
 			return int(remo - offset), err
 		}

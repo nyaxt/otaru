@@ -11,7 +11,7 @@ import (
 	"io"
 	"log"
 
-	. "github.com/nyaxt/otaru/util" // FIXME
+	"github.com/nyaxt/otaru/util"
 )
 
 const (
@@ -88,7 +88,7 @@ func (f *frameEncryptor) Sync() ([]byte, error) {
 		return nil, fmt.Errorf("frame payload size exceeding max len: %d > %d", f.Written(), BtnFrameMaxPayload)
 	}
 
-	nonce := RandomBytes(f.c.gcm.NonceSize())
+	nonce := util.RandomBytes(f.c.gcm.NonceSize())
 
 	f.encrypted = f.encrypted[:len(nonce)]
 	copy(f.encrypted, nonce)
@@ -142,7 +142,7 @@ func (bew *WriteCloser) Write(p []byte) (int, error) {
 
 	left := p
 	for len(left) > 0 {
-		framePayloadLen := IntMin(bew.frameEncryptor.CapacityLeft(), len(left))
+		framePayloadLen := util.IntMin(bew.frameEncryptor.CapacityLeft(), len(left))
 		framePayload := left[:framePayloadLen]
 		if _, err := bew.frameEncryptor.Write(framePayload); err != nil {
 			panic(err)
@@ -213,7 +213,7 @@ func NewReader(src io.Reader, c Cipher, lenTotal int) (*Reader, error) {
 }
 
 func (bdr *Reader) decryptNextFrame() error {
-	frameLen := IntMin(bdr.lenTotal-bdr.lenRead, BtnFrameMaxPayload)
+	frameLen := util.IntMin(bdr.lenTotal-bdr.lenRead, BtnFrameMaxPayload)
 	encryptedFrameLen := bdr.c.EncryptedFrameSize(frameLen)
 	// fmt.Printf("frameLen: %d, encryptedFrameLen: %d\n", frameLen, encryptedFrameLen)
 
@@ -237,7 +237,7 @@ func (bdr *Reader) decryptNextFrame() error {
 }
 
 func (bdr *Reader) Read(p []byte) (int, error) {
-	nr := IntMin(len(p), bdr.lenTotal-bdr.lenRead)
+	nr := util.IntMin(len(p), bdr.lenTotal-bdr.lenRead)
 	left := p[:nr]
 
 	if nr == 0 {
@@ -255,7 +255,7 @@ func (bdr *Reader) Read(p []byte) (int, error) {
 			panic("decryptNextFrame should have decrypted something and placed it on the buf")
 		}
 
-		consumeLen := IntMin(len(bdr.unread), len(left))
+		consumeLen := util.IntMin(len(bdr.unread), len(left))
 		copy(left[:consumeLen], bdr.unread[:consumeLen])
 		bdr.unread = bdr.unread[consumeLen:]
 		left = left[consumeLen:]
