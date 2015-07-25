@@ -20,3 +20,7 @@ type BlobSizer interface {
 type BlobRemover interface {
 	RemoveBlob(blobpath string) error
 }
+
+type TotalSizer interface {
+	TotalSize() (int64, error)
+}

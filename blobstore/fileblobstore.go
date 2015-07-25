@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"syscall"
+	"time"
 
 	fl "github.com/nyaxt/otaru/flags"
 )
@@ -79,7 +80,9 @@ func NewFileBlobStore(base string, flags int) (*FileBlobStore, error) {
 		fmask = fl.O_RDONLY | fl.O_WRONLY | fl.O_RDWR | fl.O_CREATE | fl.O_EXCL
 	}
 
-	return &FileBlobStore{base, flags, fmask}, nil
+	return &FileBlobStore{
+		base: base, flags: flags, fmask: fmask,
+	}, nil
 }
 
 func (f *FileBlobStore) Open(blobpath string, flags int) (BlobHandle, error) {
@@ -127,6 +130,8 @@ func (f *FileBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
 var _ = BlobLister(&FileBlobStore{})
 
 func (f *FileBlobStore) ListBlobs() ([]string, error) {
+	start := time.Now()
+
 	d, err := os.Open(f.base)
 	if err != nil {
 		return nil, fmt.Errorf("Open dir failed: %v", err)
@@ -139,12 +144,13 @@ func (f *FileBlobStore) ListBlobs() ([]string, error) {
 
 	blobs := make([]string, 0, len(fis))
 	for _, fi := range fis {
-		if fi.IsDir() {
+		if !fi.Mode().IsRegular() {
 			continue
 		}
 		blobs = append(blobs, fi.Name())
 	}
 
+	log.Printf("FileBlobStore.ListBlobs() found %d blobs, took %s.", len(blobs), time.Since(start))
 	return blobs, nil
 }
 
@@ -168,6 +174,34 @@ var _ = BlobRemover(&FileBlobStore{})
 
 func (f *FileBlobStore) RemoveBlob(blobpath string) error {
 	return os.Remove(path.Join(f.base, blobpath))
+}
+
+var _ = TotalSizer(&FileBlobStore{})
+
+func (f *FileBlobStore) TotalSize() (int64, error) {
+	start := time.Now()
+
+	d, err := os.Open(f.base)
+	if err != nil {
+		return 0, fmt.Errorf("Open dir failed: %v", err)
+	}
+	defer d.Close()
+	fis, err := d.Readdir(-1)
+	if err != nil {
+		return 0, fmt.Errorf("Readdir failed: %v", err)
+	}
+
+	totalSize := int64(0)
+	for _, fi := range fis {
+		if !fi.Mode().IsRegular() {
+			continue
+		}
+
+		totalSize += fi.Size()
+	}
+
+	log.Printf("FileBlobStore.TotalSize() took %s.", time.Since(start))
+	return totalSize, nil
 }
 
 func (*FileBlobStore) ImplName() string { return "FileBlobStore" }

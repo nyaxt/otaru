@@ -10,6 +10,32 @@ import (
 	tu "github.com/nyaxt/otaru/testutils"
 )
 
+func TestFileBlobStore_TotalSize(t *testing.T) {
+	bs := tu.TestFileBlobStoreOfName("filebstest_totalsize")
+
+	w, err := bs.OpenWriter("hoge")
+	if err != nil {
+		t.Errorf("Failed to open writer: %v", err)
+		return
+	}
+	if _, err := w.Write([]byte("01234567")); err != nil {
+		t.Errorf("Failed to write: %v", err)
+		return
+	}
+	if err := w.Close(); err != nil {
+		t.Errorf("Failed to close: %v", err)
+		return
+	}
+
+	n, err := bs.TotalSize()
+	if err != nil {
+		t.Errorf("TotalSize() err: %v", err)
+	}
+	if n != 8 {
+		t.Errorf("TotalSize returned unexpected result: %v", n)
+	}
+}
+
 func TestFileBlobStore_ListBlobs(t *testing.T) {
 	bs := tu.TestFileBlobStoreOfName("filebstest_list")
 
