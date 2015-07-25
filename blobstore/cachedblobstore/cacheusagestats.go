@@ -19,6 +19,10 @@ type CacheUsageStats struct {
 	entries map[string]usageStatEntry
 }
 
+func NewCacheUsageStats() *CacheUsageStats {
+	return &CacheUsageStats{entries: make(map[string]usageStatEntry)}
+}
+
 func (s *CacheUsageStats) ObserveOpen(blobpath string, flags int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
