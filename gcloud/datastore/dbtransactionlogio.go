@@ -3,6 +3,7 @@ package datastore
 import (
 	"fmt"
 	"log"
+	"sort"
 	"sync"
 	"time"
 
@@ -139,19 +140,27 @@ func (txio *DBTransactionLogIO) Sync() error {
 	return nil
 }
 
+type txsorter []inodedb.DBTransaction
+
+func (s txsorter) Len() int           { return len(s) }
+func (s txsorter) Less(i, j int) bool { return s[i].TxID < s[j].TxID }
+func (s txsorter) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
 func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb.DBTransaction, error) {
 	start := time.Now()
-	result := []inodedb.DBTransaction{}
+	txs := []inodedb.DBTransaction{}
 
 	txio.mu.Lock()
 	for _, tx := range txio.committing {
 		if tx.TxID >= minID {
-			result = append(result, tx)
+			txs = append(txs, tx)
 		}
 	}
 	for _, tx := range txio.nextbatch {
 		if tx.TxID >= minID {
-			result = append(result, tx)
+			txs = append(txs, tx)
 		}
 	}
 	txio.mu.Unlock()
@@ -182,15 +191,28 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 			return []inodedb.DBTransaction{}, err
 		}
 
-		result = append(result, tx)
+		txs = append(txs, tx)
 	}
 
 	// FIXME: not sure if Rollback() is better
 	if _, err := dstx.Commit(); err != nil {
 		return nil, err
 	}
+
+	sort.Sort(txsorter(txs))
+	uniqed := make([]inodedb.DBTransaction, 0, len(txs))
+	var prevId inodedb.TxID
+	for _, tx := range txs {
+		if tx.TxID == prevId {
+			continue
+		}
+
+		uniqed = append(uniqed, tx)
+		prevId = tx.TxID
+	}
+
 	log.Printf("QueryTransactions(%v) took %s", minID, time.Since(start))
-	return result, nil
+	return uniqed, nil
 }
 
 func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) error {

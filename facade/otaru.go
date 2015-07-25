@@ -46,6 +46,7 @@ type Otaru struct {
 	SIO   *blobstoredbstatesnapshotio.DBStateSnapshotIO
 
 	TxIO   inodedb.DBTransactionLogIO
+	CTxIO  inodedb.DBTransactionLogIO
 	TxIOSS *util.PeriodicRunner
 
 	IDBBE *inodedb.DB
@@ -139,15 +140,16 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	} else {
 		o.TxIO = inodedb.NewSimpleDBTransactionLogIO()
 	}
+	o.CTxIO = inodedb.NewCachedDBTransactionLogIO(o.TxIO)
 
 	if oneshotcfg.Mkfs {
-		o.IDBBE, err = inodedb.NewEmptyDB(o.SIO, o.TxIO)
+		o.IDBBE, err = inodedb.NewEmptyDB(o.SIO, o.CTxIO)
 		if err != nil {
 			o.Close()
 			return nil, fmt.Errorf("NewEmptyDB failed: %v", err)
 		}
 	} else {
-		o.IDBBE, err = inodedb.NewDB(o.SIO, o.TxIO)
+		o.IDBBE, err = inodedb.NewDB(o.SIO, o.CTxIO)
 		if err != nil {
 			o.Close()
 			return nil, fmt.Errorf("NewDB failed: %v", err)

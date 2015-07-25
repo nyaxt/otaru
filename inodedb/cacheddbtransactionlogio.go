@@ -14,7 +14,7 @@ type CachedDBTransactionLogIO struct {
 
 var _ = DBTransactionLogIO(&CachedDBTransactionLogIO{})
 
-const ringbufLen = 256
+const ringbufLen = 256 // FIXME: this should be >2k
 
 func NewCachedDBTransactionLogIO(be DBTransactionLogIO) *CachedDBTransactionLogIO {
 	txio := &CachedDBTransactionLogIO{
