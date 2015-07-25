@@ -10,212 +10,160 @@ import (
 )
 
 type CachedBlobEntriesManager struct {
-	reqC chan interface{}
+	reqC chan func()
 
 	entries map[string]*CachedBlobEntry
 }
 
-type SyncAllRequest struct {
-	resultC chan error
-}
-
-type ChooseSyncEntryRequest struct {
-	resultC chan *CachedBlobEntry
-}
-
-type DumpEntriesInfoRequest struct {
-	resultC chan []*CachedBlobEntryInfo
-}
-
-type ListBlobsRequest struct {
-	resultC chan []string
-}
-
-type RemoveBlobRequest struct {
-	blobpath string
-	resultC  chan error
-}
-
-type OpenEntryRequest struct {
-	blobpath string
-	resultC  chan interface{}
-}
-
 func NewCachedBlobEntriesManager() CachedBlobEntriesManager {
 	return CachedBlobEntriesManager{
-		reqC:    make(chan interface{}),
+		reqC:    make(chan func()),
 		entries: make(map[string]*CachedBlobEntry),
 	}
 }
 
 func (mgr *CachedBlobEntriesManager) Run() {
-	for req := range mgr.reqC {
-		switch req.(type) {
-		case *SyncAllRequest:
-			req := req.(*SyncAllRequest)
-			req.resultC <- mgr.doSyncAll()
-		case *ChooseSyncEntryRequest:
-			req := req.(*ChooseSyncEntryRequest)
-			req.resultC <- mgr.doChooseSyncEntry()
-		case *DumpEntriesInfoRequest:
-			req := req.(*DumpEntriesInfoRequest)
-			req.resultC <- mgr.doDumpEntriesInfo()
-		case *ListBlobsRequest:
-			req := req.(*ListBlobsRequest)
-			req.resultC <- mgr.doListBlobs()
-		case *RemoveBlobRequest:
-			req := req.(*RemoveBlobRequest)
-			req.resultC <- mgr.doRemoveBlob(req.blobpath)
-		case *OpenEntryRequest:
-			req := req.(*OpenEntryRequest)
-			be, err := mgr.doOpenEntry(req.blobpath)
-			if err != nil {
-				req.resultC <- err
-			} else {
-				req.resultC <- be
+	for f := range mgr.reqC {
+		f()
+	}
+}
+
+func (mgr *CachedBlobEntriesManager) SyncAll() (err error) {
+	ch := make(chan struct{})
+	mgr.reqC <- func() {
+		defer close(ch)
+
+		errs := []error{}
+		for blobpath, be := range mgr.entries {
+			if err := be.Sync(); err != nil {
+				errs = append(errs, fmt.Errorf("Failed to sync \"%s\": %v", blobpath, err))
 			}
 		}
+		err = util.ToErrors(errs)
 	}
+	<-ch
+	return
 }
 
-func (mgr *CachedBlobEntriesManager) doSyncAll() error {
-	errs := []error{}
-	for blobpath, be := range mgr.entries {
-		if err := be.Sync(); err != nil {
-			errs = append(errs, fmt.Errorf("Failed to sync \"%s\": %v", blobpath, err))
+func (mgr *CachedBlobEntriesManager) ChooseSyncEntry() (cbe *CachedBlobEntry) {
+	ch := make(chan struct{})
+	mgr.reqC <- func() {
+		defer close(ch)
+
+		// Sync priorities:
+		//   1. >300 sec since last sync
+		//   2. >3 sec since last write
+
+		now := time.Now()
+
+		var oldestSync, oldestWrite *CachedBlobEntry
+		oldestSyncT := now
+		oldestWriteT := now
+
+		for _, be := range mgr.entries {
+			if be.state != cacheEntryDirty {
+				continue
+			}
+
+			if oldestSyncT.After(be.LastSync()) {
+				oldestSyncT = be.LastSync()
+				oldestSync = be
+			}
+			if oldestWriteT.After(be.LastWrite()) {
+				oldestWriteT = be.LastWrite()
+				oldestWrite = be
+			}
+		}
+
+		if now.Sub(oldestWriteT) > writeTimeoutDuration {
+			cbe = oldestWrite
+			return
+		}
+		if now.Sub(oldestSyncT) > syncTimeoutDuration {
+			cbe = oldestSync
+			return
+		}
+		cbe = nil
+	}
+	<-ch
+	return
+}
+
+func (mgr *CachedBlobEntriesManager) DumpEntriesInfo() (infos []*CachedBlobEntryInfo) {
+	ch := make(chan struct{})
+	mgr.reqC <- func() {
+		defer close(ch)
+
+		infos = make([]*CachedBlobEntryInfo, 0, len(mgr.entries))
+		for _, be := range mgr.entries {
+			infos = append(infos, be.Info())
 		}
 	}
-	return util.ToErrors(errs)
+	<-ch
+	return
 }
 
-func (mgr *CachedBlobEntriesManager) SyncAll() error {
-	req := &SyncAllRequest{resultC: make(chan error)}
-	mgr.reqC <- req
-	return <-req.resultC
-}
+func (mgr *CachedBlobEntriesManager) ListBlobs() (bpaths []string) {
+	ch := make(chan struct{})
+	mgr.reqC <- func() {
+		defer close(ch)
 
-func (mgr *CachedBlobEntriesManager) doChooseSyncEntry() *CachedBlobEntry {
-	// Sync priorities:
-	//   1. >300 sec since last sync
-	//   2. >3 sec since last write
-
-	now := time.Now()
-
-	var oldestSync, oldestWrite *CachedBlobEntry
-	oldestSyncT := now
-	oldestWriteT := now
-
-	for _, be := range mgr.entries {
-		if be.state != cacheEntryDirty {
-			continue
-		}
-
-		if oldestSyncT.After(be.LastSync()) {
-			oldestSyncT = be.LastSync()
-			oldestSync = be
-		}
-		if oldestWriteT.After(be.LastWrite()) {
-			oldestWriteT = be.LastWrite()
-			oldestWrite = be
+		bpaths = make([]string, 0, len(mgr.entries))
+		for _, be := range mgr.entries {
+			if !be.state.IsActive() {
+				continue
+			}
+			bpaths = append(bpaths, be.blobpath)
 		}
 	}
-
-	if now.Sub(oldestWriteT) > writeTimeoutDuration {
-		return oldestWrite
-	}
-	if now.Sub(oldestSyncT) > syncTimeoutDuration {
-		return oldestSync
-	}
-	return nil
+	<-ch
+	return
 }
 
-func (mgr *CachedBlobEntriesManager) ChooseSyncEntry() *CachedBlobEntry {
-	req := &ChooseSyncEntryRequest{resultC: make(chan *CachedBlobEntry)}
-	mgr.reqC <- req
-	return <-req.resultC
-}
-
-func (mgr *CachedBlobEntriesManager) doDumpEntriesInfo() []*CachedBlobEntryInfo {
-	infos := make([]*CachedBlobEntryInfo, 0, len(mgr.entries))
-	for _, be := range mgr.entries {
-		infos = append(infos, be.Info())
-	}
-	return infos
-}
-
-func (mgr *CachedBlobEntriesManager) DumpEntriesInfo() []*CachedBlobEntryInfo {
-	req := &DumpEntriesInfoRequest{resultC: make(chan []*CachedBlobEntryInfo)}
-	mgr.reqC <- req
-	return <-req.resultC
-}
-
-func (mgr *CachedBlobEntriesManager) doListBlobs() []string {
-	bpaths := make([]string, 0, len(mgr.entries))
-	for _, be := range mgr.entries {
-		if !be.state.IsActive() {
-			continue
+func (mgr *CachedBlobEntriesManager) RemoveBlob(blobpath string) (err error) {
+	ch := make(chan struct{})
+	mgr.reqC <- func() {
+		defer close(ch)
+		be, ok := mgr.entries[blobpath]
+		if !ok {
+			return
 		}
-		bpaths = append(bpaths, be.blobpath)
+		if err := be.Close(abandonAndClose); err != nil {
+			err = fmt.Errorf("Failed to abandon cache entry to be removed \"%s\": %v", be.blobpath, err)
+			return
+		}
+
+		delete(mgr.entries, blobpath)
 	}
-	return bpaths
+	<-ch
+	return
 }
 
-func (mgr *CachedBlobEntriesManager) ListBlobs() []string {
-	req := &ListBlobsRequest{resultC: make(chan []string)}
-	mgr.reqC <- req
-	return <-req.resultC
-}
+func (mgr *CachedBlobEntriesManager) OpenEntry(blobpath string) (be *CachedBlobEntry, err error) {
+	ch := make(chan struct{})
+	mgr.reqC <- func() {
+		defer close(ch)
 
-func (mgr *CachedBlobEntriesManager) doRemoveBlob(blobpath string) error {
-	be, ok := mgr.entries[blobpath]
-	if !ok {
-		return nil
-	}
-	if err := be.Close(abandonAndClose); err != nil {
-		return fmt.Errorf("Failed to abandon cache entry to be removed \"%s\": %v", be.blobpath, err)
-	}
+		var ok bool
+		be, ok = mgr.entries[blobpath]
+		if ok {
+			return
+		}
 
-	delete(mgr.entries, blobpath)
-	return nil
-}
+		if err = mgr.closeOldCacheEntriesIfNeeded(); err != nil {
+			return
+		}
 
-func (mgr *CachedBlobEntriesManager) RemoveBlob(blobpath string) error {
-	req := &RemoveBlobRequest{blobpath: blobpath, resultC: make(chan error)}
-	mgr.reqC <- req
-	return <-req.resultC
-}
-
-func (mgr *CachedBlobEntriesManager) doOpenEntry(blobpath string) (*CachedBlobEntry, error) {
-	be, ok := mgr.entries[blobpath]
-	if ok {
-		return be, nil
+		be = &CachedBlobEntry{
+			state:    cacheEntryUninitialized,
+			blobpath: blobpath,
+			bloblen:  -1,
+		}
+		be.validlenExtended = sync.NewCond(&be.mu)
+		mgr.entries[blobpath] = be
 	}
-
-	if err := mgr.closeOldCacheEntriesIfNeeded(); err != nil {
-		return be, err
-	}
-
-	be = &CachedBlobEntry{
-		state:    cacheEntryUninitialized,
-		blobpath: blobpath,
-		bloblen:  -1,
-	}
-	be.validlenExtended = sync.NewCond(&be.mu)
-	mgr.entries[blobpath] = be
-	return be, nil
-}
-
-func (mgr *CachedBlobEntriesManager) OpenEntry(blobpath string) (*CachedBlobEntry, error) {
-	req := &OpenEntryRequest{
-		blobpath: blobpath,
-		resultC:  make(chan interface{}),
-	}
-	mgr.reqC <- req
-	res := <-req.resultC
-	if err, ok := res.(error); ok {
-		return nil, err
-	}
-	return res.(*CachedBlobEntry), nil
+	<-ch
+	return
 }
 
 func (mgr *CachedBlobEntriesManager) tryCloseEntry(be *CachedBlobEntry) {
