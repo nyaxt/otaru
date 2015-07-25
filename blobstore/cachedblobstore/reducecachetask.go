@@ -7,11 +7,12 @@ import (
 )
 
 type ReduceCacheTask struct {
-	CBS    *CachedBlobStore
-	DryRun bool
+	CBS         *CachedBlobStore
+	DesiredSize int64
+	DryRun      bool
 }
 
 func (t *ReduceCacheTask) Run(ctx context.Context) scheduler.Result {
-	err := t.CBS.ReduceCache(ctx, t.DryRun)
+	err := t.CBS.ReduceCache(ctx, t.DesiredSize, t.DryRun)
 	return scheduler.ErrorResult{err}
 }

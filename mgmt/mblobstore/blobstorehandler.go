@@ -1,7 +1,10 @@
 package mblobstore
 
 import (
+	"math"
 	"net/http"
+
+	"github.com/dustin/go-humanize"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
@@ -38,7 +41,14 @@ func Install(srv *mgmt.Server, s *scheduler.Scheduler, bbs blobstore.BlobStore, 
 		dryrunp := req.URL.Query().Get("dryrun")
 		dryrun := len(dryrunp) > 0
 
-		jv := s.RunImmediatelyBlock(&cachedblobstore.ReduceCacheTask{cbs, dryrun})
+		desiredSizeP := req.URL.Query().Get("to")
+		desiredSize, err := humanize.ParseBytes(desiredSizeP)
+		if desiredSize > math.MaxInt64 || err != nil {
+			http.Error(w, "Invalid desired size given.", http.StatusInternalServerError)
+			return
+		}
+
+		jv := s.RunImmediatelyBlock(&cachedblobstore.ReduceCacheTask{cbs, int64(desiredSize), dryrun})
 		if err := jv.Result.Err(); err != nil {
 			http.Error(w, "Reduce cache task failed with error", http.StatusInternalServerError)
 			return

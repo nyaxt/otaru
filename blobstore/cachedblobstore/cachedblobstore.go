@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"golang.org/x/net/context"
 
 	"github.com/nyaxt/otaru/blobstore"
@@ -545,6 +546,15 @@ func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore,
 		entriesmgr:   NewCachedBlobEntriesManager(),
 		usagestats:   NewCacheUsageStats(),
 	}
+
+	if lister, ok := cachebs.(blobstore.BlobLister); ok {
+		bps, err := lister.ListBlobs()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to list blobs to init CacheUsageStats: %v", err)
+		}
+		cbs.usagestats.ImportBlobList(bps)
+	}
+
 	go cbs.entriesmgr.Run()
 	return cbs, nil
 }
@@ -685,9 +695,64 @@ func (cbs *CachedBlobStore) RemoveBlob(blobpath string) error {
 	return nil
 }
 
-func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, dryrun bool) error {
+func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, dryrun bool) error {
 	start := time.Now()
 
-	log.Printf("ReduceCache success. Dryrun: %t. Took: %s", dryrun, time.Since(start))
+	tsizer, ok := cbs.cachebs.(blobstore.TotalSizer)
+	if !ok {
+		return fmt.Errorf("Cache backend \"%s\" doesn't support TotalSize() method, required to ReduceCache(). aborting.", util.TryGetImplName(cbs.backendbs))
+	}
+
+	blobsizer, ok := cbs.backendbs.(blobstore.BlobSizer)
+	if !ok {
+		return fmt.Errorf("Cache backend \"%s\" doesn't support BlobSize() method, required to ReduceCache(). aborting.", util.TryGetImplName(cbs.backendbs))
+	}
+
+	blobremover, ok := cbs.backendbs.(blobstore.BlobRemover)
+	if !ok {
+		return fmt.Errorf("Cache backend \"%s\" doesn't support RemoveBlob() method, required to ReduceCache(). aborting.", util.TryGetImplName(cbs.backendbs))
+	}
+
+	totalSizeBefore, err := tsizer.TotalSize()
+	if err != nil {
+		return fmt.Errorf("Failed to query current total cache size: %v", err)
+	}
+
+	needsReduce := totalSizeBefore - desiredSize
+	log.Printf("ReduceCache: Current cache bs total size: %s. Desired size: %s. Needs to reduce %s.",
+		humanize.IBytes(uint64(totalSizeBefore)), humanize.IBytes(uint64(desiredSize)), humanize.IBytes(uint64(needsReduce)))
+
+	if needsReduce < 0 {
+		log.Printf("ReduceCache: No need to reduce cache as its already under desired size! No-op.")
+		return nil
+	}
+
+	bps := cbs.usagestats.FindLeastUsed()
+	for _, bp := range bps {
+		size, err := blobsizer.BlobSize(bp)
+		if err != nil {
+			return fmt.Errorf("Failed to query size for cache blob \"%s\": %v", bp, err)
+		}
+
+		if !dryrun {
+			if err := blobremover.RemoveBlob(bp); err != nil {
+				return fmt.Errorf("Failed to remove cache blob \"%s\": %v", bp, err)
+			}
+		}
+
+		needsReduce -= size
+		if needsReduce < 0 {
+			break
+		}
+	}
+
+	totalSizeAfter, err := tsizer.TotalSize()
+	if err != nil {
+		return fmt.Errorf("Failed to query current total cache size: %v", err)
+	}
+
+	log.Printf("ReduceCache done. Cache bs total size: %s -> %s. Dryrun: %t. Took: %s",
+		humanize.IBytes(uint64(totalSizeBefore)), humanize.IBytes(uint64(totalSizeAfter)),
+		dryrun, time.Since(start))
 	return nil
 }
