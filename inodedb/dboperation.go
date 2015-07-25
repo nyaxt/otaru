@@ -194,13 +194,13 @@ func (op *RenameOp) Apply(s *DBState) error {
 		return ENOTDIR
 	}
 
-	if _, ok = dstdn.Entries[op.DstName]; ok {
-		return EEXIST
-	}
-
 	id, ok := srcdn.Entries[op.SrcName]
 	if !ok {
 		return ENOENT
+	}
+
+	if srcdn == dstdn && op.SrcName == op.DstName {
+		return nil
 	}
 
 	delete(srcdn.Entries, op.SrcName)

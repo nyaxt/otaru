@@ -179,6 +179,35 @@ func TestServeFUSE_RenameFile(t *testing.T) {
 	})
 }
 
+func TestServeFUSE_RenameFile_Overwrite(t *testing.T) {
+	maybeSkipTest(t)
+	fs := fusetestFileSystem()
+
+	fusetestCommon(t, fs, func(mountpoint string) {
+		src := path.Join(mountpoint, "aaa.txt")
+		tgt := path.Join(mountpoint, "bbb.txt")
+
+		if err := ioutil.WriteFile(src, HelloWorld, 0644); err != nil {
+			t.Errorf("failed to write file: %v", err)
+		}
+		if err := ioutil.WriteFile(tgt, HogeFugaPiyo, 0644); err != nil {
+			t.Errorf("failed to write file: %v", err)
+		}
+
+		if err := os.Rename(src, tgt); err != nil {
+			t.Errorf("failed to rename file: %v", err)
+		}
+
+		b, err := ioutil.ReadFile(tgt)
+		if err != nil {
+			t.Errorf("Failed to read file: %v", err)
+		}
+		if !bytes.Equal(HelloWorld, b) {
+			t.Errorf("Content mismatch!: %v", err)
+		}
+	})
+}
+
 func TestServeFUSE_RemoveFile(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
