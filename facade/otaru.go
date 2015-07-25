@@ -199,6 +199,9 @@ func (o *Otaru) Close() error {
 	}
 
 	if o.CBS != nil {
+		if err := o.CBS.Sync(); err != nil {
+			errs = append(errs, err)
+		}
 		if err := o.CBS.SaveState(o.C); err != nil {
 			errs = append(errs, err)
 		}
