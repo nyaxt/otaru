@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/version"
 	"github.com/nyaxt/otaru/btncrypt"
@@ -31,6 +33,7 @@ type CachedBlobStore struct {
 	bever        *CachedBackendVersion
 
 	entriesmgr CachedBlobEntriesManager
+	usagestats *CacheUsageStats
 }
 
 const maxEntries = 128
@@ -540,6 +543,7 @@ func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore,
 		queryVersion: queryVersion,
 		bever:        NewCachedBackendVersion(backendbs, queryVersion),
 		entriesmgr:   NewCachedBlobEntriesManager(),
+		usagestats:   NewCacheUsageStats(),
 	}
 	go cbs.entriesmgr.Run()
 	return cbs, nil
@@ -609,6 +613,7 @@ func (cbs *CachedBlobStore) Open(blobpath string, flags int) (blobstore.BlobHand
 		return nil, EPERM
 	}
 
+	cbs.usagestats.ObserveOpen(blobpath, flags)
 	be, err := cbs.entriesmgr.OpenEntry(blobpath)
 	if err != nil {
 		return nil, err
@@ -672,6 +677,7 @@ func (cbs *CachedBlobStore) RemoveBlob(blobpath string) error {
 	if err := backendrm.RemoveBlob(blobpath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("Backendbs RemoveBlob failed: %v", err)
 	}
+	cbs.usagestats.ObserveRemoveBlob(blobpath)
 	if err := cacherm.RemoveBlob(blobpath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("Cachebs RemoveBlob failed: %v", err)
 	}
@@ -679,53 +685,9 @@ func (cbs *CachedBlobStore) RemoveBlob(blobpath string) error {
 	return nil
 }
 
-type CachedBlobHandle struct {
-	be    *CachedBlobEntry
-	flags int
-}
+func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, dryrun bool) error {
+	start := time.Now()
 
-func (bh *CachedBlobHandle) Flags() int { return bh.flags }
-
-func (bh *CachedBlobHandle) PRead(p []byte, offset int64) error {
-	if !fl.IsReadAllowed(bh.flags) {
-		return EPERM
-	}
-
-	return bh.be.PRead(p, offset)
-}
-
-func (bh *CachedBlobHandle) PWrite(p []byte, offset int64) error {
-	if !fl.IsWriteAllowed(bh.flags) {
-		return EPERM
-	}
-
-	return bh.be.PWrite(p, offset)
-}
-
-func (bh *CachedBlobHandle) Size() int64 {
-	return bh.be.Size()
-}
-
-func (bh *CachedBlobHandle) Truncate(newsize int64) error {
-	if !fl.IsWriteAllowed(bh.flags) {
-		return EPERM
-	}
-
-	return bh.be.Truncate(newsize)
-}
-
-var _ = util.Syncer(&CachedBlobHandle{})
-
-func (bh *CachedBlobHandle) Sync() error {
-	if !fl.IsWriteAllowed(bh.flags) {
-		return nil
-	}
-
-	return bh.be.Sync()
-}
-
-func (bh *CachedBlobHandle) Close() error {
-	bh.be.CloseHandle(bh)
-
+	log.Printf("ReduceCache success. Dryrun: %t. Took: %s", dryrun, time.Since(start))
 	return nil
 }

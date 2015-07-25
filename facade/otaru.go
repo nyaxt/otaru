@@ -134,7 +134,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 
 	if !cfg.LocalDebug {
 		txio := datastore.NewDBTransactionLogIO(o.DSCfg)
-		o.TxIO = o.TxIO
+		o.TxIO = txio
 		o.TxIOSS = util.NewSyncScheduler(txio, 300*time.Millisecond)
 	} else {
 		o.TxIO = inodedb.NewSimpleDBTransactionLogIO()

@@ -7,10 +7,11 @@ import (
 	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/mgmt"
+	"github.com/nyaxt/otaru/scheduler"
 	"github.com/nyaxt/otaru/util"
 )
 
-func Install(srv *mgmt.Server, bbs blobstore.BlobStore, cbs *cachedblobstore.CachedBlobStore) {
+func Install(srv *mgmt.Server, s *scheduler.Scheduler, bbs blobstore.BlobStore, cbs *cachedblobstore.CachedBlobStore) {
 	rtr := srv.APIRouter().PathPrefix("/blobstore").Subrouter()
 
 	rtr.HandleFunc("/config", mgmt.JSONHandler(func(req *http.Request) interface{} {
@@ -28,4 +29,22 @@ func Install(srv *mgmt.Server, bbs blobstore.BlobStore, cbs *cachedblobstore.Cac
 	rtr.HandleFunc("/entries", mgmt.JSONHandler(func(req *http.Request) interface{} {
 		return cbs.DumpEntriesInfo()
 	}))
+	rtr.HandleFunc("/reduce_cache", func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != "POST" {
+			http.Error(w, "reduce_cache should be triggered with POST method.", http.StatusMethodNotAllowed)
+			return
+		}
+
+		dryrunp := req.URL.Query().Get("dryrun")
+		dryrun := len(dryrunp) > 0
+
+		jv := s.RunImmediatelyBlock(&cachedblobstore.ReduceCacheTask{cbs, dryrun})
+		if err := jv.Result.Err(); err != nil {
+			http.Error(w, "Reduce cache task failed with error", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte("ok"))
+	})
 }

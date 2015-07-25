@@ -12,7 +12,7 @@ import (
 )
 
 func (o *Otaru) setupMgmtAPIs() error {
-	mblobstore.Install(o.MGMT, o.DefaultBS, o.CBS)
+	mblobstore.Install(o.MGMT, o.S, o.DefaultBS, o.CBS)
 	if gcsbs, ok := o.DefaultBS.(*gcs.GCSBlobStore); ok {
 		mgcsblobstore.Install(o.MGMT, gcsbs)
 	}
