@@ -78,9 +78,21 @@ func (d DirNode) ReadDirAll(ctx context.Context) ([]bfuse.Dirent, error) {
 		return nil, err
 	}
 
-	fentries := make([]bfuse.Dirent, 0, len(entries))
+	fentries := make([]bfuse.Dirent, 0, len(entries)+2)
+	fentries = append(fentries, bfuse.Dirent{Inode: uint64(d.id), Name: ".", Type: bfuse.DT_Dir})
+	fentries = append(fentries, bfuse.Dirent{Inode: uint64(d.id), Name: "..", Type: bfuse.DT_Dir}) // FIXME!!!
 	for name, id := range entries {
-		t := bfuse.DT_File // FIXME!!!
+		isdir, err := d.fs.IsDir(id)
+		if err != nil {
+			log.Printf("Error while querying IsDir for id %d: %v", id, err)
+		}
+
+		var t bfuse.DirentType
+		if isdir {
+			t = bfuse.DT_Dir
+		} else {
+			t = bfuse.DT_File
+		}
 
 		fentries = append(fentries, bfuse.Dirent{
 			Inode: uint64(id),
