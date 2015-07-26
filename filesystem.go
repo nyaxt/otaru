@@ -93,6 +93,19 @@ func (fs *FileSystem) Sync() error {
 	return util.ToErrors(es)
 }
 
+func (fs *FileSystem) ParentID(id inodedb.ID) (inodedb.ID, error) {
+	v, _, err := fs.idb.QueryNode(id, false)
+	if err != nil {
+		return inodedb.RootDirID, err
+	}
+	if v.GetType() != inodedb.DirNodeT {
+		return inodedb.RootDirID, ENOTDIR
+	}
+
+	dv := v.(*inodedb.DirNodeView)
+	return dv.ParentID, err
+}
+
 func (fs *FileSystem) DirEntries(id inodedb.ID) (map[string]inodedb.ID, error) {
 	v, _, err := fs.idb.QueryNode(id, false)
 	if err != nil {
@@ -158,7 +171,7 @@ func (fs *FileSystem) createNode(dirID inodedb.ID, name string, typ inodedb.Type
 	origpath := fmt.Sprintf("%s/%s", dirorigpath, name)
 
 	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
-		&inodedb.CreateNodeOp{NodeLock: nlock, OrigPath: origpath, Type: typ},
+		&inodedb.CreateNodeOp{NodeLock: nlock, OrigPath: origpath, ParentID: dirID, Type: typ},
 		&inodedb.HardLinkOp{NodeLock: inodedb.NodeLock{dirID, inodedb.NoTicket}, Name: name, TargetID: nlock.ID},
 	}}
 	if _, err := fs.idb.ApplyTransaction(tx); err != nil {

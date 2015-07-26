@@ -49,6 +49,7 @@ func (v FileNodeView) GetType() Type { return FileNodeT }
 
 type DirNodeView struct {
 	INodeCommon `json:",inline"`
+	ParentID    ID            `json:"parent_id"`
 	Entries     map[string]ID `json:"entries"`
 }
 

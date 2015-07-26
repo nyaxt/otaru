@@ -25,6 +25,7 @@ func (e Errno) Error() string {
 var (
 	EEXIST         = Errno(syscall.EEXIST)
 	ENOENT         = Errno(syscall.ENOENT)
+	EISDIR         = Errno(syscall.EISDIR)
 	ENOTDIR        = Errno(syscall.ENOTDIR)
 	ENOTEMPTY      = Errno(syscall.ENOTEMPTY)
 	ErrLockInvalid = errors.New("Invalid lock given.")
@@ -151,7 +152,8 @@ func (fn *FileNode) View() NodeView {
 
 type DirNode struct {
 	INodeCommon
-	Entries map[string]ID
+	ParentID ID
+	Entries  map[string]ID
 }
 
 var _ = INode(&DirNode{})
@@ -161,6 +163,7 @@ func (dn *DirNode) GetType() Type { return DirNodeT }
 func (dn *DirNode) View() NodeView {
 	v := &DirNodeView{
 		INodeCommon: dn.INodeCommon,
+		ParentID:    dn.ParentID,
 		Entries:     make(map[string]ID),
 	}
 	for name, id := range dn.Entries {

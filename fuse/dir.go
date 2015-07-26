@@ -73,6 +73,11 @@ func (d DirNode) Create(ctx context.Context, req *bfuse.CreateRequest, resp *bfu
 }
 
 func (d DirNode) ReadDirAll(ctx context.Context) ([]bfuse.Dirent, error) {
+	parentID, err := d.fs.ParentID(d.id)
+	if err != nil {
+		return nil, err
+	}
+
 	entries, err := d.fs.DirEntries(d.id)
 	if err != nil {
 		return nil, err
@@ -80,7 +85,7 @@ func (d DirNode) ReadDirAll(ctx context.Context) ([]bfuse.Dirent, error) {
 
 	fentries := make([]bfuse.Dirent, 0, len(entries)+2)
 	fentries = append(fentries, bfuse.Dirent{Inode: uint64(d.id), Name: ".", Type: bfuse.DT_Dir})
-	fentries = append(fentries, bfuse.Dirent{Inode: uint64(d.id), Name: "..", Type: bfuse.DT_Dir}) // FIXME!!!
+	fentries = append(fentries, bfuse.Dirent{Inode: uint64(parentID), Name: "..", Type: bfuse.DT_Dir})
 	for name, id := range entries {
 		isdir, err := d.fs.IsDir(id)
 		if err != nil {

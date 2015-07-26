@@ -31,6 +31,7 @@ func (op *InitializeFileSystemOp) Apply(s *DBState) error {
 
 	n := &DirNode{
 		INodeCommon: INodeCommon{ID: RootDirID, OrigPath: "/"},
+		ParentID:    RootDirID,
 		Entries:     make(map[string]ID),
 	}
 
@@ -46,6 +47,7 @@ type CreateNodeOp struct {
 	OpMeta   `json:",inline"`
 	NodeLock `json:"nodelock"`
 	OrigPath string `json:"origpath"`
+	ParentID ID     `json:"parent_id`
 	Type     `json:"type"`
 }
 
@@ -66,6 +68,7 @@ func (op *CreateNodeOp) Apply(s *DBState) error {
 	case DirNodeT:
 		n = &DirNode{
 			INodeCommon: INodeCommon{ID: op.ID, OrigPath: op.OrigPath},
+			ParentID:    op.ParentID,
 			Entries:     make(map[string]ID),
 		}
 	default:
@@ -201,6 +204,14 @@ func (op *RenameOp) Apply(s *DBState) error {
 
 	if srcdn == dstdn && op.SrcName == op.DstName {
 		return nil
+	}
+
+	mn, ok := s.nodes[id]
+	if !ok {
+		return fmt.Errorf("Rename target node id %d do not exist! Filesystem INodeDB corrupted?", id)
+	}
+	if mdn, ok := mn.(*DirNode); ok {
+		mdn.ParentID = op.DstDirID
 	}
 
 	delete(srcdn.Entries, op.SrcName)
