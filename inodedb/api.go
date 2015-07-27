@@ -19,21 +19,35 @@ func (fc FileChunk) Right() int64 {
 }
 
 type INodeCommon struct {
-	ID
+	ID `json:"id"`
 
 	// OrigPath contains filepath passed to first create and does not necessary follow "rename" operations.
 	// To be used for recovery/debug purposes only
-	OrigPath string
+	OrigPath string `json:"orig_path"`
+
+	Uid       uint32    `json:"uid"`
+	Gid       uint32    `json:"gid"`
+	PermMode  uint16    `json:"mode_perm"`
+	ModifiedT time.Time `json:"modified_t"`
 }
 
-func (n INodeCommon) GetID() ID {
-	return n.ID
-}
+func (n INodeCommon) GetID() ID               { return n.ID }
+func (n INodeCommon) GetOrigPath() string     { return n.OrigPath }
+func (n INodeCommon) GetUid() uint32          { return n.Uid }
+func (n INodeCommon) GetGid() uint32          { return n.Gid }
+func (n INodeCommon) GetPermMode() uint16     { return n.PermMode }
+func (n INodeCommon) GetModifiedT() time.Time { return n.ModifiedT }
 
 type NodeView interface {
 	// GetVersion() TxID
 
 	GetID() ID
+	GetOrigPath() string
+	GetUid() uint32
+	GetGid() uint32
+	GetPermMode() uint16
+	GetModifiedT() time.Time
+
 	GetType() Type
 }
 

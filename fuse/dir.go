@@ -59,7 +59,13 @@ func (d DirNode) Lookup(ctx context.Context, name string) (bfs.Node, error) {
 }
 
 func (d DirNode) Create(ctx context.Context, req *bfuse.CreateRequest, resp *bfuse.CreateResponse) (bfs.Node, bfs.Handle, error) {
-	id, err := d.fs.CreateFile(d.id, req.Name) // req.Flags req.Mode
+	if req.Mode&os.ModeType != 0 {
+		// Disallow creating dir/symlink/pipe/socket/device
+		return nil, nil, bfuse.EPERM
+	}
+
+	permmode := uint16(req.Mode &^ req.Umask & os.ModePerm)
+	id, err := d.fs.CreateFile(d.id, req.Name, permmode, req.Uid, req.Gid, time.Now())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -130,7 +136,8 @@ func (d DirNode) Remove(ctx context.Context, req *bfuse.RemoveRequest) error {
 }
 
 func (d DirNode) Mkdir(ctx context.Context, req *bfuse.MkdirRequest) (bfs.Node, error) {
-	id, err := d.fs.CreateDir(d.id, req.Name)
+	permmode := uint16(req.Mode &^ req.Umask & os.ModePerm)
+	id, err := d.fs.CreateDir(d.id, req.Name, permmode, req.Uid, req.Gid, time.Now())
 	if err != nil {
 		return nil, err
 	}

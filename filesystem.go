@@ -5,6 +5,7 @@ import (
 	"log"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
@@ -156,7 +157,7 @@ func (fs *FileSystem) Remove(dirID inodedb.ID, name string) error {
 	return nil
 }
 
-func (fs *FileSystem) createNode(dirID inodedb.ID, name string, typ inodedb.Type) (inodedb.ID, error) {
+func (fs *FileSystem) createNode(dirID inodedb.ID, name string, typ inodedb.Type, permmode uint16, uid, gid uint32, modifiedT time.Time) (inodedb.ID, error) {
 	nlock, err := fs.idb.LockNode(inodedb.AllocateNewNodeID)
 	if err != nil {
 		return 0, err
@@ -171,7 +172,7 @@ func (fs *FileSystem) createNode(dirID inodedb.ID, name string, typ inodedb.Type
 	origpath := fmt.Sprintf("%s/%s", dirorigpath, name)
 
 	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
-		&inodedb.CreateNodeOp{NodeLock: nlock, OrigPath: origpath, ParentID: dirID, Type: typ},
+		&inodedb.CreateNodeOp{NodeLock: nlock, OrigPath: origpath, ParentID: dirID, Type: typ, PermMode: permmode, Uid: uid, Gid: gid, ModifiedT: modifiedT},
 		&inodedb.HardLinkOp{NodeLock: inodedb.NodeLock{dirID, inodedb.NoTicket}, Name: name, TargetID: nlock.ID},
 	}}
 	if _, err := fs.idb.ApplyTransaction(tx); err != nil {
@@ -183,18 +184,24 @@ func (fs *FileSystem) createNode(dirID inodedb.ID, name string, typ inodedb.Type
 	return nlock.ID, nil
 }
 
-func (fs *FileSystem) CreateFile(dirID inodedb.ID, name string) (inodedb.ID, error) {
-	return fs.createNode(dirID, name, inodedb.FileNodeT)
+func (fs *FileSystem) CreateFile(dirID inodedb.ID, name string, permmode uint16, uid, gid uint32, modifiedT time.Time) (inodedb.ID, error) {
+	return fs.createNode(dirID, name, inodedb.FileNodeT, permmode, uid, gid, modifiedT)
 }
 
-func (fs *FileSystem) CreateDir(dirID inodedb.ID, name string) (inodedb.ID, error) {
-	return fs.createNode(dirID, name, inodedb.DirNodeT)
+func (fs *FileSystem) CreateDir(dirID inodedb.ID, name string, permmode uint16, uid, gid uint32, modifiedT time.Time) (inodedb.ID, error) {
+	return fs.createNode(dirID, name, inodedb.DirNodeT, permmode, uid, gid, modifiedT)
 }
 
 type Attr struct {
-	ID   inodedb.ID
-	Type inodedb.Type
-	Size int64
+	ID   inodedb.ID   `json:"id"`
+	Type inodedb.Type `json:"type"`
+	Size int64        `json:"size"`
+
+	OrigPath  string    `json:"orig_path"`
+	Uid       uint32    `json:"uid"`
+	Gid       uint32    `json:"gid"`
+	PermMode  uint16    `json:"mode_perm"`
+	ModifiedT time.Time `json:"modified_t"`
 }
 
 func (fs *FileSystem) Attr(id inodedb.ID) (Attr, error) {
@@ -212,6 +219,12 @@ func (fs *FileSystem) Attr(id inodedb.ID) (Attr, error) {
 		ID:   v.GetID(),
 		Type: v.GetType(),
 		Size: size,
+
+		OrigPath:  v.GetOrigPath(),
+		Uid:       v.GetUid(),
+		Gid:       v.GetGid(),
+		PermMode:  v.GetPermMode(),
+		ModifiedT: v.GetModifiedT(),
 	}
 	return a, nil
 }

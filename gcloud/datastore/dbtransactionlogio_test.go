@@ -3,6 +3,7 @@ package datastore_test
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	authtu "github.com/nyaxt/otaru/gcloud/auth/testutils"
 	"github.com/nyaxt/otaru/gcloud/datastore"
@@ -25,7 +26,7 @@ func TestDBTransactionIO_PutQuery(t *testing.T) {
 	}
 
 	tx := inodedb.DBTransaction{TxID: 123, Ops: []inodedb.DBOperation{
-		&inodedb.CreateNodeOp{NodeLock: inodedb.NodeLock{2, 123456}, OrigPath: "/hoge.txt", Type: inodedb.FileNodeT},
+		&inodedb.CreateNodeOp{NodeLock: inodedb.NodeLock{2, 123456}, OrigPath: "/hoge.txt", Type: inodedb.FileNodeT, ModifiedT: time.Now()},
 		&inodedb.HardLinkOp{NodeLock: inodedb.NodeLock{1, inodedb.NoTicket}, Name: "hoge.txt", TargetID: 2},
 	}}
 
@@ -47,7 +48,7 @@ func TestDBTransactionIO_PutQuery(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(txs[0], tx) {
-			t.Errorf("serdes mismatch: %+v", txs)
+			t.Errorf("serdes mismatch:\nExpected: %+v\nGot     : %+v", txs[0], tx)
 		}
 	}
 
@@ -67,7 +68,7 @@ func TestDBTransactionIO_PutQuery(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(txs[0], tx) {
-			t.Errorf("serdes mismatch: %+v", txs)
+			t.Errorf("serdes mismatch:\nExpected: %+v\nGot     : %+v", txs[0], tx)
 		}
 	}
 

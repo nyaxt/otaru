@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/nyaxt/otaru/inodedb"
 )
@@ -46,7 +47,7 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileM
 		if flags|os.O_CREATE != 0 {
 			// FIXME: apply perm
 
-			id, err = fs.CreateFile(dirID, basename)
+			id, err = fs.CreateFile(dirID, basename, 0666, 0, 0, time.Now())
 			if err != nil {
 				return nil, err
 			}

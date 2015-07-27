@@ -3,6 +3,7 @@ package inodedb
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 type DBOperation interface {
@@ -30,7 +31,7 @@ func (op *InitializeFileSystemOp) Apply(s *DBState) error {
 	}
 
 	n := &DirNode{
-		INodeCommon: INodeCommon{ID: RootDirID, OrigPath: "/"},
+		INodeCommon: INodeCommon{ID: RootDirID, OrigPath: "/", Uid: 0, Gid: 0, PermMode: 0777, ModifiedT: time.Now()},
 		ParentID:    RootDirID,
 		Entries:     make(map[string]ID),
 	}
@@ -47,8 +48,14 @@ type CreateNodeOp struct {
 	OpMeta   `json:",inline"`
 	NodeLock `json:"nodelock"`
 	OrigPath string `json:"origpath"`
-	ParentID ID     `json:"parent_id`
 	Type     `json:"type"`
+
+	ParentID ID `json:"parent_id"` // only valid for DirNodeT
+
+	Uid       uint32    `json:"uid"`
+	Gid       uint32    `json:"gid"`
+	PermMode  uint16    `json:"mode_perm"`
+	ModifiedT time.Time `json:"modified_t"`
 }
 
 var _ = DBOperation(&CreateNodeOp{})
@@ -62,12 +69,12 @@ func (op *CreateNodeOp) Apply(s *DBState) error {
 	switch op.Type {
 	case FileNodeT:
 		n = &FileNode{
-			INodeCommon: INodeCommon{ID: op.ID, OrigPath: op.OrigPath},
+			INodeCommon: INodeCommon{ID: op.ID, OrigPath: op.OrigPath, Uid: op.Uid, Gid: op.Gid, PermMode: op.PermMode, ModifiedT: time.Now()},
 			Size:        0,
 		}
 	case DirNodeT:
 		n = &DirNode{
-			INodeCommon: INodeCommon{ID: op.ID, OrigPath: op.OrigPath},
+			INodeCommon: INodeCommon{ID: op.ID, OrigPath: op.OrigPath, Uid: op.Uid, Gid: op.Gid, PermMode: op.PermMode, ModifiedT: time.Now()},
 			ParentID:    op.ParentID,
 			Entries:     make(map[string]ID),
 		}
