@@ -1,11 +1,13 @@
 package fuse_test
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"syscall"
 	"testing"
@@ -332,6 +334,60 @@ func TestServeFUSE_Rmdir(t *testing.T) {
 
 		if err := os.Remove(dirpath); err != nil {
 			t.Errorf("Failed to remove empty dir: %v", err)
+		}
+	})
+}
+
+func TestServeFUSE_LsCmd(t *testing.T) {
+	maybeSkipTest(t)
+	fs := fusetestFileSystem()
+
+	fusetestCommon(t, fs, func(mountpoint string) {
+		dirpath := path.Join(mountpoint, "hokkaido")
+		if err := os.Mkdir(dirpath, 0755); err != nil {
+			t.Errorf("Failed to mkdir: %v", err)
+			return
+		}
+
+		filepath := path.Join(dirpath, "otaru.txt")
+		if err := ioutil.WriteFile(filepath, HelloWorld, 0644); err != nil {
+			t.Errorf("failed to write file: %v", err)
+			return
+		}
+
+		// We need to use "ls -a" cmd here, as golang Readdir automatically omits "." and ".." entry, which we want to check
+		cmd := exec.Command("ls", "-a", dirpath)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		if err := cmd.Run(); err != nil {
+			t.Errorf("ls failed: %v", err)
+			return
+		}
+
+		foundOtaruTxt := false
+		foundCurrentDir := false
+		foundParentDir := false
+		sc := bufio.NewScanner(&out)
+		for sc.Scan() {
+			switch l := sc.Text(); l {
+			case "otaru.txt":
+				foundOtaruTxt = true
+			case ".":
+				foundCurrentDir = true
+			case "..":
+				foundParentDir = true
+			default:
+				t.Errorf("Found unexpected entry: %s", l)
+			}
+		}
+		if !foundOtaruTxt {
+			t.Errorf("otaru.txt not found in the dir")
+		}
+		if !foundCurrentDir {
+			t.Errorf("\".\"not found in the dir")
+		}
+		if !foundParentDir {
+			t.Errorf("\"..\"not found in the dir")
 		}
 	})
 }
