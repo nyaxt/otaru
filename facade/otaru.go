@@ -78,7 +78,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 			return nil, fmt.Errorf("Failed to init GCloudClientSource: %v", err)
 		}
 		o.DSCfg = datastore.NewConfig(cfg.ProjectName, cfg.BucketName, o.C, o.Clisrc)
-		o.GL = datastore.NewGlobalLocker(o.DSCfg, genHostName(), "FIXME: fill info")
+		o.GL = datastore.NewGlobalLocker(o.DSCfg, GenHostName(), "FIXME: fill info")
 		if err := o.GL.Lock(); err != nil {
 			return nil, err
 		}

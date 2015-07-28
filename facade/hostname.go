@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-func genHostName() string {
+func GenHostName() string {
 	hostname, err := os.Hostname()
 	if err != nil {
 		log.Fatalf("Failed to query local hostname: %v", err)
