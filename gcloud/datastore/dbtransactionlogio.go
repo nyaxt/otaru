@@ -215,6 +215,8 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 	return uniqed, nil
 }
 
+const maxWriteEntriesPerTx = 500 // Google Cloud Datastore limit on number of write entries per tx
+
 func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) error {
 	start := time.Now()
 
@@ -231,37 +233,53 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 
 	ctx := txio.cfg.getContext()
 
-	dstx, err := datastore.NewTransaction(ctx, datastore.Serializable)
-	if err != nil {
-		return err
-	}
-
-	keys := []*datastore.Key{}
-	q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Filter("TxID <", int64(smallerThanID)).KeysOnly().Transaction(dstx)
-	it := q.Run(ctx)
+	ndel := 0
 	for {
-		k, err := it.Next(nil)
+		needAnotherTx := false
+		txStart := time.Now()
+		dstx, err := datastore.NewTransaction(ctx, datastore.Serializable)
 		if err != nil {
-			if err == datastore.Done {
+			return err
+		}
+
+		keys := []*datastore.Key{}
+		q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Filter("TxID <", int64(smallerThanID)).KeysOnly().Transaction(dstx)
+		it := q.Run(ctx)
+		for {
+			k, err := it.Next(nil)
+			if err != nil {
+				if err == datastore.Done {
+					break
+				}
+				dstx.Rollback()
+				return err
+			}
+
+			keys = append(keys, k)
+			if len(keys) == maxWriteEntriesPerTx {
+				needAnotherTx = true
 				break
 			}
+		}
+
+		//log.Printf("keys to delete: %v", keys)
+		if err := dstx.DeleteMulti(keys); err != nil {
 			dstx.Rollback()
 			return err
 		}
 
-		keys = append(keys, k)
-	}
+		if _, err := dstx.Commit(); err != nil {
+			return err
+		}
+		ndel += len(keys)
 
-	//log.Printf("keys to delete: %v", keys)
-	if err := dstx.DeleteMulti(keys); err != nil {
-		dstx.Rollback()
-		return err
+		if needAnotherTx {
+			log.Printf("DeleteTransactions(%v): A tx deleting %d entries took %s. Starting next tx to delete more.", smallerThanID, len(keys), time.Since(txStart))
+		} else {
+			break
+		}
 	}
-
-	if _, err := dstx.Commit(); err != nil {
-		return err
-	}
-	log.Printf("DeleteTransactions(%v) deleted %d entries. took %s", smallerThanID, len(keys), time.Since(start))
+	log.Printf("DeleteTransactions(%v) deleted %d entries. tx took %s", smallerThanID, ndel, time.Since(start))
 	return nil
 }
 
