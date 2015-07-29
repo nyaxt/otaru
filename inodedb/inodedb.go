@@ -279,6 +279,8 @@ func (db *DB) RestoreVersion(version TxID) error {
 }
 
 func (db *DB) applyTransactionInternal(tx DBTransaction, writeTxLogFlag bool) (TxID, error) {
+	log.Printf("applyTransactionInternal(%+v, writeTxLog: %t)", tx, writeTxLogFlag)
+
 	if tx.TxID == AnyVersion {
 		tx.TxID = db.state.version + 1
 	} else if tx.TxID != db.state.version+1 {

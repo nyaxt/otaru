@@ -76,8 +76,8 @@ type Ticket uint64
 const NoTicket = Ticket(0)
 
 type NodeLock struct {
-	ID
-	Ticket
+	ID     `json:"id"`
+	Ticket `json:"ticket"`
 
 	// FIXME: add Expire
 }

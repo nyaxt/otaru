@@ -50,7 +50,7 @@ func main() {
 		os.Exit(1)
 	}
 	var muClose sync.Mutex
-	closeOtaruAndExit := func() {
+	closeOtaruAndExit := func(exitCode int) {
 		muClose.Lock()
 		defer muClose.Unlock()
 
@@ -63,9 +63,9 @@ func main() {
 			}
 			o = nil
 		}
-		os.Exit(0)
+		os.Exit(exitCode)
 	}
-	defer closeOtaruAndExit()
+	defer closeOtaruAndExit(0)
 
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, os.Interrupt)
@@ -73,7 +73,7 @@ func main() {
 	go func() {
 		for s := range sigC {
 			log.Printf("Received signal: %v", s)
-			closeOtaruAndExit()
+			closeOtaruAndExit(1)
 		}
 	}()
 
@@ -81,8 +81,8 @@ func main() {
 		log.Printf("fusedbg: %v", msg)
 	}
 	if err := fuse.ServeFUSE(mountpoint, o.FS, nil); err != nil {
-		o.Close()
-		log.Fatalf("ServeFUSE failed: %v", err)
+		log.Printf("ServeFUSE failed: %v", err)
+		closeOtaruAndExit(1)
 	}
 	log.Printf("ServeFUSE end!")
 }

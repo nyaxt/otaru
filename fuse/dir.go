@@ -20,20 +20,21 @@ type DirNode struct {
 }
 
 func (d DirNode) Attr(ctx context.Context, a *bfuse.Attr) error {
-	log.Printf("DirNode Attr id: %d", d.id)
-
 	attr, err := d.fs.Attr(d.id)
 	if err != nil {
 		panic("bfs.Attr failed for DirNode")
 	}
 
 	a.Inode = uint64(d.id)
-	a.Mode = os.ModeDir | 0777
-	a.Atime = time.Now()
-	a.Mtime = time.Now()
-	a.Ctime = time.Now()
-	a.Crtime = time.Now()
+	a.Mode = os.ModeDir | (os.FileMode(attr.PermMode) & os.ModePerm)
+	a.Atime = attr.ModifiedT
+	a.Mtime = attr.ModifiedT
+	a.Ctime = attr.ModifiedT
+	a.Crtime = attr.ModifiedT
 	a.Size = uint64(attr.Size)
+	a.Uid = attr.Uid
+	a.Gid = attr.Gid
+
 	return nil
 }
 

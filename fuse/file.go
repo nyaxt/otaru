@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"syscall"
-	"time"
 
 	"github.com/nyaxt/otaru"
 	oflags "github.com/nyaxt/otaru/flags"
@@ -32,12 +32,14 @@ func (n FileNode) Attr(ctx context.Context, a *bfuse.Attr) error {
 	}
 
 	a.Inode = uint64(n.id)
-	a.Mode = 0666
-	a.Atime = time.Now()
-	a.Mtime = time.Now()
-	a.Ctime = time.Now()
-	a.Crtime = time.Now()
+	a.Mode = os.FileMode(attr.PermMode) & os.ModePerm
+	a.Atime = attr.ModifiedT
+	a.Mtime = attr.ModifiedT
+	a.Ctime = attr.ModifiedT
+	a.Crtime = attr.ModifiedT
 	a.Size = uint64(attr.Size)
+	a.Uid = attr.Uid
+	a.Gid = attr.Gid
 	return nil
 }
 
@@ -86,19 +88,6 @@ type FileHandle struct {
 }
 
 func (fh FileHandle) Read(ctx context.Context, req *bfuse.ReadRequest, resp *bfuse.ReadResponse) error {
-	/*
-	     Header:
-	       Conn *Conn     `json:"-"` // connection this request was received on
-	       ID   RequestID // unique ID for request
-	       Node NodeID    // file or directory the request is about
-	       Uid  uint32    // user ID of process making request
-	       Gid  uint32    // group ID of process making request
-	       Pid  uint32    // process ID of process making request
-
-	   	Handle HandleID
-	   	Offset int64
-	   	Size   int
-	*/
 	log.Printf("Read offset %d size %d", req.Offset, req.Size)
 
 	if fh.h == nil {
