@@ -119,7 +119,7 @@ func TestLoad(t *testing.T) {
 			},
 			src: defaultGCS,
 			options: []Option{
-				DestinationSchema(&Schema{
+				DestinationSchema(Schema{
 					stringFieldSchema(),
 					nestedFieldSchema(),
 				}),
@@ -150,34 +150,21 @@ func TestLoad(t *testing.T) {
 				j.Configuration.Load.SourceFormat = "NEWLINE_DELIMITED_JSON"
 				j.Configuration.Load.Encoding = "UTF-8"
 				j.Configuration.Load.FieldDelimiter = "\t"
-				hyphen := "-"
-				j.Configuration.Load.Quote = &hyphen
+				j.Configuration.Load.Quote = "-"
 				return j
 			}(),
 		},
 		{
 			dst: defaultTable,
 			src: &GCSReference{
-				uris:  []string{"uri"},
+				uris: []string{"uri"},
+				// TODO(mcgreevy): Once the underlying API supports it, test that
+				// a distinction is made between setting an empty Quote and not setting it at all.
 				Quote: "",
 			},
 			want: func() *bq.Job {
 				j := defaultLoadJob()
-				j.Configuration.Load.Quote = nil
-				return j
-			}(),
-		},
-		{
-			dst: defaultTable,
-			src: &GCSReference{
-				uris:           []string{"uri"},
-				Quote:          "",
-				ForceZeroQuote: true,
-			},
-			want: func() *bq.Job {
-				j := defaultLoadJob()
-				empty := ""
-				j.Configuration.Load.Quote = &empty
+				j.Configuration.Load.Quote = ""
 				return j
 			}(),
 		},

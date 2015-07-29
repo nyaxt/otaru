@@ -96,12 +96,8 @@ func (gcs *GCSReference) customizeLoadSrc(conf *bq.JobConfigurationLoad, project
 	conf.Encoding = string(gcs.Encoding)
 	conf.FieldDelimiter = gcs.FieldDelimiter
 
-	if gcs.ForceZeroQuote {
-		quote := ""
-		conf.Quote = &quote
-	} else if gcs.Quote != "" {
-		conf.Quote = &gcs.Quote
-	}
+	// TODO(mcgreevy): take into account gcs.ForceZeroQuote once the underlying library supports it.
+	conf.Quote = gcs.Quote
 }
 
 func (gcs *GCSReference) customizeExtractDst(conf *bq.JobConfigurationExtract, projectID string) {

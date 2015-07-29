@@ -25,20 +25,18 @@ type queryOption interface {
 	customizeQuery(conf *bq.JobConfigurationQuery, projectID string)
 }
 
-// DisableQueryCache returns an Option that prevents results being fetched from the query cache.
-// If this Option is not used, results are fetched from the cache if they are available.
+// UseQueryCache returns an Option that causes results to be fetched from the query cache if they are available.
 // The query cache is a best-effort cache that is flushed whenever tables in the query are modified.
 // Cached results are only available when TableID is unspecified in the query's destination Table.
 // For more information, see https://cloud.google.com/bigquery/querying-data#querycaching
-func DisableQueryCache() Option { return disableQueryCache{} }
+func UseQueryCache() Option { return useQueryCache{} }
 
-type disableQueryCache struct{}
+type useQueryCache struct{}
 
-func (opt disableQueryCache) implementsOption() {}
+func (opt useQueryCache) implementsOption() {}
 
-func (opt disableQueryCache) customizeQuery(conf *bq.JobConfigurationQuery, projectID string) {
-	f := false
-	conf.UseQueryCache = &f
+func (opt useQueryCache) customizeQuery(conf *bq.JobConfigurationQuery, projectID string) {
+	conf.UseQueryCache = true
 }
 
 // JobPriority returns an Option that causes a query to be scheduled with the specified priority.
@@ -80,10 +78,5 @@ func (c *Client) query(ctx context.Context, dst *Table, src *Query, options []Op
 	job.Configuration = &bq.JobConfiguration{
 		Query: payload,
 	}
-	j, err := c.service.insertJob(ctx, job, c.projectID)
-	if err != nil {
-		return nil, err
-	}
-	j.isQuery = true
-	return j, nil
+	return c.service.insertJob(ctx, job, c.projectID)
 }

@@ -36,11 +36,8 @@ package grpc
 import (
 	"errors"
 	"io"
-	"sync"
-	"time"
 
 	"golang.org/x/net/context"
-	"golang.org/x/net/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/transport"
@@ -101,19 +98,6 @@ func NewClientStream(ctx context.Context, desc *StreamDesc, cc *ClientConn, meth
 		Host:   cc.authority,
 		Method: method,
 	}
-	cs := &clientStream{
-		desc:    desc,
-		codec:   cc.dopts.codec,
-		tracing: EnableTracing,
-	}
-	if cs.tracing {
-		cs.traceInfo.tr = trace.New("Sent."+methodFamily(method), method)
-		cs.traceInfo.firstLine.client = true
-		if deadline, ok := ctx.Deadline(); ok {
-			cs.traceInfo.firstLine.deadline = deadline.Sub(time.Now())
-		}
-		cs.traceInfo.tr.LazyLog(&cs.traceInfo.firstLine, false)
-	}
 	t, _, err := cc.wait(ctx, 0)
 	if err != nil {
 		return nil, toRPCErr(err)
@@ -122,10 +106,13 @@ func NewClientStream(ctx context.Context, desc *StreamDesc, cc *ClientConn, meth
 	if err != nil {
 		return nil, toRPCErr(err)
 	}
-	cs.t = t
-	cs.s = s
-	cs.p = &parser{s: s}
-	return cs, nil
+	return &clientStream{
+		t:     t,
+		s:     s,
+		p:     &parser{s: s},
+		desc:  desc,
+		codec: cc.dopts.codec,
+	}, nil
 }
 
 // clientStream implements a client side Stream.
@@ -135,13 +122,6 @@ type clientStream struct {
 	p     *parser
 	desc  *StreamDesc
 	codec Codec
-
-	tracing bool // set to EnableTracing when the clientStream is created.
-
-	mu sync.Mutex // protects traceInfo
-	// traceInfo.tr is set when the clientStream is created (if EnableTracing is true),
-	// and is set to nil when the clientStream's finish method is called.
-	traceInfo traceInfo
 }
 
 func (cs *clientStream) Context() context.Context {
@@ -163,13 +143,6 @@ func (cs *clientStream) Trailer() metadata.MD {
 }
 
 func (cs *clientStream) SendMsg(m interface{}) (err error) {
-	if cs.tracing {
-		cs.mu.Lock()
-		if cs.traceInfo.tr != nil {
-			cs.traceInfo.tr.LazyLog(&payload{sent: true, msg: m}, true)
-		}
-		cs.mu.Unlock()
-	}
 	defer func() {
 		if err == nil || err == io.EOF {
 			return
@@ -188,20 +161,7 @@ func (cs *clientStream) SendMsg(m interface{}) (err error) {
 
 func (cs *clientStream) RecvMsg(m interface{}) (err error) {
 	err = recv(cs.p, cs.codec, m)
-	defer func() {
-		// err != nil indicates the termination of the stream.
-		if err != nil {
-			cs.finish(err)
-		}
-	}()
 	if err == nil {
-		if cs.tracing {
-			cs.mu.Lock()
-			if cs.traceInfo.tr != nil {
-				cs.traceInfo.tr.LazyLog(&payload{sent: false, msg: m}, true)
-			}
-			cs.mu.Unlock()
-		}
 		if !cs.desc.ClientStreams || cs.desc.ServerStreams {
 			return
 		}
@@ -242,24 +202,6 @@ func (cs *clientStream) CloseSend() (err error) {
 	}
 	err = toRPCErr(err)
 	return
-}
-
-func (cs *clientStream) finish(err error) {
-	if !cs.tracing {
-		return
-	}
-	cs.mu.Lock()
-	defer cs.mu.Unlock()
-	if cs.traceInfo.tr != nil {
-		if err == nil || err == io.EOF {
-			cs.traceInfo.tr.LazyPrintf("RPC: [OK]")
-		} else {
-			cs.traceInfo.tr.LazyPrintf("RPC: [%v]", err)
-			cs.traceInfo.tr.SetError()
-		}
-		cs.traceInfo.tr.Finish()
-		cs.traceInfo.tr = nil
-	}
 }
 
 // ServerStream defines the interface a server stream has to satisfy.

@@ -26,7 +26,6 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/oauth"
 )
 
 type dialOpt struct {
@@ -156,7 +155,7 @@ func DialGRPC(ctx context.Context, opt ...ClientOption) (*grpc.ClientConn, error
 		}
 	}
 	grpcOpts := []grpc.DialOption{
-		grpc.WithPerRPCCredentials(oauth.TokenSource{o.tokenSource}),
+		grpc.WithPerRPCCredentials(credentials.TokenSource{o.tokenSource}),
 		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")),
 	}
 	return grpc.Dial(o.endpoint, grpcOpts...)

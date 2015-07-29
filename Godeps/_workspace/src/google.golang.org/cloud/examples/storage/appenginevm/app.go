@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package main is an example Mananged VM app using the Google Cloud Storage API.
-package main
+// Package gcsdemo is an example App Engine or Mananged VM app using the Google Cloud Storage API.
+package gcsdemo
 
 import (
 	"bytes"
@@ -29,6 +29,7 @@ import (
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/file"
 	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/urlfetch"
 	"google.golang.org/cloud"
 	"google.golang.org/cloud/storage"
 )
@@ -36,9 +37,8 @@ import (
 // bucket is a local cache of the app's default bucket name.
 var bucket string // or: var bucket = "<your-app-id>.appspot.com"
 
-func main() {
+func init() {
 	http.HandleFunc("/", handler)
-	appengine.Main()
 }
 
 // demo struct holds information needed to run the various demo functions.
@@ -74,6 +74,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	hc := &http.Client{
 		Transport: &oauth2.Transport{
 			Source: google.AppEngineTokenSource(c, storage.ScopeFullControl),
+			Base:   &urlfetch.Transport{Context: c},
 		},
 	}
 	ctx := cloud.NewContext(appengine.AppID(c), hc)

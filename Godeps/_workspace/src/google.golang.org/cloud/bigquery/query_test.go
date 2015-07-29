@@ -90,17 +90,6 @@ func TestQuery(t *testing.T) {
 				return j
 			}(),
 		},
-		{
-			dst:     defaultTable,
-			src:     defaultQuery,
-			options: []Option{DisableQueryCache()},
-			want: func() *bq.Job {
-				j := defaultQueryJob()
-				f := false
-				j.Configuration.Query.UseQueryCache = &f
-				return j
-			}(),
-		},
 	}
 
 	for _, tc := range testCases {

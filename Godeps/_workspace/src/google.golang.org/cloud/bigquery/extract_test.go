@@ -58,8 +58,7 @@ func TestExtract(t *testing.T) {
 			},
 			want: func() *bq.Job {
 				j := defaultExtractJob()
-				f := false
-				j.Configuration.Extract.PrintHeader = &f
+				j.Configuration.Extract.PrintHeader = false
 				return j
 			}(),
 		},

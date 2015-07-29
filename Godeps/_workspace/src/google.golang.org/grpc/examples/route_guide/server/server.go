@@ -53,7 +53,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"
 
-	"github.com/golang/protobuf/proto"
+	proto "github.com/golang/protobuf/proto"
 
 	pb "google.golang.org/grpc/examples/route_guide/proto"
 )

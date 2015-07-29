@@ -32,7 +32,7 @@ func lineLogger(wg *sync.WaitGroup, prefix string, r io.ReadCloser) {
 	}
 }
 
-func mount(dir string, conf *mountConfig, ready chan<- struct{}, errp *error) (fusefd *os.File, err error) {
+func mount(dir string, conf *MountConfig, ready chan<- struct{}, errp *error) (fusefd *os.File, err error) {
 	// linux mount is never delayed
 	close(ready)
 
@@ -40,12 +40,8 @@ func mount(dir string, conf *mountConfig, ready chan<- struct{}, errp *error) (f
 	if err != nil {
 		return nil, fmt.Errorf("socketpair error: %v", err)
 	}
-
-	writeFile := os.NewFile(uintptr(fds[0]), "fusermount-child-writes")
-	defer writeFile.Close()
-
-	readFile := os.NewFile(uintptr(fds[1]), "fusermount-parent-reads")
-	defer readFile.Close()
+	defer syscall.Close(fds[0])
+	defer syscall.Close(fds[1])
 
 	cmd := exec.Command(
 		"fusermount",
@@ -55,6 +51,8 @@ func mount(dir string, conf *mountConfig, ready chan<- struct{}, errp *error) (f
 	)
 	cmd.Env = append(os.Environ(), "_FUSE_COMMFD=3")
 
+	writeFile := os.NewFile(uintptr(fds[0]), "fusermount-child-writes")
+	defer writeFile.Close()
 	cmd.ExtraFiles = []*os.File{writeFile}
 
 	var wg sync.WaitGroup
@@ -78,6 +76,8 @@ func mount(dir string, conf *mountConfig, ready chan<- struct{}, errp *error) (f
 		return nil, fmt.Errorf("fusermount: %v", err)
 	}
 
+	readFile := os.NewFile(uintptr(fds[1]), "fusermount-parent-reads")
+	defer readFile.Close()
 	c, err := net.FileConn(readFile)
 	if err != nil {
 		return nil, fmt.Errorf("FileConn from fusermount socket: %v", err)

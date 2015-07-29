@@ -37,7 +37,7 @@ creating a new OAuth "Client ID", storing the JSON key somewhere accessible, and
 	...
 	config, err := google.JWTConfigFromJSON(jsonKey, bigtable.Scope) // or bigtable.AdminScope, etc.
 	...
-	client, err := bigtable.NewClient(ctx, project, zone, cluster, cloud.WithTokenSource(config.TokenSource(ctx)))
+	client, err := bigtable.NewClient(ctx, project, zone, cluster, cloud.WithTokenSource(config.TokenSource()))
 	...
 Here, `google` means the golang.org/x/oauth2/google package
 and `cloud` means the google.golang.org/cloud package.
@@ -86,19 +86,16 @@ To increment an encoded value in one cell,
 	r, err := tbl.ApplyReadModifyWrite(ctx, "com.google.cloud", rmw)
 	...
 */
-package bigtable
+package bigtable // import "google.golang.org/cloud/bigtable"
 
 // Scope constants for authentication credentials.
-// These should be used when using credential creation functions such as oauth.NewServiceAccountFromFile.
+// These should be used when using credential creation functions such as credentials.NewServiceAccountFromFile.
 const (
 	// Scope is the OAuth scope for Cloud Bigtable data operations.
 	Scope = "https://www.googleapis.com/auth/bigtable.data"
 	// ReadonlyScope is the OAuth scope for Cloud Bigtable read-only data operations.
 	ReadonlyScope = "https://www.googleapis.com/auth/bigtable.readonly"
 
-	// AdminScope is the OAuth scope for Cloud Bigtable table admin operations.
-	AdminScope = "https://www.googleapis.com/auth/bigtable.admin.table"
-
-	// ClusterAdminScope is the OAuth scope for Cloud Bigtable cluster admin operations.
-	ClusterAdminScope = "https://www.googleapis.com/auth/bigtable.admin.cluster"
+	// AdminScope is the OAuth scope for Cloud Bigtable admin operations.
+	AdminScope = "https://www.googleapis.com/auth/bigtable.admin"
 )

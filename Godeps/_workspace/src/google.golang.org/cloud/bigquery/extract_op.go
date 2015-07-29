@@ -33,8 +33,7 @@ type disableHeader struct{}
 func (opt disableHeader) implementsOption() {}
 
 func (opt disableHeader) customizeExtract(conf *bq.JobConfigurationExtract, projectID string) {
-	f := false
-	conf.PrintHeader = &f
+	conf.PrintHeader = false
 }
 
 func (c *Client) extract(ctx context.Context, dst *GCSReference, src *Table, options []Option) (*Job, error) {

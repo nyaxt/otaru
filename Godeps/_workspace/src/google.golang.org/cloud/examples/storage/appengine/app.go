@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gcsdemo is an example App Engine app using the Google Cloud Storage API.
+// Package gcsdemo is an example App Engine or Mananged VM app using the Google Cloud Storage API.
 package gcsdemo
 
 import (
@@ -74,11 +74,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	hc := &http.Client{
 		Transport: &oauth2.Transport{
 			Source: google.AppEngineTokenSource(c, storage.ScopeFullControl),
-			// Note that the App Engine urlfetch service has a limit of 10MB uploads and
-			// 32MB downloads.
-			// See https://cloud.google.com/appengine/docs/go/urlfetch/#Go_Quotas_and_limits
-			// for more information.
-			Base: &urlfetch.Transport{Context: c},
+			Base:   &urlfetch.Transport{Context: c},
 		},
 	}
 	ctx := cloud.NewContext(appengine.AppID(c), hc)

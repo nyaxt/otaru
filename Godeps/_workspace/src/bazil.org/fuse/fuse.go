@@ -98,7 +98,7 @@
 // Behavior and metadata of the mounted file system can be changed by
 // passing MountOption values to Mount.
 //
-package fuse
+package fuse // import "bazil.org/fuse"
 
 import (
 	"bytes"
@@ -125,11 +125,9 @@ type Conn struct {
 	// File handle for kernel communication. Only safe to access if
 	// rio or wio is held.
 	dev *os.File
-	wio sync.RWMutex
+	buf []byte
+	wio sync.Mutex
 	rio sync.RWMutex
-
-	// Protocol version negotiated with InitRequest/InitResponse.
-	proto Protocol
 }
 
 // Mount mounts a new FUSE connection on the named directory
@@ -143,7 +141,7 @@ type Conn struct {
 // possible errors. Incoming requests on Conn must be served to make
 // progress.
 func Mount(dir string, options ...MountOption) (*Conn, error) {
-	conf := mountConfig{
+	conf := MountConfig{
 		options: make(map[string]string),
 	}
 	for _, option := range options {
@@ -161,62 +159,7 @@ func Mount(dir string, options ...MountOption) (*Conn, error) {
 		return nil, err
 	}
 	c.dev = f
-
-	if err := initMount(c, &conf); err != nil {
-		c.Close()
-		return nil, err
-	}
-
 	return c, nil
-}
-
-type OldVersionError struct {
-	Kernel     Protocol
-	LibraryMin Protocol
-}
-
-func (e *OldVersionError) Error() string {
-	return fmt.Sprintf("kernel FUSE version is too old: %v < %v", e.Kernel, e.LibraryMin)
-}
-
-func initMount(c *Conn, conf *mountConfig) error {
-	req, err := c.ReadRequest()
-	if err != nil {
-		if err == io.EOF {
-			return fmt.Errorf("missing init, got EOF")
-		}
-		return err
-	}
-	r, ok := req.(*InitRequest)
-	if !ok {
-		return fmt.Errorf("missing init, got: %T", req)
-	}
-
-	min := Protocol{protoVersionMinMajor, protoVersionMinMinor}
-	if r.Kernel.LT(min) {
-		req.RespondError(Errno(syscall.EPROTO))
-		c.Close()
-		return &OldVersionError{
-			Kernel:     r.Kernel,
-			LibraryMin: min,
-		}
-	}
-
-	proto := Protocol{protoVersionMaxMajor, protoVersionMaxMinor}
-	if r.Kernel.LT(proto) {
-		// Kernel doesn't support the latest version we have.
-		proto = r.Kernel
-	}
-	c.proto = proto
-
-	s := &InitResponse{
-		Library:      proto,
-		MaxReadahead: conf.maxReadahead,
-		MaxWrite:     128 * 1024,
-		Flags:        InitBigWrites | conf.initFlags,
-	}
-	r.Respond(s)
-	return nil
 }
 
 // A Request represents a single FUSE request received from the kernel.
@@ -272,10 +215,13 @@ func (h *Header) noResponse() {
 	putMessage(h.msg)
 }
 
-func (h *Header) respond(msg []byte) {
-	out := (*outHeader)(unsafe.Pointer(&msg[0]))
-	out.Unique = uint64(h.ID)
-	h.Conn.respond(msg)
+func (h *Header) respond(out *outHeader, n uintptr) {
+	h.Conn.respond(out, n)
+	putMessage(h.msg)
+}
+
+func (h *Header) respondData(out *outHeader, n uintptr, data []byte) {
+	h.Conn.respondData(out, n, data)
 	putMessage(h.msg)
 }
 
@@ -362,10 +308,8 @@ func (h *Header) RespondError(err error) {
 	}
 	// FUSE uses negative errors!
 	// TODO: File bug report against OSXFUSE: positive error causes kernel panic.
-	buf := newBuffer(0)
-	hOut := (*outHeader)(unsafe.Pointer(&buf[0]))
-	hOut.Error = -int32(errno)
-	h.respond(buf)
+	out := &outHeader{Error: -int32(errno), Unique: uint64(h.ID)}
+	h.respond(out, unsafe.Sizeof(*out))
 }
 
 // Maximum file write size we are prepared to receive from the kernel.
@@ -505,10 +449,6 @@ func (c *Conn) fd() int {
 	return int(c.dev.Fd())
 }
 
-func (c *Conn) Protocol() Protocol {
-	return c.proto
-}
-
 // ReadRequest returns the next FUSE request from the kernel.
 //
 // Caller must call either Request.Respond or Request.RespondError in
@@ -589,22 +529,8 @@ loop:
 		}
 
 	case opGetattr:
-		switch {
-		case c.proto.LT(Protocol{7, 9}):
-			req = &GetattrRequest{
-				Header: m.Header(),
-			}
-
-		default:
-			in := (*getattrIn)(m.data())
-			if m.len() < unsafe.Sizeof(*in) {
-				goto corrupt
-			}
-			req = &GetattrRequest{
-				Header: m.Header(),
-				Flags:  GetattrFlags(in.GetattrFlags),
-				Handle: HandleID(in.Fh),
-			}
+		req = &GetattrRequest{
+			Header: m.Header(),
 		}
 
 	case opSetattr:
@@ -669,39 +595,33 @@ loop:
 		}
 
 	case opMknod:
-		size := mknodInSize(c.proto)
-		if m.len() < size {
+		in := (*mknodIn)(m.data())
+		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
-		in := (*mknodIn)(m.data())
-		name := m.bytes()[size:]
+		name := m.bytes()[unsafe.Sizeof(*in):]
 		if len(name) < 2 || name[len(name)-1] != '\x00' {
 			goto corrupt
 		}
 		name = name[:len(name)-1]
-		r := &MknodRequest{
+		req = &MknodRequest{
 			Header: m.Header(),
 			Mode:   fileMode(in.Mode),
 			Rdev:   in.Rdev,
 			Name:   string(name),
 		}
-		if c.proto.GE(Protocol{7, 12}) {
-			r.Umask = fileMode(in.Umask) & os.ModePerm
-		}
-		req = r
 
 	case opMkdir:
-		size := mkdirInSize(c.proto)
-		if m.len() < size {
+		in := (*mkdirIn)(m.data())
+		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
-		in := (*mkdirIn)(m.data())
-		name := m.bytes()[size:]
+		name := m.bytes()[unsafe.Sizeof(*in):]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
 			goto corrupt
 		}
-		r := &MkdirRequest{
+		req = &MkdirRequest{
 			Header: m.Header(),
 			Name:   string(name[:i]),
 			// observed on Linux: mkdirIn.Mode & syscall.S_IFMT == 0,
@@ -709,10 +629,6 @@ loop:
 			// code branch; enforce type to directory
 			Mode: fileMode((in.Mode &^ syscall.S_IFMT) | syscall.S_IFDIR),
 		}
-		if c.proto.GE(Protocol{7, 12}) {
-			r.Umask = fileMode(in.Umask) & os.ModePerm
-		}
-		req = r
 
 	case opUnlink, opRmdir:
 		buf := m.bytes()
@@ -765,26 +681,20 @@ loop:
 
 	case opRead, opReaddir:
 		in := (*readIn)(m.data())
-		if m.len() < readInSize(c.proto) {
+		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
-		r := &ReadRequest{
+		req = &ReadRequest{
 			Header: m.Header(),
 			Dir:    m.hdr.Opcode == opReaddir,
 			Handle: HandleID(in.Fh),
 			Offset: int64(in.Offset),
 			Size:   int(in.Size),
 		}
-		if c.proto.GE(Protocol{7, 9}) {
-			r.Flags = ReadFlags(in.ReadFlags)
-			r.LockOwner = in.LockOwner
-			r.FileFlags = openFlags(in.Flags)
-		}
-		req = r
 
 	case opWrite:
 		in := (*writeIn)(m.data())
-		if m.len() < writeInSize(c.proto) {
+		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		r := &WriteRequest{
@@ -793,11 +703,7 @@ loop:
 			Offset: int64(in.Offset),
 			Flags:  WriteFlags(in.WriteFlags),
 		}
-		if c.proto.GE(Protocol{7, 9}) {
-			r.LockOwner = in.LockOwner
-			r.FileFlags = openFlags(in.Flags)
-		}
-		buf := m.bytes()[writeInSize(c.proto):]
+		buf := m.bytes()[unsafe.Sizeof(*in):]
 		if uint32(len(buf)) < in.Size {
 			goto corrupt
 		}
@@ -917,7 +823,8 @@ loop:
 		}
 		req = &InitRequest{
 			Header:       m.Header(),
-			Kernel:       Protocol{in.Major, in.Minor},
+			Major:        in.Major,
+			Minor:        in.Minor,
 			MaxReadahead: in.MaxReadahead,
 			Flags:        InitFlags(in.Flags),
 		}
@@ -940,26 +847,21 @@ loop:
 		}
 
 	case opCreate:
-		size := createInSize(c.proto)
-		if m.len() < size {
+		in := (*createIn)(m.data())
+		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
-		in := (*createIn)(m.data())
-		name := m.bytes()[size:]
+		name := m.bytes()[unsafe.Sizeof(*in):]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
 			goto corrupt
 		}
-		r := &CreateRequest{
+		req = &CreateRequest{
 			Header: m.Header(),
 			Flags:  openFlags(in.Flags),
 			Mode:   fileMode(in.Mode),
 			Name:   string(name[:i]),
 		}
-		if c.proto.GE(Protocol{7, 12}) {
-			r.Umask = fileMode(in.Umask) & os.ModePerm
-		}
-		req = r
 
 	case opInterrupt:
 		in := (*interruptIn)(m.data())
@@ -1013,15 +915,6 @@ func (b bugShortKernelWrite) String() string {
 	return fmt.Sprintf("short kernel write: written=%d/%d error=%q stack=\n%s", b.Written, b.Length, b.Error, b.Stack)
 }
 
-type bugKernelWriteError struct {
-	Error string
-	Stack string
-}
-
-func (b bugKernelWriteError) String() string {
-	return fmt.Sprintf("kernel write error: error=%q stack=\n%s", b.Error, b.Stack)
-}
-
 // safe to call even with nil error
 func errorString(err error) string {
 	if err == nil {
@@ -1030,14 +923,13 @@ func errorString(err error) string {
 	return err.Error()
 }
 
-func (c *Conn) writeToKernel(msg []byte) error {
-	out := (*outHeader)(unsafe.Pointer(&msg[0]))
-	out.Len = uint32(len(msg))
-
-	c.wio.RLock()
-	defer c.wio.RUnlock()
+func (c *Conn) respond(out *outHeader, n uintptr) {
+	c.wio.Lock()
+	defer c.wio.Unlock()
+	out.Len = uint32(n)
+	msg := (*[1 << 30]byte)(unsafe.Pointer(out))[:n]
 	nn, err := syscall.Write(c.fd(), msg)
-	if err == nil && nn != len(msg) {
+	if nn != len(msg) || err != nil {
 		Debug(bugShortKernelWrite{
 			Written: int64(nn),
 			Length:  int64(len(msg)),
@@ -1045,100 +937,24 @@ func (c *Conn) writeToKernel(msg []byte) error {
 			Stack:   stack(),
 		})
 	}
-	return err
 }
 
-func (c *Conn) respond(msg []byte) {
-	if err := c.writeToKernel(msg); err != nil {
-		Debug(bugKernelWriteError{
-			Error: errorString(err),
-			Stack: stack(),
-		})
-	}
-}
-
-type notCachedError struct{}
-
-func (notCachedError) Error() string {
-	return "node not cached"
-}
-
-var _ ErrorNumber = notCachedError{}
-
-func (notCachedError) Errno() Errno {
-	// Behave just like if the original syscall.ENOENT had been passed
-	// straight through.
-	return ENOENT
-}
-
-var (
-	ErrNotCached = notCachedError{}
-)
-
-// sendInvalidate sends an invalidate notification to kernel.
-//
-// A returned ENOENT is translated to a friendlier error.
-func (c *Conn) sendInvalidate(msg []byte) error {
-	switch err := c.writeToKernel(msg); err {
-	case syscall.ENOENT:
-		return ErrNotCached
-	default:
-		return err
-	}
-}
-
-// InvalidateNode invalidates the kernel cache of the attributes and a
-// range of the data of a node.
-//
-// Giving offset 0 and size -1 means all data. To invalidate just the
-// attributes, give offset 0 and size 0.
-//
-// Returns ErrNotCached if the kernel is not currently caching the
-// node.
-func (c *Conn) InvalidateNode(nodeID NodeID, off int64, size int64) error {
-	buf := newBuffer(unsafe.Sizeof(notifyInvalInodeOut{}))
-	h := (*outHeader)(unsafe.Pointer(&buf[0]))
-	// h.Unique is 0
-	h.Error = notifyCodeInvalInode
-	out := (*notifyInvalInodeOut)(buf.alloc(unsafe.Sizeof(notifyInvalInodeOut{})))
-	out.Ino = uint64(nodeID)
-	out.Off = off
-	out.Len = size
-	return c.sendInvalidate(buf)
-}
-
-// InvalidateEntry invalidates the kernel cache of the directory entry
-// identified by parent directory node ID and entry basename.
-//
-// Kernel may or may not cache directory listings. To invalidate
-// those, use InvalidateNode to invalidate all of the data for a
-// directory. (As of 2015-06, Linux FUSE does not cache directory
-// listings.)
-//
-// Returns ErrNotCached if the kernel is not currently caching the
-// node.
-func (c *Conn) InvalidateEntry(parent NodeID, name string) error {
-	const maxUint32 = ^uint32(0)
-	if uint64(len(name)) > uint64(maxUint32) {
-		// very unlikely, but we don't want to silently truncate
-		return syscall.ENAMETOOLONG
-	}
-	buf := newBuffer(unsafe.Sizeof(notifyInvalEntryOut{}) + uintptr(len(name)) + 1)
-	h := (*outHeader)(unsafe.Pointer(&buf[0]))
-	// h.Unique is 0
-	h.Error = notifyCodeInvalEntry
-	out := (*notifyInvalEntryOut)(buf.alloc(unsafe.Sizeof(notifyInvalEntryOut{})))
-	out.Parent = uint64(parent)
-	out.Namelen = uint32(len(name))
-	buf = append(buf, name...)
-	buf = append(buf, '\x00')
-	return c.sendInvalidate(buf)
+func (c *Conn) respondData(out *outHeader, n uintptr, data []byte) {
+	c.wio.Lock()
+	defer c.wio.Unlock()
+	// TODO: use writev
+	out.Len = uint32(n + uintptr(len(data)))
+	msg := make([]byte, out.Len)
+	copy(msg, (*[1 << 30]byte)(unsafe.Pointer(out))[:n])
+	copy(msg[n:], data)
+	syscall.Write(c.fd(), msg)
 }
 
 // An InitRequest is the first request sent on a FUSE file system.
 type InitRequest struct {
 	Header `json:"-"`
-	Kernel Protocol
+	Major  uint32
+	Minor  uint32
 	// Maximum readahead in bytes that the kernel plans to use.
 	MaxReadahead uint32
 	Flags        InitFlags
@@ -1147,12 +963,11 @@ type InitRequest struct {
 var _ = Request(&InitRequest{})
 
 func (r *InitRequest) String() string {
-	return fmt.Sprintf("Init [%s] %v ra=%d fl=%v", &r.Header, r.Kernel, r.MaxReadahead, r.Flags)
+	return fmt.Sprintf("Init [%s] %d.%d ra=%d fl=%v", &r.Header, r.Major, r.Minor, r.MaxReadahead, r.Flags)
 }
 
 // An InitResponse is the response to an InitRequest.
 type InitResponse struct {
-	Library Protocol
 	// Maximum readahead in bytes that the kernel can use. Ignored if
 	// greater than InitRequest.MaxReadahead.
 	MaxReadahead uint32
@@ -1168,20 +983,20 @@ func (r *InitResponse) String() string {
 
 // Respond replies to the request with the given response.
 func (r *InitRequest) Respond(resp *InitResponse) {
-	buf := newBuffer(unsafe.Sizeof(initOut{}))
-	out := (*initOut)(buf.alloc(unsafe.Sizeof(initOut{})))
-	out.Major = resp.Library.Major
-	out.Minor = resp.Library.Minor
-	out.MaxReadahead = resp.MaxReadahead
-	out.Flags = uint32(resp.Flags)
-	out.MaxWrite = resp.MaxWrite
-
+	out := &initOut{
+		outHeader:    outHeader{Unique: uint64(r.ID)},
+		Major:        kernelVersion,
+		Minor:        kernelMinorVersion,
+		MaxReadahead: resp.MaxReadahead,
+		Flags:        uint32(resp.Flags),
+		MaxWrite:     resp.MaxWrite,
+	}
 	// MaxWrite larger than our receive buffer would just lead to
 	// errors on large writes.
 	if out.MaxWrite > maxWrite {
 		out.MaxWrite = maxWrite
 	}
-	r.respond(buf)
+	r.respond(&out.outHeader, unsafe.Sizeof(*out))
 }
 
 // A StatfsRequest requests information about the mounted file system.
@@ -1197,18 +1012,19 @@ func (r *StatfsRequest) String() string {
 
 // Respond replies to the request with the given response.
 func (r *StatfsRequest) Respond(resp *StatfsResponse) {
-	buf := newBuffer(unsafe.Sizeof(statfsOut{}))
-	out := (*statfsOut)(buf.alloc(unsafe.Sizeof(statfsOut{})))
-	out.St = kstatfs{
-		Blocks:  resp.Blocks,
-		Bfree:   resp.Bfree,
-		Bavail:  resp.Bavail,
-		Files:   resp.Files,
-		Bsize:   resp.Bsize,
-		Namelen: resp.Namelen,
-		Frsize:  resp.Frsize,
+	out := &statfsOut{
+		outHeader: outHeader{Unique: uint64(r.ID)},
+		St: kstatfs{
+			Blocks:  resp.Blocks,
+			Bfree:   resp.Bfree,
+			Bavail:  resp.Bavail,
+			Files:   resp.Files,
+			Bsize:   resp.Bsize,
+			Namelen: resp.Namelen,
+			Frsize:  resp.Frsize,
+		},
 	}
-	r.respond(buf)
+	r.respond(&out.outHeader, unsafe.Sizeof(*out))
 }
 
 // A StatfsResponse is the response to a StatfsRequest.
@@ -1243,28 +1059,27 @@ func (r *AccessRequest) String() string {
 // Respond replies to the request indicating that access is allowed.
 // To deny access, use RespondError.
 func (r *AccessRequest) Respond() {
-	buf := newBuffer(0)
-	r.respond(buf)
+	out := &outHeader{Unique: uint64(r.ID)}
+	r.respond(out, unsafe.Sizeof(*out))
 }
 
 // An Attr is the metadata for a single file or directory.
 type Attr struct {
 	Valid time.Duration // how long Attr can be cached
 
-	Inode     uint64      // inode number
-	Size      uint64      // size in bytes
-	Blocks    uint64      // size in 512-byte units
-	Atime     time.Time   // time of last access
-	Mtime     time.Time   // time of last modification
-	Ctime     time.Time   // time of last inode change
-	Crtime    time.Time   // time of creation (OS X only)
-	Mode      os.FileMode // file mode
-	Nlink     uint32      // number of links
-	Uid       uint32      // owner uid
-	Gid       uint32      // group gid
-	Rdev      uint32      // device numbers
-	Flags     uint32      // chflags(2) flags (OS X only)
-	BlockSize uint32      // preferred blocksize for filesystem I/O
+	Inode  uint64      // inode number
+	Size   uint64      // size in bytes
+	Blocks uint64      // size in blocks
+	Atime  time.Time   // time of last access
+	Mtime  time.Time   // time of last modification
+	Ctime  time.Time   // time of last inode change
+	Crtime time.Time   // time of creation (OS X only)
+	Mode   os.FileMode // file mode
+	Nlink  uint32      // number of links
+	Uid    uint32      // owner uid
+	Gid    uint32      // group gid
+	Rdev   uint32      // device numbers
+	Flags  uint32      // chflags(2) flags (OS X only)
 }
 
 func unix(t time.Time) (sec uint64, nsec uint32) {
@@ -1274,7 +1089,7 @@ func unix(t time.Time) (sec uint64, nsec uint32) {
 	return
 }
 
-func (a *Attr) attr(out *attr, proto Protocol) {
+func (a *Attr) attr() (out attr) {
 	out.Ino = a.Inode
 	out.Size = a.Size
 	out.Blocks = a.Blocks
@@ -1312,9 +1127,6 @@ func (a *Attr) attr(out *attr, proto Protocol) {
 	out.Gid = a.Gid
 	out.Rdev = a.Rdev
 	out.SetFlags(a.Flags)
-	if proto.GE(Protocol{7, 9}) {
-		out.Blksize = a.BlockSize
-	}
 
 	return
 }
@@ -1322,25 +1134,23 @@ func (a *Attr) attr(out *attr, proto Protocol) {
 // A GetattrRequest asks for the metadata for the file denoted by r.Node.
 type GetattrRequest struct {
 	Header `json:"-"`
-	Flags  GetattrFlags
-	Handle HandleID
 }
 
 var _ = Request(&GetattrRequest{})
 
 func (r *GetattrRequest) String() string {
-	return fmt.Sprintf("Getattr [%s] %#x fl=%v", &r.Header, r.Handle, r.Flags)
+	return fmt.Sprintf("Getattr [%s]", &r.Header)
 }
 
 // Respond replies to the request with the given response.
 func (r *GetattrRequest) Respond(resp *GetattrResponse) {
-	size := attrOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*attrOut)(buf.alloc(size))
-	out.AttrValid = uint64(resp.Attr.Valid / time.Second)
-	out.AttrValidNsec = uint32(resp.Attr.Valid % time.Second / time.Nanosecond)
-	resp.Attr.attr(&out.Attr, r.Header.Conn.proto)
-	r.respond(buf)
+	out := &attrOut{
+		outHeader:     outHeader{Unique: uint64(r.ID)},
+		AttrValid:     uint64(resp.Attr.Valid / time.Second),
+		AttrValidNsec: uint32(resp.Attr.Valid % time.Second / time.Nanosecond),
+		Attr:          resp.Attr.attr(),
+	}
+	r.respond(&out.outHeader, unsafe.Sizeof(*out))
 }
 
 // A GetattrResponse is the response to a GetattrRequest.
@@ -1378,14 +1188,14 @@ func (r *GetxattrRequest) String() string {
 // Respond replies to the request with the given response.
 func (r *GetxattrRequest) Respond(resp *GetxattrResponse) {
 	if r.Size == 0 {
-		buf := newBuffer(unsafe.Sizeof(getxattrOut{}))
-		out := (*getxattrOut)(buf.alloc(unsafe.Sizeof(getxattrOut{})))
-		out.Size = uint32(len(resp.Xattr))
-		r.respond(buf)
+		out := &getxattrOut{
+			outHeader: outHeader{Unique: uint64(r.ID)},
+			Size:      uint32(len(resp.Xattr)),
+		}
+		r.respond(&out.outHeader, unsafe.Sizeof(*out))
 	} else {
-		buf := newBuffer(uintptr(len(resp.Xattr)))
-		buf = append(buf, resp.Xattr...)
-		r.respond(buf)
+		out := &outHeader{Unique: uint64(r.ID)}
+		r.respondData(out, unsafe.Sizeof(*out), resp.Xattr)
 	}
 }
 
@@ -1414,14 +1224,14 @@ func (r *ListxattrRequest) String() string {
 // Respond replies to the request with the given response.
 func (r *ListxattrRequest) Respond(resp *ListxattrResponse) {
 	if r.Size == 0 {
-		buf := newBuffer(unsafe.Sizeof(getxattrOut{}))
-		out := (*getxattrOut)(buf.alloc(unsafe.Sizeof(getxattrOut{})))
-		out.Size = uint32(len(resp.Xattr))
-		r.respond(buf)
+		out := &getxattrOut{
+			outHeader: outHeader{Unique: uint64(r.ID)},
+			Size:      uint32(len(resp.Xattr)),
+		}
+		r.respond(&out.outHeader, unsafe.Sizeof(*out))
 	} else {
-		buf := newBuffer(uintptr(len(resp.Xattr)))
-		buf = append(buf, resp.Xattr...)
-		r.respond(buf)
+		out := &outHeader{Unique: uint64(r.ID)}
+		r.respondData(out, unsafe.Sizeof(*out), resp.Xattr)
 	}
 }
 
@@ -1456,8 +1266,8 @@ func (r *RemovexattrRequest) String() string {
 
 // Respond replies to the request, indicating that the attribute was removed.
 func (r *RemovexattrRequest) Respond() {
-	buf := newBuffer(0)
-	r.respond(buf)
+	out := &outHeader{Unique: uint64(r.ID)}
+	r.respond(out, unsafe.Sizeof(*out))
 }
 
 // A SetxattrRequest asks to set an extended attribute associated with a file.
@@ -1501,8 +1311,8 @@ func (r *SetxattrRequest) String() string {
 
 // Respond replies to the request, indicating that the extended attribute was set.
 func (r *SetxattrRequest) Respond() {
-	buf := newBuffer(0)
-	r.respond(buf)
+	out := &outHeader{Unique: uint64(r.ID)}
+	r.respond(out, unsafe.Sizeof(*out))
 }
 
 // A LookupRequest asks to look up the given name in the directory named by r.Node.
@@ -1519,17 +1329,17 @@ func (r *LookupRequest) String() string {
 
 // Respond replies to the request with the given response.
 func (r *LookupRequest) Respond(resp *LookupResponse) {
-	size := entryOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*entryOut)(buf.alloc(size))
-	out.Nodeid = uint64(resp.Node)
-	out.Generation = resp.Generation
-	out.EntryValid = uint64(resp.EntryValid / time.Second)
-	out.EntryValidNsec = uint32(resp.EntryValid % time.Second / time.Nanosecond)
-	out.AttrValid = uint64(resp.Attr.Valid / time.Second)
-	out.AttrValidNsec = uint32(resp.Attr.Valid % time.Second / time.Nanosecond)
-	resp.Attr.attr(&out.Attr, r.Header.Conn.proto)
-	r.respond(buf)
+	out := &entryOut{
+		outHeader:      outHeader{Unique: uint64(r.ID)},
+		Nodeid:         uint64(resp.Node),
+		Generation:     resp.Generation,
+		EntryValid:     uint64(resp.EntryValid / time.Second),
+		EntryValidNsec: uint32(resp.EntryValid % time.Second / time.Nanosecond),
+		AttrValid:      uint64(resp.Attr.Valid / time.Second),
+		AttrValidNsec:  uint32(resp.Attr.Valid % time.Second / time.Nanosecond),
+		Attr:           resp.Attr.attr(),
+	}
+	r.respond(&out.outHeader, unsafe.Sizeof(*out))
 }
 
 // A LookupResponse is the response to a LookupRequest.
@@ -1559,11 +1369,12 @@ func (r *OpenRequest) String() string {
 
 // Respond replies to the request with the given response.
 func (r *OpenRequest) Respond(resp *OpenResponse) {
-	buf := newBuffer(unsafe.Sizeof(openOut{}))
-	out := (*openOut)(buf.alloc(unsafe.Sizeof(openOut{})))
-	out.Fh = uint64(resp.Handle)
-	out.OpenFlags = uint32(resp.Flags)
-	r.respond(buf)
+	out := &openOut{
+		outHeader: outHeader{Unique: uint64(r.ID)},
+		Fh:        uint64(resp.Handle),
+		OpenFlags: uint32(resp.Flags),
+	}
+	r.respond(&out.outHeader, unsafe.Sizeof(*out))
 }
 
 // A OpenResponse is the response to a OpenRequest.
@@ -1582,34 +1393,31 @@ type CreateRequest struct {
 	Name   string
 	Flags  OpenFlags
 	Mode   os.FileMode
-	Umask  os.FileMode
 }
 
 var _ = Request(&CreateRequest{})
 
 func (r *CreateRequest) String() string {
-	return fmt.Sprintf("Create [%s] %q fl=%v mode=%v umask=%v", &r.Header, r.Name, r.Flags, r.Mode, r.Umask)
+	return fmt.Sprintf("Create [%s] %q fl=%v mode=%v", &r.Header, r.Name, r.Flags, r.Mode)
 }
 
 // Respond replies to the request with the given response.
 func (r *CreateRequest) Respond(resp *CreateResponse) {
-	eSize := entryOutSize(r.Header.Conn.proto)
-	buf := newBuffer(eSize + unsafe.Sizeof(openOut{}))
+	out := &createOut{
+		outHeader: outHeader{Unique: uint64(r.ID)},
 
-	e := (*entryOut)(buf.alloc(eSize))
-	e.Nodeid = uint64(resp.Node)
-	e.Generation = resp.Generation
-	e.EntryValid = uint64(resp.EntryValid / time.Second)
-	e.EntryValidNsec = uint32(resp.EntryValid % time.Second / time.Nanosecond)
-	e.AttrValid = uint64(resp.Attr.Valid / time.Second)
-	e.AttrValidNsec = uint32(resp.Attr.Valid % time.Second / time.Nanosecond)
-	resp.Attr.attr(&e.Attr, r.Header.Conn.proto)
+		Nodeid:         uint64(resp.Node),
+		Generation:     resp.Generation,
+		EntryValid:     uint64(resp.EntryValid / time.Second),
+		EntryValidNsec: uint32(resp.EntryValid % time.Second / time.Nanosecond),
+		AttrValid:      uint64(resp.Attr.Valid / time.Second),
+		AttrValidNsec:  uint32(resp.Attr.Valid % time.Second / time.Nanosecond),
+		Attr:           resp.Attr.attr(),
 
-	o := (*openOut)(buf.alloc(unsafe.Sizeof(openOut{})))
-	o.Fh = uint64(resp.Handle)
-	o.OpenFlags = uint32(resp.Flags)
-
-	r.respond(buf)
+		Fh:        uint64(resp.Handle),
+		OpenFlags: uint32(resp.Flags),
+	}
+	r.respond(&out.outHeader, unsafe.Sizeof(*out))
 }
 
 // A CreateResponse is the response to a CreateRequest.
@@ -1628,28 +1436,27 @@ type MkdirRequest struct {
 	Header `json:"-"`
 	Name   string
 	Mode   os.FileMode
-	Umask  os.FileMode
 }
 
 var _ = Request(&MkdirRequest{})
 
 func (r *MkdirRequest) String() string {
-	return fmt.Sprintf("Mkdir [%s] %q mode=%v umask=%v", &r.Header, r.Name, r.Mode, r.Umask)
+	return fmt.Sprintf("Mkdir [%s] %q mode=%v", &r.Header, r.Name, r.Mode)
 }
 
 // Respond replies to the request with the given response.
 func (r *MkdirRequest) Respond(resp *MkdirResponse) {
-	size := entryOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*entryOut)(buf.alloc(size))
-	out.Nodeid = uint64(resp.Node)
-	out.Generation = resp.Generation
-	out.EntryValid = uint64(resp.EntryValid / time.Second)
-	out.EntryValidNsec = uint32(resp.EntryValid % time.Second / time.Nanosecond)
-	out.AttrValid = uint64(resp.Attr.Valid / time.Second)
-	out.AttrValidNsec = uint32(resp.Attr.Valid % time.Second / time.Nanosecond)
-	resp.Attr.attr(&out.Attr, r.Header.Conn.proto)
-	r.respond(buf)
+	out := &entryOut{
+		outHeader:      outHeader{Unique: uint64(r.ID)},
+		Nodeid:         uint64(resp.Node),
+		Generation:     resp.Generation,
+		EntryValid:     uint64(resp.EntryValid / time.Second),
+		EntryValidNsec: uint32(resp.EntryValid % time.Second / time.Nanosecond),
+		AttrValid:      uint64(resp.Attr.Valid / time.Second),
+		AttrValidNsec:  uint32(resp.Attr.Valid % time.Second / time.Nanosecond),
+		Attr:           resp.Attr.attr(),
+	}
+	r.respond(&out.outHeader, unsafe.Sizeof(*out))
 }
 
 // A MkdirResponse is the response to a MkdirRequest.
@@ -1663,27 +1470,23 @@ func (r *MkdirResponse) String() string {
 
 // A ReadRequest asks to read from an open file.
 type ReadRequest struct {
-	Header    `json:"-"`
-	Dir       bool // is this Readdir?
-	Handle    HandleID
-	Offset    int64
-	Size      int
-	Flags     ReadFlags
-	LockOwner uint64
-	FileFlags OpenFlags
+	Header `json:"-"`
+	Dir    bool // is this Readdir?
+	Handle HandleID
+	Offset int64
+	Size   int
 }
 
 var _ = Request(&ReadRequest{})
 
 func (r *ReadRequest) String() string {
-	return fmt.Sprintf("Read [%s] %#x %d @%#x dir=%v fl=%v lock=%d ffl=%v", &r.Header, r.Handle, r.Size, r.Offset, r.Dir, r.Flags, r.LockOwner, r.FileFlags)
+	return fmt.Sprintf("Read [%s] %#x %d @%#x dir=%v", &r.Header, r.Handle, r.Size, r.Offset, r.Dir)
 }
 
 // Respond replies to the request with the given response.
 func (r *ReadRequest) Respond(resp *ReadResponse) {
-	buf := newBuffer(uintptr(len(resp.Data)))
-	buf = append(buf, resp.Data...)
-	r.respond(buf)
+	out := &outHeader{Unique: uint64(r.ID)}
+	r.respondData(out, unsafe.Sizeof(*out), resp.Data)
 }
 
 // A ReadResponse is the response to a ReadRequest.
@@ -1724,8 +1527,8 @@ func (r *ReleaseRequest) String() string {
 
 // Respond replies to the request, indicating that the handle has been released.
 func (r *ReleaseRequest) Respond() {
-	buf := newBuffer(0)
-	r.respond(buf)
+	out := &outHeader{Unique: uint64(r.ID)}
+	r.respond(out, unsafe.Sizeof(*out))
 }
 
 // A DestroyRequest is sent by the kernel when unmounting the file system.
@@ -1743,8 +1546,8 @@ func (r *DestroyRequest) String() string {
 
 // Respond replies to the request.
 func (r *DestroyRequest) Respond() {
-	buf := newBuffer(0)
-	r.respond(buf)
+	out := &outHeader{Unique: uint64(r.ID)}
+	r.respond(out, unsafe.Sizeof(*out))
 }
 
 // A ForgetRequest is sent by the kernel when forgetting about r.Node
@@ -1850,18 +1653,16 @@ func AppendDirent(data []byte, dir Dirent) []byte {
 // A WriteRequest asks to write to an open file.
 type WriteRequest struct {
 	Header
-	Handle    HandleID
-	Offset    int64
-	Data      []byte
-	Flags     WriteFlags
-	LockOwner uint64
-	FileFlags OpenFlags
+	Handle HandleID
+	Offset int64
+	Data   []byte
+	Flags  WriteFlags
 }
 
 var _ = Request(&WriteRequest{})
 
 func (r *WriteRequest) String() string {
-	return fmt.Sprintf("Write [%s] %#x %d @%d fl=%v lock=%d ffl=%v", &r.Header, r.Handle, len(r.Data), r.Offset, r.Flags, r.LockOwner, r.FileFlags)
+	return fmt.Sprintf("Write [%s] %#x %d @%d fl=%v", &r.Header, r.Handle, len(r.Data), r.Offset, r.Flags)
 }
 
 type jsonWriteRequest struct {
@@ -1883,10 +1684,11 @@ func (r *WriteRequest) MarshalJSON() ([]byte, error) {
 
 // Respond replies to the request with the given response.
 func (r *WriteRequest) Respond(resp *WriteResponse) {
-	buf := newBuffer(unsafe.Sizeof(writeOut{}))
-	out := (*writeOut)(buf.alloc(unsafe.Sizeof(writeOut{})))
-	out.Size = uint32(resp.Size)
-	r.respond(buf)
+	out := &writeOut{
+		outHeader: outHeader{Unique: uint64(r.ID)},
+		Size:      uint32(resp.Size),
+	}
+	r.respond(&out.outHeader, unsafe.Sizeof(*out))
 }
 
 // A WriteResponse replies to a write indicating how many bytes were written.
@@ -1973,13 +1775,13 @@ func (r *SetattrRequest) String() string {
 // Respond replies to the request with the given response,
 // giving the updated attributes.
 func (r *SetattrRequest) Respond(resp *SetattrResponse) {
-	size := attrOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*attrOut)(buf.alloc(size))
-	out.AttrValid = uint64(resp.Attr.Valid / time.Second)
-	out.AttrValidNsec = uint32(resp.Attr.Valid % time.Second / time.Nanosecond)
-	resp.Attr.attr(&out.Attr, r.Header.Conn.proto)
-	r.respond(buf)
+	out := &attrOut{
+		outHeader:     outHeader{Unique: uint64(r.ID)},
+		AttrValid:     uint64(resp.Attr.Valid / time.Second),
+		AttrValidNsec: uint32(resp.Attr.Valid % time.Second / time.Nanosecond),
+		Attr:          resp.Attr.attr(),
+	}
+	r.respond(&out.outHeader, unsafe.Sizeof(*out))
 }
 
 // A SetattrResponse is the response to a SetattrRequest.
@@ -2009,8 +1811,8 @@ func (r *FlushRequest) String() string {
 
 // Respond replies to the request, indicating that the flush succeeded.
 func (r *FlushRequest) Respond() {
-	buf := newBuffer(0)
-	r.respond(buf)
+	out := &outHeader{Unique: uint64(r.ID)}
+	r.respond(out, unsafe.Sizeof(*out))
 }
 
 // A RemoveRequest asks to remove a file or directory from the
@@ -2029,8 +1831,8 @@ func (r *RemoveRequest) String() string {
 
 // Respond replies to the request, indicating that the file was removed.
 func (r *RemoveRequest) Respond() {
-	buf := newBuffer(0)
-	r.respond(buf)
+	out := &outHeader{Unique: uint64(r.ID)}
+	r.respond(out, unsafe.Sizeof(*out))
 }
 
 // A SymlinkRequest is a request to create a symlink making NewName point to Target.
@@ -2047,17 +1849,17 @@ func (r *SymlinkRequest) String() string {
 
 // Respond replies to the request, indicating that the symlink was created.
 func (r *SymlinkRequest) Respond(resp *SymlinkResponse) {
-	size := entryOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*entryOut)(buf.alloc(size))
-	out.Nodeid = uint64(resp.Node)
-	out.Generation = resp.Generation
-	out.EntryValid = uint64(resp.EntryValid / time.Second)
-	out.EntryValidNsec = uint32(resp.EntryValid % time.Second / time.Nanosecond)
-	out.AttrValid = uint64(resp.Attr.Valid / time.Second)
-	out.AttrValidNsec = uint32(resp.Attr.Valid % time.Second / time.Nanosecond)
-	resp.Attr.attr(&out.Attr, r.Header.Conn.proto)
-	r.respond(buf)
+	out := &entryOut{
+		outHeader:      outHeader{Unique: uint64(r.ID)},
+		Nodeid:         uint64(resp.Node),
+		Generation:     resp.Generation,
+		EntryValid:     uint64(resp.EntryValid / time.Second),
+		EntryValidNsec: uint32(resp.EntryValid % time.Second / time.Nanosecond),
+		AttrValid:      uint64(resp.Attr.Valid / time.Second),
+		AttrValidNsec:  uint32(resp.Attr.Valid % time.Second / time.Nanosecond),
+		Attr:           resp.Attr.attr(),
+	}
+	r.respond(&out.outHeader, unsafe.Sizeof(*out))
 }
 
 // A SymlinkResponse is the response to a SymlinkRequest.
@@ -2077,9 +1879,8 @@ func (r *ReadlinkRequest) String() string {
 }
 
 func (r *ReadlinkRequest) Respond(target string) {
-	buf := newBuffer(uintptr(len(target)))
-	buf = append(buf, target...)
-	r.respond(buf)
+	out := &outHeader{Unique: uint64(r.ID)}
+	r.respondData(out, unsafe.Sizeof(*out), []byte(target))
 }
 
 // A LinkRequest is a request to create a hard link.
@@ -2096,17 +1897,17 @@ func (r *LinkRequest) String() string {
 }
 
 func (r *LinkRequest) Respond(resp *LookupResponse) {
-	size := entryOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*entryOut)(buf.alloc(size))
-	out.Nodeid = uint64(resp.Node)
-	out.Generation = resp.Generation
-	out.EntryValid = uint64(resp.EntryValid / time.Second)
-	out.EntryValidNsec = uint32(resp.EntryValid % time.Second / time.Nanosecond)
-	out.AttrValid = uint64(resp.Attr.Valid / time.Second)
-	out.AttrValidNsec = uint32(resp.Attr.Valid % time.Second / time.Nanosecond)
-	resp.Attr.attr(&out.Attr, r.Header.Conn.proto)
-	r.respond(buf)
+	out := &entryOut{
+		outHeader:      outHeader{Unique: uint64(r.ID)},
+		Nodeid:         uint64(resp.Node),
+		Generation:     resp.Generation,
+		EntryValid:     uint64(resp.EntryValid / time.Second),
+		EntryValidNsec: uint32(resp.EntryValid % time.Second / time.Nanosecond),
+		AttrValid:      uint64(resp.Attr.Valid / time.Second),
+		AttrValidNsec:  uint32(resp.Attr.Valid % time.Second / time.Nanosecond),
+		Attr:           resp.Attr.attr(),
+	}
+	r.respond(&out.outHeader, unsafe.Sizeof(*out))
 }
 
 // A RenameRequest is a request to rename a file.
@@ -2123,8 +1924,8 @@ func (r *RenameRequest) String() string {
 }
 
 func (r *RenameRequest) Respond() {
-	buf := newBuffer(0)
-	r.respond(buf)
+	out := &outHeader{Unique: uint64(r.ID)}
+	r.respond(out, unsafe.Sizeof(*out))
 }
 
 type MknodRequest struct {
@@ -2132,27 +1933,26 @@ type MknodRequest struct {
 	Name   string
 	Mode   os.FileMode
 	Rdev   uint32
-	Umask  os.FileMode
 }
 
 var _ = Request(&MknodRequest{})
 
 func (r *MknodRequest) String() string {
-	return fmt.Sprintf("Mknod [%s] Name %q mode=%v umask=%v rdev=%d", &r.Header, r.Name, r.Mode, r.Umask, r.Rdev)
+	return fmt.Sprintf("Mknod [%s] Name %q mode %v rdev %d", &r.Header, r.Name, r.Mode, r.Rdev)
 }
 
 func (r *MknodRequest) Respond(resp *LookupResponse) {
-	size := entryOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*entryOut)(buf.alloc(size))
-	out.Nodeid = uint64(resp.Node)
-	out.Generation = resp.Generation
-	out.EntryValid = uint64(resp.EntryValid / time.Second)
-	out.EntryValidNsec = uint32(resp.EntryValid % time.Second / time.Nanosecond)
-	out.AttrValid = uint64(resp.Attr.Valid / time.Second)
-	out.AttrValidNsec = uint32(resp.Attr.Valid % time.Second / time.Nanosecond)
-	resp.Attr.attr(&out.Attr, r.Header.Conn.proto)
-	r.respond(buf)
+	out := &entryOut{
+		outHeader:      outHeader{Unique: uint64(r.ID)},
+		Nodeid:         uint64(resp.Node),
+		Generation:     resp.Generation,
+		EntryValid:     uint64(resp.EntryValid / time.Second),
+		EntryValidNsec: uint32(resp.EntryValid % time.Second / time.Nanosecond),
+		AttrValid:      uint64(resp.Attr.Valid / time.Second),
+		AttrValidNsec:  uint32(resp.Attr.Valid % time.Second / time.Nanosecond),
+		Attr:           resp.Attr.attr(),
+	}
+	r.respond(&out.outHeader, unsafe.Sizeof(*out))
 }
 
 type FsyncRequest struct {
@@ -2170,8 +1970,8 @@ func (r *FsyncRequest) String() string {
 }
 
 func (r *FsyncRequest) Respond() {
-	buf := newBuffer(0)
-	r.respond(buf)
+	out := &outHeader{Unique: uint64(r.ID)}
+	r.respond(out, unsafe.Sizeof(*out))
 }
 
 // An InterruptRequest is a request to interrupt another pending request. The
@@ -2191,3 +1991,38 @@ func (r *InterruptRequest) Respond() {
 func (r *InterruptRequest) String() string {
 	return fmt.Sprintf("Interrupt [%s] ID %v", &r.Header, r.IntrID)
 }
+
+/*{
+
+// A XXXRequest xxx.
+type XXXRequest struct {
+	Header `json:"-"`
+	xxx
+}
+
+var _ = Request(&XXXRequest{})
+
+func (r *XXXRequest) String() string {
+	return fmt.Sprintf("XXX [%s] xxx", &r.Header)
+}
+
+// Respond replies to the request with the given response.
+func (r *XXXRequest) Respond(resp *XXXResponse) {
+	out := &xxxOut{
+		outHeader: outHeader{Unique: uint64(r.ID)},
+		xxx,
+	}
+	r.respond(&out.outHeader, unsafe.Sizeof(*out))
+}
+
+// A XXXResponse is the response to a XXXRequest.
+type XXXResponse struct {
+	xxx
+}
+
+func (r *XXXResponse) String() string {
+	return fmt.Sprintf("XXX %+v", *r)
+}
+
+ }
+*/

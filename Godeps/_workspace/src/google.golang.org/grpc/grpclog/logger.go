@@ -34,15 +34,24 @@
 /*
 Package grpclog defines logging for grpc.
 */
-package grpclog
+package grpclog // import "google.golang.org/grpc/grpclog"
 
 import (
 	"log"
 	"os"
+
+	"github.com/golang/glog"
 )
 
-// Use golang's standard logger by default.
-var logger Logger = log.New(os.Stderr, "", log.LstdFlags)
+var (
+	// GLogger is a Logger that uses glog. This is the default logger.
+	GLogger Logger = &glogger{}
+
+	// StdLogger is a Logger that uses golang's standard logger.
+	StdLogger Logger = log.New(os.Stderr, "", log.LstdFlags)
+
+	logger = GLogger
+)
 
 // Logger mimics golang's standard Logger as an interface.
 type Logger interface {
@@ -87,4 +96,30 @@ func Printf(format string, args ...interface{}) {
 // Println prints to the logger. Arguments are handled in the manner of fmt.Println.
 func Println(args ...interface{}) {
 	logger.Println(args...)
+}
+
+type glogger struct{}
+
+func (g *glogger) Fatal(args ...interface{}) {
+	glog.Fatal(args...)
+}
+
+func (g *glogger) Fatalf(format string, args ...interface{}) {
+	glog.Fatalf(format, args...)
+}
+
+func (g *glogger) Fatalln(args ...interface{}) {
+	glog.Fatalln(args...)
+}
+
+func (g *glogger) Print(args ...interface{}) {
+	glog.Info(args...)
+}
+
+func (g *glogger) Printf(format string, args ...interface{}) {
+	glog.Infof(format, args...)
+}
+
+func (g *glogger) Println(args ...interface{}) {
+	glog.Infoln(args...)
 }

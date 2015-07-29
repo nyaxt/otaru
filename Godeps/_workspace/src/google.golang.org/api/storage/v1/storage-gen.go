@@ -493,9 +493,7 @@ type Object struct {
 	ContentType string `json:"contentType,omitempty"`
 
 	// Crc32c: CRC32c checksum, as described in RFC 4960, Appendix B;
-	// encoded using base64 in big-endian byte order. For more information
-	// about using the CRC32c checksum, see Hashes and ETags: Best
-	// Practices.
+	// encoded using base64 in big-endian byte order.
 	Crc32c string `json:"crc32c,omitempty"`
 
 	// Etag: HTTP 1.1 Entity tag for the object.
@@ -512,9 +510,7 @@ type Object struct {
 	// storage#object.
 	Kind string `json:"kind,omitempty"`
 
-	// Md5Hash: MD5 hash of the data; encoded using base64. For more
-	// information about using the MD5 hash, see Hashes and ETags: Best
-	// Practices.
+	// Md5Hash: MD5 hash of the data; encoded using base64.
 	Md5Hash string `json:"md5Hash,omitempty"`
 
 	// MediaLink: Media download link.
@@ -4709,11 +4705,12 @@ func (c *ObjectsInsertCall) Do() (*Object, error) {
 		"bucket": c.bucket,
 	})
 	if c.protocol_ == "resumable" {
+		req.ContentLength = 0
 		if c.mediaType_ == "" {
 			c.mediaType_ = googleapi.DetectMediaType(c.resumable_)
 		}
 		req.Header.Set("X-Upload-Content-Type", c.mediaType_)
-		req.Header.Set("Content-Type", "application/json; charset=utf-8")
+		req.Body = nil
 	} else {
 		req.Header.Set("Content-Type", ctype)
 	}

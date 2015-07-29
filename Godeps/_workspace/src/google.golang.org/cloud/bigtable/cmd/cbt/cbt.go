@@ -19,12 +19,15 @@ package main
 // Command docs are in cbtdoc.go.
 
 import (
+	"bufio"
 	"bytes"
 	"flag"
 	"fmt"
 	"go/format"
+	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -35,22 +38,25 @@ import (
 
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/bigtable"
-	"google.golang.org/cloud/bigtable/internal/cbtrc"
 )
 
 var (
+	// These get default values from $HOME/.cbtrc if it exists.
+	project = flag.String("project", "", "project ID")
+	zone    = flag.String("zone", "", "CBT zone")
+	cluster = flag.String("cluster", "", "CBT cluster")
+	creds   = flag.String("creds", "", "if set, use application credentials in this file")
+
 	oFlag = flag.String("o", "", "if set, redirect stdout to this file")
 
-	config             *cbtrc.Config
-	client             *bigtable.Client
-	adminClient        *bigtable.AdminClient
-	clusterAdminClient *bigtable.ClusterAdminClient
+	client      *bigtable.Client
+	adminClient *bigtable.AdminClient
 )
 
 func getClient() *bigtable.Client {
 	if client == nil {
 		var err error
-		client, err = bigtable.NewClient(context.Background(), config.Project, config.Zone, config.Cluster)
+		client, err = bigtable.NewClient(context.Background(), *project, *zone, *cluster)
 		if err != nil {
 			log.Fatalf("Making bigtable.Client: %v", err)
 		}
@@ -61,7 +67,7 @@ func getClient() *bigtable.Client {
 func getAdminClient() *bigtable.AdminClient {
 	if adminClient == nil {
 		var err error
-		adminClient, err = bigtable.NewAdminClient(context.Background(), config.Project, config.Zone, config.Cluster)
+		adminClient, err = bigtable.NewAdminClient(context.Background(), *project, *zone, *cluster)
 		if err != nil {
 			log.Fatalf("Making bigtable.AdminClient: %v", err)
 		}
@@ -69,32 +75,59 @@ func getAdminClient() *bigtable.AdminClient {
 	return adminClient
 }
 
-func getClusterAdminClient() *bigtable.ClusterAdminClient {
-	if clusterAdminClient == nil {
-		var err error
-		clusterAdminClient, err = bigtable.NewClusterAdminClient(context.Background(), config.Project)
-		if err != nil {
-			log.Fatalf("Making bigtable.ClusterAdminClient: %v", err)
+func configFilename() string {
+	// TODO(dsymonds): Might need tweaking for Windows.
+	return filepath.Join(os.Getenv("HOME"), ".cbtrc")
+}
+
+func loadConfig() {
+	filename := configFilename()
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		// silent fail if the file isn't there
+		if os.IsNotExist(err) {
+			return
+		}
+		log.Fatalf("Reading %s: %v", filename, err)
+	}
+	s := bufio.NewScanner(bytes.NewReader(data))
+	for s.Scan() {
+		line := s.Text()
+		i := strings.Index(line, "=")
+		if i < 0 {
+			log.Fatalf("Bad line in %s: %q", filename, line)
+		}
+		key, val := strings.TrimSpace(line[:i]), strings.TrimSpace(line[i+1:])
+		switch key {
+		default:
+			log.Fatalf("Unknown key in %s: %q", filename, key)
+		case "project":
+			*project = val
+		case "zone":
+			*zone = val
+		case "cluster":
+			*cluster = val
+		case "creds":
+			*creds = val
 		}
 	}
-	return clusterAdminClient
 }
 
 func main() {
-	var err error
-	config, err = cbtrc.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
-	config.RegisterFlags()
-
+	loadConfig()
 	flag.Usage = usage
 	flag.Parse()
-	if err := config.CheckFlags(); err != nil {
-		log.Fatal(err)
+	if *project == "" {
+		log.Fatal("Missing -project")
 	}
-	if config.Creds != "" {
-		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", config.Creds)
+	if *zone == "" {
+		log.Fatal("Missing -zone")
+	}
+	if *cluster == "" {
+		log.Fatal("Missing -cluster")
+	}
+	if *creds != "" {
+		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", *creds)
 	}
 	if flag.NArg() == 0 {
 		usage()
@@ -145,7 +178,7 @@ func init() {
 
 var configHelp = `
 For convenience, values of the -project, -zone, -cluster and -creds flags
-may be specified in ` + cbtrc.Filename() + ` in this format:
+may be specified in ` + configFilename() + ` in this format:
 	project = my-project-123
 	zone = us-central1-b
 	cluster = my-cluster
@@ -207,12 +240,6 @@ var commands = []struct {
 		Usage: "cbt help [command]",
 	},
 	{
-		Name:  "listclusters",
-		Desc:  "List clusters in a project",
-		do:    doListClusters,
-		Usage: "cbt listclusters",
-	},
-	{
 		Name:  "lookup",
 		Desc:  "Read from a single row",
 		do:    doLookup,
@@ -245,14 +272,12 @@ var commands = []struct {
 			"  If it cannot be parsed, the `@ts` part will be\n" +
 			"  interpreted as part of the value.",
 	},
-	/* TODO(dsymonds): Re-enable when there's a ClusterAdmin API.
 	{
 		Name:  "setclustersize",
 		Desc:  "Set size of a cluster",
 		do:    doSetClusterSize,
 		Usage: "cbt setclustersize <num_nodes>",
 	},
-	*/
 }
 
 func doCount(ctx context.Context, args ...string) {
@@ -407,23 +432,6 @@ func doHelpReal(ctx context.Context, args ...string) {
 	log.Fatalf("Don't know command %q", args[0])
 }
 
-func doListClusters(ctx context.Context, args ...string) {
-	if len(args) != 0 {
-		log.Fatalf("usage: cbt listclusters")
-	}
-	cis, err := getClusterAdminClient().Clusters(ctx)
-	if err != nil {
-		log.Fatalf("Getting list of clusters: %v", err)
-	}
-	tw := tabwriter.NewWriter(os.Stdout, 10, 8, 4, '\t', 0)
-	fmt.Fprintf(tw, "Cluster Name\tZone\tInfo\n")
-	fmt.Fprintf(tw, "------------\t----\t----\n")
-	for _, ci := range cis {
-		fmt.Fprintf(tw, "%s\t%s\t%s (%d serve nodes)\n", ci.Name, ci.Zone, ci.DisplayName, ci.ServeNodes)
-	}
-	tw.Flush()
-}
-
 func doLookup(ctx context.Context, args ...string) {
 	if len(args) != 2 {
 		log.Fatalf("usage: cbt lookup <table> <row>")
@@ -564,7 +572,6 @@ func doSet(ctx context.Context, args ...string) {
 	}
 }
 
-/* TODO(dsymonds): Re-enable when there's a ClusterAdmin API.
 func doSetClusterSize(ctx context.Context, args ...string) {
 	if len(args) != 1 {
 		log.Fatalf("usage: cbt setclustersize <num_nodes>")
@@ -577,4 +584,3 @@ func doSetClusterSize(ctx context.Context, args ...string) {
 		log.Fatalf("Setting cluster size: %v", err)
 	}
 }
-*/

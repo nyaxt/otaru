@@ -34,11 +34,18 @@ var (
 	project = flag.String("project", "", "The ID of a Google Cloud Platform project")
 	dataset = flag.String("dataset", "", "The ID of a BigQuery dataset")
 	table   = flag.String("table", ".*", "A regular expression to match the IDs of tables to read.")
-	jobID   = flag.String("jobid", "", "The ID of a query job that has already been submitted."+
-		" If set, --dataset, --table will be ignored, and results will be read from the specified job.")
 )
 
-func printValues(it *bigquery.Iterator) {
+func printTable(client *bigquery.Client, t *bigquery.Table) {
+	it, err := client.Read(context.Background(), t)
+
+	if err != nil {
+		log.Fatalf("Reading: %v", err)
+	}
+
+	id := t.FullyQualifiedName()
+	fmt.Printf("%s\n%s\n", id, strings.Repeat("-", len(id)))
+
 	// one-space padding.
 	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 
@@ -59,57 +66,20 @@ func printValues(it *bigquery.Iterator) {
 
 	fmt.Printf("\n")
 	if err := it.Err(); err != nil {
-		fmt.Printf("err reading: %v\n", err)
+		fmt.Printf("err reading: %v\n")
 	}
-}
-
-func printTable(client *bigquery.Client, t *bigquery.Table) {
-	it, err := client.Read(context.Background(), t)
-	if err != nil {
-		log.Fatalf("Reading: %v", err)
-	}
-
-	id := t.FullyQualifiedName()
-	fmt.Printf("%s\n%s\n", id, strings.Repeat("-", len(id)))
-	printValues(it)
-}
-
-func printQueryResults(client *bigquery.Client, queryJobID string) {
-	job, err := client.JobFromID(context.Background(), queryJobID)
-	if err != nil {
-		log.Fatalf("Loading job: %v", err)
-	}
-
-	it, err := client.Read(context.Background(), job)
-	if err != nil {
-		log.Fatalf("Reading: %v", err)
-	}
-
-	// TODO: print schema.
-	printValues(it)
 }
 
 func main() {
 	flag.Parse()
 
 	flagsOk := true
-	if flag.Lookup("project").Value.String() == "" {
-		fmt.Fprintf(os.Stderr, "Flag --project is required\n")
-		flagsOk = false
+	for _, f := range []string{"project", "dataset"} {
+		if flag.Lookup(f).Value.String() == "" {
+			fmt.Fprintf(os.Stderr, "Flag --%s is required\n", f)
+			flagsOk = false
+		}
 	}
-
-	var sourceFlagCount int
-	if flag.Lookup("dataset").Value.String() != "" {
-		sourceFlagCount++
-	}
-	if flag.Lookup("jobid").Value.String() != "" {
-		sourceFlagCount++
-	}
-	if sourceFlagCount != 1 {
-		fmt.Fprintf(os.Stderr, "Exactly one of --dataset or --jobid must be set\n")
-		flagsOk = false
-	}
-
 	if !flagsOk {
 		os.Exit(1)
 	}
@@ -130,10 +100,6 @@ func main() {
 		log.Fatalf("Creating bigquery client: %v", err)
 	}
 
-	if *jobID != "" {
-		printQueryResults(client, *jobID)
-		return
-	}
 	ds := client.Dataset(*dataset)
 	var tables []*bigquery.Table
 	tables, err = ds.ListTables(context.Background())

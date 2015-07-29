@@ -14,8 +14,6 @@
 
 package bigquery
 
-import "golang.org/x/net/context"
-
 // RecordsPerRequest returns a ReadOption that sets the number of records to fetch per request when streaming data from BigQuery.
 func RecordsPerRequest(n int64) ReadOption { return recordsPerRequest(n) }
 
@@ -35,34 +33,18 @@ func (opt startIndex) customizeRead(conf *pagingConf) {
 	conf.startIndex = uint64(opt)
 }
 
-func (conf *readTableConf) fetch(ctx context.Context, c *Client, token string) (*readDataResult, error) {
-	return c.service.readTabledata(ctx, conf, token)
-}
-
-func (c *Client) readTable(t *Table, options []ReadOption) (*Iterator, error) {
-	conf := &readTableConf{}
-	t.customizeReadSrc(conf)
+func (c *Client) readTable(src *Table, options []ReadOption) (*Iterator, error) {
+	conf := &readTabledataConf{}
+	src.customizeReadSrc(conf)
 
 	for _, o := range options {
 		o.customizeRead(&conf.paging)
 	}
 
-	return newIterator(c, conf), nil
-}
-
-func (conf *readQueryConf) fetch(ctx context.Context, c *Client, token string) (*readDataResult, error) {
-	return c.service.readQuery(ctx, conf, token)
-}
-
-func (c *Client) readQueryResults(job *Job, options []ReadOption) (*Iterator, error) {
-	conf := &readQueryConf{}
-	if err := job.customizeReadQuery(conf); err != nil {
-		return nil, err
+	// The iterator takes care of actually fetching the data.
+	it := &Iterator{
+		conf: conf,
+		s:    c.service,
 	}
-
-	for _, o := range options {
-		o.customizeRead(&conf.paging)
-	}
-
-	return newIterator(c, conf), nil
+	return it, nil
 }

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	testpb "google.golang.org/grpc/benchmark/grpc_testing"
 	"google.golang.org/grpc/benchmark/stats"
 	"google.golang.org/grpc/grpclog"
@@ -16,7 +15,7 @@ import (
 func runUnary(b *testing.B, maxConcurrentCalls int) {
 	s := stats.AddStats(b, 38)
 	b.StopTimer()
-	target, stopper := StartServer("localhost:0")
+	target, stopper := StartServer()
 	defer stopper()
 	conn := NewClientConn(target)
 	tc := testpb.NewTestServiceClient(conn)
@@ -59,7 +58,7 @@ func runUnary(b *testing.B, maxConcurrentCalls int) {
 func runStream(b *testing.B, maxConcurrentCalls int) {
 	s := stats.AddStats(b, 38)
 	b.StopTimer()
-	target, stopper := StartServer("localhost:0")
+	target, stopper := StartServer()
 	defer stopper()
 	conn := NewClientConn(target)
 	tc := testpb.NewTestServiceClient(conn)
@@ -116,80 +115,33 @@ func streamCaller(client testpb.TestServiceClient, stream testpb.TestService_Str
 }
 
 func BenchmarkClientStreamc1(b *testing.B) {
-	grpc.EnableTracing = true
 	runStream(b, 1)
 }
 
 func BenchmarkClientStreamc8(b *testing.B) {
-	grpc.EnableTracing = true
 	runStream(b, 8)
 }
 
 func BenchmarkClientStreamc64(b *testing.B) {
-	grpc.EnableTracing = true
 	runStream(b, 64)
 }
 
 func BenchmarkClientStreamc512(b *testing.B) {
-	grpc.EnableTracing = true
 	runStream(b, 512)
 }
 func BenchmarkClientUnaryc1(b *testing.B) {
-	grpc.EnableTracing = true
 	runUnary(b, 1)
 }
 
 func BenchmarkClientUnaryc8(b *testing.B) {
-	grpc.EnableTracing = true
 	runUnary(b, 8)
 }
 
 func BenchmarkClientUnaryc64(b *testing.B) {
-	grpc.EnableTracing = true
 	runUnary(b, 64)
 }
 
 func BenchmarkClientUnaryc512(b *testing.B) {
-	grpc.EnableTracing = true
-	runUnary(b, 512)
-}
-
-func BenchmarkClientStreamNoTracec1(b *testing.B) {
-	grpc.EnableTracing = false
-	runStream(b, 1)
-}
-
-func BenchmarkClientStreamNoTracec8(b *testing.B) {
-	grpc.EnableTracing = false
-	runStream(b, 8)
-}
-
-func BenchmarkClientStreamNoTracec64(b *testing.B) {
-	grpc.EnableTracing = false
-	runStream(b, 64)
-}
-
-func BenchmarkClientStreamNoTracec512(b *testing.B) {
-	grpc.EnableTracing = false
-	runStream(b, 512)
-}
-func BenchmarkClientUnaryNoTracec1(b *testing.B) {
-	grpc.EnableTracing = false
-	runUnary(b, 1)
-}
-
-func BenchmarkClientUnaryNoTracec8(b *testing.B) {
-	grpc.EnableTracing = false
-	runUnary(b, 8)
-}
-
-func BenchmarkClientUnaryNoTracec64(b *testing.B) {
-	grpc.EnableTracing = false
-	runUnary(b, 64)
-}
-
-func BenchmarkClientUnaryNoTracec512(b *testing.B) {
-	grpc.EnableTracing = false
 	runUnary(b, 512)
 }
 

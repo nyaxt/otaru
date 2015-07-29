@@ -39,7 +39,7 @@ func TestNoConfig(t *testing.T) {
 	})
 }
 
-func TestMatchAllOrigin(t *testing.T) {
+func TestWildcardOrigin(t *testing.T) {
 	s := New(Options{
 		AllowedOrigins: []string{"*"},
 	})
@@ -81,27 +81,6 @@ func TestAllowedOrigin(t *testing.T) {
 	})
 }
 
-func TestWildcardOrigin(t *testing.T) {
-	s := New(Options{
-		AllowedOrigins: []string{"http://*.bar.com"},
-	})
-
-	res := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "http://example.com/foo", nil)
-	req.Header.Add("Origin", "http://foo.bar.com")
-
-	s.Handler(testHandler).ServeHTTP(res, req)
-
-	assertHeaders(t, res.Header(), map[string]string{
-		"Access-Control-Allow-Origin":      "http://foo.bar.com",
-		"Access-Control-Allow-Methods":     "",
-		"Access-Control-Allow-Headers":     "",
-		"Access-Control-Allow-Credentials": "",
-		"Access-Control-Max-Age":           "",
-		"Access-Control-Expose-Headers":    "",
-	})
-}
-
 func TestDisallowedOrigin(t *testing.T) {
 	s := New(Options{
 		AllowedOrigins: []string{"http://foobar.com"},
@@ -123,31 +102,11 @@ func TestDisallowedOrigin(t *testing.T) {
 	})
 }
 
-func TestDisallowedWildcardOrigin(t *testing.T) {
-	s := New(Options{
-		AllowedOrigins: []string{"http://*.bar.com"},
-	})
-
-	res := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "http://example.com/foo", nil)
-	req.Header.Add("Origin", "http://foo.baz.com")
-
-	s.Handler(testHandler).ServeHTTP(res, req)
-
-	assertHeaders(t, res.Header(), map[string]string{
-		"Access-Control-Allow-Origin":      "",
-		"Access-Control-Allow-Methods":     "",
-		"Access-Control-Allow-Headers":     "",
-		"Access-Control-Allow-Credentials": "",
-		"Access-Control-Max-Age":           "",
-		"Access-Control-Expose-Headers":    "",
-	})
-}
-
 func TestAllowedOriginFunc(t *testing.T) {
 	r, _ := regexp.Compile("^http://foo")
 	s := New(Options{
 		AllowOriginFunc: func(o string) bool {
+			println(r.MatchString(o))
 			return r.MatchString(o)
 		},
 	})
