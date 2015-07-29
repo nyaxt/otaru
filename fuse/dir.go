@@ -25,6 +25,8 @@ func (d DirNode) Attr(ctx context.Context, a *bfuse.Attr) error {
 		panic("bfs.Attr failed for DirNode")
 	}
 
+	a.Valid = 1 * time.Minute
+	a.Nlink = 1
 	a.Inode = uint64(d.id)
 	a.Mode = os.ModeDir | (os.FileMode(attr.PermMode) & os.ModePerm)
 	a.Atime = attr.ModifiedT
@@ -36,6 +38,10 @@ func (d DirNode) Attr(ctx context.Context, a *bfuse.Attr) error {
 	a.Gid = attr.Gid
 
 	return nil
+}
+
+func (d DirNode) Getattr(ctx context.Context, req *bfuse.GetattrRequest, resp *bfuse.GetattrResponse) error {
+	return d.Attr(ctx, &resp.Attr)
 }
 
 func (d DirNode) Lookup(ctx context.Context, name string) (bfs.Node, error) {

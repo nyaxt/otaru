@@ -325,6 +325,16 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	return fh, nil
 }
 
+func (fs *FileSystem) TruncateFile(id inodedb.ID, newsize int64) error {
+	fh, err := fs.OpenFile(id, fl.O_WRONLY)
+	if err != nil {
+		return fmt.Errorf("Failed to OpenFile: %v", err)
+	}
+	defer fh.Close()
+
+	return fh.Truncate(newsize)
+}
+
 func (of *OpenFile) OpenHandleWithoutLock(flags int) *FileHandle {
 	fh := &FileHandle{of: of, flags: flags}
 	of.handles = append(of.handles, fh)

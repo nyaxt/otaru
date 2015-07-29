@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"syscall"
+	"time"
 
 	"github.com/nyaxt/otaru"
 	oflags "github.com/nyaxt/otaru/flags"
@@ -31,6 +32,8 @@ func (n FileNode) Attr(ctx context.Context, a *bfuse.Attr) error {
 		panic("fs.Attr failed for FileNode")
 	}
 
+	a.Valid = 1 * time.Minute
+	a.Nlink = 1
 	a.Inode = uint64(n.id)
 	a.Mode = os.FileMode(attr.PermMode) & os.ModePerm
 	a.Atime = attr.ModifiedT
@@ -70,6 +73,24 @@ func Bazil2OtaruFlags(bf bfuse.OpenFlags) int {
 	}
 
 	return ret
+}
+
+func (n FileNode) Getattr(ctx context.Context, req *bfuse.GetattrRequest, resp *bfuse.GetattrResponse) error {
+	return n.Attr(ctx, &resp.Attr)
+}
+
+func (n FileNode) Setattr(ctx context.Context, req *bfuse.SetattrRequest, resp *bfuse.SetattrResponse) error {
+	if req.Valid.Size() {
+		log.Printf("Setattr size %d", req.Size)
+		if req.Size > math.MaxInt64 {
+			return fmt.Errorf("specified size too big: %d", req.Size)
+		}
+		if err := n.fs.TruncateFile(n.id, int64(req.Size)); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (n FileNode) Open(ctx context.Context, req *bfuse.OpenRequest, resp *bfuse.OpenResponse) (bfs.Handle, error) {
@@ -115,25 +136,6 @@ func (fh FileHandle) Write(ctx context.Context, req *bfuse.WriteRequest, resp *b
 		return err
 	}
 	resp.Size = len(req.Data)
-
-	return nil
-}
-
-// FIXME: move this to FileNode
-func (fh FileHandle) Setattr(ctx context.Context, req *bfuse.SetattrRequest, resp *bfuse.SetattrResponse) error {
-	if fh.h == nil {
-		return EBADF
-	}
-
-	if req.Valid.Size() {
-		log.Printf("Setattr size %d", req.Size)
-		if req.Size > math.MaxInt64 {
-			return fmt.Errorf("too big")
-		}
-		if err := fh.h.Truncate(int64(req.Size)); err != nil {
-			return err
-		}
-	}
 
 	return nil
 }
