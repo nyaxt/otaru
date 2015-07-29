@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/facade"
 	oflags "github.com/nyaxt/otaru/flags"
@@ -25,25 +26,43 @@ func Usage() {
 	flag.PrintDefaults()
 }
 
-func clearBucket(projectName, bucketName string, clisrc auth.ClientSource) error {
-	bs, err := gcs.NewGCSBlobStore(projectName, bucketName, clisrc, oflags.O_RDWRCREATE)
-	if err != nil {
-		return fmt.Errorf("Failed to init GCSBlobStore: %v", err)
-	}
+type BlobListerRemover interface {
+	blobstore.BlobLister
+	blobstore.BlobRemover
+}
 
+func clearBlobStore(bs BlobListerRemover) error {
 	bps, err := bs.ListBlobs()
 	if err != nil {
 		return fmt.Errorf("Failed to ListBlobs(): %v", err)
 	}
-	log.Printf("Found %d blobs in bucket \"%s\"", len(bps), bucketName)
+	log.Printf("Found %d blobs!", len(bps))
 
 	for i, bp := range bps {
-		log.Printf("Removing blob %d/%d", i+1, len(bps))
+		log.Printf("Removing blob %d/%d: %s", i+1, len(bps), bp)
 		if err := bs.RemoveBlob(bp); err != nil {
 			return fmt.Errorf("Failed to RemoveBlob(%s): %v", bp, err)
 		}
 	}
 	return nil
+}
+
+func clearCache(cacheDir string) error {
+	bs, err := blobstore.NewFileBlobStore(cacheDir, oflags.O_RDWRCREATE)
+	if err != nil {
+		return fmt.Errorf("Failed to init FileBlobStore: %v", err)
+	}
+
+	return clearBlobStore(bs)
+}
+
+func clearGCS(projectName, bucketName string, clisrc auth.ClientSource) error {
+	bs, err := gcs.NewGCSBlobStore(projectName, bucketName, clisrc, oflags.O_RDWRCREATE)
+	if err != nil {
+		return fmt.Errorf("Failed to init GCSBlobStore: %v", err)
+	}
+
+	return clearBlobStore(bs)
 }
 
 func main() {
@@ -92,17 +111,22 @@ func main() {
 	}
 	defer l.Unlock()
 
-	if err := clearBucket(cfg.ProjectName, cfg.BucketName, clisrc); err != nil {
+	if err := clearGCS(cfg.ProjectName, cfg.BucketName, clisrc); err != nil {
 		log.Printf("Failed to clear bucket \"%s\": %v", cfg.BucketName, err)
 		return
 	}
 	if cfg.UseSeparateBucketForMetadata {
 		metabucketname := fmt.Sprintf("%s-meta", cfg.BucketName)
-		if err := clearBucket(cfg.ProjectName, metabucketname, clisrc); err != nil {
+		if err := clearGCS(cfg.ProjectName, metabucketname, clisrc); err != nil {
 			log.Printf("Failed to clear metadata bucket \"%s\": %v", metabucketname, err)
 			return
 		}
 	}
+	if err := clearCache(cfg.CacheDir); err != nil {
+		log.Printf("Failed to clear cache \"%s\": %v", cfg.CacheDir, err)
+		return
+	}
+
 	log.Printf("otaru-deleteallblobs: Successfully completed!")
 	log.Printf("Hint: You might also want to run \"otaru-txlogio purge\" to delete inodedb txlogs.")
 }
