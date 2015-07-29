@@ -118,6 +118,7 @@ func (op *HardLinkOp) Apply(s *DBState) error {
 		return EEXIST
 	}
 	dn.Entries[op.Name] = op.TargetID
+	dn.ModifiedT = time.Now()
 
 	return nil
 }
@@ -167,6 +168,32 @@ func (op *UpdateSizeOp) Apply(s *DBState) error {
 	}
 
 	fn.Size = op.Size
+	fn.ModifiedT = time.Now()
+	return nil
+}
+
+type UpdateModifiedTOp struct {
+	OpMeta   `json:",inline"`
+	NodeLock `json:"nodelock"`
+}
+
+func (op *UpdateModifiedTOp) Apply(s *DBState) error {
+	if err := s.checkLock(op.NodeLock, true); err != nil {
+		return err
+	}
+
+	n, ok := s.nodes[op.ID]
+	if !ok {
+		return ENOENT
+	}
+	switch n := n.(type) {
+	case *FileNode:
+		n.ModifiedT = time.Now()
+	case *DirNode:
+		n.ModifiedT = time.Now()
+	default:
+		return fmt.Errorf("UpdateModifiedTOp: Unsupported node type: %d", n.GetType())
+	}
 	return nil
 }
 
@@ -222,7 +249,10 @@ func (op *RenameOp) Apply(s *DBState) error {
 	}
 
 	delete(srcdn.Entries, op.SrcName)
+	now := time.Now()
+	srcdn.ModifiedT = now
 	dstdn.Entries[op.DstName] = id
+	dstdn.ModifiedT = now
 	return nil
 }
 
@@ -259,6 +289,7 @@ func (op *RemoveOp) Apply(s *DBState) error {
 	}
 
 	delete(dn.Entries, op.Name)
+	dn.ModifiedT = time.Now()
 	return nil
 }
 

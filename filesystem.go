@@ -383,6 +383,16 @@ func (of *OpenFile) downgradeToReadLock() {
 	of.cfio = chunkstore.NewChunkedFileIO(of.fs.bs, of.fs.c, caio)
 }
 
+func (of *OpenFile) updateModifiedTWithoutLock() error {
+	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
+		&inodedb.UpdateModifiedTOp{NodeLock: of.nlock},
+	}}
+	if _, err := of.fs.idb.ApplyTransaction(tx); err != nil {
+		return fmt.Errorf("Failed to update ModifiedT size: %v", err)
+	}
+	return nil
+}
+
 func (of *OpenFile) updateSizeWithoutLock(newsize int64) error {
 	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
 		&inodedb.UpdateSizeOp{NodeLock: of.nlock, Size: newsize},
@@ -428,6 +438,10 @@ func (of *OpenFile) PWrite(p []byte, offset int64) error {
 	right := offset + int64(len(p))
 	if right > currentSize {
 		if err := of.updateSizeWithoutLock(right); err != nil {
+			return err
+		}
+	} else {
+		if err := of.updateModifiedTWithoutLock(); err != nil {
 			return err
 		}
 	}

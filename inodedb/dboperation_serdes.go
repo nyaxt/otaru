@@ -18,6 +18,8 @@ func SetOpMeta(op DBOperation) error {
 		op.(*UpdateChunksOp).Kind = "UpdateChunksOp"
 	case *UpdateSizeOp:
 		op.(*UpdateSizeOp).Kind = "UpdateSizeOp"
+	case *UpdateModifiedTOp:
+		op.(*UpdateModifiedTOp).Kind = "UpdateModifiedTOp"
 	case *RenameOp:
 		op.(*RenameOp).Kind = "RenameOp"
 	case *RemoveOp:
@@ -86,6 +88,12 @@ func DecodeDBOperationsFromJson(jsonb []byte) ([]DBOperation, error) {
 			ops = append(ops, &op)
 		case "UpdateSizeOp":
 			var op UpdateSizeOp
+			if err := json.Unmarshal([]byte(*msg), &op); err != nil {
+				return nil, err
+			}
+			ops = append(ops, &op)
+		case "UpdateModifiedTOp":
+			var op UpdateModifiedTOp
 			if err := json.Unmarshal([]byte(*msg), &op); err != nil {
 				return nil, err
 			}
