@@ -73,6 +73,22 @@ func serializeCommon(enc *gob.Encoder, t Type, c INodeCommon) error {
 		return fmt.Errorf("Failed to encode OrigPath: %v", err)
 	}
 
+	if err := enc.Encode(&c.Uid); err != nil {
+		return fmt.Errorf("Failed to encode Uid: %v", err)
+	}
+
+	if err := enc.Encode(&c.Gid); err != nil {
+		return fmt.Errorf("Failed to encode Gid: %v", err)
+	}
+
+	if err := enc.Encode(&c.PermMode); err != nil {
+		return fmt.Errorf("Failed to encode PermMode: %v", err)
+	}
+
+	if err := enc.Encode(&c.ModifiedT); err != nil {
+		return fmt.Errorf("Failed to encode ModifiedT: %v", err)
+	}
+
 	return nil
 }
 
@@ -111,6 +127,22 @@ func deserializeCommon(dec *gob.Decoder, t Type, c *INodeCommon) error {
 
 	if err := dec.Decode(&c.OrigPath); err != nil {
 		return fmt.Errorf("Failed to decode OrigPath: %v", err)
+	}
+
+	if err := dec.Decode(&c.Uid); err != nil {
+		return fmt.Errorf("Failed to decode Uid: %v", err)
+	}
+
+	if err := dec.Decode(&c.Gid); err != nil {
+		return fmt.Errorf("Failed to decode Gid: %v", err)
+	}
+
+	if err := dec.Decode(&c.PermMode); err != nil {
+		return fmt.Errorf("Failed to decode PermMode: %v", err)
+	}
+
+	if err := dec.Decode(&c.ModifiedT); err != nil {
+		return fmt.Errorf("Failed to decode ModifiedT: %v", err)
 	}
 
 	return nil
