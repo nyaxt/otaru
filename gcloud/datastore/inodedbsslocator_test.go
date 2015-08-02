@@ -1,6 +1,5 @@
 package datastore_test
 
-/*
 import (
 	"reflect"
 	"sort"
@@ -82,4 +81,3 @@ func TestINodeDBSSLocator_PutLocate(t *testing.T) {
 		return
 	}
 }
-*/

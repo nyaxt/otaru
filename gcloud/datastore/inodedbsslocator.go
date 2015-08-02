@@ -1,12 +1,11 @@
 package datastore
 
-/*
-
 import (
 	"errors"
 	"log"
 	"time"
 
+	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
 )
 
@@ -22,7 +21,7 @@ type INodeDBSSLocator struct {
 func NewINodeDBSSLocator(cfg *Config) *INodeDBSSLocator {
 	return &INodeDBSSLocator{
 		cfg:     cfg,
-		rootKey: datastore.NewKey(cfg.getContext(), kindINodeDBSS, cfg.rootKeyStr, 0, nil),
+		rootKey: datastore.NewKey(ctxNoNamespace, kindINodeDBSS, cfg.rootKeyStr, 0, nil),
 	}
 }
 
@@ -34,15 +33,18 @@ type sslocentry struct {
 
 func (loc *INodeDBSSLocator) Locate(history int) (string, error) {
 	start := time.Now()
-	ctx := loc.cfg.getContext()
-	dstx, err := datastore.NewTransaction(ctx, datastore.Serializable)
+	cli, err := loc.cfg.getClient(context.TODO())
+	if err != nil {
+		return "", err
+	}
+	dstx, err := cli.NewTransaction(context.TODO(), datastore.Serializable)
 	if err != nil {
 		return "", err
 	}
 	defer dstx.Commit()
 
 	q := datastore.NewQuery(kindINodeDBSS).Ancestor(loc.rootKey).Order("-TxID").Offset(history).Limit(1).Transaction(dstx)
-	it := q.Run(ctx)
+	it := cli.Run(context.TODO(), q)
 	var e sslocentry
 	if _, err := it.Next(&e); err != nil {
 		if err == datastore.Done {
@@ -59,13 +61,16 @@ func (loc *INodeDBSSLocator) Put(blobpath string, txid int64) error {
 	start := time.Now()
 	e := sslocentry{BlobPath: blobpath, TxID: txid, CreatedAt: start}
 
-	ctx := loc.cfg.getContext()
-	dstx, err := datastore.NewTransaction(ctx, datastore.Serializable)
+	cli, err := loc.cfg.getClient(context.TODO())
+	if err != nil {
+		return err
+	}
+	dstx, err := cli.NewTransaction(context.TODO(), datastore.Serializable)
 	if err != nil {
 		return err
 	}
 
-	key := datastore.NewKey(ctx, kindINodeDBSS, "", int64(e.TxID), loc.rootKey)
+	key := datastore.NewKey(ctxNoNamespace, kindINodeDBSS, "", int64(e.TxID), loc.rootKey)
 	if _, err := dstx.Put(key, &e); err != nil {
 		dstx.Rollback()
 		return err
@@ -81,9 +86,12 @@ func (loc *INodeDBSSLocator) Put(blobpath string, txid int64) error {
 func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
 	start := time.Now()
 
-	ctx := loc.cfg.getContext()
+	cli, err := loc.cfg.getClient(context.TODO())
+	if err != nil {
+		return nil, err
+	}
 
-	dstx, err := datastore.NewTransaction(ctx, datastore.Serializable)
+	dstx, err := cli.NewTransaction(context.TODO(), datastore.Serializable)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +99,7 @@ func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
 	keys := make([]*datastore.Key, 0)
 	blobpaths := make([]string, 0)
 	q := datastore.NewQuery(kindINodeDBSS).Ancestor(loc.rootKey).Transaction(dstx)
-	it := q.Run(ctx)
+	it := cli.Run(context.TODO(), q)
 	for {
 		var e sslocentry
 		k, err := it.Next(&e)
@@ -119,4 +127,3 @@ func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
 	log.Printf("DeleteAll() deleted %d entries. Took %s", len(keys), time.Since(start))
 	return blobpaths, nil
 }
-*/
