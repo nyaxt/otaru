@@ -7,6 +7,9 @@ import (
 	"path"
 	"time"
 
+	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
+
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
@@ -29,9 +32,9 @@ type Otaru struct {
 
 	S *scheduler.Scheduler
 
-	Clisrc auth.ClientSource
-	DSCfg  *datastore.Config
-	GL     *datastore.GlobalLocker
+	Tsrc  oauth2.TokenSource
+	DSCfg *datastore.Config
+	GL    *datastore.GlobalLocker
 
 	MetadataBS blobstore.BlobStore
 	DefaultBS  blobstore.BlobStore
@@ -72,12 +75,12 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	o.S = scheduler.NewScheduler()
 
 	if !cfg.LocalDebug {
-		o.Clisrc, err = auth.GetGCloudClientSource(cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
+		o.Tsrc, err = auth.GetGCloudTokenSource(context.TODO(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
 		if err != nil {
 			o.Close()
 			return nil, fmt.Errorf("Failed to init GCloudClientSource: %v", err)
 		}
-		o.DSCfg = datastore.NewConfig(cfg.ProjectName, cfg.BucketName, o.C, o.Clisrc)
+		o.DSCfg = datastore.NewConfig(cfg.ProjectName, cfg.BucketName, o.C, o.Tsrc)
 		o.GL = datastore.NewGlobalLocker(o.DSCfg, GenHostName(), "FIXME: fill info")
 		if err := o.GL.Lock(); err != nil {
 			return nil, err
@@ -91,7 +94,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	}
 
 	if !cfg.LocalDebug {
-		o.DefaultBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, cfg.BucketName, o.Clisrc, oflags.O_RDWRCREATE)
+		o.DefaultBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, cfg.BucketName, o.Tsrc, oflags.O_RDWRCREATE)
 		if err != nil {
 			o.Close()
 			return nil, fmt.Errorf("Failed to init GCSBlobStore: %v", err)
@@ -100,7 +103,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 			o.BackendBS = o.DefaultBS
 		} else {
 			metabucketname := fmt.Sprintf("%s-meta", cfg.BucketName)
-			o.MetadataBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, metabucketname, o.Clisrc, oflags.O_RDWRCREATE)
+			o.MetadataBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, metabucketname, o.Tsrc, oflags.O_RDWRCREATE)
 			if err != nil {
 				o.Close()
 				return nil, fmt.Errorf("Failed to init GCSBlobStore (metadata): %v", err)
@@ -127,14 +130,19 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	o.CSS = cachedblobstore.NewCacheSyncScheduler(o.CBS)
 
 	if !cfg.LocalDebug {
-		o.SSLoc = datastore.NewINodeDBSSLocator(o.DSCfg)
+		panic("aaa")
+		//o.SSLoc = datastore.NewINodeDBSSLocator(o.DSCfg)
 	} else {
 		panic("Implement mock sslocator that doesn't depend on gcloud/datastore")
 	}
 	o.SIO = blobstoredbstatesnapshotio.New(o.CBS, o.C, o.SSLoc)
 
 	if !cfg.LocalDebug {
-		txio := datastore.NewDBTransactionLogIO(o.DSCfg)
+		txio, err := datastore.NewDBTransactionLogIO(o.DSCfg)
+		if err != nil {
+			o.Close()
+			return nil, fmt.Errorf("Failed to NewDBTransactionLogIO: %v", err)
+		}
 		o.TxIO = txio
 		o.TxIOSS = util.NewSyncScheduler(txio, 300*time.Millisecond)
 	} else {
@@ -210,9 +218,10 @@ func (o *Otaru) Close() error {
 	}
 
 	if o.GL != nil {
-		if err := o.GL.Unlock(); err != nil {
-			errs = append(errs, err)
-		}
+		panic("aaa")
+		//if err := o.GL.Unlock(); err != nil {
+		//	errs = append(errs, err)
+		//}
 	}
 
 	return util.ToErrors(errs)

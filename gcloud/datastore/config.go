@@ -9,6 +9,8 @@ import (
 	"google.golang.org/cloud/datastore"
 )
 
+var ctxNoNamespace = context.Background()
+
 type Config struct {
 	projectName string
 	rootKeyStr  string

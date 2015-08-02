@@ -1,6 +1,7 @@
 package datastore_test
 
 import (
+	"log"
 	"reflect"
 	"testing"
 	"time"
@@ -11,7 +12,11 @@ import (
 )
 
 func testDBTransactionIOWithRootKey(rootKeyStr string) *datastore.DBTransactionLogIO {
-	return datastore.NewDBTransactionLogIO(authtu.TestDSConfig(rootKeyStr))
+	txio, err := datastore.NewDBTransactionLogIO(authtu.TestDSConfig(rootKeyStr))
+	if err != nil {
+		log.Panicf("Failed to create TestDBTransactionLogIO: %v", err)
+	}
+	return txio
 }
 
 func testDBTransactionIO() *datastore.DBTransactionLogIO {

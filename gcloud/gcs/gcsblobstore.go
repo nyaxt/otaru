@@ -11,7 +11,6 @@ import (
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
 	oflags "github.com/nyaxt/otaru/flags"
-	"github.com/nyaxt/otaru/gcloud/auth"
 )
 
 type GCSBlobStoreStats struct {
@@ -33,7 +32,7 @@ type GCSBlobStore struct {
 
 var _ = blobstore.BlobStore(&GCSBlobStore{})
 
-func NewGCSBlobStore(projectName string, bucketName string, tsrc auth.ClientSource, flags int) (*GCSBlobStore, error) {
+func NewGCSBlobStore(projectName string, bucketName string, tsrc oauth2.TokenSource, flags int) (*GCSBlobStore, error) {
 	return &GCSBlobStore{
 		projectName: projectName,
 		bucketName:  bucketName,

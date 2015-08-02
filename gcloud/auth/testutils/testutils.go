@@ -3,6 +3,9 @@ package testutils
 import (
 	"log"
 
+	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
+
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
@@ -25,12 +28,12 @@ func TestConfig() *facade.Config {
 	return testConfigCached
 }
 
-func TestClientSource() auth.ClientSource {
+func TestTokenSource() oauth2.TokenSource {
 	cfg := TestConfig()
 
-	clisrc, err := auth.GetGCloudClientSource(cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
+	clisrc, err := auth.GetGCloudTokenSource(context.TODO(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
 	if err != nil {
-		log.Fatalf("Failed to create testClientSource: %v", err)
+		log.Fatalf("Failed to create TestTokenSource: %v", err)
 	}
 	return clisrc
 }
@@ -45,5 +48,5 @@ func TestBucketName() string {
 
 func TestDSConfig(rootKeyStr string) *datastore.Config {
 	projectName := TestConfig().ProjectName
-	return datastore.NewConfig(projectName, rootKeyStr, tu.TestCipher(), TestClientSource())
+	return datastore.NewConfig(projectName, rootKeyStr, tu.TestCipher(), TestTokenSource())
 }
