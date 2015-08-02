@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package bigtable
+package bigtable // import "google.golang.org/cloud/bigtable"
 
 import (
 	"fmt"
@@ -27,6 +27,7 @@ import (
 	"google.golang.org/cloud"
 	btdpb "google.golang.org/cloud/bigtable/internal/data_proto"
 	btspb "google.golang.org/cloud/bigtable/internal/service_proto"
+	"google.golang.org/cloud/internal/transport"
 	"google.golang.org/grpc"
 )
 
@@ -45,9 +46,10 @@ func NewClient(ctx context.Context, project, zone, cluster string, opts ...cloud
 	o := []cloud.ClientOption{
 		cloud.WithEndpoint(prodAddr),
 		cloud.WithScopes(Scope),
+		cloud.WithUserAgent(clientUserAgent),
 	}
 	o = append(o, opts...)
-	conn, err := cloud.DialGRPC(ctx, o...)
+	conn, err := transport.DialGRPC(ctx, o...)
 	if err != nil {
 		return nil, fmt.Errorf("dialing: %v", err)
 	}

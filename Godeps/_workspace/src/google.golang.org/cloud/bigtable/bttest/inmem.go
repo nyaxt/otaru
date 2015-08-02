@@ -21,8 +21,10 @@ To use a Server, create it, and then connect to it with no security:
 (The project/zone/cluster values are ignored.)
 	srv, err := bttest.NewServer()
 	...
+	conn, err := grpc.Dial(srv.Addr)
+	...
 	client, err := bigtable.NewClient(ctx, proj, zone, cluster,
-		bigtable.WithCredentials(nil), bigtable.WithInsecureAddr(srv.Addr))
+		bigtable.WithBaseGRPC(conn))
 	...
 */
 package bttest // import "google.golang.org/cloud/bigtable/bttest"
@@ -36,6 +38,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/net/context"
 	btdpb "google.golang.org/cloud/bigtable/internal/data_proto"
@@ -154,7 +157,7 @@ func (s *server) CreateColumnFamily(ctx context.Context, req *bttspb.CreateColum
 	}
 	tbl.families[fam] = true
 	return &bttdpb.ColumnFamily{
-		Name: req.Name + "/families/" + fam,
+		Name: req.Name + "/columnFamilies/" + fam,
 	}, nil
 }
 
@@ -374,13 +377,18 @@ func applyMutations(tbl *table, r *row, muts []*btdpb.Mutation) error {
 			if !famOK {
 				return fmt.Errorf("unknown family %q", set.FamilyName)
 			}
-			if !tbl.validTimestamp(set.TimestampMicros) {
-				return fmt.Errorf("invalid timestamp %d", set.TimestampMicros)
+			ts := set.TimestampMicros
+			if ts == -1 { // bigtable.ServerTime
+				ts = time.Now().UnixNano() / 1e3
+				ts -= ts % 1000 // round to millisecond granularity
+			}
+			if !tbl.validTimestamp(ts) {
+				return fmt.Errorf("invalid timestamp %d", ts)
 			}
 			col := fmt.Sprintf("%s:%s", set.FamilyName, set.ColumnQualifier)
 
 			cs := r.cells[col]
-			newCell := cell{ts: set.TimestampMicros, value: set.Value}
+			newCell := cell{ts: ts, value: set.Value}
 			replaced := false
 			for i, cell := range cs {
 				if cell.ts == newCell.ts {
@@ -429,6 +437,8 @@ func applyMutations(tbl *table, r *row, muts []*btdpb.Mutation) error {
 			} else {
 				r.cells[col] = cs
 			}
+		case mut.DeleteFromRow != nil:
+			r.cells = make(map[string][]cell)
 		}
 	}
 	return nil

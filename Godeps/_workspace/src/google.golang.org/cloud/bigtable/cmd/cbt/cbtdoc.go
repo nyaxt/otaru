@@ -19,11 +19,11 @@ The commands are:
 	deletetable               Delete a table
 	doc                       Print documentation for cbt
 	help                      Print help text
+	listclusters              List clusters in a project
 	lookup                    Read from a single row
 	ls                        List tables and column families
 	read                      Read rows
 	set                       Set value of a cell
-	setclustersize            Set size of a cluster
 
 Use "cbt help <command>" for more information about a command.
 
@@ -92,6 +92,14 @@ Usage:
 
 
 
+List clusters in a project
+
+Usage:
+	cbt listclusters
+
+
+
+
 Read from a single row
 
 Usage:
@@ -130,14 +138,6 @@ Usage:
 	  ts is an optional integer timestamp.
 	  If it cannot be parsed, the `@ts` part will be
 	  interpreted as part of the value.
-
-
-
-
-Set size of a cluster
-
-Usage:
-	cbt setclustersize <num_nodes>
 
 
 

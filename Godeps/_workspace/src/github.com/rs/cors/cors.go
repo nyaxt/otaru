@@ -32,6 +32,9 @@ import (
 type Options struct {
 	// AllowedOrigins is a list of origins a cross-domain request can be executed from.
 	// If the special "*" value is present in the list, all origins will be allowed.
+	// An origin may contain a wildcard (*) to replace 0 or more characters
+	// (i.e.: http://*.domain.com). Usage of wildcards implies a small performance penality.
+	// Only one wildcard can be used per origin.
 	// Default value is ["*"]
 	AllowedOrigins []string
 	// AllowOriginFunc is a custom function to validate the origin. It take the origin
@@ -59,13 +62,16 @@ type Options struct {
 	Debug bool
 }
 
+// Cors http handler
 type Cors struct {
 	// Debug logger
 	log *log.Logger
 	// Set to true when allowed origins contains a "*"
 	allowedOriginsAll bool
-	// Normalized list of allowed origins
+	// Normalized list of plain allowed origins
 	allowedOrigins []string
+	// List of allowed origins containing wildcards
+	allowedWOrigins []wildcard
 	// Optional origin validator function
 	allowOriginFunc func(origin string) bool
 	// Set to true when allowed headers contains a "*"
@@ -101,12 +107,23 @@ func New(options Options) *Cors {
 		// Default is all origins
 		c.allowedOriginsAll = true
 	} else {
-		c.allowedOrigins = convert(options.AllowedOrigins, strings.ToLower)
-		for _, o := range c.allowedOrigins {
-			if o == "*" {
+		c.allowedOrigins = []string{}
+		c.allowedWOrigins = []wildcard{}
+		for _, origin := range options.AllowedOrigins {
+			// Normalize
+			origin = strings.ToLower(origin)
+			if origin == "*" {
+				// If "*" is present in the list, turn the whole list into a match all
 				c.allowedOriginsAll = true
 				c.allowedOrigins = nil
+				c.allowedWOrigins = nil
 				break
+			} else if i := strings.IndexByte(origin, '*'); i >= 0 {
+				// Split the origin in two: start and end string without the *
+				w := wildcard{origin[0:i], origin[i+1 : len(origin)]}
+				c.allowedWOrigins = append(c.allowedWOrigins, w)
+			} else {
+				c.allowedOrigins = append(c.allowedOrigins, origin)
 			}
 		}
 	}
@@ -162,7 +179,7 @@ func (c *Cors) Handler(h http.Handler) http.Handler {
 	})
 }
 
-// Martini compatible handler
+// HandlerFunc provides Martini compatible handler
 func (c *Cors) HandlerFunc(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "OPTIONS" {
 		c.logf("HandlerFunc: Preflight request")
@@ -198,6 +215,13 @@ func (c *Cors) handlePreflight(w http.ResponseWriter, r *http.Request) {
 		c.logf("  Preflight aborted: %s!=OPTIONS", r.Method)
 		return
 	}
+	// Always set Vary headers
+	// see https://github.com/rs/cors/issues/10,
+	//     https://github.com/rs/cors/commit/dbdca4d95feaa7511a46e6f1efb3b3aa505bc43f#commitcomment-12352001
+	headers.Add("Vary", "Origin")
+	headers.Add("Vary", "Access-Control-Request-Method")
+	headers.Add("Vary", "Access-Control-Request-Headers")
+
 	if origin == "" {
 		c.logf("  Preflight aborted: empty origin")
 		return
@@ -218,7 +242,6 @@ func (c *Cors) handlePreflight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	headers.Set("Access-Control-Allow-Origin", origin)
-	headers.Add("Vary", "Origin")
 	// Spec says: Since the list of methods can be unbounded, simply returning the method indicated
 	// by Access-Control-Request-Method (if supported) can be enough
 	headers.Set("Access-Control-Allow-Methods", strings.ToUpper(reqMethod))
@@ -246,6 +269,8 @@ func (c *Cors) handleActualRequest(w http.ResponseWriter, r *http.Request) {
 		c.logf("  Actual request no headers added: method == %s", r.Method)
 		return
 	}
+	// Always set Vary, see https://github.com/rs/cors/issues/10
+	headers.Add("Vary", "Origin")
 	if origin == "" {
 		c.logf("  Actual request no headers added: missing origin")
 		return
@@ -268,7 +293,6 @@ func (c *Cors) handleActualRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	headers.Set("Access-Control-Allow-Origin", origin)
-	headers.Add("Vary", "Origin")
 	if len(c.exposedHeaders) > 0 {
 		headers.Set("Access-Control-Expose-Headers", strings.Join(c.exposedHeaders, ", "))
 	}
@@ -297,6 +321,11 @@ func (c *Cors) isOriginAllowed(origin string) bool {
 	origin = strings.ToLower(origin)
 	for _, o := range c.allowedOrigins {
 		if o == origin {
+			return true
+		}
+	}
+	for _, w := range c.allowedWOrigins {
+		if w.match(origin) {
 			return true
 		}
 	}

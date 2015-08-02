@@ -169,17 +169,11 @@ type Stream struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	// method records the associated RPC method of the stream.
-	method string
-	buf    *recvBuffer
-	dec    io.Reader
-
-	// updateStreams indicates whether the transport's streamsQuota needed
-	// to be updated when this stream is closed. It is false when the transport
-	// sticks to the initial infinite value of the number of concurrent streams.
-	// Ture otherwise.
-	updateStreams bool
-	fc            *inFlow
-	recvQuota     uint32
+	method    string
+	buf       *recvBuffer
+	dec       io.Reader
+	fc        *inFlow
+	recvQuota uint32
 	// The accumulated inbound quota pending for window update.
 	updateQuota uint32
 	// The handler to control the window update procedure for both this
@@ -320,9 +314,14 @@ func NewServerTransport(protocol string, conn net.Conn, maxStreams uint32) (Serv
 
 // ConnectOptions covers all relevant options for dialing a server.
 type ConnectOptions struct {
-	Dialer      func(string, time.Duration) (net.Conn, error)
+	// UserAgent is the application user agent.
+	UserAgent string
+	// Dialer specifies how to dial a network address.
+	Dialer func(string, time.Duration) (net.Conn, error)
+	// AuthOptions stores the credentials required to setup a client connection and/or issue RPCs.
 	AuthOptions []credentials.Credentials
-	Timeout     time.Duration
+	// Timeout specifies the timeout for dialing a client connection.
+	Timeout time.Duration
 }
 
 // NewClientTransport establishes the transport with the required ConnectOptions

@@ -18,22 +18,23 @@ package bigtable
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"golang.org/x/net/context"
 	"google.golang.org/cloud"
 	btcspb "google.golang.org/cloud/bigtable/internal/cluster_service_proto"
 	bttspb "google.golang.org/cloud/bigtable/internal/table_service_proto"
+	"google.golang.org/cloud/internal/transport"
 	"google.golang.org/grpc"
 )
 
 const adminAddr = "bigtabletableadmin.googleapis.com:443"
 
-// AdminClient is a client type for performing admin operations on a specific cluster.
+// AdminClient is a client type for performing admin operations within a specific cluster.
 type AdminClient struct {
 	conn    *grpc.ClientConn
 	tClient bttspb.BigtableTableServiceClient
-	cClient btcspb.BigtableClusterServiceClient
 
 	project, zone, cluster string
 }
@@ -43,16 +44,16 @@ func NewAdminClient(ctx context.Context, project, zone, cluster string, opts ...
 	o := []cloud.ClientOption{
 		cloud.WithEndpoint(adminAddr),
 		cloud.WithScopes(AdminScope),
+		cloud.WithUserAgent(clientUserAgent),
 	}
 	o = append(o, opts...)
-	conn, err := cloud.DialGRPC(ctx, o...)
+	conn, err := transport.DialGRPC(ctx, o...)
 	if err != nil {
 		return nil, fmt.Errorf("dialing: %v", err)
 	}
 	return &AdminClient{
 		conn:    conn,
 		tClient: bttspb.NewBigtableTableServiceClient(conn),
-		cClient: btcspb.NewBigtableClusterServiceClient(conn),
 
 		project: project,
 		zone:    zone,
@@ -155,6 +156,99 @@ func (ac *AdminClient) TableInfo(ctx context.Context, table string) (*TableInfo,
 	return ti, nil
 }
 
+// SetGCPolicy specifies which cells in a column family should be garbage collected.
+// GC executes opportunistically in the background.
+func (ac *AdminClient) SetGCPolicy(ctx context.Context, table, family string, policy GCPolicy) error {
+	prefix := ac.clusterPrefix()
+	tbl, err := ac.tClient.GetTable(ctx, &bttspb.GetTableRequest{
+		Name: prefix + "/tables/" + table,
+	})
+	if err != nil {
+		return err
+	}
+	fam, ok := tbl.ColumnFamilies[family]
+	if !ok {
+		return fmt.Errorf("unknown column family %q", family)
+	}
+	fam.GcRule = policy.proto()
+	_, err = ac.tClient.UpdateColumnFamily(ctx, fam)
+	return err
+}
+
+const clusterAdminAddr = "bigtableclusteradmin.googleapis.com:443"
+
+// ClusterAdminClient is a client type for performing admin operations on clusters.
+// These operations can be substantially more dangerous than those provided by AdminClient.
+type ClusterAdminClient struct {
+	conn    *grpc.ClientConn
+	cClient btcspb.BigtableClusterServiceClient
+
+	project string
+}
+
+// NewClusterAdminClient creates a new ClusterAdminClient for a given project.
+func NewClusterAdminClient(ctx context.Context, project string, opts ...cloud.ClientOption) (*ClusterAdminClient, error) {
+	o := []cloud.ClientOption{
+		cloud.WithEndpoint(clusterAdminAddr),
+		cloud.WithScopes(ClusterAdminScope),
+		cloud.WithUserAgent(clientUserAgent),
+	}
+	o = append(o, opts...)
+	conn, err := transport.DialGRPC(ctx, o...)
+	if err != nil {
+		return nil, fmt.Errorf("dialing: %v", err)
+	}
+	return &ClusterAdminClient{
+		conn:    conn,
+		cClient: btcspb.NewBigtableClusterServiceClient(conn),
+
+		project: project,
+	}, nil
+}
+
+// Close closes the ClusterAdminClient.
+func (cac *ClusterAdminClient) Close() {
+	cac.conn.Close()
+}
+
+// ClusterInfo represents information about a cluster.
+type ClusterInfo struct {
+	Name        string // name of the cluster
+	Zone        string // GCP zone of the cluster (e.g. "us-central1-a")
+	DisplayName string // display name for UIs
+	ServeNodes  int    // number of allocated serve nodes
+}
+
+var clusterNameRegexp = regexp.MustCompile(`^projects/([^/]+)/zones/([^/]+)/clusters/([a-z][-a-z0-9]*)$`)
+
+// Clusters returns a list of clusters in the project.
+func (cac *ClusterAdminClient) Clusters(ctx context.Context) ([]*ClusterInfo, error) {
+	req := &btcspb.ListClustersRequest{
+		Name: "projects/" + cac.project,
+	}
+	res, err := cac.cClient.ListClusters(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	// TODO(dsymonds): Deal with failed_zones.
+	var cis []*ClusterInfo
+	for _, c := range res.Clusters {
+		m := clusterNameRegexp.FindStringSubmatch(c.Name)
+		if m == nil {
+			return nil, fmt.Errorf("malformed cluster name %q", c.Name)
+		}
+		cis = append(cis, &ClusterInfo{
+			Name:        m[3],
+			Zone:        m[2],
+			DisplayName: c.DisplayName,
+			ServeNodes:  int(c.ServeNodes),
+		})
+	}
+	return cis, nil
+}
+
+/* TODO(dsymonds): Re-enable when there's a ClusterAdmin API.
+
 // SetClusterSize sets the number of server nodes for this cluster.
 func (ac *AdminClient) SetClusterSize(ctx context.Context, nodes int) error {
 	req := &btcspb.GetClusterRequest{
@@ -168,3 +262,5 @@ func (ac *AdminClient) SetClusterSize(ctx context.Context, nodes int) error {
 	_, err = ac.cClient.UpdateCluster(ctx, clu)
 	return err
 }
+
+*/

@@ -15,8 +15,10 @@
 package bigquery
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"golang.org/x/net/context"
 	bq "google.golang.org/api/bigquery/v2"
@@ -28,9 +30,16 @@ import (
 // of the generated BigQuery API.
 type service interface {
 	insertJob(ctx context.Context, job *bq.Job, projectId string) (*Job, error)
+	getJobType(ctx context.Context, projectId, jobID string) (jobType, error)
 	jobStatus(ctx context.Context, projectId, jobID string) (*JobStatus, error)
-	readTabledata(ctx context.Context, conf *readTabledataConf) (*readTabledataResult, error)
 	listTables(ctx context.Context, projectID, datasetID, pageToken string) ([]*Table, string, error)
+
+	// readQuery reads data resulting from a query job. If the job is not
+	// yet complete, an errIncompleteJob is returned. readQuery may be
+	// called repeatedly to wait for results indefinitely.
+	readQuery(ctx context.Context, conf *readQueryConf, pageToken string) (*readDataResult, error)
+
+	readTabledata(ctx context.Context, conf *readTableConf, pageToken string) (*readDataResult, error)
 }
 
 type bigqueryService struct {
@@ -71,63 +80,141 @@ func (s *bigqueryService) insertJob(ctx context.Context, job *bq.Job, projectID 
 }
 
 type pagingConf struct {
-	pageToken string
-
 	recordsPerRequest    int64
 	setRecordsPerRequest bool
 
 	startIndex uint64
 }
 
-type readTabledataConf struct {
+type readTableConf struct {
 	projectID, datasetID, tableID string
 	paging                        pagingConf
 }
 
-type readTabledataResult struct {
+type readDataResult struct {
 	pageToken string
 	rows      [][]Value
-	totalRows int64
+	totalRows uint64
+	schema    *Schema
 }
 
-func (s *bigqueryService) readTabledata(ctx context.Context, conf *readTabledataConf) (*readTabledataResult, error) {
-	list := s.s.Tabledata.List(conf.projectID, conf.datasetID, conf.tableID).
-		PageToken(conf.paging.pageToken).
+type readQueryConf struct {
+	projectID, jobID string
+	paging           pagingConf
+}
+
+func (s *bigqueryService) readTabledata(ctx context.Context, conf *readTableConf, pageToken string) (*readDataResult, error) {
+	req := s.s.Tabledata.List(conf.projectID, conf.datasetID, conf.tableID).
+		PageToken(pageToken).
 		StartIndex(conf.paging.startIndex)
 
 	if conf.paging.setRecordsPerRequest {
-		list = list.MaxResults(conf.paging.recordsPerRequest)
+		req = req.MaxResults(conf.paging.recordsPerRequest)
 	}
 
-	res, err := list.Do()
+	res, err := req.Do()
 	if err != nil {
 		return nil, err
 	}
 
-	var rs [][]Value
-	for _, r := range res.Rows {
-		rs = append(rs, convertRow(r))
-	}
-
-	result := &readTabledataResult{
+	result := &readDataResult{
 		pageToken: res.PageToken,
-		rows:      rs,
-		totalRows: res.TotalRows,
+		rows:      convertRows(res.Rows),
+		totalRows: uint64(res.TotalRows),
 	}
 	return result, nil
 }
 
-func convertRow(r *bq.TableRow) []Value {
-	var values []Value
-	for _, cell := range r.F {
-		values = append(values, cell.V)
+var errIncompleteJob = errors.New("internal error: query results not available because job is not complete")
+
+// getQueryResultsTimeout controls the maximum duration of a request to the
+// BigQuery GetQueryResults endpoint.  Setting a long timeout here does not
+// cause increased overall latency, as results are returned as soon as they are
+// available.
+const getQueryResultsTimeout = time.Minute
+
+func (s *bigqueryService) readQuery(ctx context.Context, conf *readQueryConf, pageToken string) (*readDataResult, error) {
+	req := s.s.Jobs.GetQueryResults(conf.projectID, conf.jobID).
+		PageToken(pageToken).
+		StartIndex(conf.paging.startIndex).
+		TimeoutMs(getQueryResultsTimeout.Nanoseconds() / 1000)
+
+	if conf.paging.setRecordsPerRequest {
+		req = req.MaxResults(conf.paging.recordsPerRequest)
 	}
-	return values
+
+	res, err := req.Do()
+	if err != nil {
+		return nil, err
+	}
+
+	if !res.JobComplete {
+		return nil, errIncompleteJob
+	}
+
+	result := &readDataResult{
+		pageToken: res.PageToken,
+		rows:      convertRows(res.Rows),
+		totalRows: res.TotalRows,
+		schema:    convertTableSchema(res.Schema),
+	}
+	return result, nil
+}
+
+func convertRows(rows []*bq.TableRow) [][]Value {
+	convertRow := func(r *bq.TableRow) []Value {
+		var values []Value
+		for _, cell := range r.F {
+			values = append(values, cell.V)
+		}
+		return values
+	}
+
+	var rs [][]Value
+	for _, r := range rows {
+		rs = append(rs, convertRow(r))
+	}
+	return rs
+}
+
+type jobType int
+
+const (
+	copyJobType jobType = iota
+	extractJobType
+	loadJobType
+	queryJobType
+)
+
+func (s *bigqueryService) getJobType(ctx context.Context, projectID, jobID string) (jobType, error) {
+	// TODO(mcgreevy): use ctx
+	res, err := s.s.Jobs.Get(projectID, jobID).
+		Fields("configuration").
+		Do()
+
+	if err != nil {
+		return 0, err
+	}
+
+	switch {
+	case res.Configuration.Copy != nil:
+		return copyJobType, nil
+	case res.Configuration.Extract != nil:
+		return extractJobType, nil
+	case res.Configuration.Load != nil:
+		return loadJobType, nil
+	case res.Configuration.Query != nil:
+		return queryJobType, nil
+	default:
+		return 0, errors.New("unknown job type")
+	}
 }
 
 func (s *bigqueryService) jobStatus(ctx context.Context, projectID, jobID string) (*JobStatus, error) {
 	// TODO(mcgreevy): use ctx
-	res, err := s.s.Jobs.Get(projectID, jobID).Do()
+	res, err := s.s.Jobs.Get(projectID, jobID).
+		Fields("status"). // Only fetch what we need.
+		Do()
 	if err != nil {
 		return nil, err
 	}
