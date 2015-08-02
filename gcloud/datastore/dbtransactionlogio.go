@@ -23,26 +23,18 @@ type DBTransactionLogIO struct {
 
 	muSync     sync.Mutex
 	committing []inodedb.DBTransaction
-
-	cli *datastore.Client
 }
 
 const kindTransaction = "OtaruINodeDBTx"
 
 var _ = inodedb.DBTransactionLogIO(&DBTransactionLogIO{})
 
-func NewDBTransactionLogIO(cfg *Config) (*DBTransactionLogIO, error) {
-	cli, err := cfg.getClient(context.Background())
-	if err != nil {
-		return nil, err
-	}
-
+func NewDBTransactionLogIO(cfg *Config) *DBTransactionLogIO {
 	return &DBTransactionLogIO{
 		cfg:       cfg,
 		rootKey:   datastore.NewKey(ctxNoNamespace, kindTransaction, cfg.rootKeyStr, 0, nil),
 		nextbatch: make([]inodedb.DBTransaction, 0),
-		cli:       cli,
-	}, nil
+	}
 }
 
 type storedbtx struct {
@@ -111,6 +103,12 @@ func (txio *DBTransactionLogIO) Sync() error {
 		return nil
 	}
 
+	cli, err := txio.cfg.getClient(context.Background())
+	if err != nil {
+		rollback()
+		return err
+	}
+
 	keys := make([]*datastore.Key, 0, len(batch))
 	stxs := make([]*storedbtx, 0, len(batch))
 	for _, tx := range batch {
@@ -123,7 +121,7 @@ func (txio *DBTransactionLogIO) Sync() error {
 		stxs = append(stxs, stx)
 	}
 
-	dstx, err := txio.cli.NewTransaction(context.Background(), datastore.Serializable)
+	dstx, err := cli.NewTransaction(context.Background(), datastore.Serializable)
 	if err != nil {
 		rollback()
 		return err
@@ -173,13 +171,18 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 	}
 	txio.mu.Unlock()
 
-	dstx, err := txio.cli.NewTransaction(context.Background(), datastore.Serializable)
+	cli, err := txio.cfg.getClient(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	dstx, err := cli.NewTransaction(context.Background(), datastore.Serializable)
 	if err != nil {
 		return nil, err
 	}
 
 	q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Filter("TxID >=", int64(minID)).Order("TxID").Transaction(dstx)
-	it := txio.cli.Run(context.Background(), q)
+	it := cli.Run(context.Background(), q)
 	for {
 		var stx storedbtx
 		_, err := it.Next(&stx)
@@ -237,18 +240,23 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 	txio.nextbatch = batch
 	txio.mu.Unlock()
 
+	cli, err := txio.cfg.getClient(context.Background())
+	if err != nil {
+		return err
+	}
+
 	ndel := 0
 	for {
 		needAnotherTx := false
 		txStart := time.Now()
-		dstx, err := txio.cli.NewTransaction(context.Background(), datastore.Serializable)
+		dstx, err := cli.NewTransaction(context.Background(), datastore.Serializable)
 		if err != nil {
 			return err
 		}
 
 		keys := []*datastore.Key{}
 		q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Filter("TxID <", int64(smallerThanID)).KeysOnly().Transaction(dstx)
-		it := txio.cli.Run(context.Background(), q)
+		it := cli.Run(context.Background(), q)
 		for {
 			k, err := it.Next(nil)
 			if err != nil {

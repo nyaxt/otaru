@@ -138,11 +138,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	o.SIO = blobstoredbstatesnapshotio.New(o.CBS, o.C, o.SSLoc)
 
 	if !cfg.LocalDebug {
-		txio, err := datastore.NewDBTransactionLogIO(o.DSCfg)
-		if err != nil {
-			o.Close()
-			return nil, fmt.Errorf("Failed to NewDBTransactionLogIO: %v", err)
-		}
+		txio := datastore.NewDBTransactionLogIO(o.DSCfg)
 		o.TxIO = txio
 		o.TxIOSS = util.NewSyncScheduler(txio, 300*time.Millisecond)
 	} else {
