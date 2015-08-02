@@ -17,7 +17,7 @@ func testGCSBlobStore() *gcs.GCSBlobStore {
 	bs, err := gcs.NewGCSBlobStore(
 		authtu.TestConfig().ProjectName,
 		authtu.TestBucketName(),
-		authtu.TestClientSource(),
+		authtu.TestTokenSource(),
 		flags.O_RDWR,
 	)
 	if err != nil {

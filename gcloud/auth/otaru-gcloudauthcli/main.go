@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 
+	"golang.org/x/net/context"
+
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/gcloud/auth"
 )
@@ -22,7 +24,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	_, err = auth.GetGCloudClientSource(cfg.CredentialsFilePath, cfg.TokenCacheFilePath, true)
+	_, err = auth.GetGCloudTokenSource(context.Background(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, true)
 	if err != nil {
 		log.Fatalf("Failed: %v", err)
 	}

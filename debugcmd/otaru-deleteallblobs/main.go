@@ -7,6 +7,9 @@ import (
 	"log"
 	"os"
 
+	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
+
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/facade"
@@ -56,8 +59,8 @@ func clearCache(cacheDir string) error {
 	return clearBlobStore(bs)
 }
 
-func clearGCS(projectName, bucketName string, clisrc auth.ClientSource) error {
-	bs, err := gcs.NewGCSBlobStore(projectName, bucketName, clisrc, oflags.O_RDWRCREATE)
+func clearGCS(projectName, bucketName string, tsrc oauth2.TokenSource) error {
+	bs, err := gcs.NewGCSBlobStore(projectName, bucketName, tsrc, oflags.O_RDWRCREATE)
 	if err != nil {
 		return fmt.Errorf("Failed to init GCSBlobStore: %v", err)
 	}
@@ -82,7 +85,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	clisrc, err := auth.GetGCloudClientSource(cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
+	tsrc, err := auth.GetGCloudTokenSource(context.Background(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
 	if err != nil {
 		log.Fatalf("Failed to init GCloudClientSource: %v", err)
 	}
@@ -103,7 +106,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, clisrc)
+	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, tsrc)
 	l := datastore.NewGlobalLocker(dscfg, "otaru-deleteallblobs", facade.GenHostName())
 	if err := l.Lock(); err != nil {
 		log.Printf("Failed to acquire global lock: %v", err)
@@ -111,13 +114,13 @@ func main() {
 	}
 	defer l.Unlock()
 
-	if err := clearGCS(cfg.ProjectName, cfg.BucketName, clisrc); err != nil {
+	if err := clearGCS(cfg.ProjectName, cfg.BucketName, tsrc); err != nil {
 		log.Printf("Failed to clear bucket \"%s\": %v", cfg.BucketName, err)
 		return
 	}
 	if cfg.UseSeparateBucketForMetadata {
 		metabucketname := fmt.Sprintf("%s-meta", cfg.BucketName)
-		if err := clearGCS(cfg.ProjectName, metabucketname, clisrc); err != nil {
+		if err := clearGCS(cfg.ProjectName, metabucketname, tsrc); err != nil {
 			log.Printf("Failed to clear metadata bucket \"%s\": %v", metabucketname, err)
 			return
 		}

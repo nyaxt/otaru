@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 
+	"golang.org/x/net/context"
+
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/gcloud/auth"
@@ -48,9 +50,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	clisrc, err := auth.GetGCloudClientSource(cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
+	tsrc, err := auth.GetGCloudTokenSource(context.Background(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
 	if err != nil {
-		log.Fatalf("Failed to init GCloudClientSource: %v", err)
+		log.Fatalf("Failed to init GCloudTokenSource: %v", err)
 	}
 	key := btncrypt.KeyFromPassword(cfg.Password)
 	c, err := btncrypt.NewCipher(key)
@@ -58,7 +60,7 @@ func main() {
 		log.Fatalf("Failed to init btncrypt.Cipher: %v", err)
 	}
 
-	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, clisrc)
+	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, tsrc)
 	ssloc := datastore.NewINodeDBSSLocator(dscfg)
 	switch flag.Arg(0) {
 	case "purge":
