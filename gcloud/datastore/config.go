@@ -2,38 +2,39 @@ package datastore
 
 import (
 	"github.com/nyaxt/otaru/btncrypt"
-	"github.com/nyaxt/otaru/gcloud/auth"
 
 	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
 	"google.golang.org/cloud"
+	"google.golang.org/cloud/datastore"
 )
 
 type Config struct {
 	projectName string
 	rootKeyStr  string
 	c           btncrypt.Cipher
-	clisrc      auth.ClientSource
+	tsrc        oauth2.TokenSource
 }
 
-func NewConfig(projectName, rootKeyStr string, c btncrypt.Cipher, clisrc auth.ClientSource) *Config {
+func NewConfig(projectName, rootKeyStr string, c btncrypt.Cipher, tsrc oauth2.TokenSource) *Config {
 	if len(projectName) == 0 {
 		panic("empty projectName")
 	}
 	if len(rootKeyStr) == 0 {
 		panic("empty rootKeyStr")
 	}
-	if clisrc == nil {
-		panic("nil clisrc")
+	if tsrc == nil {
+		panic("nil tokensource")
 	}
 
 	return &Config{
 		projectName: projectName,
 		rootKeyStr:  rootKeyStr,
 		c:           c,
-		clisrc:      clisrc,
+		tsrc:        tsrc,
 	}
 }
 
-func (cfg *Config) getContext() context.Context {
-	return cloud.NewContext(cfg.projectName, cfg.clisrc(context.TODO()))
+func (cfg *Config) getClient(ctx context.Context) (*datastore.Client, error) {
+	return datastore.NewClient(ctx, cfg.projectName, cloud.WithTokenSource(cfg.tsrc))
 }

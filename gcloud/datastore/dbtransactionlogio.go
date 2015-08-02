@@ -166,8 +166,12 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 	txio.mu.Unlock()
 
 	ctx := txio.cfg.getContext()
+	cli, err := cfg.NewClient(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	dstx, err := datastore.NewTransaction(ctx, datastore.Serializable)
+	dstx, err := cli.NewTransaction(ctx, datastore.Serializable)
 	if err != nil {
 		return nil, err
 	}

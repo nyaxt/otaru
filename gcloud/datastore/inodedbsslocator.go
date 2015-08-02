@@ -1,5 +1,7 @@
 package datastore
 
+/*
+
 import (
 	"errors"
 	"log"
@@ -117,3 +119,4 @@ func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
 	log.Printf("DeleteAll() deleted %d entries. Took %s", len(keys), time.Since(start))
 	return blobpaths, nil
 }
+*/

@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
 	"google.golang.org/cloud"
 	"google.golang.org/cloud/storage"
 
@@ -25,19 +26,19 @@ type GCSBlobStore struct {
 	projectName string
 	bucketName  string
 	flags       int
-	clisrc      auth.ClientSource
+	tsrc        oauth2.TokenSource
 
 	stats GCSBlobStoreStats
 }
 
 var _ = blobstore.BlobStore(&GCSBlobStore{})
 
-func NewGCSBlobStore(projectName string, bucketName string, clisrc auth.ClientSource, flags int) (*GCSBlobStore, error) {
+func NewGCSBlobStore(projectName string, bucketName string, tsrc auth.ClientSource, flags int) (*GCSBlobStore, error) {
 	return &GCSBlobStore{
 		projectName: projectName,
 		bucketName:  bucketName,
 		flags:       flags,
-		clisrc:      clisrc,
+		tsrc:        tsrc,
 	}, nil
 }
 
@@ -46,7 +47,7 @@ type Writer struct {
 }
 
 func (bs *GCSBlobStore) newAuthedContext(basectx context.Context) context.Context {
-	return cloud.NewContext(bs.projectName, bs.clisrc(context.TODO()))
+	return cloud.NewContext(bs.projectName, oauth2.NewClient(basectx, bs.tsrc))
 }
 
 func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {

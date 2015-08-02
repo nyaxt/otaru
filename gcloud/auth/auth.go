@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -13,8 +12,8 @@ import (
 	"google.golang.org/cloud/storage"
 )
 
-func GetGCloudTokenViaWebUI(conf *oauth2.Config) (*oauth2.Token, error) {
-	authurl := conf.AuthCodeURL("fixmeee", oauth2.AccessTypeOffline)
+func GetGCloudTokenViaWebUI(ctx context.Context, conf *oauth2.Config) (*oauth2.Token, error) {
+	authurl := conf.AuthCodeURL("otaru", oauth2.AccessTypeOffline)
 	fmt.Printf("visit %v\n", authurl)
 	fmt.Printf("paste code:")
 
@@ -22,7 +21,7 @@ func GetGCloudTokenViaWebUI(conf *oauth2.Config) (*oauth2.Token, error) {
 	if _, err := fmt.Scan(&code); err != nil {
 		return nil, fmt.Errorf("Failed to scan auth code: %v", err)
 	}
-	token, err := conf.Exchange(oauth2.NoContext, code)
+	token, err := conf.Exchange(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to use auth code: %v", err)
 	}
@@ -57,15 +56,14 @@ func updateGCloudTokenCache(token *oauth2.Token, tokenCacheFilePath string) erro
 	return nil
 }
 
-type ClientSource func(ctx context.Context) *http.Client
-
-func GetGCloudClientSource(credentialsFilePath string, tokenCacheFilePath string, tryWebUI bool) (ClientSource, error) {
+func GetGCloudTokenSource(ctx context.Context, credentialsFilePath string, tokenCacheFilePath string, tryWebUI bool) (oauth2.TokenSource, error) {
 	credentialsJson, err := ioutil.ReadFile(credentialsFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read google cloud client-secret file: %v", err)
 	}
 
-	conf, err := google.ConfigFromJSON(credentialsJson,
+	conf, err := google.ConfigFromJSON(
+		credentialsJson,
 		storage.ScopeFullControl,
 		datastore.ScopeDatastore,
 		datastore.ScopeUserEmail,
@@ -74,12 +72,12 @@ func GetGCloudClientSource(credentialsFilePath string, tokenCacheFilePath string
 		return nil, fmt.Errorf("invalid google cloud key json: %v", err)
 	}
 
-	revertToWebUI := func() (ClientSource, error) {
+	revertToWebUI := func() (oauth2.TokenSource, error) {
 		if !tryWebUI {
 			return nil, fmt.Errorf("OAuth2 token cache invalid.")
 		}
 
-		token, err := GetGCloudTokenViaWebUI(conf)
+		token, err := GetGCloudTokenViaWebUI(ctx, conf)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get valid gcloud token: %v", err)
 		}
@@ -88,7 +86,7 @@ func GetGCloudClientSource(credentialsFilePath string, tokenCacheFilePath string
 		}
 
 		// FIXME: Token cache is not updated if token was refreshed by tokenRefresher from conf.Client
-		return func(ctx context.Context) *http.Client { return conf.Client(ctx, token) }, nil
+		return conf.TokenSource(ctx, token), nil
 	}
 
 	token, err := getGCloudTokenCached(tokenCacheFilePath)
@@ -97,7 +95,7 @@ func GetGCloudClientSource(credentialsFilePath string, tokenCacheFilePath string
 	}
 	if !token.Valid() {
 		// try refresh
-		token, err = conf.TokenSource(oauth2.NoContext, token).Token()
+		token, err = conf.TokenSource(ctx, token).Token()
 		if err != nil {
 			return revertToWebUI()
 		}
@@ -107,5 +105,5 @@ func GetGCloudClientSource(credentialsFilePath string, tokenCacheFilePath string
 	}
 
 	// FIXME: Token cache is not updated if token was refreshed by tokenRefresher from conf.Client
-	return func(ctx context.Context) *http.Client { return conf.Client(ctx, token) }, nil
+	return conf.TokenSource(ctx, token), nil
 }

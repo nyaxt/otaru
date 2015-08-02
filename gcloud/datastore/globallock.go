@@ -1,5 +1,7 @@
 package datastore
 
+/*
+
 import (
 	"errors"
 	"fmt"
@@ -206,3 +208,4 @@ func (l *GlobalLocker) Query() (lockEntry, error) {
 	log.Printf("GlobalLocker.Query() took %s.", time.Since(start))
 	return e, nil
 }
+*/
