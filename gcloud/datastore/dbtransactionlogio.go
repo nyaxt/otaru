@@ -11,6 +11,7 @@ import (
 	"google.golang.org/cloud/datastore"
 
 	"github.com/nyaxt/otaru/btncrypt"
+	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/inodedb"
 )
 
@@ -161,7 +162,21 @@ func (s txsorter) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb.DBTransaction, error) {
+func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) (txs []inodedb.DBTransaction, err error) {
+	const numRetries = 3
+	for i := 0; i < numRetries; i++ {
+		txs, err = txio.queryTransactionsOnce(minID)
+		if err == nil {
+			return
+		}
+		if !gcutil.IsShouldRetryError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (txio *DBTransactionLogIO) queryTransactionsOnce(minID inodedb.TxID) ([]inodedb.DBTransaction, error) {
 	start := time.Now()
 	txs := []inodedb.DBTransaction{}
 
