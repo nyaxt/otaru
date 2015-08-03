@@ -58,7 +58,7 @@ func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string
 	done := make(chan bool)
 	ready := make(chan bool)
 	go func() {
-		if err := fuse.ServeFUSE(mountpoint, fs, ready); err != nil {
+		if err := fuse.ServeFUSE("otaru-test", mountpoint, fs, ready); err != nil {
 			t.Errorf("ServeFUSE err: %v", err)
 			close(ready)
 		}

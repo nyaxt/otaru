@@ -19,12 +19,15 @@ func (fs FileSystem) Root() (bfs.Node, error) {
 	return DirNode{fs: fs.ofs, id: inodedb.RootDirID}, nil
 }
 
-func ServeFUSE(mountpoint string, ofs *otaru.FileSystem, ready chan<- bool) error {
+func ServeFUSE(bucketName string, mountpoint string, ofs *otaru.FileSystem, ready chan<- bool) error {
+	fsName := fmt.Sprintf("otaru+gs://%s", bucketName)
+	volName := fmt.Sprintf("Otaru %s", bucketName)
+
 	c, err := bfuse.Mount(
 		mountpoint,
-		bfuse.FSName("otaru"),
+		bfuse.FSName(fsName),
 		bfuse.Subtype("otarufs"),
-		bfuse.VolumeName("Otaru"),
+		bfuse.VolumeName(volName),
 	)
 	if err != nil {
 		return fmt.Errorf("bfuse.Mount failed: %v", err)

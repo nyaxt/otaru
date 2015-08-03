@@ -80,7 +80,7 @@ func main() {
 	bfuse.Debug = func(msg interface{}) {
 		log.Printf("fusedbg: %v", msg)
 	}
-	if err := fuse.ServeFUSE(mountpoint, o.FS, nil); err != nil {
+	if err := fuse.ServeFUSE(cfg.BucketName, mountpoint, o.FS, nil); err != nil {
 		log.Printf("ServeFUSE failed: %v", err)
 		closeOtaruAndExit(1)
 	}
