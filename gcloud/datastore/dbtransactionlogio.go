@@ -38,25 +38,31 @@ func NewDBTransactionLogIO(cfg *Config) *DBTransactionLogIO {
 }
 
 type storedbtx struct {
-	TxID    int64
 	OpsJSON []byte `datastore:,noindex`
 }
 
-func encode(c btncrypt.Cipher, tx inodedb.DBTransaction) (*storedbtx, error) {
-	jsonops, err := inodedb.EncodeDBOperationsToJson(tx.Ops)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to encode dbtx: %v", err)
-	}
-
-	env, err := btncrypt.Encrypt(c, jsonops)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to decrypt OpsJSON: %v", err)
-	}
-
-	return &storedbtx{TxID: int64(tx.TxID), OpsJSON: env}, nil
+func (txio *DBTransactionLogIO) encodeKey(id inodedb.TxID) *datastore.Key {
+	return datastore.NewKey(ctxNoNamespace, kindTransaction, "", int64(id), txio.rootKey)
 }
 
-func decode(c btncrypt.Cipher, stx *storedbtx) (inodedb.DBTransaction, error) {
+func (txio *DBTransactionLogIO) encode(tx inodedb.DBTransaction) (*datastore.Key, *storedbtx, error) {
+	key := txio.encodeKey(tx.TxID)
+
+	jsonops, err := inodedb.EncodeDBOperationsToJson(tx.Ops)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to encode dbtx: %v", err)
+	}
+
+	c := txio.cfg.c
+	env, err := btncrypt.Encrypt(c, jsonops)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to encrypt OpsJSON: %v", err)
+	}
+
+	return key, &storedbtx{OpsJSON: env}, nil
+}
+
+func decode(c btncrypt.Cipher, key *datastore.Key, stx *storedbtx) (inodedb.DBTransaction, error) {
 	jsonop, err := btncrypt.Decrypt(c, stx.OpsJSON, len(stx.OpsJSON)-c.FrameOverhead())
 	if err != nil {
 		return inodedb.DBTransaction{}, fmt.Errorf("Failed to decrypt OpsJSON: %v", err)
@@ -67,7 +73,7 @@ func decode(c btncrypt.Cipher, stx *storedbtx) (inodedb.DBTransaction, error) {
 		return inodedb.DBTransaction{}, err
 	}
 
-	return inodedb.DBTransaction{TxID: inodedb.TxID(stx.TxID), Ops: ops}, nil
+	return inodedb.DBTransaction{TxID: inodedb.TxID(key.ID()), Ops: ops}, nil
 }
 
 func (txio *DBTransactionLogIO) AppendTransaction(tx inodedb.DBTransaction) error {
@@ -112,12 +118,13 @@ func (txio *DBTransactionLogIO) Sync() error {
 	keys := make([]*datastore.Key, 0, len(batch))
 	stxs := make([]*storedbtx, 0, len(batch))
 	for _, tx := range batch {
-		keys = append(keys, datastore.NewKey(ctxNoNamespace, kindTransaction, "", int64(tx.TxID), txio.rootKey))
-		stx, err := encode(txio.cfg.c, tx)
+		key, stx, err := txio.encode(tx)
 		if err != nil {
 			rollback()
 			return err
 		}
+
+		keys = append(keys, key)
 		stxs = append(stxs, stx)
 	}
 
@@ -181,11 +188,16 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 		return nil, err
 	}
 
-	q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Filter("TxID >=", int64(minID)).Order("TxID").Transaction(dstx)
+	q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Transaction(dstx)
+	if minID != inodedb.AnyVersion {
+		minKey := txio.encodeKey(minID)
+		q = q.Filter("__key__ >=", minKey)
+	}
+
 	it := cli.Run(context.Background(), q)
 	for {
 		var stx storedbtx
-		_, err := it.Next(&stx)
+		key, err := it.Next(&stx)
 		if err != nil {
 			if err == datastore.Done {
 				break
@@ -194,7 +206,7 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) ([]inodedb
 			return []inodedb.DBTransaction{}, err
 		}
 
-		tx, err := decode(txio.cfg.c, &stx)
+		tx, err := decode(txio.cfg.c, key, &stx)
 		if err != nil {
 			dstx.Commit()
 			return []inodedb.DBTransaction{}, err
@@ -255,7 +267,8 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 		}
 
 		keys := []*datastore.Key{}
-		q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Filter("TxID <", int64(smallerThanID)).KeysOnly().Transaction(dstx)
+		ltkey := txio.encodeKey(smallerThanID)
+		q := datastore.NewQuery(kindTransaction).Ancestor(txio.rootKey).Filter("__key__ <", ltkey).KeysOnly().Transaction(dstx)
 		it := cli.Run(context.Background(), q)
 		for {
 			k, err := it.Next(nil)
@@ -274,7 +287,6 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 			}
 		}
 
-		//log.Printf("keys to delete: %v", keys)
 		if err := dstx.DeleteMulti(keys); err != nil {
 			dstx.Rollback()
 			return err
