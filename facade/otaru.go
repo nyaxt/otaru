@@ -130,8 +130,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	o.CSS = cachedblobstore.NewCacheSyncScheduler(o.CBS)
 
 	if !cfg.LocalDebug {
-		panic("aaa")
-		//o.SSLoc = datastore.NewINodeDBSSLocator(o.DSCfg)
+		o.SSLoc = datastore.NewINodeDBSSLocator(o.DSCfg)
 	} else {
 		panic("Implement mock sslocator that doesn't depend on gcloud/datastore")
 	}
@@ -214,10 +213,9 @@ func (o *Otaru) Close() error {
 	}
 
 	if o.GL != nil {
-		panic("aaa")
-		//if err := o.GL.Unlock(); err != nil {
-		//	errs = append(errs, err)
-		//}
+		if err := o.GL.Unlock(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	return util.ToErrors(errs)
