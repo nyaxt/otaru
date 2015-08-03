@@ -1,11 +1,5 @@
 indexes:
 
-- kind: OtaruINodeDBTx
-  ancestor: yes
-  properties:
-  - name: TxID
-    direction: asc
-
 - kind: OtaruINodeDBSS
   ancestor: yes
   properties:
