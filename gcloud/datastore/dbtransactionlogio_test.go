@@ -18,6 +18,8 @@ func testDBTransactionIO() *datastore.DBTransactionLogIO {
 	return testDBTransactionIOWithRootKey(authtu.TestBucketName())
 }
 
+var stableT = time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+
 func TestDBTransactionIO_PutQuery(t *testing.T) {
 	txio := testDBTransactionIO()
 
@@ -26,7 +28,7 @@ func TestDBTransactionIO_PutQuery(t *testing.T) {
 	}
 
 	tx := inodedb.DBTransaction{TxID: 123, Ops: []inodedb.DBOperation{
-		&inodedb.CreateNodeOp{NodeLock: inodedb.NodeLock{2, 123456}, OrigPath: "/hoge.txt", Type: inodedb.FileNodeT, ModifiedT: time.Now()},
+		&inodedb.CreateNodeOp{NodeLock: inodedb.NodeLock{2, 123456}, OrigPath: "/hoge.txt", Type: inodedb.FileNodeT, ModifiedT: stableT},
 		&inodedb.HardLinkOp{NodeLock: inodedb.NodeLock{1, inodedb.NoTicket}, Name: "hoge.txt", TargetID: 2},
 	}}
 
