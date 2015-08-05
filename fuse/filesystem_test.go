@@ -467,3 +467,57 @@ func TestServeFUSE_Chmod(t *testing.T) {
 		}
 	})
 }
+
+func TestServeFUSE_Chtimes(t *testing.T) {
+	maybeSkipTest(t)
+	fs := fusetestFileSystem()
+
+	stableT := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+
+	fusetestCommon(t, fs, func(mountpoint string) {
+		dirpath := path.Join(mountpoint, "hokkaido")
+		if err := os.Mkdir(dirpath, 0755); err != nil {
+			t.Errorf("Failed to mkdir: %v", err)
+			return
+		}
+
+		filepath := path.Join(dirpath, "otaru.txt")
+		if err := ioutil.WriteFile(filepath, HelloWorld, 0644); err != nil {
+			t.Errorf("failed to write file: %v", err)
+			return
+		}
+
+		if err := os.Chtimes(dirpath, stableT, stableT); err != nil {
+			t.Errorf("Failed to chtimes dir: %v", err)
+			return
+		}
+		if err := os.Chtimes(filepath, stableT, stableT); err != nil {
+			t.Errorf("Failed to chtimes file: %v", err)
+			return
+		}
+
+		fi, err := os.Stat(dirpath)
+		if err != nil {
+			t.Errorf("Failed to stat dir: %v", err)
+			return
+		}
+		if !fi.IsDir() {
+			t.Errorf("dir isn't dir!")
+		}
+		if fi.ModTime().Sub(stableT) > time.Second {
+			t.Errorf("invalid modifiedT! %v", fi.ModTime())
+		}
+
+		fi, err = os.Stat(filepath)
+		if err != nil {
+			t.Errorf("Failed to stat file: %v", err)
+			return
+		}
+		if fi.IsDir() {
+			t.Errorf("file is dir!")
+		}
+		if fi.ModTime().Sub(stableT) > time.Second {
+			t.Errorf("invalid modifiedT! %v", fi.ModTime())
+		}
+	})
+}
