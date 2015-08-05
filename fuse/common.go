@@ -13,6 +13,14 @@ func otaruSetattr(fs *otaru.FileSystem, id inodedb.ID, req *bfuse.SetattrRequest
 	var valid otaru.ValidAttrFields
 	var a otaru.Attr
 
+	if req.Valid.Uid() {
+		valid |= otaru.UidValid
+		a.Uid = req.Uid
+	}
+	if req.Valid.Gid() {
+		valid |= otaru.GidValid
+		a.Gid = req.Gid
+	}
 	if req.Valid.Mode() {
 		valid |= otaru.PermModeValid
 		a.PermMode = uint16(req.Mode & os.ModePerm)
