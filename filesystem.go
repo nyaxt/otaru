@@ -267,6 +267,9 @@ func (fs *FileSystem) SetAttr(id inodedb.ID, a Attr, valid ValidAttrFields) erro
 	if valid&PermModeValid != 0 {
 		ops = append(ops, &inodedb.UpdatePermModeOp{ID: id, PermMode: a.PermMode})
 	}
+	if valid&ModifiedTValid != 0 {
+		ops = append(ops, &inodedb.UpdateModifiedTOp{ID: id, ModifiedT: a.ModifiedT})
+	}
 
 	if _, err := fs.idb.ApplyTransaction(inodedb.DBTransaction{Ops: ops}); err != nil {
 		return err
@@ -440,7 +443,7 @@ func (of *OpenFile) downgradeToReadLock() {
 
 func (of *OpenFile) updateModifiedTWithoutLock() error {
 	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
-		&inodedb.UpdateModifiedTOp{NodeLock: of.nlock},
+		&inodedb.UpdateModifiedTOp{ID: of.nlock.ID, ModifiedT: time.Now()},
 	}}
 	if _, err := of.fs.idb.ApplyTransaction(tx); err != nil {
 		return fmt.Errorf("Failed to update ModifiedT size: %v", err)

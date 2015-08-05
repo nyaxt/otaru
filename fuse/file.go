@@ -90,18 +90,8 @@ func (n FileNode) Setattr(ctx context.Context, req *bfuse.SetattrRequest, resp *
 		}
 	}
 
-	var valid otaru.ValidAttrFields
-	var a otaru.Attr
-
-	if req.Valid.Mode() {
-		valid |= otaru.PermModeValid
-		a.PermMode = uint16(req.Mode & os.ModePerm)
-	}
-
-	if valid != 0 {
-		if err := n.fs.SetAttr(n.id, a, valid); err != nil {
-			return err
-		}
+	if err := otaruSetattr(n.fs, n.id, req); err != nil {
+		return err
 	}
 
 	if err := n.Attr(ctx, &resp.Attr); err != nil {

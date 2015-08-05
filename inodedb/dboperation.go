@@ -196,24 +196,21 @@ func (op *UpdatePermModeOp) Apply(s *DBState) error {
 }
 
 type UpdateModifiedTOp struct {
-	OpMeta   `json:",inline"`
-	NodeLock `json:"nodelock"`
+	OpMeta    `json:",inline"`
+	ID        `json:"id"`
+	ModifiedT time.Time `json:"modified_t"`
 }
 
 func (op *UpdateModifiedTOp) Apply(s *DBState) error {
-	if err := s.checkLock(op.NodeLock, true); err != nil {
-		return err
-	}
-
 	n, ok := s.nodes[op.ID]
 	if !ok {
 		return ENOENT
 	}
 	switch n := n.(type) {
 	case *FileNode:
-		n.ModifiedT = time.Now()
+		n.ModifiedT = op.ModifiedT
 	case *DirNode:
-		n.ModifiedT = time.Now()
+		n.ModifiedT = op.ModifiedT
 	default:
 		return fmt.Errorf("UpdateModifiedTOp: Unsupported node type: %d", n.GetType())
 	}
