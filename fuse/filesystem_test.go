@@ -391,3 +391,79 @@ func TestServeFUSE_LsCmd(t *testing.T) {
 		}
 	})
 }
+
+func TestServeFUSE_Chmod(t *testing.T) {
+	maybeSkipTest(t)
+	fs := fusetestFileSystem()
+
+	fusetestCommon(t, fs, func(mountpoint string) {
+		dirpath := path.Join(mountpoint, "hokkaido")
+		if err := os.Mkdir(dirpath, 0755); err != nil {
+			t.Errorf("Failed to mkdir: %v", err)
+			return
+		}
+
+		filepath := path.Join(dirpath, "otaru.txt")
+		if err := ioutil.WriteFile(filepath, HelloWorld, 0644); err != nil {
+			t.Errorf("failed to write file: %v", err)
+			return
+		}
+
+		fi, err := os.Stat(dirpath)
+		if err != nil {
+			t.Errorf("Failed to stat dir: %v", err)
+			return
+		}
+		if !fi.IsDir() {
+			t.Errorf("dir isn't dir!")
+		}
+		if fi.Mode()&os.ModePerm != 0755 {
+			t.Errorf("invalid initial perm!")
+		}
+
+		fi, err = os.Stat(filepath)
+		if err != nil {
+			t.Errorf("Failed to stat file: %v", err)
+			return
+		}
+		if fi.IsDir() {
+			t.Errorf("file is dir!")
+		}
+		if fi.Mode()&os.ModePerm != 0644 {
+			t.Errorf("invalid initial perm!")
+		}
+
+		if err := os.Chmod(dirpath, 0700); err != nil {
+			t.Errorf("Failed to chmod dir: %v", err)
+			return
+		}
+		if err := os.Chmod(filepath, 0764); err != nil {
+			t.Errorf("Failed to chmod file: %v", err)
+			return
+		}
+
+		fi, err = os.Stat(dirpath)
+		if err != nil {
+			t.Errorf("Failed to stat dir: %v", err)
+			return
+		}
+		if !fi.IsDir() {
+			t.Errorf("dir isn't dir!")
+		}
+		if fi.Mode()&os.ModePerm != 0700 {
+			t.Errorf("invalid perm! %o", fi.Mode())
+		}
+
+		fi, err = os.Stat(filepath)
+		if err != nil {
+			t.Errorf("Failed to stat file: %v", err)
+			return
+		}
+		if fi.IsDir() {
+			t.Errorf("file is dir!")
+		}
+		if fi.Mode()&os.ModePerm != 0764 {
+			t.Errorf("invalid perm! %o", fi.Mode())
+		}
+	})
+}

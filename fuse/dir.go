@@ -44,6 +44,30 @@ func (d DirNode) Getattr(ctx context.Context, req *bfuse.GetattrRequest, resp *b
 	return d.Attr(ctx, &resp.Attr)
 }
 
+func (d DirNode) Setattr(ctx context.Context, req *bfuse.SetattrRequest, resp *bfuse.SetattrResponse) error {
+	log.Printf("Setattr mode %o", req.Mode)
+
+	var valid otaru.ValidAttrFields
+	var a otaru.Attr
+
+	if req.Valid.Mode() {
+		valid |= otaru.PermModeValid
+		a.PermMode = uint16(req.Mode & os.ModePerm)
+	}
+
+	if valid != 0 {
+		if err := d.fs.SetAttr(d.id, a, valid); err != nil {
+			return err
+		}
+	}
+
+	if err := d.Attr(ctx, &resp.Attr); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (d DirNode) Lookup(ctx context.Context, name string) (bfs.Node, error) {
 	entries, err := d.fs.DirEntries(d.id)
 	if err != nil {

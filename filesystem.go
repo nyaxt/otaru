@@ -1,6 +1,7 @@
 package otaru
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"sync"
@@ -227,6 +228,50 @@ func (fs *FileSystem) Attr(id inodedb.ID) (Attr, error) {
 		ModifiedT: v.GetModifiedT(),
 	}
 	return a, nil
+}
+
+type ValidAttrFields uint32
+
+const (
+	UidValid ValidAttrFields = 1 << iota
+	GidValid
+	PermModeValid
+	ModifiedTValid
+)
+
+func (valid ValidAttrFields) String() string {
+	var b bytes.Buffer
+
+	if valid&UidValid != 0 {
+		b.WriteString("UidValid|")
+	}
+	if valid&GidValid != 0 {
+		b.WriteString("GidValid|")
+	}
+	if valid&PermModeValid != 0 {
+		b.WriteString("PermModeValid|")
+	}
+	if valid&ModifiedTValid != 0 {
+		b.WriteString("ModifiedTValid|")
+	}
+	// trim last "|"
+	if b.Len() > 0 {
+		b.Truncate(b.Len() - 1)
+	}
+
+	return b.String()
+}
+
+func (fs *FileSystem) SetAttr(id inodedb.ID, a Attr, valid ValidAttrFields) error {
+	ops := make([]inodedb.DBOperation, 0, 4)
+	if valid&PermModeValid != 0 {
+		ops = append(ops, &inodedb.UpdatePermModeOp{ID: id, PermMode: a.PermMode})
+	}
+
+	if _, err := fs.idb.ApplyTransaction(inodedb.DBTransaction{Ops: ops}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (fs *FileSystem) IsDir(id inodedb.ID) (bool, error) {

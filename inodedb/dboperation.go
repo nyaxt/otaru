@@ -54,7 +54,7 @@ type CreateNodeOp struct {
 
 	Uid       uint32    `json:"uid"`
 	Gid       uint32    `json:"gid"`
-	PermMode  uint16    `json:"mode_perm"`
+	PermMode  uint16    `json:"perm_mode"`
 	ModifiedT time.Time `json:"modified_t"`
 }
 
@@ -169,6 +169,29 @@ func (op *UpdateSizeOp) Apply(s *DBState) error {
 
 	fn.Size = op.Size
 	fn.ModifiedT = time.Now()
+	return nil
+}
+
+type UpdatePermModeOp struct {
+	OpMeta   `json:",inline"`
+	ID       `json:"id"`
+	PermMode uint16 `json:"perm_mode"`
+}
+
+func (op *UpdatePermModeOp) Apply(s *DBState) error {
+	n, ok := s.nodes[op.ID]
+	if !ok {
+		return ENOENT
+	}
+
+	switch n := n.(type) {
+	case *FileNode:
+		n.PermMode = op.PermMode
+	case *DirNode:
+		n.PermMode = op.PermMode
+	default:
+		return fmt.Errorf("UpdatePermModeOp: Unsupported node type: %d", n.GetType())
+	}
 	return nil
 }
 

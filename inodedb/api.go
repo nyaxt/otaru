@@ -27,7 +27,7 @@ type INodeCommon struct {
 
 	Uid       uint32    `json:"uid"`
 	Gid       uint32    `json:"gid"`
-	PermMode  uint16    `json:"mode_perm"`
+	PermMode  uint16    `json:"perm_mode"`
 	ModifiedT time.Time `json:"modified_t"`
 }
 
