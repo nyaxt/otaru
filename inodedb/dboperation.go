@@ -172,6 +172,50 @@ func (op *UpdateSizeOp) Apply(s *DBState) error {
 	return nil
 }
 
+type UpdateUidOp struct {
+	OpMeta `json:",inline"`
+	ID     `json:"id"`
+	Uid    uint32 `json:"uid"`
+}
+
+func (op *UpdateUidOp) Apply(s *DBState) error {
+	n, ok := s.nodes[op.ID]
+	if !ok {
+		return ENOENT
+	}
+	switch n := n.(type) {
+	case *FileNode:
+		n.Uid = op.Uid
+	case *DirNode:
+		n.Uid = op.Uid
+	default:
+		return fmt.Errorf("UpdateUidOp: Unsupported node type: %d", n.GetType())
+	}
+	return nil
+}
+
+type UpdateGidOp struct {
+	OpMeta `json:",inline"`
+	ID     `json:"id"`
+	Gid    uint32 `json:"gid"`
+}
+
+func (op *UpdateGidOp) Apply(s *DBState) error {
+	n, ok := s.nodes[op.ID]
+	if !ok {
+		return ENOENT
+	}
+	switch n := n.(type) {
+	case *FileNode:
+		n.Gid = op.Gid
+	case *DirNode:
+		n.Gid = op.Gid
+	default:
+		return fmt.Errorf("UpdateGidOp: Unsupported node type: %d", n.GetType())
+	}
+	return nil
+}
+
 type UpdatePermModeOp struct {
 	OpMeta   `json:",inline"`
 	ID       `json:"id"`

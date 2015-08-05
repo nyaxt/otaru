@@ -266,6 +266,12 @@ func (fs *FileSystem) SetAttr(id inodedb.ID, a Attr, valid ValidAttrFields) erro
 	log.Printf("SetAttr id: %d, a: %+v, valid: %s", id, a, valid)
 
 	ops := make([]inodedb.DBOperation, 0, 4)
+	if valid&UidValid != 0 {
+		ops = append(ops, &inodedb.UpdateUidOp{ID: id, Uid: a.Uid})
+	}
+	if valid&GidValid != 0 {
+		ops = append(ops, &inodedb.UpdateGidOp{ID: id, Gid: a.Gid})
+	}
 	if valid&PermModeValid != 0 {
 		ops = append(ops, &inodedb.UpdatePermModeOp{ID: id, PermMode: a.PermMode})
 	}
