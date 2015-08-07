@@ -7,6 +7,7 @@ import (
 	"math"
 	"time"
 
+	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
 )
@@ -54,7 +55,7 @@ func (e *ErrLockTaken) Error() string {
 
 // Lock attempts to acquire the global lock.
 // If the lock was already taken by other GlobalLocker instance, it will return an ErrLockTaken.
-func (l *GlobalLocker) Lock() error {
+func (l *GlobalLocker) tryLockOnce() error {
 	start := time.Now()
 	cli, err := l.cfg.getClient(context.Background())
 	if err != nil {
@@ -84,13 +85,19 @@ func (l *GlobalLocker) Lock() error {
 		return err
 	}
 
-	log.Printf("GlobalLocker.Lock(%+v) took %s.", l.lockEntry, time.Since(start))
+	log.Printf("GlobalLocker.tryLockOnce(%+v) took %s.", l.lockEntry, time.Since(start))
 	return nil
+}
+
+func (l *GlobalLocker) Lock() (err error) {
+	return gcutil.RetryIfNeeded(func() error {
+		return l.tryLockOnce()
+	})
 }
 
 // ForceUnlock releases the global lock entry forcibly, even if it was held by other GlobalLocker instance.
 // If there was no lock, ForceUnlock will log an warning, but return no error.
-func (l *GlobalLocker) ForceUnlock() error {
+func (l *GlobalLocker) forceUnlockOnce() error {
 	start := time.Now()
 	cli, err := l.cfg.getClient(context.Background())
 	if err != nil {
@@ -120,6 +127,12 @@ func (l *GlobalLocker) ForceUnlock() error {
 
 	log.Printf("GlobalLocker.ForceUnlock() took %s.", time.Since(start))
 	return nil
+}
+
+func (l *GlobalLocker) ForceUnlock() error {
+	return gcutil.RetryIfNeeded(func() error {
+		return l.forceUnlockOnce()
+	})
 }
 
 var ErrNoLock = errors.New("Attempted unlock, but couldn't find any lock entry.")
@@ -154,7 +167,7 @@ func checkLock(a, b lockEntry, checkCreatedAtFlag bool) bool {
 	return true
 }
 
-func (l *GlobalLocker) unlockInternal(checkCreatedAtFlag bool) error {
+func (l *GlobalLocker) unlockInternalOnce(checkCreatedAtFlag bool) error {
 	start := time.Now()
 
 	cli, err := l.cfg.getClient(context.Background())
@@ -192,7 +205,13 @@ func (l *GlobalLocker) unlockInternal(checkCreatedAtFlag bool) error {
 	return nil
 }
 
-func (l *GlobalLocker) Query() (lockEntry, error) {
+func (l *GlobalLocker) unlockInternal(checkCreatedAtFlag bool) error {
+	return gcutil.RetryIfNeeded(func() error {
+		return l.unlockInternalOnce(checkCreatedAtFlag)
+	})
+}
+
+func (l *GlobalLocker) tryQueryOnce() (lockEntry, error) {
 	var e lockEntry
 	start := time.Now()
 
@@ -216,4 +235,12 @@ func (l *GlobalLocker) Query() (lockEntry, error) {
 
 	log.Printf("GlobalLocker.Query() took %s.", time.Since(start))
 	return e, nil
+}
+
+func (l *GlobalLocker) Query() (le lockEntry, err error) {
+	err = gcutil.RetryIfNeeded(func() error {
+		le, err = l.tryQueryOnce()
+		return err
+	})
+	return
 }
