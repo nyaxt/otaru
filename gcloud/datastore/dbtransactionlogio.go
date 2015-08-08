@@ -163,16 +163,10 @@ func (s txsorter) Swap(i, j int) {
 }
 
 func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) (txs []inodedb.DBTransaction, err error) {
-	const numRetries = 3
-	for i := 0; i < numRetries; i++ {
+	err = gcutil.RetryIfNeeded(func() error {
 		txs, err = txio.queryTransactionsOnce(minID)
-		if err == nil {
-			return
-		}
-		if !gcutil.IsShouldRetryError(err) {
-			return
-		}
-	}
+		return err
+	})
 	return
 }
 

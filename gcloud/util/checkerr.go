@@ -1,7 +1,9 @@
 package util
 
 import (
+	"log"
 	"regexp"
+	"time"
 
 	"google.golang.org/cloud/datastore"
 )
@@ -24,12 +26,16 @@ func IsShouldRetryError(e error) bool {
 func RetryIfNeeded(f func() error) (err error) {
 	const numRetries = 3
 	for i := 0; i < numRetries; i++ {
+		start := time.Now()
 		err = f()
 		if err == nil {
 			return
 		}
 		if !IsShouldRetryError(err) {
 			return
+		}
+		if i < numRetries {
+			log.Printf("A Google Cloud Datastore operation has failed after %s. Retrying %d / %d...", time.Since(start), i+1, numRetries)
 		}
 	}
 	return
