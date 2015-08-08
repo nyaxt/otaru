@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
 )
@@ -31,7 +32,7 @@ type sslocentry struct {
 	CreatedAt time.Time
 }
 
-func (loc *INodeDBSSLocator) Locate(history int) (string, error) {
+func (loc *INodeDBSSLocator) tryLocateOnce(history int) (string, error) {
 	start := time.Now()
 	cli, err := loc.cfg.getClient(context.TODO())
 	if err != nil {
@@ -57,7 +58,15 @@ func (loc *INodeDBSSLocator) Locate(history int) (string, error) {
 	return e.BlobPath, nil
 }
 
-func (loc *INodeDBSSLocator) Put(blobpath string, txid int64) error {
+func (loc *INodeDBSSLocator) Locate(history int) (bp string, err error) {
+	err = gcutil.RetryIfNeeded(func() error {
+		bp, err = loc.tryLocateOnce(history)
+		return err
+	})
+	return
+}
+
+func (loc *INodeDBSSLocator) tryPutOnce(blobpath string, txid int64) error {
 	start := time.Now()
 	e := sslocentry{BlobPath: blobpath, TxID: txid, CreatedAt: start}
 
@@ -81,6 +90,12 @@ func (loc *INodeDBSSLocator) Put(blobpath string, txid int64) error {
 
 	log.Printf("Put(%s, %d) took %s.", blobpath, txid, time.Since(start))
 	return nil
+}
+
+func (loc *INodeDBSSLocator) Put(blobpath string, txid int64) error {
+	return gcutil.RetryIfNeeded(func() error {
+		return loc.tryPutOnce(blobpath, txid)
+	})
 }
 
 func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
