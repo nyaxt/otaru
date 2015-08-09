@@ -3,6 +3,7 @@
 <link rel="import" href="../elements/otaru-menu.html">
 <link rel="import" href="../elements/otaru-blobstore.html">
 <link rel="import" href="../elements/otaru-inodedb.html">
+<link rel="import" href="../elements/otaru-scheduler.html">
 
 <dom-module id="otaru-root">
   <style>
@@ -61,6 +62,7 @@
           <otaru-menu-item val='blobstore'>Blobstore</otaru-menu-item> 
           <otaru-menu-item val='inodedb'>INodeDB</otaru-menu-item> 
           <otaru-menu-item val='inspect'>Inspect</otaru-menu-item> 
+          <otaru-menu-item val='scheduler'>Scheduler</otaru-menu-item> 
         </otaru-menu>
       </div>
       <div main>
@@ -78,6 +80,7 @@ var PageTitleMap = {
   blobstore: 'Blobstore',
   inodedb: 'INodeDB',
   inspect: 'Inspect',
+  scheduler: 'Scheduler',
 };
 
 Polymer({

@@ -1,0 +1,58 @@
+<link rel="import" href="../elements/otaru-reltime.html">
+
+<dom-module id='otaru-scheduler'>
+  <style>
+    .label {
+      color: #777;
+      min-width: 100px;
+    }
+
+    .value {
+      padding-left: 20px;
+      color: #333;
+    }
+  </style>
+  <template>
+    <table>
+      <tr>
+        <td class='label'># Task Runners:</td>
+        <td class='value'>{{stats.num_runners}}</td>
+      </tr>
+      <tr>
+        <td class='label'># Waiting Jobs:</td>
+        <td class='value'>{{stats.num_wait_jobs}}</td>
+      </tr>
+    </table>
+  </template>
+
+</dom-module>
+<script>
+(function() {
+"use strict";
+
+Polymer({
+  is: 'otaru-scheduler',
+  properties: {
+    stats: {
+      type: Object,
+      value: {}
+    }
+  },
+  created() {
+    this.query = new OtaruQuery({
+      endpointURL: 'http://localhost:10246/api/scheduler/stats',
+      onData: this._onStats.bind(this),
+    });
+  },
+  attached() {
+    this.query.start(); 
+  },
+  detached() {
+    this.query.stop(); 
+  },
+  _onStats(data) {
+    this.stats = data;
+  }
+});
+})();
+</script>
