@@ -13,10 +13,16 @@ type WriterLogger struct {
 }
 
 func (l WriterLogger) Log(lv Level, data map[string]interface{}) {
-	t := data["time"].(time.Time)
 
 	var b bytes.Buffer
+	t := data["time"].(time.Time)
 	b.WriteString(t.Format("2006/01/02 15:04:05 "))
+	if c, ok := data["category"]; ok {
+		b.WriteString("[")
+		b.WriteString(c.(string))
+		b.WriteString("] ")
+	}
+
 	b.WriteString(data["location"].(string))
 	b.WriteString(": ")
 	b.WriteString(data["log"].(string))

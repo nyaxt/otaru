@@ -13,6 +13,7 @@ import (
 
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/fuse"
+	"github.com/nyaxt/otaru/logger"
 )
 
 var Usage = func() {
@@ -28,6 +29,7 @@ var (
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
 
 	flag.Usage = Usage
 	flag.Parse()
@@ -77,9 +79,8 @@ func main() {
 		}
 	}()
 
-	bfuse.Debug = func(msg interface{}) {
-		log.Printf("fusedbg: %v", msg)
-	}
+	bfuseLogger := logger.Registry().Category("bfuse")
+	bfuse.Debug = func(msg interface{}) { logger.Debugf(bfuseLogger, "%v", msg) }
 	if err := fuse.ServeFUSE(cfg.BucketName, mountpoint, o.FS, nil); err != nil {
 		log.Printf("ServeFUSE failed: %v", err)
 		closeOtaruAndExit(1)
