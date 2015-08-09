@@ -119,7 +119,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	}
 
 	queryFn := chunkstore.NewQueryChunkVersion(o.C)
-	o.CBS, err = cachedblobstore.New(o.BackendBS, o.CacheTgtBS, oflags.O_RDWRCREATE /* FIXME */, queryFn)
+	o.CBS, err = cachedblobstore.New(o.BackendBS, o.CacheTgtBS, o.S, oflags.O_RDWRCREATE /* FIXME */, queryFn)
 	if err != nil {
 		o.Close()
 		return nil, fmt.Errorf("Failed to init CachedBlobStore: %v", err)

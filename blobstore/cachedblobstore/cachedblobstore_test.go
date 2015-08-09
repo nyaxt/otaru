@@ -7,19 +7,21 @@ import (
 
 	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
 	"github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/scheduler"
 	tu "github.com/nyaxt/otaru/testutils"
 )
 
 func TestCachedBlobStore(t *testing.T) {
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")
+	s := scheduler.NewScheduler()
 
 	if err := tu.WriteVersionedBlob(backendbs, "backendonly", 5); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	bs, err := cachedblobstore.New(backendbs, cachebs, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	bs, err := cachedblobstore.New(backendbs, cachebs, s, flags.O_RDWRCREATE, tu.TestQueryVersion)
 	if err != nil {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
@@ -70,6 +72,7 @@ func TestCachedBlobStore(t *testing.T) {
 func TestCachedBlobStore_Invalidate(t *testing.T) {
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")
+	s := scheduler.NewScheduler()
 
 	if err := tu.WriteVersionedBlob(cachebs, "backendnewer", 2); err != nil {
 		t.Errorf("%v", err)
@@ -80,7 +83,7 @@ func TestCachedBlobStore_Invalidate(t *testing.T) {
 		return
 	}
 
-	bs, err := cachedblobstore.New(backendbs, cachebs, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	bs, err := cachedblobstore.New(backendbs, cachebs, s, flags.O_RDWRCREATE, tu.TestQueryVersion)
 	if err != nil {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
@@ -123,8 +126,9 @@ func TestCachedBlobStore_Invalidate(t *testing.T) {
 func TestCachedBlobStore_NewEntry(t *testing.T) {
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")
+	s := scheduler.NewScheduler()
 
-	bs, err := cachedblobstore.New(backendbs, cachebs, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	bs, err := cachedblobstore.New(backendbs, cachebs, s, flags.O_RDWRCREATE, tu.TestQueryVersion)
 	if err != nil {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
@@ -155,8 +159,9 @@ func TestCachedBlobStore_NewEntry(t *testing.T) {
 func TestCachedBlobStore_AutoExpandLen(t *testing.T) {
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")
+	s := scheduler.NewScheduler()
 
-	bs, err := cachedblobstore.New(backendbs, cachebs, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	bs, err := cachedblobstore.New(backendbs, cachebs, s, flags.O_RDWRCREATE, tu.TestQueryVersion)
 	if err != nil {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
@@ -184,8 +189,9 @@ func TestCachedBlobStore_AutoExpandLen(t *testing.T) {
 func TestCachedBlobStore_ListBlobs(t *testing.T) {
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")
+	s := scheduler.NewScheduler()
 
-	bs, err := cachedblobstore.New(backendbs, cachebs, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	bs, err := cachedblobstore.New(backendbs, cachebs, s, flags.O_RDWRCREATE, tu.TestQueryVersion)
 	if err != nil {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
@@ -226,8 +232,9 @@ func TestCachedBlobStore_ListBlobs(t *testing.T) {
 func TestCachedBlobStore_RemoveBlob(t *testing.T) {
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")
+	s := scheduler.NewScheduler()
 
-	bs, err := cachedblobstore.New(backendbs, cachebs, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	bs, err := cachedblobstore.New(backendbs, cachebs, s, flags.O_RDWRCREATE, tu.TestQueryVersion)
 	if err != nil {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return

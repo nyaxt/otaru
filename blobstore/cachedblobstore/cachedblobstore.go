@@ -16,6 +16,7 @@ import (
 	"github.com/nyaxt/otaru/blobstore/version"
 	"github.com/nyaxt/otaru/btncrypt"
 	fl "github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/scheduler"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -27,6 +28,7 @@ const (
 type CachedBlobStore struct {
 	backendbs blobstore.BlobStore
 	cachebs   blobstore.RandomAccessBlobStore
+	s         *scheduler.Scheduler
 
 	flags int
 
@@ -96,7 +98,9 @@ type CachedBlobEntry struct {
 
 const invalidateBlockSize int = 32 * 1024
 
-func (be *CachedBlobEntry) invalidateCache(cbs *CachedBlobStore) error {
+// invalidateCacheBlob fetches new version of the blob from backendbs.
+// This func should be only called from be.invalidateCache()
+func (be *CachedBlobEntry) invalidateCacheBlob(cbs *CachedBlobStore) error {
 	blobpath := be.blobpath
 
 	backendr, err := cbs.backendbs.OpenReader(blobpath)
@@ -156,6 +160,20 @@ func (be *CachedBlobEntry) invalidateCache(cbs *CachedBlobStore) error {
 	return nil
 }
 
+func (be *CachedBlobEntry) invalidateCache(cbs *CachedBlobStore) error {
+	if err := be.invalidateCacheBlob(cbs); err != nil {
+		be.validlen = 0
+		be.mu.Lock()
+		be.state = cacheEntryInvalidateFailed
+		be.mu.Unlock()
+		return err
+	}
+	be.mu.Lock()
+	be.state = cacheEntryClean
+	be.mu.Unlock()
+	return nil
+}
+
 func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 	cachebh, err := cbs.cachebs.Open(be.blobpath, fl.O_RDWRCREATE)
 	if err != nil {
@@ -196,18 +214,7 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 		be.state = cacheEntryInvalidating
 		be.validlen = 0
 
-		go func() {
-			if err := be.invalidateCache(cbs); err != nil {
-				log.Printf("invalidate cache failed: %v", err)
-				be.validlen = 0
-				be.mu.Lock()
-				be.state = cacheEntryUninitialized
-				be.mu.Unlock()
-			}
-			be.mu.Lock()
-			be.state = cacheEntryClean
-			be.mu.Unlock()
-		}()
+		cbs.s.RunImmediately(&InvalidateCacheTask{cbs, be}, nil)
 	}
 	if be.state == cacheEntryUninitialized {
 		panic("be.state should be set above")
@@ -525,7 +532,7 @@ func (cbs *CachedBlobStore) SyncOneEntry() error {
 	return be.Sync()
 }
 
-func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore, flags int, queryVersion version.QueryFunc) (*CachedBlobStore, error) {
+func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore, s *scheduler.Scheduler, flags int, queryVersion version.QueryFunc) (*CachedBlobStore, error) {
 	if fl.IsWriteAllowed(flags) {
 		if fr, ok := backendbs.(fl.FlagsReader); ok {
 			if !fl.IsWriteAllowed(fr.Flags()) {
@@ -540,6 +547,7 @@ func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore,
 	cbs := &CachedBlobStore{
 		backendbs:    backendbs,
 		cachebs:      cachebs,
+		s:            s,
 		flags:        flags,
 		queryVersion: queryVersion,
 		bever:        NewCachedBackendVersion(backendbs, queryVersion),
