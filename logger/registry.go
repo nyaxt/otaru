@@ -51,20 +51,21 @@ func (r *registry) Category(c string) *CategoryLogger {
 }
 
 type CategoryEntry struct {
-	Level `json:"level"`
+	Category string `json:"category"`
+	Level    `json:"level"`
 }
 
 func (cl *CategoryLogger) View() CategoryEntry {
-	return CategoryEntry{Level: cl.Level}
+	return CategoryEntry{Category: cl.Category, Level: cl.Level}
 }
 
-func (r *registry) Categories() map[string]CategoryEntry {
+func (r *registry) Categories() []CategoryEntry {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	ret := make(map[string]CategoryEntry)
-	for cat, cl := range r.catmap {
-		ret[cat] = cl.View()
+	ret := make([]CategoryEntry, 0, len(r.catmap))
+	for _, cl := range r.catmap {
+		ret = append(ret, cl.View())
 	}
 	return ret
 }

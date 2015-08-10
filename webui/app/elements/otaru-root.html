@@ -4,6 +4,7 @@
 <link rel="import" href="../elements/otaru-blobstore.html">
 <link rel="import" href="../elements/otaru-inodedb.html">
 <link rel="import" href="../elements/otaru-scheduler.html">
+<link rel="import" href="../elements/otaru-logger.html">
 
 <dom-module id="otaru-root">
   <style>
@@ -63,6 +64,7 @@
           <otaru-menu-item val='inodedb'>INodeDB</otaru-menu-item> 
           <otaru-menu-item val='inspect'>Inspect</otaru-menu-item> 
           <otaru-menu-item val='scheduler'>Scheduler</otaru-menu-item> 
+          <otaru-menu-item val='logger'>Logger</otaru-menu-item> 
         </otaru-menu>
       </div>
       <div main>
@@ -81,6 +83,7 @@ var PageTitleMap = {
   inodedb: 'INodeDB',
   inspect: 'Inspect',
   scheduler: 'Scheduler',
+  logger: 'Logger',
 };
 
 Polymer({
@@ -113,12 +116,11 @@ Polymer({
     return '#'+activeTab;
   },
   _activeTabChanged(newValue, oldValue) {
-    if (this._ignoreActiveTabChangedOnce) {
-      this._ignoreActiveTabChangedOnce = false;
-      return; 
-    }
-
     if (newValue == oldValue) {
+      if (this._skipReplaceStateOnce) {
+        return; 
+      }
+
       console.log('replaceState: '+this._tabURL());
       window.history.replaceState(null, this.pageTitle, this._tabURL());
       return;
@@ -135,15 +137,19 @@ Polymer({
 
     this.pageTitle = PageTitleMap[this.activeTab];
 
-    console.log('pushState: '+this._tabURL());
-    window.history.pushState(null, this.pageTitle, this._tabURL());
+    if (!this._skipReplaceStateOnce) {
+      console.log('pushState: '+this._tabURL());
+      window.history.pushState(null, this.pageTitle, this._tabURL());
+    }
+
+    this._skipReplaceStateOnce = false;
   },
   _tabFromCurrentURL() {
     let hash = document.location.hash;
     let match = /#(\w+)/.exec(hash);
     if (match && match[1] !== '') {
       let tab = match[1];
-      this._ignoreActiveTabChangedOnce = true;
+      this._skipReplaceStateOnce = true;
       this.activeTab = tab;
     }
   }
