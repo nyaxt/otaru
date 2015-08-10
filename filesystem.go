@@ -3,7 +3,6 @@ package otaru
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"sync"
 	"syscall"
 	"time"
@@ -13,8 +12,11 @@ import (
 	"github.com/nyaxt/otaru/chunkstore"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
+
+var fslog = logger.Registry().Category("filesystem")
 
 const (
 	EACCES    = syscall.Errno(syscall.EACCES)
@@ -65,10 +67,10 @@ func (fs *FileSystem) tryGetOrigPath(id inodedb.ID) string {
 
 	origpath, ok := fs.origpath[id]
 	if !ok {
-		log.Printf("Failed to lookup orig path for ID %d", id)
+		logger.Warningf(fslog, "Failed to lookup orig path for ID %d", id)
 		return "<unknown>"
 	}
-	log.Printf("Orig path for ID %d is \"%s\"", id, origpath)
+	logger.Warningf(fslog, "Orig path for ID %d is \"%s\"", id, origpath)
 	return origpath
 }
 
@@ -165,7 +167,7 @@ func (fs *FileSystem) createNode(dirID inodedb.ID, name string, typ inodedb.Type
 	}
 	defer func() {
 		if err := fs.idb.UnlockNode(nlock); err != nil {
-			log.Printf("Failed to unlock node when creating file: %v", err)
+			logger.Warningf(fslog, "Failed to unlock node when creating file: %v", err)
 		}
 	}()
 
@@ -263,7 +265,7 @@ func (valid ValidAttrFields) String() string {
 }
 
 func (fs *FileSystem) SetAttr(id inodedb.ID, a Attr, valid ValidAttrFields) error {
-	log.Printf("SetAttr id: %d, a: %+v, valid: %s", id, a, valid)
+	logger.Infof(fslog, "SetAttr id: %d, a: %+v, valid: %s", id, a, valid)
 
 	ops := make([]inodedb.DBOperation, 0, 4)
 	if valid&UidValid != 0 {
@@ -331,7 +333,7 @@ func (fs *FileSystem) getOrCreateOpenFile(id inodedb.ID) *OpenFile {
 }
 
 func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
-	log.Printf("OpenFile(id: %v, flags rok: %t wok: %t)", id, fl.IsReadAllowed(flags), fl.IsWriteAllowed(flags))
+	logger.Infof(fslog, "OpenFile(id: %v, flags rok: %t wok: %t)", id, fl.IsReadAllowed(flags), fl.IsWriteAllowed(flags))
 
 	tryLock := fl.IsWriteAllowed(flags)
 	if tryLock && !fl.IsWriteAllowed(fs.bs.Flags()) {
@@ -346,7 +348,7 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	ofIsInitialized := of.nlock.ID != 0
 	if ofIsInitialized && (of.nlock.HasTicket() || !tryLock) {
 		// No need to upgrade lock. Just use cached filehandle.
-		log.Printf("Using cached of for inode id: %v", id)
+		logger.Infof(fslog, "Using cached of for inode id: %v", id)
 		return of.OpenHandleWithoutLock(flags), nil
 	}
 
@@ -357,7 +359,7 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	}
 	if v.GetType() != inodedb.FileNodeT {
 		if err := fs.idb.UnlockNode(nlock); err != nil {
-			log.Printf("Unlock node failed for non-file node: %v", err)
+			logger.Warningf(fslog, "Unlock node failed for non-file node: %v", err)
 		}
 
 		if v.GetType() == inodedb.DirNodeT {
@@ -399,11 +401,11 @@ func (of *OpenFile) OpenHandleWithoutLock(flags int) *FileHandle {
 
 func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 	if tgt.of == nil {
-		log.Printf("Detected FileHandle double close!")
+		logger.Warningf(fslog, "Detected FileHandle double close!")
 		return
 	}
 	if tgt.of != of {
-		log.Fatalf("Attempt to close handle for other OpenFile. tgt fh: %+v, of: %+v", tgt, of)
+		logger.Criticalf(fslog, "Attempt to close handle for other OpenFile. tgt fh: %+v, of: %+v", tgt, of)
 		return
 	}
 
@@ -433,16 +435,16 @@ func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 }
 
 func (of *OpenFile) downgradeToReadLock() {
-	log.Printf("Downgrade %v to read lock.", of)
+	logger.Infof(fslog, "Downgrade %v to read lock.", of)
 	// Note: assumes of.mu is Lock()-ed
 
 	if !of.nlock.HasTicket() {
-		log.Printf("Attempt to downgrade node lock, but no excl lock found. of: %v", of)
+		logger.Warningf(fslog, "Attempt to downgrade node lock, but no excl lock found. of: %v", of)
 		return
 	}
 
 	if err := of.fs.idb.UnlockNode(of.nlock); err != nil {
-		log.Printf("Unlocking node to downgrade to read lock failed: %v", err)
+		logger.Warningf(fslog, "Unlocking node to downgrade to read lock failed: %v", err)
 	}
 	of.nlock.Ticket = inodedb.NoTicket
 	caio := NewINodeDBChunksArrayIO(of.fs.idb, of.nlock)
