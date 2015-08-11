@@ -75,14 +75,12 @@ Polymer({
 
 <dom-module id='otaru-logger'>
   <style>
-    .label {
+    .category {
       color: #777;
       min-width: 100px;
     }
 
-    .value {
-      padding-left: 20px;
-      color: #333;
+    .level{
     }
   </style>
   <template>
@@ -122,7 +120,7 @@ Polymer({
   ],
   created() {
     this.query = new OtaruQuery({
-      endpointURL: 'http://localhost:10246/api/logger/categories',
+      endpointPath: '/api/logger/categories',
       oneShot: true,
       onData: this._onCategories.bind(this),
     });
@@ -144,7 +142,7 @@ Polymer({
       new OtaruQuery({
         method: 'post',
         oneShot: true,
-        endpointURL: 'http://localhost:10246/api/logger/category/', 
+        endpointPath: '/api/logger/category/', 
         objectName: e.category,
         queryParams: {
           level: changeRecord.value, // FIXME: somehow e is not updating.

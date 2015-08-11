@@ -41,7 +41,7 @@ Polymer({
   },
   created() {
     this.query = new OtaruQuery({
-      endpointURL: 'http://localhost:10246/api/blobstore/config',
+      endpointPath: '/api/blobstore/config',
       onData: this._onConfig.bind(this),
       oneShot: true,
     });

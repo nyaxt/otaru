@@ -76,7 +76,7 @@ Polymer({
   },
   created() {
     this.query = new OtaruQuery({
-      endpointURL: 'http://localhost:10246/api/blobstore/entries',
+      endpointPath: '/api/blobstore/entries',
       onData: this._onData.bind(this),
     });
   },

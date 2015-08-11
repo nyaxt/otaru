@@ -56,7 +56,7 @@ Polymer({
   },
   created() {
     this.query = new OtaruQuery({
-      endpointURL: 'http://localhost:10246/api/inodedb/stats',
+      endpointPath: '/api/inodedb/stats',
       onData: this._onStats.bind(this),
     });
   },
