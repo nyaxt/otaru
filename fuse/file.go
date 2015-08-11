@@ -2,7 +2,6 @@ package fuse
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"os"
 	"syscall"
@@ -11,6 +10,7 @@ import (
 	"github.com/nyaxt/otaru"
 	oflags "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/logger"
 
 	bfuse "bazil.org/fuse"
 	bfs "bazil.org/fuse/fs"
@@ -66,7 +66,7 @@ func Bazil2OtaruFlags(bf bfuse.OpenFlags) int {
 		ret |= oflags.O_EXCL
 	}
 	if bf&bfuse.OpenSync != 0 {
-		log.Printf("FIXME: OpenSync not supported yet !!!!!!!!!!!")
+		logger.Criticalf(mylog, "FIXME: OpenSync not supported yet !!!!!!!!!!!")
 	}
 	if bf&bfuse.OpenTruncate != 0 {
 		ret |= oflags.O_TRUNCATE
@@ -81,7 +81,7 @@ func (n FileNode) Getattr(ctx context.Context, req *bfuse.GetattrRequest, resp *
 
 func (n FileNode) Setattr(ctx context.Context, req *bfuse.SetattrRequest, resp *bfuse.SetattrResponse) error {
 	if req.Valid.Size() {
-		log.Printf("Setattr size %d", req.Size)
+		logger.Debugf(mylog, "Setattr size %d", req.Size)
 		if req.Size > math.MaxInt64 {
 			return fmt.Errorf("specified size too big: %d", req.Size)
 		}
@@ -102,7 +102,7 @@ func (n FileNode) Setattr(ctx context.Context, req *bfuse.SetattrRequest, resp *
 }
 
 func (n FileNode) Open(ctx context.Context, req *bfuse.OpenRequest, resp *bfuse.OpenResponse) (bfs.Handle, error) {
-	log.Printf("Open flags: %s", req.Flags.String())
+	logger.Debugf(mylog, "Open flags: %s", req.Flags.String())
 
 	fh, err := n.fs.OpenFile(n.id, Bazil2OtaruFlags(req.Flags))
 	if err != nil {
@@ -117,7 +117,7 @@ type FileHandle struct {
 }
 
 func (fh FileHandle) Read(ctx context.Context, req *bfuse.ReadRequest, resp *bfuse.ReadResponse) error {
-	log.Printf("Read offset %d size %d", req.Offset, req.Size)
+	logger.Debugf(mylog, "Read offset %d size %d", req.Offset, req.Size)
 
 	if fh.h == nil {
 		return EBADF
@@ -134,7 +134,7 @@ func (fh FileHandle) Read(ctx context.Context, req *bfuse.ReadRequest, resp *bfu
 }
 
 func (fh FileHandle) Write(ctx context.Context, req *bfuse.WriteRequest, resp *bfuse.WriteResponse) error {
-	log.Printf("Write offset %d size %d", req.Offset, len(req.Data))
+	logger.Debugf(mylog, "Write offset %d size %d", req.Offset, len(req.Data))
 
 	if fh.h == nil {
 		return EBADF

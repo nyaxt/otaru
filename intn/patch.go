@@ -2,7 +2,6 @@ package intn
 
 import (
 	"fmt"
-	//"log"
 	"math"
 )
 

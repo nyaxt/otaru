@@ -3,12 +3,12 @@ package facade
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 
 	"github.com/naoina/toml"
 
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -55,14 +55,14 @@ func NewConfig(configdir string) (*Config, error) {
 	}
 
 	if cfg.Password != "" {
-		log.Printf("Storing password directly on config file is not recommended.")
+		logger.Warningf(mylog, "Storing password directly on config file is not recommended.")
 	} else {
 		fi, err := os.Stat(cfg.PasswordFile)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to stat password file \"%s\": %v", cfg.PasswordFile, err)
 		}
 		if fi.Mode()&os.ModePerm != 0400 {
-			log.Printf("Warning: Password file \"%s\" permission is not 0400", cfg.PasswordFile)
+			logger.Warningf(mylog, "Warning: Password file \"%s\" permission is not 0400", cfg.PasswordFile)
 		}
 
 		cfg.Password, err = util.StringFromFile(cfg.PasswordFile)
@@ -88,7 +88,7 @@ func NewConfig(configdir string) (*Config, error) {
 
 	if _, err := os.Stat(cfg.TokenCacheFilePath); err != nil {
 		if os.IsNotExist(err) {
-			log.Printf("Warning: Token cache file found not at %s", cfg.TokenCacheFilePath)
+			logger.Warningf(mylog, "Warning: Token cache file found not at %s", cfg.TokenCacheFilePath)
 		} else {
 			return nil, fmt.Errorf("Failed to stat token cache file \"%s\" from unknown err: %v", cfg.TokenCacheFilePath, err)
 		}

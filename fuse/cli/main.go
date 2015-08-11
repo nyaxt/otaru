@@ -16,6 +16,8 @@ import (
 	"github.com/nyaxt/otaru/logger"
 )
 
+var mylog = logger.Registry().Category("cli")
+
 var Usage = func() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "  %s MOUNTPOINT\n", os.Args[0])
@@ -36,7 +38,7 @@ func main() {
 
 	cfg, err := facade.NewConfig(*flagConfigDir)
 	if err != nil {
-		log.Printf("%v", err)
+		logger.Warningf(mylog, "%v", err)
 		Usage()
 		os.Exit(2)
 	}
@@ -48,7 +50,7 @@ func main() {
 
 	o, err := facade.NewOtaru(cfg, &facade.OneshotConfig{Mkfs: *flagMkfs})
 	if err != nil {
-		log.Printf("NewOtaru failed: %v", err)
+		logger.Warningf(mylog, "NewOtaru failed: %v", err)
 		os.Exit(1)
 	}
 	var muClose sync.Mutex
@@ -57,11 +59,11 @@ func main() {
 		defer muClose.Unlock()
 
 		if err := bfuse.Unmount(mountpoint); err != nil {
-			log.Printf("umount err: %v", err)
+			logger.Warningf(mylog, "umount err: %v", err)
 		}
 		if o != nil {
 			if err := o.Close(); err != nil {
-				log.Printf("Otaru.Close() returned errs: %v", err)
+				logger.Warningf(mylog, "Otaru.Close() returned errs: %v", err)
 			}
 			o = nil
 		}
@@ -74,7 +76,7 @@ func main() {
 	signal.Notify(sigC, syscall.SIGTERM)
 	go func() {
 		for s := range sigC {
-			log.Printf("Received signal: %v", s)
+			logger.Warningf(mylog, "Received signal: %v", s)
 			closeOtaruAndExit(1)
 		}
 	}()
@@ -82,8 +84,8 @@ func main() {
 	bfuseLogger := logger.Registry().Category("bfuse")
 	bfuse.Debug = func(msg interface{}) { logger.Debugf(bfuseLogger, "%v", msg) }
 	if err := fuse.ServeFUSE(cfg.BucketName, mountpoint, o.FS, nil); err != nil {
-		log.Printf("ServeFUSE failed: %v", err)
+		logger.Warningf(mylog, "ServeFUSE failed: %v", err)
 		closeOtaruAndExit(1)
 	}
-	log.Printf("ServeFUSE end!")
+	logger.Infof(mylog, "ServeFUSE end!")
 }

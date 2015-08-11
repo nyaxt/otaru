@@ -1,10 +1,10 @@
 package inodedb
 
 import (
-	"fmt"
-	"log"
-
 	"encoding/gob"
+	"fmt"
+
+	"github.com/nyaxt/otaru/logger"
 )
 
 func (s *DBState) EncodeToGob(enc *gob.Encoder) error {
@@ -14,7 +14,7 @@ func (s *DBState) EncodeToGob(enc *gob.Encoder) error {
 	}
 	for id, node := range s.nodes {
 		if id != node.GetID() {
-			log.Fatalf("nodes map key (%d) != node.GetID() result (%d)", id, node.GetID())
+			logger.Panicf(mylog, "nodes map key (%d) != node.GetID() result (%d)", id, node.GetID())
 		}
 
 		if err := node.EncodeToGob(enc); err != nil {

@@ -1,13 +1,15 @@
 package otaru
 
 import (
-	"log"
 	"math"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/intn"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
+
+var wclog = logger.Registry().Category("filewritecache")
 
 type FileWriteCache struct {
 	ps intn.Patches
@@ -22,8 +24,8 @@ func (wc *FileWriteCache) PWrite(p []byte, offset int64) error {
 	copy(pcopy, p)
 
 	newp := intn.Patch{Offset: offset, P: pcopy}
-	log.Printf("PWrite: %v", newp)
-	// log.Printf("PWrite: p=%v", pcopy)
+	logger.Debugf(wclog, "PWrite: %v", newp)
+	// logger.Debugf(wclog, "PWrite: p=%v", pcopy)
 
 	wc.ps = wc.ps.Merge(newp)
 	return nil
@@ -65,7 +67,7 @@ func (wc *FileWriteCache) ReadAtThrough(p []byte, offset int64, r ReadAter) (int
 			fallbackLen := int(fallbackLen64)
 
 			n, err := r.ReadAt(remp[:fallbackLen], remo)
-			log.Printf("BeforePatch: ReadAt issued offset %d, len %d bytes, read %d bytes", remo, fallbackLen, n)
+			logger.Debugf(wclog, "BeforePatch: ReadAt issued offset %d, len %d bytes, read %d bytes", remo, fallbackLen, n)
 			if err != nil {
 				return nr + n, err
 			}
@@ -96,7 +98,7 @@ func (wc *FileWriteCache) ReadAtThrough(p []byte, offset int64, r ReadAter) (int
 	}
 
 	n, err := r.ReadAt(remp, remo)
-	log.Printf("Last: ReadAt read %d bytes", n)
+	logger.Debugf(wclog, "Last: ReadAt read %d bytes", n)
 	if err != nil {
 		return nr, err
 	}
@@ -130,8 +132,8 @@ func (wc *FileWriteCache) Sync(bh blobstore.PWriter) error {
 			continue
 		}
 
-		log.Printf("Sync: %v", p)
-		// log.Printf("Sync: p=%v", p.P)
+		logger.Debugf(wclog, "Sync: %v", p)
+		// logger.Debugf(wclog, "Sync: p=%v", p.P)
 		if err := bh.PWrite(p.P, p.Offset); err != nil {
 			return err
 		}

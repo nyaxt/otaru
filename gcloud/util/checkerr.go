@@ -1,11 +1,12 @@
 package util
 
 import (
-	"log"
 	"regexp"
 	"time"
 
 	"google.golang.org/cloud/datastore"
+
+	"github.com/nyaxt/otaru/logger"
 )
 
 var shouldRetryErrorRegexp = regexp.MustCompile("http status code: 5\\d\\d")
@@ -23,7 +24,7 @@ func IsShouldRetryError(e error) bool {
 	return shouldRetryErrorRegexp.MatchString(estr)
 }
 
-func RetryIfNeeded(f func() error) (err error) {
+func RetryIfNeeded(f func() error, mylog logger.Logger) (err error) {
 	const numRetries = 3
 	for i := 0; i < numRetries; i++ {
 		start := time.Now()
@@ -35,7 +36,7 @@ func RetryIfNeeded(f func() error) (err error) {
 			return
 		}
 		if i < numRetries {
-			log.Printf("A Google Cloud Datastore operation has failed after %s. Retrying %d / %d...", time.Since(start), i+1, numRetries)
+			logger.Debugf(mylog, "A Google Cloud Datastore operation has failed after %s. Retrying %d / %d...", time.Since(start), i+1, numRetries)
 		}
 	}
 	return

@@ -1,9 +1,8 @@
 package facade
 
 import (
-	"log"
-
 	"github.com/nyaxt/otaru/gcloud/gcs"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/mgmt/mblobstore"
 	"github.com/nyaxt/otaru/mgmt/mgc"
 	"github.com/nyaxt/otaru/mgmt/mgcsblobstore"
@@ -32,7 +31,7 @@ func (o *Otaru) runMgmtServer() error {
 
 	go func() {
 		if err := o.MGMT.Run(); err != nil {
-			log.Fatalf("mgmt httpd died")
+			logger.Criticalf(mylog, "mgmt httpd died")
 		}
 	}()
 	return nil

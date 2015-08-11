@@ -2,13 +2,16 @@ package datastore
 
 import (
 	"errors"
-	"log"
 	"time"
 
-	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
+
+	gcutil "github.com/nyaxt/otaru/gcloud/util"
+	"github.com/nyaxt/otaru/logger"
 )
+
+var sslog = logger.Registry().Category("inodedbsslocator")
 
 const kindINodeDBSS = "OtaruINodeDBSS"
 
@@ -54,7 +57,7 @@ func (loc *INodeDBSSLocator) tryLocateOnce(history int) (string, error) {
 		return "", err
 	}
 
-	log.Printf("LocateSnapshot(%d) took %s. Found entry: %+v", history, time.Since(start), e)
+	logger.Infof(sslog, "LocateSnapshot(%d) took %s. Found entry: %+v", history, time.Since(start), e)
 	return e.BlobPath, nil
 }
 
@@ -62,7 +65,7 @@ func (loc *INodeDBSSLocator) Locate(history int) (bp string, err error) {
 	err = gcutil.RetryIfNeeded(func() error {
 		bp, err = loc.tryLocateOnce(history)
 		return err
-	})
+	}, sslog)
 	return
 }
 
@@ -88,14 +91,14 @@ func (loc *INodeDBSSLocator) tryPutOnce(blobpath string, txid int64) error {
 		return err
 	}
 
-	log.Printf("Put(%s, %d) took %s.", blobpath, txid, time.Since(start))
+	logger.Infof(sslog, "Put(%s, %d) took %s.", blobpath, txid, time.Since(start))
 	return nil
 }
 
 func (loc *INodeDBSSLocator) Put(blobpath string, txid int64) error {
 	return gcutil.RetryIfNeeded(func() error {
 		return loc.tryPutOnce(blobpath, txid)
-	})
+	}, sslog)
 }
 
 func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
@@ -130,7 +133,7 @@ func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
 		blobpaths = append(blobpaths, e.BlobPath)
 	}
 
-	log.Printf("keys to delete: %v", keys)
+	logger.Debugf(sslog, "keys to delete: %v", keys)
 	if err := dstx.DeleteMulti(keys); err != nil {
 		dstx.Rollback()
 		return nil, err
@@ -139,6 +142,6 @@ func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
 	if _, err := dstx.Commit(); err != nil {
 		return nil, err
 	}
-	log.Printf("DeleteAll() deleted %d entries. Took %s", len(keys), time.Since(start))
+	logger.Infof(sslog, "DeleteAll() deleted %d entries. Took %s", len(keys), time.Since(start))
 	return blobpaths, nil
 }

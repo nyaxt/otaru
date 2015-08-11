@@ -2,14 +2,15 @@ package facade
 
 import (
 	"fmt"
-	"log"
 	"os"
+
+	"github.com/nyaxt/otaru/logger"
 )
 
 func GenHostName() string {
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Fatalf("Failed to query local hostname: %v", err)
+		logger.Panicf(mylog, "Failed to query local hostname: %v", err)
 	}
 	pid := os.Getpid()
 	return fmt.Sprintf("%s-%d", hostname, pid)

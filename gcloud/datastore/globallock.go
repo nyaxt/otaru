@@ -95,7 +95,7 @@ func (l *GlobalLocker) tryLockOnce() error {
 func (l *GlobalLocker) Lock() (err error) {
 	return gcutil.RetryIfNeeded(func() error {
 		return l.tryLockOnce()
-	})
+	}, lklog)
 }
 
 // ForceUnlock releases the global lock entry forcibly, even if it was held by other GlobalLocker instance.
@@ -135,7 +135,7 @@ func (l *GlobalLocker) forceUnlockOnce() error {
 func (l *GlobalLocker) ForceUnlock() error {
 	return gcutil.RetryIfNeeded(func() error {
 		return l.forceUnlockOnce()
-	})
+	}, lklog)
 }
 
 var ErrNoLock = errors.New("Attempted unlock, but couldn't find any lock entry.")
@@ -211,7 +211,7 @@ func (l *GlobalLocker) unlockInternalOnce(checkCreatedAtFlag bool) error {
 func (l *GlobalLocker) unlockInternal(checkCreatedAtFlag bool) error {
 	return gcutil.RetryIfNeeded(func() error {
 		return l.unlockInternalOnce(checkCreatedAtFlag)
-	})
+	}, lklog)
 }
 
 func (l *GlobalLocker) tryQueryOnce() (lockEntry, error) {
@@ -244,6 +244,6 @@ func (l *GlobalLocker) Query() (le lockEntry, err error) {
 	err = gcutil.RetryIfNeeded(func() error {
 		le, err = l.tryQueryOnce()
 		return err
-	})
+	}, lklog)
 	return
 }

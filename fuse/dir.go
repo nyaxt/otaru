@@ -2,12 +2,12 @@ package fuse
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"time"
 
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/logger"
 
 	bfuse "bazil.org/fuse"
 	bfs "bazil.org/fuse/fs"
@@ -45,7 +45,7 @@ func (d DirNode) Getattr(ctx context.Context, req *bfuse.GetattrRequest, resp *b
 }
 
 func (d DirNode) Setattr(ctx context.Context, req *bfuse.SetattrRequest, resp *bfuse.SetattrResponse) error {
-	log.Printf("Setattr mode %o", req.Mode)
+	logger.Debugf(mylog, "Setattr mode %o", req.Mode)
 
 	if err := otaruSetattr(d.fs, d.id, req); err != nil {
 		return err
@@ -66,7 +66,8 @@ func (d DirNode) Lookup(ctx context.Context, name string) (bfs.Node, error) {
 	if id, ok := entries[name]; ok {
 		isdir, err := d.fs.IsDir(id)
 		if err != nil {
-			log.Fatalf("Stale inode in dir? Failed IsDir: %v", err)
+			logger.Warningf(mylog, "Stale inode in dir? Failed IsDir: %v", err)
+			return nil, err
 		}
 		if isdir {
 			return DirNode{d.fs, id}, nil
@@ -115,7 +116,7 @@ func (d DirNode) ReadDirAll(ctx context.Context) ([]bfuse.Dirent, error) {
 	for name, id := range entries {
 		isdir, err := d.fs.IsDir(id)
 		if err != nil {
-			log.Printf("Error while querying IsDir for id %d: %v", id, err)
+			logger.Warningf(mylog, "Error while querying IsDir for id %d: %v", id, err)
 		}
 
 		var t bfuse.DirentType

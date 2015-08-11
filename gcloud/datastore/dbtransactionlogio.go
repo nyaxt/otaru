@@ -168,7 +168,7 @@ func (txio *DBTransactionLogIO) QueryTransactions(minID inodedb.TxID) (txs []ino
 	err = gcutil.RetryIfNeeded(func() error {
 		txs, err = txio.queryTransactionsOnce(minID)
 		return err
-	})
+	}, txlog)
 	return
 }
 

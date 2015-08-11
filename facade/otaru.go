@@ -2,7 +2,6 @@ package facade
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"time"
@@ -21,11 +20,14 @@ import (
 	"github.com/nyaxt/otaru/gcloud/gcs"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/inodedb/blobstoredbstatesnapshotio"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/mgmt"
 	"github.com/nyaxt/otaru/scheduler"
 	"github.com/nyaxt/otaru/util"
 )
+
+var mylog = logger.Registry().Category("facade")
 
 type Otaru struct {
 	C btncrypt.Cipher
@@ -125,14 +127,14 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		return nil, fmt.Errorf("Failed to init CachedBlobStore: %v", err)
 	}
 	if err := o.CBS.RestoreState(o.C); err != nil {
-		log.Printf("Warning: Attempted to restore cachedblobstore state but failed: %v", err)
+		logger.Warningf(mylog, "Attempted to restore cachedblobstore state but failed: %v", err)
 	}
 	o.CSS = cachedblobstore.NewCacheSyncScheduler(o.CBS)
 
 	if !cfg.LocalDebug {
 		o.SSLoc = datastore.NewINodeDBSSLocator(o.DSCfg)
 	} else {
-		panic("Implement mock sslocator that doesn't depend on gcloud/datastore")
+		logger.Panicf(mylog, "Implement mock sslocator that doesn't depend on gcloud/datastore")
 	}
 	o.SIO = blobstoredbstatesnapshotio.New(o.CBS, o.C, o.SSLoc)
 

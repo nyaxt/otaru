@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"io"
 	"time"
-
-	"github.com/nyaxt/otaru/util"
 )
 
 type WriterLogger struct {
 	W io.Writer
+}
+
+type syncer interface { // avoid using github.com/nyaxt/otaru/util.Syncer for refcycle
+	Sync() error
 }
 
 func (l WriterLogger) Log(lv Level, data map[string]interface{}) {
@@ -29,7 +31,7 @@ func (l WriterLogger) Log(lv Level, data map[string]interface{}) {
 	b.WriteString("\n")
 	l.W.Write(b.Bytes())
 
-	if s, ok := l.W.(util.Syncer); ok {
+	if s, ok := l.W.(syncer); ok {
 		s.Sync()
 	}
 }
