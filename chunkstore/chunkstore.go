@@ -3,14 +3,16 @@ package chunkstore
 import (
 	"fmt"
 	"io"
-	"log"
 	"math"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/version"
 	"github.com/nyaxt/otaru/btncrypt"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
+
+var mylog = logger.Registry().Category("chunkstore")
 
 const (
 	ContentFramePayloadLength = btncrypt.BtnFrameMaxPayload
@@ -132,7 +134,7 @@ func (ch *ChunkIO) ensureHeader() error {
 
 func (ch *ChunkIO) Header() ChunkHeader {
 	if err := ch.ensureHeader(); err != nil {
-		log.Printf("Failed to ensureHeader(): %v", err)
+		logger.Criticalf(mylog, "Failed to ensureHeader(): %v", err)
 	}
 	return ch.header
 }
@@ -147,7 +149,7 @@ func (ch *ChunkIO) Truncate(size int64) error {
 
 func (ch *ChunkIO) PayloadLen() int {
 	if err := ch.ensureHeader(); err != nil {
-		log.Printf("Failed to read header for payload len: %v", err)
+		logger.Warningf(mylog, "Failed to read header for payload len: %v", err)
 		return 0
 	}
 
@@ -169,7 +171,7 @@ func (ch *ChunkIO) expandLengthBy(by int) error {
 	}
 
 	ch.header.PayloadLen = uint32(ch.PayloadLen() + by)
-	log.Printf("ChunkIO expandLength +%d = %d", by, ch.header.PayloadLen)
+	logger.Debugf(mylog, "ChunkIO expandLength +%d = %d", by, ch.header.PayloadLen)
 	ch.needsHeaderUpdate = true
 
 	return nil
@@ -217,7 +219,7 @@ func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 		panic("Incomplete frame read")
 	}
 
-	log.Printf("ChunkIO: Read content frame idx: %d", i)
+	logger.Debugf(mylog, "ChunkIO: Read content frame idx: %d", i)
 	return &decryptedContentFrame{
 		P: p, Offset: offset,
 		IsLastFrame: isLastFrame,
@@ -235,7 +237,7 @@ func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
 	}
 	defer func() {
 		if err := bew.Close(); err != nil {
-			log.Printf("Failed to Close BtnEncryptWriteCloser: %v", err)
+			logger.Criticalf(mylog, "Failed to Close BtnEncryptWriteCloser: %v", err)
 		}
 	}()
 	if _, err := bew.Write(f.P); err != nil {
@@ -244,7 +246,7 @@ func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
 	ch.header.PayloadVersion++
 	ch.needsHeaderUpdate = true
 
-	log.Printf("ChunkIO: Wrote content frame idx: %d", i)
+	logger.Debugf(mylog, "ChunkIO: Wrote content frame idx: %d", i)
 	return nil
 }
 
@@ -257,7 +259,7 @@ func (ch *ChunkIO) PRead(p []byte, offset int64) error {
 		return fmt.Errorf("Offset out of int32 range: %d", offset)
 	}
 
-	log.Printf("ChunkIO: PRead off %d len %d. Chunk payload len: %d", offset, len(p), ch.PayloadLen())
+	logger.Debugf(mylog, "ChunkIO: PRead off %d len %d. Chunk payload len: %d", offset, len(p), ch.PayloadLen())
 
 	remo := int(offset)
 	remp := p
@@ -271,11 +273,11 @@ func (ch *ChunkIO) PRead(p []byte, offset int64) error {
 		if inframeOffset < 0 {
 			panic("ASSERT: inframeOffset must be non-negative here")
 		}
-		// log.Printf("ChunkIO: PRead: Decoded content frame. %+v", f)
+		// logger.Debugf(mylog, "ChunkIO: PRead: Decoded content frame. %+v", f)
 
 		n := len(remp)
 		valid := len(f.P) - inframeOffset // valid payload after offset
-		log.Printf("ChunkIO: PRead n: %d. valid: %d", n, valid)
+		logger.Debugf(mylog, "ChunkIO: PRead n: %d. valid: %d", n, valid)
 		if n > valid {
 			if f.IsLastFrame {
 				return fmt.Errorf("Attempted to read beyond written size: %d. inframeOffset: %d, framePayloadLen: %d", remo, inframeOffset, len(f.P))
@@ -285,7 +287,7 @@ func (ch *ChunkIO) PRead(p []byte, offset int64) error {
 		}
 
 		copy(remp[:n], f.P[inframeOffset:])
-		log.Printf("ChunkIO: PRead: read %d bytes for off %d len %d", n, remo, len(remp))
+		logger.Debugf(mylog, "ChunkIO: PRead: read %d bytes for off %d len %d", n, remo, len(remp))
 
 		remo += n
 		remp = remp[n:]
@@ -294,8 +296,8 @@ func (ch *ChunkIO) PRead(p []byte, offset int64) error {
 }
 
 func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
-	log.Printf("PWrite: offset %d, len %d", offset, len(p))
-	// log.Printf("PWrite: p=%v", p)
+	logger.Debugf(mylog, "PWrite: offset %d, len %d", offset, len(p))
+	// logger.Debugf(mylog, "PWrite: p=%v", p)
 
 	if err := ch.ensureHeader(); err != nil {
 		return err
@@ -318,7 +320,7 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 		zflen := remo - ch.PayloadLen()
 
 		for zflen > 0 {
-			log.Printf("PWrite zfoff: %d, zflen: %d", zfoff, zflen)
+			logger.Debugf(mylog, "PWrite zfoff: %d, zflen: %d", zfoff, zflen)
 			i := zfoff / ContentFramePayloadLength
 			fOffset := i * ContentFramePayloadLength
 
@@ -326,7 +328,7 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 
 			inframeOffset := zfoff - fOffset
 			if zfoff == ch.PayloadLen() && inframeOffset == 0 {
-				log.Printf("PWrite: write new zero fill frame")
+				logger.Debugf(mylog, "PWrite: write new zero fill frame")
 
 				// FIXME: maybe skip writing pure 0 frame.
 				//        Old sambad writes a byte of the end of the file instead of ftruncate, which is a nightmare in the current impl.
@@ -342,10 +344,10 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 				zfoff += n
 				zflen -= n
 				ch.expandLengthBy(n)
-				log.Printf(" len: %d", n)
+				logger.Debugf(mylog, " len: %d", n)
 			} else {
 				n := util.IntMin(zflen, ContentFramePayloadLength-inframeOffset)
-				log.Printf("PWrite: zero fill last of existing content frame. len: %d f.P[%d:%d] = 0", n, inframeOffset, inframeOffset+n)
+				logger.Debugf(mylog, "PWrite: zero fill last of existing content frame. len: %d f.P[%d:%d] = 0", n, inframeOffset, inframeOffset+n)
 
 				// read the frame
 				var err error
@@ -383,14 +385,14 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 
 		var f *decryptedContentFrame
 		if remo == ch.PayloadLen() && fOffset == remo {
-			log.Printf("PWrite: Preparing new frame to append")
+			logger.Debugf(mylog, "PWrite: Preparing new frame to append")
 			f = &decryptedContentFrame{
 				P:           make([]byte, 0, ContentFramePayloadLength),
 				Offset:      fOffset,
 				IsLastFrame: true,
 			}
 		} else {
-			log.Printf("PWrite: Read existing frame %d to append/update", i)
+			logger.Debugf(mylog, "PWrite: Read existing frame %d to append/update", i)
 			var err error
 			f, err = ch.readContentFrame(i)
 			if err != nil {
@@ -417,7 +419,7 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 				newSize = ContentFramePayloadLength
 			}
 
-			log.Printf("PWrite: Expanding the last frame from %d to %d", len(f.P), newSize)
+			logger.Debugf(mylog, "PWrite: Expanding the last frame from %d to %d", len(f.P), newSize)
 
 			expandLen := newSize - len(f.P)
 			if err := ch.expandLengthBy(expandLen); err != nil {
@@ -438,7 +440,7 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 		if err := ch.writeContentFrame(i, f); err != nil {
 			return fmt.Errorf("failed to write back the encrypted frame: %v", err)
 		}
-		log.Printf("PWrite: wrote %d bytes for off %d len %d", n, offset, len(remp))
+		logger.Debugf(mylog, "PWrite: wrote %d bytes for off %d len %d", n, offset, len(remp))
 
 		remo += n
 		remp = remp[n:]
@@ -452,7 +454,7 @@ func (ch *ChunkIO) Sync() error {
 		if err := ch.header.WriteTo(&blobstore.OffsetWriter{ch.bh, 0}, ch.c); err != nil {
 			return fmt.Errorf("Header write failed: %v", err)
 		}
-		log.Printf("Wrote chunk header: %+v", ch.header)
+		logger.Debugf(mylog, "Wrote chunk header: %+v", ch.header)
 		ch.needsHeaderUpdate = false
 	}
 	return nil

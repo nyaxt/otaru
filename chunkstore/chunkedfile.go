@@ -2,13 +2,13 @@ package chunkstore
 
 import (
 	"fmt"
-	"log"
 	"syscall"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -66,13 +66,13 @@ func (cfio *ChunkedFileIO) newFileChunk(newo int64) (inodedb.FileChunk, error) {
 		return inodedb.FileChunk{}, fmt.Errorf("Failed to generate new blobpath: %v", err)
 	}
 	fc := inodedb.FileChunk{Offset: newo, Length: 0, BlobPath: bpath}
-	log.Printf("new chunk %+v", fc)
+	logger.Debugf(mylog, "new chunk %+v", fc)
 	return fc, nil
 }
 
 func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
-	log.Printf("PWrite: offset=%d, len=%d", offset, len(p))
-	// log.Printf("PWrite: p=%v", p)
+	logger.Debugf(mylog, "PWrite: offset=%d, len=%d", offset, len(p))
+	// logger.Debugf(mylog, "PWrite: p=%v", p)
 	remo := offset
 	remp := p
 	if len(remp) == 0 {
@@ -99,14 +99,14 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 		}
 		defer func() {
 			if err := bh.Close(); err != nil {
-				log.Printf("blobhandle Close failed: %v", err)
+				logger.Criticalf(mylog, "blobhandle Close failed: %v", err)
 			}
 		}()
 
 		cio := cfio.newChunkIO(bh, cfio.c, c.Offset)
 		defer func() {
 			if err := cio.Close(); err != nil {
-				log.Printf("cio Close failed: %v", err)
+				logger.Criticalf(mylog, "cio Close failed: %v", err)
 			}
 		}()
 
@@ -269,14 +269,14 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 		}
 		defer func() {
 			if err := bh.Close(); err != nil {
-				log.Printf("blobhandle Close failed: %v", err)
+				logger.Criticalf(mylog, "blobhandle Close failed: %v", err)
 			}
 		}()
 
 		cio := cfio.newChunkIO(bh, cfio.c, c.Offset)
 		defer func() {
 			if err := cio.Close(); err != nil {
-				log.Printf("cio Close failed: %v", err)
+				logger.Criticalf(mylog, "cio Close failed: %v", err)
 			}
 		}()
 
@@ -293,14 +293,14 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 		}
 	}
 
-	// log.Printf("cs: %+v", cs)
+	// logger.Debugf(mylog, "cs: %+v", cs)
 	return int(remo - offset), nil
 }
 
 func (cfio *ChunkedFileIO) Size() int64 {
 	cs, err := cfio.caio.Read()
 	if err != nil {
-		log.Printf("Failed to read cs array: %v", err)
+		logger.Criticalf(mylog, "Failed to read cs array: %v", err)
 		return 0
 	}
 	if len(cs) == 0 {

@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"path/filepath"
 
 	"github.com/nyaxt/otaru/btncrypt"
+	"github.com/nyaxt/otaru/logger"
 )
 
 const (
@@ -64,7 +64,7 @@ func (h ChunkHeader) WriteTo(w io.Writer, c btncrypt.Cipher) error {
 	framelen := ChunkHeaderLength - c.FrameOverhead() - SignatureLength - 1
 	paddinglen := framelen - b.Len()
 	if paddinglen < 0 {
-		log.Fatalf("SHOULD NOT BE REACHED: Marshaled ChunkHeader size too large")
+		logger.Panicf(mylog, "SHOULD NOT BE REACHED: Marshaled ChunkHeader size too large")
 	}
 
 	bew, err := btncrypt.NewWriteCloser(w, c, framelen)

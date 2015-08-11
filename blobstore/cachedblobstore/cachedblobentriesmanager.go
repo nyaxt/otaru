@@ -2,11 +2,11 @@ package cachedblobstore
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -169,7 +169,7 @@ func (mgr *CachedBlobEntriesManager) OpenEntry(blobpath string) (be *CachedBlobE
 
 func (mgr *CachedBlobEntriesManager) tryCloseEntry(be *CachedBlobEntry) {
 	if err := be.Close(writebackAndClose); err != nil {
-		log.Printf("Failed to close cache entry \"%s\": %v", be.blobpath, err)
+		logger.Criticalf(mylog, "Failed to close cache entry \"%s\": %v", be.blobpath, err)
 		return
 	}
 
