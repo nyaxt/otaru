@@ -2,7 +2,6 @@ package datastore
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"sync"
 	"time"
@@ -13,7 +12,10 @@ import (
 	"github.com/nyaxt/otaru/btncrypt"
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/logger"
 )
+
+var txlog = logger.Registry().Category("dbtxlogio")
 
 type DBTransactionLogIO struct {
 	cfg     *Config
@@ -150,7 +152,7 @@ func (txio *DBTransactionLogIO) Sync() error {
 	txio.committing = []inodedb.DBTransaction{}
 	txio.mu.Unlock()
 
-	log.Printf("Sync() took %s. Committed %d txs", time.Since(start), len(stxs))
+	logger.Infof(txlog, "Sync() took %s. Committed %d txs", time.Since(start), len(stxs))
 	return nil
 }
 
@@ -241,7 +243,7 @@ func (txio *DBTransactionLogIO) queryTransactionsOnce(minID inodedb.TxID) ([]ino
 		prevId = tx.TxID
 	}
 
-	log.Printf("QueryTransactions(%v) took %s", minID, time.Since(start))
+	logger.Infof(txlog, "QueryTransactions(%v) took %s", minID, time.Since(start))
 	return uniqed, nil
 }
 
@@ -307,12 +309,12 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 		ndel += len(keys)
 
 		if needAnotherTx {
-			log.Printf("DeleteTransactions(%v): A tx deleting %d entries took %s. Starting next tx to delete more.", smallerThanID, len(keys), time.Since(txStart))
+			logger.Infof(txlog, "DeleteTransactions(%v): A tx deleting %d entries took %s. Starting next tx to delete more.", smallerThanID, len(keys), time.Since(txStart))
 		} else {
 			break
 		}
 	}
-	log.Printf("DeleteTransactions(%v) deleted %d entries. tx took %s", smallerThanID, ndel, time.Since(start))
+	logger.Infof(txlog, "DeleteTransactions(%v) deleted %d entries. tx took %s", smallerThanID, ndel, time.Since(start))
 	return nil
 }
 

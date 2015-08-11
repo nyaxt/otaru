@@ -3,14 +3,18 @@ package blobstore
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path"
 	"syscall"
 	"time"
 
+	"github.com/dustin/go-humanize"
+
 	fl "github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/logger"
 )
+
+var mylog = logger.Registry().Category("filebs")
 
 const (
 	ENOENT = syscall.Errno(syscall.ENOENT)
@@ -41,7 +45,7 @@ func (h FileBlobHandle) PWrite(p []byte, offset int64) error {
 func (h FileBlobHandle) Size() int64 {
 	fi, err := h.Fp.Stat()
 	if err != nil {
-		log.Fatalf("Stat failed: %v", err)
+		logger.Panicf(mylog, "Stat failed: %v", err)
 	}
 
 	return fi.Size()
@@ -150,7 +154,7 @@ func (f *FileBlobStore) ListBlobs() ([]string, error) {
 		blobs = append(blobs, fi.Name())
 	}
 
-	log.Printf("FileBlobStore.ListBlobs() found %d blobs, took %s.", len(blobs), time.Since(start))
+	logger.Infof(mylog, "FileBlobStore.ListBlobs() found %d blobs, took %s.", len(blobs), time.Since(start))
 	return blobs, nil
 }
 
@@ -200,7 +204,7 @@ func (f *FileBlobStore) TotalSize() (int64, error) {
 		totalSize += fi.Size()
 	}
 
-	log.Printf("FileBlobStore.TotalSize() took %s.", time.Since(start))
+	logger.Infof(mylog, "FileBlobStore.TotalSize() was %s. took %s.", humanize.Bytes(uint64(totalSize)), time.Since(start))
 	return totalSize, nil
 }
 

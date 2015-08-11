@@ -3,7 +3,6 @@ package cachedblobstore
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"sync"
 	"syscall"
@@ -16,9 +15,12 @@ import (
 	"github.com/nyaxt/otaru/blobstore/version"
 	"github.com/nyaxt/otaru/btncrypt"
 	fl "github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/scheduler"
 	"github.com/nyaxt/otaru/util"
 )
+
+var mylog = logger.Registry().Category("cachedbs")
 
 const (
 	EPERM  = syscall.Errno(syscall.EPERM)
@@ -109,7 +111,7 @@ func (be *CachedBlobEntry) invalidateCacheBlob(cbs *CachedBlobStore) error {
 	}
 	defer func() {
 		if err := backendr.Close(); err != nil {
-			log.Printf("Failed to close backend blob reader for cache invalidation: %v", err)
+			logger.Criticalf(mylog, "Failed to close backend blob reader for cache invalidation: %v", err)
 		}
 	}()
 
@@ -121,7 +123,7 @@ func (be *CachedBlobEntry) invalidateCacheBlob(cbs *CachedBlobStore) error {
 	cachew, err := bs.OpenWriter(blobpath)
 	defer func() {
 		if err := cachew.Close(); err != nil {
-			log.Printf("Failed to close cache blob writer for cache invalidation: %v", err)
+			logger.Criticalf(mylog, "Failed to close cache blob writer for cache invalidation: %v", err)
 		}
 	}()
 
@@ -196,7 +198,7 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 	be.handles = make(map[*CachedBlobHandle]struct{})
 
 	if cachever > backendver {
-		log.Printf("FIXME: cache is newer than backend when open")
+		logger.Warningf(mylog, "FIXME: cache is newer than backend when open")
 		be.state = cacheEntryDirty
 		be.bloblen = cachebh.Size()
 		be.validlen = be.bloblen
@@ -257,7 +259,7 @@ func (be *CachedBlobEntry) PRead(p []byte, offset int64) error {
 
 	requiredlen := util.Int64Min(offset+int64(len(p)), be.bloblen)
 	for be.validlen < requiredlen {
-		log.Printf("Waiting for cache to be fulfilled: reqlen: %d, validlen: %d", requiredlen, be.validlen)
+		logger.Infof(mylog, "Waiting for cache to be fulfilled: reqlen: %d, validlen: %d", requiredlen, be.validlen)
 		be.validlenExtended.Wait()
 	}
 
@@ -276,7 +278,7 @@ func (be *CachedBlobEntry) markDirtyWithLock() {
 		return
 	}
 	if be.state != cacheEntryClean {
-		log.Fatalf("markDirty called from unexpected state: %+v", be.infoWithLock())
+		logger.Panicf(mylog, "markDirty called from unexpected state: %+v", be.infoWithLock())
 	}
 	be.state = cacheEntryDirty
 
@@ -292,7 +294,7 @@ func (be *CachedBlobEntry) PWrite(p []byte, offset int64) error {
 	// Avoid any write when in invalidating state.
 	// FIXME: maybe allow when offset+len(p) < be.validlen
 	for be.state == cacheEntryInvalidating {
-		log.Printf("Waiting for cache to be fully invalidated before write.")
+		logger.Infof(mylog, "Waiting for cache to be fully invalidated before write.")
 		be.validlenExtended.Wait()
 	}
 
@@ -323,7 +325,7 @@ func (be *CachedBlobEntry) Truncate(newsize int64) error {
 	// Avoid truncate when in invalidating state.
 	// FIXME: maybe allow if newsize < be.validlen
 	for be.state == cacheEntryInvalidating {
-		log.Printf("Waiting for cache to be fully invalidated before truncate.")
+		logger.Infof(mylog, "Waiting for cache to be fully invalidated before truncate.")
 		be.validlenExtended.Wait()
 	}
 
@@ -379,19 +381,19 @@ func (be *CachedBlobEntry) Sync() error {
 
 	// Wait for invalidation to complete
 	for be.state == cacheEntryInvalidating {
-		log.Printf("Waiting for cache to be fully invalidated before sync.")
+		logger.Infof(mylog, "Waiting for cache to be fully invalidated before sync.")
 		be.validlenExtended.Wait()
 	}
 
 	if !be.state.IsActive() {
-		log.Printf("Attempted to sync already uninitialized/closed entry: %+v", be.infoWithLock())
+		logger.Warningf(mylog, "Attempted to sync already uninitialized/closed entry: %+v", be.infoWithLock())
 		return nil
 	}
 	if be.state == cacheEntryClean {
 		return nil
 	}
 
-	log.Printf("Sync entry: %+v", be.infoWithLock())
+	logger.Infof(mylog, "Sync entry: %+v", be.infoWithLock())
 
 	errC := make(chan error)
 
@@ -437,11 +439,11 @@ func (be *CachedBlobEntry) closeWithLock(abandon bool) error {
 		return fmt.Errorf("Entry has %d handles", len(be.handles))
 	}
 
-	log.Printf("Close entry: %+v", be.infoWithLock())
+	logger.Infof(mylog, "Close entry: %+v", be.infoWithLock())
 
 	if !abandon {
 		for be.state == cacheEntryInvalidating {
-			log.Printf("Waiting for cache to be fully invalidated before close. (shouldn't come here, as PWrite should block)")
+			logger.Warningf(mylog, "Waiting for cache to be fully invalidated before close. (shouldn't come here, as PWrite should block)")
 			be.validlenExtended.Wait()
 		}
 
@@ -465,7 +467,7 @@ func (be *CachedBlobEntry) Close(abandon bool) error {
 	defer be.mu.Unlock()
 
 	if !be.state.IsActive() {
-		log.Printf("Attempted to close uninitialized/already closed entry: %+v", be.infoWithLock())
+		logger.Warningf(mylog, "Attempted to close uninitialized/already closed entry: %+v", be.infoWithLock())
 		return nil
 	}
 
@@ -728,10 +730,10 @@ func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, 
 
 	needsReduce := totalSizeBefore - desiredSize
 	if needsReduce < 0 {
-		log.Printf("ReduceCache: No need to reduce cache as its already under desired size! No-op.")
+		logger.Infof(mylog, "ReduceCache: No need to reduce cache as its already under desired size! No-op.")
 		return nil
 	}
-	log.Printf("ReduceCache: Current cache bs total size: %s. Desired size: %s. Needs to reduce %s.",
+	logger.Infof(mylog, "ReduceCache: Current cache bs total size: %s. Desired size: %s. Needs to reduce %s.",
 		humanize.IBytes(uint64(totalSizeBefore)), humanize.IBytes(uint64(desiredSize)), humanize.IBytes(uint64(needsReduce)))
 
 	bps := cbs.usagestats.FindLeastUsed()
@@ -739,13 +741,13 @@ func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, 
 		size, err := blobsizer.BlobSize(bp)
 		if err != nil {
 			if os.IsNotExist(err) {
-				log.Printf("Attempted to drop blob cache \"%s\", but not found. Maybe it's already removed.", bp)
+				logger.Infof(mylog, "Attempted to drop blob cache \"%s\", but not found. Maybe it's already removed.", bp)
 				continue
 			}
 			return fmt.Errorf("Failed to query size for cache blob \"%s\": %v", bp, err)
 		}
 
-		log.Printf("ReduceCache: Drop entry \"%s\" to release %s", bp, humanize.IBytes(uint64(size)))
+		logger.Infof(mylog, "ReduceCache: Drop entry \"%s\" to release %s", bp, humanize.IBytes(uint64(size)))
 
 		if !dryrun {
 			if err := cbs.entriesmgr.DropCacheEntry(bp, blobremover); err != nil {
@@ -764,7 +766,7 @@ func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, 
 		return fmt.Errorf("Failed to query current total cache size: %v", err)
 	}
 
-	log.Printf("ReduceCache done. Cache bs total size: %s -> %s. Dryrun: %t. Took: %s",
+	logger.Infof(mylog, "ReduceCache done. Cache bs total size: %s -> %s. Dryrun: %t. Took: %s",
 		humanize.IBytes(uint64(totalSizeBefore)), humanize.IBytes(uint64(totalSizeAfter)),
 		dryrun, time.Since(start))
 	return nil

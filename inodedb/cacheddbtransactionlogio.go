@@ -1,8 +1,10 @@
 package inodedb
 
 import (
-	"log"
+	"github.com/nyaxt/otaru/logger"
 )
+
+var clog = logger.Registry().Category("cacheddbtxlogio")
 
 type CachedDBTransactionLogIO struct {
 	be DBTransactionLogIO
@@ -54,7 +56,7 @@ func (txio *CachedDBTransactionLogIO) AppendTransaction(tx DBTransaction) error 
 
 func (txio *CachedDBTransactionLogIO) QueryTransactions(minID TxID) ([]DBTransaction, error) {
 	if minID < txio.oldestTxID {
-		log.Printf("Queried id range of \">= %d\" is not cached. Falling back to backend.", minID)
+		logger.Debugf(clog, "Queried id range of \">= %d\" is not cached. Falling back to backend.", minID)
 		return txio.be.QueryTransactions(minID)
 	}
 

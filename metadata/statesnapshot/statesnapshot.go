@@ -6,13 +6,15 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
+
+var mylog = logger.Registry().Category("statess")
 
 type EncodeCallback func(enc *gob.Encoder) error
 
@@ -76,12 +78,12 @@ func Restore(blobpath string, c btncrypt.Cipher, bs blobstore.BlobStore, cb Deco
 	if err != nil {
 		return err
 	}
-	log.Printf("serialized blob size: %d", cr.Length())
+	logger.Debugf(mylog, "serialized blob size: %d", cr.Length())
 	zr, err := zlib.NewReader(&io.LimitedReader{cr, int64(cr.Length())})
 	if err != nil {
 		return err
 	}
-	log.Printf("LoadINodeDBFromBlobStore: zlib init success!")
+	logger.Debugf(mylog, "statesnapshot.Restore: zlib init success!")
 	dec := gob.NewDecoder(zr)
 
 	es := []error{}

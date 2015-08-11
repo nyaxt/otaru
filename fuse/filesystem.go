@@ -2,14 +2,16 @@ package fuse
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/logger"
 
 	bfuse "bazil.org/fuse"
 	bfs "bazil.org/fuse/fs"
 )
+
+var mylog = logger.Registry().Category("fuse")
 
 type FileSystem struct {
 	ofs *otaru.FileSystem
@@ -50,7 +52,7 @@ func ServeFUSE(bucketName string, mountpoint string, ofs *otaru.FileSystem, read
 		return err
 	}
 
-	log.Printf("Mountpoint \"%s\" should be ready now!", mountpoint)
+	logger.Infof(mylog, "Mountpoint \"%s\" should be ready now!", mountpoint)
 	if ready != nil {
 		close(ready)
 	}

@@ -9,10 +9,12 @@ import (
 	"crypto/cipher"
 	"fmt"
 	"io"
-	"log"
 
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
+
+var mylog = logger.Registry().Category("btncrypt")
 
 const (
 	BtnFrameMaxPayload = 256 * 1024
@@ -95,7 +97,7 @@ func (f *frameEncryptor) Sync() ([]byte, error) {
 
 	f.encrypted = f.c.gcm.Seal(f.encrypted, nonce, f.b.Bytes(), nil)
 	if len(f.encrypted) != f.c.EncryptedFrameSize(f.Written()) {
-		log.Panicf("EncryptedFrameSize mismatch. expected: %d, actual: %v", f.c.EncryptedFrameSize(f.Written()), len(f.encrypted))
+		logger.Panicf(mylog, "EncryptedFrameSize mismatch. expected: %d, actual: %v", f.c.EncryptedFrameSize(f.Written()), len(f.encrypted))
 	}
 	f.b.Reset()
 	return f.encrypted, nil

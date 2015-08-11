@@ -3,13 +3,13 @@ package cachedblobstore
 import (
 	"encoding/gob"
 	"fmt"
-	"log"
 	"sync"
 	"syscall"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/version"
 	"github.com/nyaxt/otaru/btncrypt"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/metadata/statesnapshot"
 )
@@ -45,7 +45,7 @@ func (cbv *CachedBackendVersion) Query(blobpath string) (version.Version, error)
 	defer cbv.mu.Unlock() // FIXME: unlock earlier?
 
 	if ver, ok := cbv.cache[blobpath]; ok {
-		log.Printf("return cached ver for \"%s\" -> %d", blobpath, ver)
+		logger.Debugf(mylog, "return cached ver for \"%s\" -> %d", blobpath, ver)
 		return ver, nil
 	}
 
@@ -59,7 +59,7 @@ func (cbv *CachedBackendVersion) Query(blobpath string) (version.Version, error)
 	}
 	defer func() {
 		if err := r.Close(); err != nil {
-			log.Printf("Failed to close backend blob handle for querying version: %v", err)
+			logger.Criticalf(mylog, "Failed to close backend blob handle for querying version: %v", err)
 		}
 	}()
 	ver, err := cbv.queryVersion(r)

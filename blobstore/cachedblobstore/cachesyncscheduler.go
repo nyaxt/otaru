@@ -1,9 +1,9 @@
 package cachedblobstore
 
 import (
-	"log"
 	"time"
 
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -13,7 +13,7 @@ func NewCacheSyncScheduler(cbs *CachedBlobStore) *util.PeriodicRunner {
 	return util.NewPeriodicRunner(func() {
 		err := cbs.SyncOneEntry()
 		if err != nil && err != ENOENT {
-			log.Printf("SyncOneEntry err: %v", err)
+			logger.Warningf(mylog, "SyncOneEntry err: %v", err)
 		}
 	}, schedulerWaitDuration)
 }
