@@ -3,14 +3,17 @@ package datastore
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"time"
 
-	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
+
+	gcutil "github.com/nyaxt/otaru/gcloud/util"
+	"github.com/nyaxt/otaru/logger"
 )
+
+var lklog = logger.Registry().Category("globallock")
 
 const kindGlobalLock = "OtaruGlobalLock"
 
@@ -85,7 +88,7 @@ func (l *GlobalLocker) tryLockOnce() error {
 		return err
 	}
 
-	log.Printf("GlobalLocker.tryLockOnce(%+v) took %s.", l.lockEntry, time.Since(start))
+	logger.Infof(lklog, "GlobalLocker.tryLockOnce(%+v) took %s.", l.lockEntry, time.Since(start))
 	return nil
 }
 
@@ -110,12 +113,12 @@ func (l *GlobalLocker) forceUnlockOnce() error {
 
 	var e lockEntry
 	if err := dstx.Get(l.lockEntryKey, &e); err != nil {
-		log.Printf("GlobalLocker.ForceUnlock(): Force unlocking existing lock entry: %+v", e)
+		logger.Warningf(lklog, "GlobalLocker.ForceUnlock(): Force unlocking existing lock entry: %+v", e)
 	}
 	if err := dstx.Delete(l.lockEntryKey); err != nil {
 		dstx.Rollback()
 		if err == datastore.ErrNoSuchEntity {
-			log.Printf("GlobalLocker.ForceUnlock(): Warning: There was no global lock taken.")
+			logger.Warningf(lklog, "GlobalLocker.ForceUnlock(): Warning: There was no global lock taken.")
 			return nil
 		}
 		return err
@@ -125,7 +128,7 @@ func (l *GlobalLocker) forceUnlockOnce() error {
 		return err
 	}
 
-	log.Printf("GlobalLocker.ForceUnlock() took %s.", time.Since(start))
+	logger.Infof(lklog, "GlobalLocker.ForceUnlock() took %s.", time.Since(start))
 	return nil
 }
 
@@ -201,7 +204,7 @@ func (l *GlobalLocker) unlockInternalOnce(checkCreatedAtFlag bool) error {
 		return err
 	}
 
-	log.Printf("GlobalLocker.Unlock(%+v) took %s.", l.lockEntry, time.Since(start))
+	logger.Infof(lklog, "GlobalLocker.Unlock(%+v) took %s.", l.lockEntry, time.Since(start))
 	return nil
 }
 
@@ -233,7 +236,7 @@ func (l *GlobalLocker) tryQueryOnce() (lockEntry, error) {
 		}
 	}
 
-	log.Printf("GlobalLocker.Query() took %s.", time.Since(start))
+	logger.Infof(lklog, "GlobalLocker.Query() took %s.", time.Since(start))
 	return e, nil
 }
 

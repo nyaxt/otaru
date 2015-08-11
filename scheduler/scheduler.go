@@ -1,12 +1,15 @@
 package scheduler
 
 import (
-	"log"
 	"sync"
 	"time"
 
 	"golang.org/x/net/context"
+
+	"github.com/nyaxt/otaru/logger"
 )
+
+var mylog = logger.Registry().Category("scheduler")
 
 type Result interface {
 	Err() error
@@ -227,7 +230,7 @@ func (s *Scheduler) Abort(id ID) {
 }
 
 func (s *Scheduler) stop() {
-	log.Printf("scheduler stop start")
+	logger.Infof(mylog, "scheduler stop start")
 	close(s.scheduleC)
 	close(s.queryC)
 	close(s.abortC)
@@ -236,7 +239,7 @@ func (s *Scheduler) stop() {
 	for i := 0; i < s.numRunners; i++ {
 		<-s.joinRunnerC
 	}
-	log.Printf("scheduler stop done")
+	logger.Infof(mylog, "scheduler stop done")
 }
 
 func (s *Scheduler) RunAllAndStop() { s.stop() }
@@ -289,7 +292,7 @@ func (s *Scheduler) schedulerMain() {
 			}
 
 			if _, ok := jobs[j.ID]; ok {
-				log.Printf("job ID %v is already taken. received duplicate: %v", j.ID, j)
+				logger.Warningf(mylog, "job ID %v is already taken. received duplicate: %v", j.ID, j)
 				if j.scheduledC != nil {
 					close(j.scheduledC)
 				}
@@ -344,7 +347,7 @@ func (s *Scheduler) schedulerMain() {
 
 			j, ok := jobs[req.ID]
 			if !ok {
-				log.Printf("Abort target job ID %d doesn't exist.", req.ID)
+				logger.Warningf(mylog, "Abort target job ID %d doesn't exist.", req.ID)
 				req.doneC <- struct{}{}
 				continue
 			}
@@ -375,7 +378,7 @@ func (s *Scheduler) runnerMain() {
 			continue
 		}
 		if j.State != JobScheduled {
-			log.Printf("Skipping job not in scheduled state: %v", j)
+			logger.Infof(mylog, "Skipping job not in scheduled state: %v", j)
 
 			j.mu.Unlock()
 			continue
@@ -391,7 +394,7 @@ func (s *Scheduler) runnerMain() {
 		result := task.Run(ctx)
 		if result != nil {
 			if err := result.Err(); err != nil {
-				log.Printf("Task failed with error: %v", err)
+				logger.Warningf(mylog, "Task failed with error: %v", err)
 			}
 		}
 		finishedAt := time.Now()

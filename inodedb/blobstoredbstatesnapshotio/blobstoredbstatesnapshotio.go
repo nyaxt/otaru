@@ -3,14 +3,16 @@ package blobstoredbstatesnapshotio
 import (
 	"encoding/gob"
 	"fmt"
-	"log"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/metadata/statesnapshot"
 )
+
+var mylog = logger.Registry().Category("bsdbssio")
 
 type SSLocator interface {
 	Locate(history int) (string, error)
@@ -35,9 +37,9 @@ func New(bs blobstore.BlobStore, c btncrypt.Cipher, loc SSLocator) *DBStateSnaps
 func (sio *DBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
 	currVer := s.Version()
 	if sio.snapshotVer > currVer {
-		log.Printf("SaveSnapshot: ASSERT fail: snapshot version %d newer than current ver %d", sio.snapshotVer, currVer)
+		logger.Warningf(mylog, "SaveSnapshot: ASSERT fail: snapshot version %d newer than current ver %d", sio.snapshotVer, currVer)
 	} else if sio.snapshotVer == currVer {
-		log.Printf("SaveSnapshot: Current ver %d is already snapshotted. No-op.", sio.snapshotVer)
+		logger.Debugf(mylog, "SaveSnapshot: Current ver %d is already snapshotted. No-op.", sio.snapshotVer)
 		return nil
 	}
 
@@ -68,9 +70,9 @@ func (sio *DBStateSnapshotIO) RestoreSnapshot() (*inodedb.DBState, error) {
 			return nil, err
 		}
 		if i == 0 {
-			log.Printf("Attempting to restore latest state snapshot \"%s\"", ssbp)
+			logger.Debugf(mylog, "Attempting to restore latest state snapshot \"%s\"", ssbp)
 		} else {
-			log.Printf("Retrying state snapshot restore with an older state snapshot \"%s\"", ssbp)
+			logger.Infof(mylog, "Retrying state snapshot restore with an older state snapshot \"%s\"", ssbp)
 		}
 
 		if err := statesnapshot.Restore(
@@ -81,7 +83,7 @@ func (sio *DBStateSnapshotIO) RestoreSnapshot() (*inodedb.DBState, error) {
 				return err
 			},
 		); err != nil {
-			log.Printf("Failed to recover state snapshot \"%s\": %v", ssbp, err)
+			logger.Warningf(mylog, "Failed to recover state snapshot \"%s\": %v", ssbp, err)
 			continue
 		}
 		sio.snapshotVer = state.Version()
