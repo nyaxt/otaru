@@ -32,7 +32,6 @@ var (
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
-
 	flag.Usage = Usage
 	flag.Parse()
 
@@ -80,6 +79,10 @@ func main() {
 			closeOtaruAndExit(1)
 		}
 	}()
+	logger.Registry().AddOutput(logger.HandleCritical(func() {
+		logger.Warningf(mylog, "Starting shutdown due to critical event.")
+		closeOtaruAndExit(1)
+	}))
 
 	bfuseLogger := logger.Registry().Category("bfuse")
 	bfuse.Debug = func(msg interface{}) { logger.Debugf(bfuseLogger, "%v", msg) }

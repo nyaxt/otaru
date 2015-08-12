@@ -37,11 +37,16 @@ func Logf(l Logger, lv Level, format string, v ...interface{}) {
 		return
 	}
 
+	logstr := fmt.Sprintf(format, v...)
 	l.Log(lv, map[string]interface{}{
-		"log":      fmt.Sprintf(format, v...),
+		"log":      logstr,
 		"time":     time.Now(),
 		"location": genLocation(),
 	})
+
+	if lv >= Panic {
+		panic(logstr)
+	}
 }
 
 func Debugf(l Logger, format string, v ...interface{})    { Logf(l, Debug, format, v...) }
