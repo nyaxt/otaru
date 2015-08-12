@@ -45,15 +45,19 @@ func (loc *INodeDBSSLocator) tryLocateOnce(history int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer dstx.Commit()
 
 	q := datastore.NewQuery(kindINodeDBSS).Ancestor(loc.rootKey).Order("-TxID").Offset(history).Limit(1).Transaction(dstx)
 	it := cli.Run(context.TODO(), q)
 	var e sslocentry
 	if _, err := it.Next(&e); err != nil {
+		dstx.Rollback()
 		if err == datastore.Done {
 			return "", EEMPTY
 		}
+		return "", err
+	}
+
+	if _, err := dstx.Commit(); err != nil {
 		return "", err
 	}
 
