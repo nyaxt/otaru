@@ -10,8 +10,10 @@ import (
 	tu "github.com/nyaxt/otaru/testutils"
 )
 
+func testRootKey() string { return authtu.TestBucketName() + "-blobstoredbstatesnapshotio_test" }
+
 func TestSS_SaveRestore(t *testing.T) {
-	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(authtu.TestBucketName()))
+	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(testRootKey()))
 	if _, err := loc.DeleteAll(); err != nil {
 		t.Errorf("Failed to loc.DeleteAll: %v", err)
 	}
@@ -36,7 +38,7 @@ func TestSS_SaveRestore(t *testing.T) {
 }
 
 func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
-	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(authtu.TestBucketName()))
+	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(testRootKey()))
 	if _, err := loc.DeleteAll(); err != nil {
 		t.Errorf("Failed to loc.DeleteAll: %v", err)
 	}
