@@ -37,7 +37,7 @@ func main() {
 
 	cfg, err := facade.NewConfig(*flagConfigDir)
 	if err != nil {
-		logger.Warningf(mylog, "%v", err)
+		logger.Criticalf(mylog, "%v", err)
 		Usage()
 		os.Exit(2)
 	}
@@ -47,9 +47,14 @@ func main() {
 	}
 	mountpoint := flag.Arg(0)
 
+	if err := facade.SetupFluentLogger(cfg); err != nil {
+		logger.Criticalf(mylog, "Failed to setup fluentd logger: %v", err)
+		os.Exit(1)
+	}
+
 	o, err := facade.NewOtaru(cfg, &facade.OneshotConfig{Mkfs: *flagMkfs})
 	if err != nil {
-		logger.Warningf(mylog, "NewOtaru failed: %v", err)
+		logger.Criticalf(mylog, "NewOtaru failed: %v", err)
 		os.Exit(1)
 	}
 	var muClose sync.Mutex

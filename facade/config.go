@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 
+	gfluent "github.com/fluent/fluent-logger-golang/fluent"
 	"github.com/naoina/toml"
 
 	"github.com/nyaxt/otaru/logger"
@@ -25,6 +26,8 @@ type Config struct {
 
 	CredentialsFilePath string
 	TokenCacheFilePath  string
+
+	Fluent gfluent.Config
 }
 
 func DefaultConfigDir() string {
@@ -50,6 +53,7 @@ func NewConfig(configdir string) (*Config, error) {
 		CredentialsFilePath:          path.Join(configdir, "credentials.json"),
 		TokenCacheFilePath:           path.Join(configdir, "tokencache.json"),
 	}
+
 	if err := toml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("Failed to parse config file: %v", err)
 	}
@@ -92,6 +96,10 @@ func NewConfig(configdir string) (*Config, error) {
 		} else {
 			return nil, fmt.Errorf("Failed to stat token cache file \"%s\" from unknown err: %v", cfg.TokenCacheFilePath, err)
 		}
+	}
+
+	if cfg.Fluent.TagPrefix == "" {
+		cfg.Fluent.TagPrefix = "otaru"
 	}
 
 	return cfg, nil

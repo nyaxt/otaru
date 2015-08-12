@@ -17,6 +17,40 @@ const (
 	Panic                 // Non-recoverable errors with immediate crash
 )
 
+func (lv Level) String() string {
+	switch lv {
+	case Debug:
+		return "Debug"
+	case Info:
+		return "Info"
+	case Warning:
+		return "Warning"
+	case Critical:
+		return "Critical"
+	case Panic:
+		return "Panic"
+	default:
+		return "<unknown>"
+	}
+}
+
+func (lv Level) Rune() rune {
+	switch lv {
+	case Debug:
+		return 'D'
+	case Info:
+		return 'I'
+	case Warning:
+		return 'W'
+	case Critical:
+		return 'C'
+	case Panic:
+		return 'P'
+	default:
+		return '?'
+	}
+}
+
 type Logger interface {
 	Log(lv Level, data map[string]interface{})
 	WillAccept(lv Level) bool

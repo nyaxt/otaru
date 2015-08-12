@@ -22,6 +22,11 @@
 			"Rev": "3dcc96556217539f50599357fb481ac0dc7439b9"
 		},
 		{
+			"ImportPath": "github.com/fluent/fluent-logger-golang/fluent",
+			"Comment": "v1.0.0-2-ge8ee0b1",
+			"Rev": "e8ee0b1c9207ac4a742928fb35115aa77ada4e04"
+		},
+		{
 			"ImportPath": "github.com/golang/protobuf/proto",
 			"Rev": "73aaaa9eb61d74fbf7e256ca586a3a565b308eea"
 		},
@@ -42,8 +47,17 @@
 			"Rev": "5811abcabb29d6af0fdf060f96d328962bd3cd5e"
 		},
 		{
+			"ImportPath": "github.com/philhofer/fwd",
+			"Rev": "4dbda5e2904d044d23cc4bef84e8360c458caf7f"
+		},
+		{
 			"ImportPath": "github.com/rs/cors",
 			"Rev": "a4c23809d15590a94f37d870f991f0c49998591c"
+		},
+		{
+			"ImportPath": "github.com/tinylib/msgp/msgp",
+			"Comment": "v1.0-alpha-43-gcd4fb15",
+			"Rev": "cd4fb1548c31d88af25205dc021be20935aec720"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/pbkdf2",
