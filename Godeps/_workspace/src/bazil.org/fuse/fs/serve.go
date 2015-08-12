@@ -1,6 +1,6 @@
 // FUSE service loop, for servers that wish to use it.
 
-package fs // import "bazil.org/fuse/fs"
+package fs
 
 import (
 	"encoding/binary"
@@ -494,7 +494,7 @@ func (c *Server) saveNode(inode uint64, node Node) (id fuse.NodeID, gen uint64) 
 	}
 	sn.generation = c.nodeGen
 	c.nodeRef[node] = id
-	return
+	return id, sn.generation
 }
 
 func (c *Server) saveHandle(handle Handle, nodeID fuse.NodeID) (id fuse.HandleID) {
@@ -601,7 +601,7 @@ type logResponseHeader struct {
 }
 
 func (m logResponseHeader) String() string {
-	return fmt.Sprintf("ID=%#x", m.ID)
+	return fmt.Sprintf("ID=%v", m.ID)
 }
 
 type response struct {
@@ -626,21 +626,21 @@ func (r response) errstr() string {
 func (r response) String() string {
 	switch {
 	case r.Errno != "" && r.Out != nil:
-		return fmt.Sprintf("-> %s error=%s %s", r.Request, r.errstr(), r.Out)
+		return fmt.Sprintf("-> [%v] %v error=%s", r.Request, r.Out, r.errstr())
 	case r.Errno != "":
-		return fmt.Sprintf("-> %s error=%s", r.Request, r.errstr())
+		return fmt.Sprintf("-> [%v] %s error=%s", r.Request, r.Op, r.errstr())
 	case r.Out != nil:
 		// make sure (seemingly) empty values are readable
 		switch r.Out.(type) {
 		case string:
-			return fmt.Sprintf("-> %s %q", r.Request, r.Out)
+			return fmt.Sprintf("-> [%v] %s %q", r.Request, r.Op, r.Out)
 		case []byte:
-			return fmt.Sprintf("-> %s [% x]", r.Request, r.Out)
+			return fmt.Sprintf("-> [%v] %s [% x]", r.Request, r.Op, r.Out)
 		default:
-			return fmt.Sprintf("-> %s %s", r.Request, r.Out)
+			return fmt.Sprintf("-> [%v] %v", r.Request, r.Out)
 		}
 	default:
-		return fmt.Sprintf("-> %s", r.Request)
+		return fmt.Sprintf("-> [%v] %s", r.Request, r.Op)
 	}
 }
 
@@ -685,7 +685,7 @@ type logLinkRequestOldNodeNotFound struct {
 }
 
 func (m *logLinkRequestOldNodeNotFound) String() string {
-	return fmt.Sprintf("In LinkRequest (request %#x), node %d not found", m.Request.Hdr().ID, m.In.OldNode)
+	return fmt.Sprintf("In LinkRequest (request %v), node %d not found", m.Request.Hdr().ID, m.In.OldNode)
 }
 
 type renameNewDirNodeNotFound struct {
@@ -694,7 +694,7 @@ type renameNewDirNodeNotFound struct {
 }
 
 func (m *renameNewDirNodeNotFound) String() string {
-	return fmt.Sprintf("In RenameRequest (request %#x), node %d not found", m.Request.Hdr().ID, m.In.NewDir)
+	return fmt.Sprintf("In RenameRequest (request %v), node %d not found", m.Request.Hdr().ID, m.In.NewDir)
 }
 
 type handlerPanickedError struct {
@@ -875,6 +875,11 @@ func (c *Server) serve(r fuse.Request) {
 		s := &fuse.SetattrResponse{}
 		if n, ok := node.(NodeSetattrer); ok {
 			if err := n.Setattr(ctx, r, s); err != nil {
+				done(err)
+				r.RespondError(err)
+				break
+			}
+			if err := snode.attr(ctx, &s.Attr); err != nil {
 				done(err)
 				r.RespondError(err)
 				break

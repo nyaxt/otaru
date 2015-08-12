@@ -35,7 +35,7 @@
 // which encapsulate all the state needed by a client to authenticate with a
 // server and make various assertions, e.g., about the client's identity, role,
 // or whether it is authorized to make a particular call.
-package credentials // import "google.golang.org/grpc/credentials"
+package credentials
 
 import (
 	"crypto/tls"
@@ -51,7 +51,7 @@ import (
 
 var (
 	// alpnProtoStr are the specified application level protocols for gRPC.
-	alpnProtoStr = []string{"h2", "h2-14", "h2-15", "h2-16"}
+	alpnProtoStr = []string{"h2"}
 )
 
 // Credentials defines the common interface all supported credentials must

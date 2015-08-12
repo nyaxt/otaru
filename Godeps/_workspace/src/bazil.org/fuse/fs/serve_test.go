@@ -630,6 +630,7 @@ func TestMkdir(t *testing.T) {
 
 type create1file struct {
 	fstestutil.File
+	record.Creates
 	record.Fsyncs
 }
 
@@ -643,26 +644,8 @@ func (f *create1) Create(ctx context.Context, req *fuse.CreateRequest, resp *fus
 		log.Printf("ERROR create1.Create unexpected name: %q\n", req.Name)
 		return nil, nil, fuse.EPERM
 	}
-	flags := req.Flags
 
-	// OS X does not pass O_TRUNC here, Linux does; as this is a
-	// Create, that's acceptable
-	flags &^= fuse.OpenTruncate
-
-	if runtime.GOOS == "linux" {
-		// Linux <3.7 accidentally leaks O_CLOEXEC through to FUSE;
-		// avoid spurious test failures
-		flags &^= fuse.OpenFlags(syscall.O_CLOEXEC)
-	}
-
-	if g, e := flags, fuse.OpenReadWrite|fuse.OpenCreate; g != e {
-		log.Printf("ERROR create1.Create unexpected flags: %v != %v\n", g, e)
-		return nil, nil, fuse.EPERM
-	}
-	if g, e := req.Mode, os.FileMode(0644); g != e {
-		log.Printf("ERROR create1.Create unexpected mode: %v != %v\n", g, e)
-		return nil, nil, fuse.EPERM
-	}
+	_, _, _ = f.f.Creates.Create(ctx, req, resp)
 	return &f.f, &f.f, nil
 }
 
@@ -678,11 +661,34 @@ func TestCreate(t *testing.T) {
 	// uniform umask needed to make os.Create's 0666 into something
 	// reproducible
 	defer syscall.Umask(syscall.Umask(0022))
-	ff, err := os.Create(mnt.Dir + "/foo")
+	ff, err := os.OpenFile(mnt.Dir+"/foo", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0640)
 	if err != nil {
 		t.Fatalf("create1 WriteFile: %v", err)
 	}
 	defer ff.Close()
+
+	want := fuse.CreateRequest{
+		Name:  "foo",
+		Flags: fuse.OpenReadWrite | fuse.OpenCreate | fuse.OpenTruncate,
+		Mode:  0640,
+	}
+	if mnt.Conn.Protocol().HasUmask() {
+		want.Umask = 0022
+	}
+	if runtime.GOOS == "darwin" {
+		// OS X does not pass O_TRUNC here, Linux does; as this is a
+		// Create, that's acceptable
+		want.Flags &^= fuse.OpenTruncate
+	}
+	got := f.f.RecordedCreate()
+	if runtime.GOOS == "linux" {
+		// Linux <3.7 accidentally leaks O_CLOEXEC through to FUSE;
+		// avoid spurious test failures
+		got.Flags &^= fuse.OpenFlags(syscall.O_CLOEXEC)
+	}
+	if g, e := got, want; g != e {
+		t.Fatalf("create saw %+v, want %+v", g, e)
+	}
 
 	err = syscall.Fsync(int(ff.Fd()))
 	if err != nil {
@@ -927,15 +933,15 @@ func TestMknod(t *testing.T) {
 	}
 	defer mnt.Close()
 
-	defer syscall.Umask(syscall.Umask(0))
-	err = syscall.Mknod(mnt.Dir+"/node", syscall.S_IFIFO|0666, 123)
+	defer syscall.Umask(syscall.Umask(0022))
+	err = syscall.Mknod(mnt.Dir+"/node", syscall.S_IFIFO|0660, 123)
 	if err != nil {
-		t.Fatalf("Mknod: %v", err)
+		t.Fatalf("mknod: %v", err)
 	}
 
 	want := fuse.MknodRequest{
 		Name: "node",
-		Mode: os.FileMode(os.ModeNamedPipe | 0666),
+		Mode: os.FileMode(os.ModeNamedPipe | 0640),
 		Rdev: uint32(123),
 	}
 	if runtime.GOOS == "linux" {
@@ -943,6 +949,9 @@ func TestMknod(t *testing.T) {
 		// isn't a device (we're using a FIFO here, as that
 		// bit is portable.)
 		want.Rdev = 0
+	}
+	if mnt.Conn.Protocol().HasUmask() {
+		want.Umask = 0022
 	}
 	if g, e := f.RecordedMknod(), want; g != e {
 		t.Fatalf("mknod saw %+v, want %+v", g, e)

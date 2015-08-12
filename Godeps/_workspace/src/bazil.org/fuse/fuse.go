@@ -98,7 +98,7 @@
 // Behavior and metadata of the mounted file system can be changed by
 // passing MountOption values to Mount.
 //
-package fuse // import "bazil.org/fuse"
+package fuse
 
 import (
 	"bytes"
@@ -258,14 +258,26 @@ type Request interface {
 // A RequestID identifies an active FUSE request.
 type RequestID uint64
 
+func (r RequestID) String() string {
+	return fmt.Sprintf("%#x", uint64(r))
+}
+
 // A NodeID is a number identifying a directory or file.
 // It must be unique among IDs returned in LookupResponses
 // that have not yet been forgotten by ForgetRequests.
 type NodeID uint64
 
+func (n NodeID) String() string {
+	return fmt.Sprintf("%#x", uint64(n))
+}
+
 // A HandleID is a number identifying an open directory or file.
 // It only needs to be unique while the directory or file is open.
 type HandleID uint64
+
+func (h HandleID) String() string {
+	return fmt.Sprintf("%#x", uint64(h))
+}
 
 // The RootID identifies the root directory of a FUSE file system.
 const RootID NodeID = rootID
@@ -284,7 +296,7 @@ type Header struct {
 }
 
 func (h *Header) String() string {
-	return fmt.Sprintf("ID=%#x Node=%#x Uid=%d Gid=%d Pid=%d", h.ID, h.Node, h.Uid, h.Gid, h.Pid)
+	return fmt.Sprintf("ID=%v Node=%v Uid=%d Gid=%d Pid=%d", h.ID, h.Node, h.Uid, h.Gid, h.Pid)
 }
 
 func (h *Header) Hdr() *Header {
@@ -1170,7 +1182,7 @@ type InitRequest struct {
 var _ = Request(&InitRequest{})
 
 func (r *InitRequest) String() string {
-	return fmt.Sprintf("Init [%s] %v ra=%d fl=%v", &r.Header, r.Kernel, r.MaxReadahead, r.Flags)
+	return fmt.Sprintf("Init [%v] %v ra=%d fl=%v", &r.Header, r.Kernel, r.MaxReadahead, r.Flags)
 }
 
 // An InitResponse is the response to an InitRequest.
@@ -1186,7 +1198,7 @@ type InitResponse struct {
 }
 
 func (r *InitResponse) String() string {
-	return fmt.Sprintf("Init %+v", *r)
+	return fmt.Sprintf("Init %v ra=%d fl=%v w=%d", r.Library, r.MaxReadahead, r.Flags, r.MaxWrite)
 }
 
 // Respond replies to the request with the given response.
@@ -1247,7 +1259,13 @@ type StatfsResponse struct {
 }
 
 func (r *StatfsResponse) String() string {
-	return fmt.Sprintf("Statfs %+v", *r)
+	return fmt.Sprintf("Statfs blocks=%d/%d/%d files=%d/%d bsize=%d frsize=%d namelen=%d",
+		r.Bavail, r.Bfree, r.Blocks,
+		r.Ffree, r.Files,
+		r.Bsize,
+		r.Frsize,
+		r.Namelen,
+	)
 }
 
 // An AccessRequest asks whether the file can be accessed
@@ -1288,6 +1306,10 @@ type Attr struct {
 	Rdev      uint32      // device numbers
 	Flags     uint32      // chflags(2) flags (OS X only)
 	BlockSize uint32      // preferred blocksize for filesystem I/O
+}
+
+func (a Attr) String() string {
+	return fmt.Sprintf("valid=%v ino=%v size=%d mode=%v", a.Valid, a.Inode, a.Size, a.Mode)
 }
 
 func unix(t time.Time) (sec uint64, nsec uint32) {
@@ -1352,7 +1374,7 @@ type GetattrRequest struct {
 var _ = Request(&GetattrRequest{})
 
 func (r *GetattrRequest) String() string {
-	return fmt.Sprintf("Getattr [%s] %#x fl=%v", &r.Header, r.Handle, r.Flags)
+	return fmt.Sprintf("Getattr [%s] %v fl=%v", &r.Header, r.Handle, r.Flags)
 }
 
 // Respond replies to the request with the given response.
@@ -1372,7 +1394,7 @@ type GetattrResponse struct {
 }
 
 func (r *GetattrResponse) String() string {
-	return fmt.Sprintf("Getattr %+v", *r)
+	return fmt.Sprintf("Getattr %v", r.Attr)
 }
 
 // A GetxattrRequest asks for the extended attributes associated with r.Node.
@@ -1563,8 +1585,12 @@ type LookupResponse struct {
 	Attr       Attr
 }
 
+func (r *LookupResponse) string() string {
+	return fmt.Sprintf("%v gen=%d valid=%v attr={%v}", r.Node, r.Generation, r.EntryValid, r.Attr)
+}
+
 func (r *LookupResponse) String() string {
-	return fmt.Sprintf("Lookup %+v", *r)
+	return fmt.Sprintf("Lookup %s", r.string())
 }
 
 // An OpenRequest asks to open a file or directory
@@ -1595,8 +1621,12 @@ type OpenResponse struct {
 	Flags  OpenResponseFlags
 }
 
+func (r *OpenResponse) string() string {
+	return fmt.Sprintf("%v fl=%v", r.Handle, r.Flags)
+}
+
 func (r *OpenResponse) String() string {
-	return fmt.Sprintf("Open %+v", *r)
+	return fmt.Sprintf("Open %s", r.string())
 }
 
 // A CreateRequest asks to create and open a file (not a directory).
@@ -1643,7 +1673,7 @@ type CreateResponse struct {
 }
 
 func (r *CreateResponse) String() string {
-	return fmt.Sprintf("Create %+v", *r)
+	return fmt.Sprintf("Create {%s} {%s}", r.LookupResponse.string(), r.OpenResponse.string())
 }
 
 // A MkdirRequest asks to create (but not open) a directory.
@@ -1681,7 +1711,7 @@ type MkdirResponse struct {
 }
 
 func (r *MkdirResponse) String() string {
-	return fmt.Sprintf("Mkdir %+v", *r)
+	return fmt.Sprintf("Mkdir %v", r.LookupResponse.string())
 }
 
 // A ReadRequest asks to read from an open file.
@@ -1699,7 +1729,7 @@ type ReadRequest struct {
 var _ = Request(&ReadRequest{})
 
 func (r *ReadRequest) String() string {
-	return fmt.Sprintf("Read [%s] %#x %d @%#x dir=%v fl=%v lock=%d ffl=%v", &r.Header, r.Handle, r.Size, r.Offset, r.Dir, r.Flags, r.LockOwner, r.FileFlags)
+	return fmt.Sprintf("Read [%s] %v %d @%#x dir=%v fl=%v lock=%d ffl=%v", &r.Header, r.Handle, r.Size, r.Offset, r.Dir, r.Flags, r.LockOwner, r.FileFlags)
 }
 
 // Respond replies to the request with the given response.
@@ -1742,7 +1772,7 @@ type ReleaseRequest struct {
 var _ = Request(&ReleaseRequest{})
 
 func (r *ReleaseRequest) String() string {
-	return fmt.Sprintf("Release [%s] %#x fl=%v rfl=%v owner=%#x", &r.Header, r.Handle, r.Flags, r.ReleaseFlags, r.LockOwner)
+	return fmt.Sprintf("Release [%s] %v fl=%v rfl=%v owner=%#x", &r.Header, r.Handle, r.Flags, r.ReleaseFlags, r.LockOwner)
 }
 
 // Respond replies to the request, indicating that the handle has been released.
@@ -1884,7 +1914,7 @@ type WriteRequest struct {
 var _ = Request(&WriteRequest{})
 
 func (r *WriteRequest) String() string {
-	return fmt.Sprintf("Write [%s] %#x %d @%d fl=%v lock=%d ffl=%v", &r.Header, r.Handle, len(r.Data), r.Offset, r.Flags, r.LockOwner, r.FileFlags)
+	return fmt.Sprintf("Write [%s] %v %d @%d fl=%v lock=%d ffl=%v", &r.Header, r.Handle, len(r.Data), r.Offset, r.Flags, r.LockOwner, r.FileFlags)
 }
 
 type jsonWriteRequest struct {
@@ -1918,7 +1948,7 @@ type WriteResponse struct {
 }
 
 func (r *WriteResponse) String() string {
-	return fmt.Sprintf("Write %+v", *r)
+	return fmt.Sprintf("Write %d", r.Size)
 }
 
 // A SetattrRequest asks to change one or more attributes associated with a file,
@@ -1971,9 +2001,9 @@ func (r *SetattrRequest) String() string {
 		fmt.Fprintf(&buf, " mtime=now")
 	}
 	if r.Valid.Handle() {
-		fmt.Fprintf(&buf, " handle=%#x", r.Handle)
+		fmt.Fprintf(&buf, " handle=%v", r.Handle)
 	} else {
-		fmt.Fprintf(&buf, " handle=INVALID-%#x", r.Handle)
+		fmt.Fprintf(&buf, " handle=INVALID-%v", r.Handle)
 	}
 	if r.Valid.LockOwner() {
 		fmt.Fprintf(&buf, " lockowner")
@@ -1988,7 +2018,7 @@ func (r *SetattrRequest) String() string {
 		fmt.Fprintf(&buf, " bkuptime=%v", r.Bkuptime)
 	}
 	if r.Valid.Flags() {
-		fmt.Fprintf(&buf, " flags=%#x", r.Flags)
+		fmt.Fprintf(&buf, " flags=%v", r.Flags)
 	}
 	return buf.String()
 }
@@ -2011,7 +2041,7 @@ type SetattrResponse struct {
 }
 
 func (r *SetattrResponse) String() string {
-	return fmt.Sprintf("Setattr %+v", *r)
+	return fmt.Sprintf("Setattr %v", r.Attr)
 }
 
 // A FlushRequest asks for the current state of an open file to be flushed
@@ -2027,7 +2057,7 @@ type FlushRequest struct {
 var _ = Request(&FlushRequest{})
 
 func (r *FlushRequest) String() string {
-	return fmt.Sprintf("Flush [%s] %#x fl=%#x lk=%#x", &r.Header, r.Handle, r.Flags, r.LockOwner)
+	return fmt.Sprintf("Flush [%s] %v fl=%#x lk=%#x", &r.Header, r.Handle, r.Flags, r.LockOwner)
 }
 
 // Respond replies to the request, indicating that the flush succeeded.
@@ -2088,6 +2118,10 @@ type SymlinkResponse struct {
 	LookupResponse
 }
 
+func (r *SymlinkResponse) String() string {
+	return fmt.Sprintf("Symlink %v", r.LookupResponse.string())
+}
+
 // A ReadlinkRequest is a request to read a symlink's target.
 type ReadlinkRequest struct {
 	Header `json:"-"`
@@ -2142,7 +2176,7 @@ type RenameRequest struct {
 var _ = Request(&RenameRequest{})
 
 func (r *RenameRequest) String() string {
-	return fmt.Sprintf("Rename [%s] from %q to dirnode %d %q", &r.Header, r.OldName, r.NewDir, r.NewName)
+	return fmt.Sprintf("Rename [%s] from %q to dirnode %v %q", &r.Header, r.OldName, r.NewDir, r.NewName)
 }
 
 func (r *RenameRequest) Respond() {

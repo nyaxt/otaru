@@ -266,6 +266,10 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (_ *Strea
 		return nil, err
 	}
 	t.mu.Lock()
+	if t.state != reachable {
+		t.mu.Unlock()
+		return nil, ErrConnClosing
+	}
 	s := t.newStream(ctx, callHdr)
 	t.activeStreams[s.id] = s
 	t.mu.Unlock()
@@ -294,7 +298,9 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (_ *Strea
 	if md, ok := metadata.FromContext(ctx); ok {
 		hasMD = true
 		for k, v := range md {
-			t.hEnc.WriteField(hpack.HeaderField{Name: k, Value: v})
+			for _, entry := range v {
+				t.hEnc.WriteField(hpack.HeaderField{Name: k, Value: entry})
+			}
 		}
 	}
 	first := true

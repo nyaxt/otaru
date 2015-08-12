@@ -18,7 +18,7 @@
 //
 // More information about Google Cloud Pub/Sub is available at
 // https://cloud.google.com/pubsub/docs
-package pubsub // import "google.golang.org/cloud/pubsub"
+package pubsub
 
 import (
 	"encoding/base64"

@@ -27,7 +27,7 @@ To use a Server, create it, and then connect to it with no security:
 		bigtable.WithBaseGRPC(conn))
 	...
 */
-package bttest // import "google.golang.org/cloud/bigtable/bttest"
+package bttest
 
 import (
 	"encoding/binary"
