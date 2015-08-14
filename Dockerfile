@@ -58,6 +58,6 @@ COPY . /go/src/github.com/nyaxt/otaru
 WORKDIR /go/src/github.com/nyaxt/otaru
 
 RUN cd /go/src/github.com/nyaxt/otaru/webui && npm install && bower --allow-root install && gulp && go-bindata -pkg webui dist/...
-RUN godep go install github.com/nyaxt/otaru/fuse/cli
+RUN godep go install github.com/nyaxt/otaru/{debug,}cmd/...
 
-CMD cp /go/bin/cli /out/cli
+CMD cp /go/bin/otaru* /out/
