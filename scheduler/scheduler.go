@@ -1,15 +1,20 @@
 package scheduler
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	"golang.org/x/net/context"
 
 	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/util"
 )
 
 var mylog = logger.Registry().Category("scheduler")
+
+func init() { testutils.EnsureLogger() }
 
 type Result interface {
 	Err() error
@@ -68,6 +73,14 @@ type job struct {
 	mu         sync.Mutex
 	cancelfn   context.CancelFunc
 	scheduledC chan struct{}
+}
+
+func (j *job) String() string {
+	return fmt.Sprintf("job{ID: %d, CreatedAt: %v, Task: %s}",
+		j.ID,
+		j.CreatedAt,
+		util.TryGetImplName(j.Task),
+	)
 }
 
 type JobView struct {
@@ -292,7 +305,7 @@ func (s *Scheduler) schedulerMain() {
 			}
 
 			if _, ok := jobs[j.ID]; ok {
-				logger.Warningf(mylog, "job ID %v is already taken. received duplicate: %v", j.ID, j)
+				logger.Criticalf(mylog, "job ID %v is already taken. received duplicate: %v", j.ID, j)
 				if j.scheduledC != nil {
 					close(j.scheduledC)
 				}
@@ -391,10 +404,11 @@ func (s *Scheduler) runnerMain() {
 		j.State = JobStarted
 
 		j.mu.Unlock()
+		logger.Infof(mylog, "About to run job %v", j)
 		result := task.Run(ctx)
 		if result != nil {
 			if err := result.Err(); err != nil {
-				logger.Warningf(mylog, "Task failed with error: %v", err)
+				logger.Warningf(mylog, "Job %d failed with error: %v", j, err)
 			}
 		}
 		finishedAt := time.Now()

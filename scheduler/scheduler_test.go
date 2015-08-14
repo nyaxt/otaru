@@ -1,6 +1,7 @@
 package scheduler_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -33,6 +34,10 @@ type HogeTask struct{}
 func (HogeTask) Run(context.Context) scheduler.Result {
 	counter++
 	return HogeResult{counter}
+}
+
+func (HogeTask) ImplName() string {
+	return "HogeTask"
 }
 
 func TestScheduler_RunTask(t *testing.T) {
@@ -113,6 +118,10 @@ func (lt LongTask) Run(ctx context.Context) scheduler.Result {
 	case <-ctx.Done():
 		return nil
 	}
+}
+
+func (lt LongTask) ImplName() string {
+	return fmt.Sprintf("LongTask{%v}", time.Duration(lt))
 }
 
 func TestScheduler_AbortTaskBeforeRun(t *testing.T) {

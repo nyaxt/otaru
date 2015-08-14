@@ -9,10 +9,12 @@ import (
 	"github.com/nyaxt/otaru/mgmt/minodedb"
 	"github.com/nyaxt/otaru/mgmt/mlogger"
 	"github.com/nyaxt/otaru/mgmt/mscheduler"
+	"github.com/nyaxt/otaru/mgmt/msystem"
 )
 
 func (o *Otaru) setupMgmtAPIs() error {
 	mlogger.Install(o.MGMT)
+	msystem.Install(o.MGMT)
 	mblobstore.Install(o.MGMT, o.S, o.DefaultBS, o.CBS)
 	if gcsbs, ok := o.DefaultBS.(*gcs.GCSBlobStore); ok {
 		mgcsblobstore.Install(o.MGMT, gcsbs)
