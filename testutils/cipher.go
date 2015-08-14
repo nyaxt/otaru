@@ -1,4 +1,4 @@
-package otaru_test
+package testutils
 
 import (
 	"github.com/nyaxt/otaru/btncrypt"

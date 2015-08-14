@@ -1,4 +1,4 @@
-package otaru_test
+package testutils
 
 var (
 	HelloWorld   = []byte("Hello, world")
