@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/util"
 )
 
 type repetitiveJob struct {
@@ -20,6 +21,12 @@ type repetitiveJob struct {
 	scheduledJob ID
 
 	mu sync.Mutex
+}
+
+func (j *repetitiveJob) String() string {
+	return fmt.Sprintf("repetitiveJob{id: %d, period: %v, task: %s}",
+		j.id, j.period, util.TryGetImplName(j.task),
+	)
 }
 
 type RepetitiveJobRunner struct {
