@@ -140,8 +140,6 @@ type Scheduler struct {
 	joinRunnerC   chan struct{}
 }
 
-const schedulerTickDuration = 300 * time.Millisecond
-
 func NewScheduler() *Scheduler {
 	s := &Scheduler{
 		numRunners:    4, // FIXME
@@ -281,7 +279,21 @@ func abortJob(j *job) {
 }
 
 func (s *Scheduler) schedulerMain() {
-	tick := time.NewTicker(schedulerTickDuration) // FIXME: This should actually wait until next scheduled task instead of using fixed duration ticker.
+	var tickC <-chan time.Time
+	tickC = make(chan time.Time)
+	var nextWakeUp time.Time
+	var timer *time.Timer
+	renewTimer := func() {
+		d := nextWakeUp.Sub(time.Now())
+		if timer == nil {
+			timer = time.NewTimer(d)
+		} else {
+			timer.Stop()
+			timer.Reset(d)
+		}
+		tickC = timer.C
+	}
+
 	waitJobs := make([]*job, 0)
 	jobs := make(map[ID]*job)
 
@@ -313,9 +325,15 @@ func (s *Scheduler) schedulerMain() {
 			}
 			jobs[j.ID] = j
 
-			if j.ScheduledAt.Before(time.Now()) {
+			now := time.Now()
+			if j.ScheduledAt.Before(now) {
 				s.runC <- j
 			} else {
+				if nextWakeUp.IsZero() || nextWakeUp.After(j.ScheduledAt) {
+					nextWakeUp = j.ScheduledAt
+					renewTimer()
+				}
+
 				waitJobs = append(waitJobs, j)
 				s.numWaitJobs = len(waitJobs)
 			}
@@ -367,18 +385,26 @@ func (s *Scheduler) schedulerMain() {
 			abortJob(j)
 			req.doneC <- struct{}{}
 
-		case <-tick.C:
+		case <-tickC:
 			stillWaitJobs := make([]*job, 0, len(waitJobs))
 			now := time.Now()
+			var zero time.Time
+			nextWakeUp = zero
 			for _, j := range waitJobs {
 				if j.ScheduledAt.Before(now) {
 					s.runC <- j
 				} else {
+					if nextWakeUp.IsZero() || nextWakeUp.After(j.ScheduledAt) {
+						nextWakeUp = j.ScheduledAt
+					}
+
 					stillWaitJobs = append(stillWaitJobs, j)
 				}
 			}
 			waitJobs = stillWaitJobs
 			s.numWaitJobs = len(waitJobs)
+
+			renewTimer()
 		}
 	}
 }

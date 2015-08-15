@@ -71,7 +71,6 @@ func (j *repetitiveJob) scheduleNext(s *Scheduler, v *JobView) {
 	var nextT time.Time
 	if v != nil {
 		nextT = j.lastScheduledAt.Add(j.period)
-		logger.Debugf(mylog, "now: %v, nextT: %v", now, nextT)
 
 		if nextT.Before(now) {
 			logger.Infof(mylog, "repetitiveJob %v failed to execute within period %v. Scheduling next job to run after minimum period %v.", j, j.period, minimumPeriod)
@@ -82,7 +81,7 @@ func (j *repetitiveJob) scheduleNext(s *Scheduler, v *JobView) {
 	}
 
 	j.scheduledJob = s.RunAt(j.task, nextT, func(v *JobView) { j.scheduleNext(s, v) })
-	j.lastScheduledAt = now
+	j.lastScheduledAt = nextT
 }
 
 type RepetitiveJobView struct {

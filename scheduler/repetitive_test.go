@@ -19,8 +19,6 @@ func TestRepetitiveJobRunner_RunEveryPeriod(t *testing.T) {
 	}
 	time.Sleep(1 * time.Second)
 
-	ss := counter
-
 	if counter < 2 {
 		t.Errorf("Should have run at least 2 times: counter %d", counter)
 	}
@@ -28,6 +26,7 @@ func TestRepetitiveJobRunner_RunEveryPeriod(t *testing.T) {
 	if err := r.Abort(rid); err != nil {
 		t.Errorf("Abort err: %v", err)
 	}
+	ss := counter
 	time.Sleep(1 * time.Second)
 
 	if ss != counter {
