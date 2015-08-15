@@ -26,8 +26,8 @@ func NewServer() *Server {
 
 	apirtr := rtr.PathPrefix("/api").Subrouter()
 
-	rtr.Handle("/", http.FileServer(
-		&assetfs.AssetFS{Asset: webui.Asset, AssetDir: webui.AssetDir, Prefix: "dist"}))
+	rtr.NotFoundHandler = http.FileServer(
+		&assetfs.AssetFS{Asset: webui.Asset, AssetDir: webui.AssetDir, Prefix: "dist"})
 
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"http://localhost:9000"}, // gulp devsrv
