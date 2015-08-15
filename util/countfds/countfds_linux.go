@@ -7,7 +7,7 @@ import (
 )
 
 func CountFds() int {
-	es, err := os.ReadDir(fmt.Sprintf("/proc/%d/fd", os.Getpid()))
+	es, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/fd", os.Getpid()))
 	if err != nil {
 		return 0
 	}
