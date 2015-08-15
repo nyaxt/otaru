@@ -86,7 +86,7 @@ To increment an encoded value in one cell,
 	r, err := tbl.ApplyReadModifyWrite(ctx, "com.google.cloud", rmw)
 	...
 */
-package bigtable
+package bigtable // import "google.golang.org/cloud/bigtable"
 
 // Scope constants for authentication credentials.
 // These should be used when using credential creation functions such as oauth.NewServiceAccountFromFile.

@@ -19,7 +19,7 @@
 		},
 		{
 			"ImportPath": "github.com/elazarl/go-bindata-assetfs",
-			"Rev": "3dcc96556217539f50599357fb481ac0dc7439b9"
+			"Rev": "d5cac425555ca5cf00694df246e04f05e6a55150"
 		},
 		{
 			"ImportPath": "github.com/fluent/fluent-logger-golang/fluent",
@@ -36,7 +36,7 @@
 		},
 		{
 			"ImportPath": "github.com/gorilla/mux",
-			"Rev": "5112c33f3a6ef694c1e5784b68981f08b3f0327c"
+			"Rev": "f7b6aaaa69e39a15e1f94389b8effd3f9338b013"
 		},
 		{
 			"ImportPath": "github.com/naoina/go-stringutil",
@@ -65,27 +65,27 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "4a71d182556e05375344f3da665304f3d5784ab4"
+			"Rev": "b026840ad5cb594d38a2b783be1b6644fe5325fb"
 		},
 		{
 			"ImportPath": "golang.org/x/net/internal/timeseries",
-			"Rev": "4a71d182556e05375344f3da665304f3d5784ab4"
+			"Rev": "b026840ad5cb594d38a2b783be1b6644fe5325fb"
 		},
 		{
 			"ImportPath": "golang.org/x/net/trace",
-			"Rev": "4a71d182556e05375344f3da665304f3d5784ab4"
+			"Rev": "b026840ad5cb594d38a2b783be1b6644fe5325fb"
 		},
 		{
 			"ImportPath": "golang.org/x/oauth2",
-			"Rev": "8914e5017ca260f2a3a1575b1e6868874050d95e"
+			"Rev": "397fe7649477ff2e8ced8fc0b2696f781e53745a"
 		},
 		{
 			"ImportPath": "google.golang.org/api/googleapi",
-			"Rev": "0a735f7ec81c85ce7ec31bf7a67e125ef62266ec"
+			"Rev": "e5bf1aaf1f365c4d1e4971c72cb4cd32f2ac03fd"
 		},
 		{
 			"ImportPath": "google.golang.org/api/storage/v1",
-			"Rev": "0a735f7ec81c85ce7ec31bf7a67e125ef62266ec"
+			"Rev": "e5bf1aaf1f365c4d1e4971c72cb4cd32f2ac03fd"
 		},
 		{
 			"ImportPath": "google.golang.org/cloud",
@@ -93,7 +93,7 @@
 		},
 		{
 			"ImportPath": "google.golang.org/grpc",
-			"Rev": "7678a23bcb68015894e21f71c81763e8d07b58e0"
+			"Rev": "79d0eb30c0ded29a177ecfdecfec2b5084c4ca21"
 		}
 	]
 }
