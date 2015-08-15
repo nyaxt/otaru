@@ -8,7 +8,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/nyaxt/otaru/scheduler"
+	"github.com/nyaxt/otaru/testutils"
 )
+
+func init() { testutils.EnsureLogger() }
 
 func TestScheduler_RunAllAndStop(t *testing.T) {
 	s := scheduler.NewScheduler()

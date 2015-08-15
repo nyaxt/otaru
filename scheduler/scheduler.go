@@ -8,13 +8,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/nyaxt/otaru/logger"
-	"github.com/nyaxt/otaru/testutils"
 	"github.com/nyaxt/otaru/util"
 )
 
 var mylog = logger.Registry().Category("scheduler")
-
-func init() { testutils.EnsureLogger() }
 
 type Result interface {
 	Err() error
