@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"sync"
@@ -16,7 +15,7 @@ import (
 	"github.com/nyaxt/otaru/logger"
 )
 
-var mylog = logger.Registry().Category("cli")
+var mylog = logger.Registry().Category("otaru-mount")
 
 var Usage = func() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
@@ -30,7 +29,6 @@ var (
 )
 
 func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
 	flag.Usage = Usage
 	flag.Parse()
