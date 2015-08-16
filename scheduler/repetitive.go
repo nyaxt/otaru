@@ -56,7 +56,8 @@ func (r *RepetitiveJobRunner) Stop() {
 	for _, j := range r.jobs {
 		j.mu.Lock()
 
-		// FIXME ABORT!!!
+		j.period = time.Duration(0)
+		r.sched.Abort(j.scheduledJob)
 
 		j.mu.Unlock()
 	}
@@ -150,20 +151,21 @@ func (r *RepetitiveJobRunner) Query(id ID) RepetitiveJobView {
 	return j.View()
 }
 
-func (r *RepetitiveJobRunner) Abort(id ID) error {
-	r.muJobs.Lock()
-	defer r.muJobs.Unlock()
-
+func (r *RepetitiveJobRunner) abortWithLock(id ID) error {
 	j, ok := r.jobs[id]
 	if !ok {
 		return fmt.Errorf("repetitiveJob ID %d not found.", id)
 	}
 
-	j.mu.Lock()
-	defer j.mu.Unlock()
-
 	j.period = time.Duration(0)
 	r.sched.Abort(j.scheduledJob)
 
 	return nil
+}
+
+func (r *RepetitiveJobRunner) Abort(id ID) error {
+	r.muJobs.Lock()
+	defer r.muJobs.Unlock()
+
+	return r.abortWithLock(id)
 }

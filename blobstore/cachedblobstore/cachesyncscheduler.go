@@ -3,17 +3,29 @@ package cachedblobstore
 import (
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/nyaxt/otaru/logger"
-	"github.com/nyaxt/otaru/util"
+	"github.com/nyaxt/otaru/scheduler"
 )
 
-const schedulerWaitDuration = 200 * time.Millisecond
+const syncPeriod = 1 * time.Second
 
-func NewCacheSyncScheduler(cbs *CachedBlobStore) *util.PeriodicRunner {
-	return util.NewPeriodicRunner(func() {
-		err := cbs.SyncOneEntry()
-		if err != nil && err != ENOENT {
-			logger.Warningf(mylog, "SyncOneEntry err: %v", err)
-		}
-	}, schedulerWaitDuration)
+type SyncCacheBlobStoreTask struct {
+	CBS *CachedBlobStore
+}
+
+func (t SyncCacheBlobStoreTask) Run(ctx context.Context) scheduler.Result {
+	err := t.CBS.SyncOneEntry()
+	if err != nil && err != ENOENT {
+		logger.Warningf(mylog, "SyncOneEntry err: %v", err)
+		return scheduler.ErrorResult{err}
+	}
+	return scheduler.ErrorResult{nil}
+}
+
+func (t SyncCacheBlobStoreTask) ImplName() string { return "SyncCacheBlobStoreTask" }
+
+func SetupCacheSync(cbs *CachedBlobStore, s *scheduler.RepetitiveJobRunner) scheduler.ID {
+	return s.RunEveryPeriod(SyncCacheBlobStoreTask{cbs}, syncPeriod)
 }

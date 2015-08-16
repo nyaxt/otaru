@@ -33,6 +33,7 @@ type Otaru struct {
 	C btncrypt.Cipher
 
 	S *scheduler.Scheduler
+	R *scheduler.RepetitiveJobRunner
 
 	Tsrc  oauth2.TokenSource
 	DSCfg *datastore.Config
@@ -43,9 +44,9 @@ type Otaru struct {
 
 	BackendBS blobstore.BlobStore
 
-	CacheTgtBS *blobstore.FileBlobStore
-	CBS        *cachedblobstore.CachedBlobStore
-	CSS        *util.PeriodicRunner
+	CacheTgtBS   *blobstore.FileBlobStore
+	CBS          *cachedblobstore.CachedBlobStore
+	CacheSyncJob scheduler.ID
 
 	SSLoc blobstoredbstatesnapshotio.SSLocator
 	SIO   *blobstoredbstatesnapshotio.DBStateSnapshotIO
@@ -75,6 +76,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	}
 
 	o.S = scheduler.NewScheduler()
+	o.R = scheduler.NewRepetitiveJobRunner(o.S)
 
 	if !cfg.LocalDebug {
 		o.Tsrc, err = auth.GetGCloudTokenSource(context.TODO(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
@@ -129,7 +131,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	if err := o.CBS.RestoreState(o.C); err != nil {
 		logger.Warningf(mylog, "Attempted to restore cachedblobstore state but failed: %v", err)
 	}
-	o.CSS = cachedblobstore.NewCacheSyncScheduler(o.CBS)
+	o.CacheSyncJob = cachedblobstore.SetupCacheSync(o.CBS, o.R)
 
 	if !cfg.LocalDebug {
 		o.SSLoc = datastore.NewINodeDBSSLocator(o.DSCfg)
@@ -177,6 +179,10 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 func (o *Otaru) Close() error {
 	errs := []error{}
 
+	if o.R != nil {
+		o.R.Stop()
+	}
+
 	if o.S != nil {
 		o.S.AbortAllAndStop()
 	}
@@ -199,10 +205,6 @@ func (o *Otaru) Close() error {
 		if err := o.IDBBE.Sync(); err != nil {
 			errs = append(errs, err)
 		}
-	}
-
-	if o.CSS != nil {
-		o.CSS.Stop()
 	}
 
 	if o.CBS != nil {
