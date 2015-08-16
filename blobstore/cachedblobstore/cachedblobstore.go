@@ -454,8 +454,10 @@ func (be *CachedBlobEntry) closeWithLock(abandon bool) error {
 		be.lastSync = time.Now()
 	}
 
-	if err := be.cachebh.Close(); err != nil {
-		return fmt.Errorf("Failed to close cache bh: %v", err)
+	if be.cachebh != nil {
+		if err := be.cachebh.Close(); err != nil {
+			return fmt.Errorf("Failed to close cache bh: %v", err)
+		}
 	}
 
 	be.state = cacheEntryClosed
