@@ -87,3 +87,16 @@ func (s *CacheUsageStats) FindLeastUsed() []string {
 
 	return bps
 }
+
+type CacheUsageStatsView struct {
+	NumEntries int `json:"num_entries"`
+}
+
+func (s *CacheUsageStats) View() CacheUsageStatsView {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return CacheUsageStatsView{
+		NumEntries: len(s.entries),
+	}
+}

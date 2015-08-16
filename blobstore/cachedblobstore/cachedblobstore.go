@@ -773,3 +773,15 @@ func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, 
 		dryrun, time.Since(start))
 	return nil
 }
+
+type Stats struct {
+	CacheUsageStatsView `json:"usage_stats"`
+	CbvStats            `json:"cbv_stats"`
+}
+
+func (cbs *CachedBlobStore) GetStats() Stats {
+	return Stats{
+		CacheUsageStatsView: cbs.usagestats.View(),
+		CbvStats:            cbs.bever.GetStats(),
+	}
+}

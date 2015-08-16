@@ -4,7 +4,7 @@
   <style>
     .label {
       float: left;
-      width: 100px;
+      width: 300px;
       color: #777;
     }
 
@@ -20,6 +20,10 @@
       <div class='value'>{{config.backend_impl_name}}</div>
       <div class='label'>Cache:</div>
       <div class='value'>{{config.cache_impl_name}}</div>
+      <div class='label'>CacheUsageStats entries:</div>
+      <div class='value'>{{stats.usage_stats.num_entries}}</div>
+      <div class='label'>CachedBackendVersion entries:</div>
+      <div class='value'>{{stats.cbv_stats.num_cache}}</div>
     </div>
 
     <h3>Entries</h3>
@@ -45,15 +49,24 @@ Polymer({
       onData: this._onConfig.bind(this),
       oneShot: true,
     });
+    this.statsQuery = new OtaruQuery({
+      endpointPath: '/api/blobstore/stats',
+      onData: this._onStats.bind(this),
+    });
   },
   attached() {
     this.query.start(); 
+    this.statsQuery.start();
   },
   detached() {
     this.query.stop(); 
+    this.statsQuery.stop();
   },
   _onConfig(data) {
     this.config = data;
+  },
+  _onStats(data) {
+    this.stats = data;
   }
 });
 })();

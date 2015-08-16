@@ -57,4 +57,7 @@ func Install(srv *mgmt.Server, s *scheduler.Scheduler, bbs blobstore.BlobStore, 
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte("ok"))
 	})
+	rtr.HandleFunc("/stats", mgmt.JSONHandler(func(req *http.Request) interface{} {
+		return cbs.GetStats()
+	}))
 }

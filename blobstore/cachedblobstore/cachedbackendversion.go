@@ -110,3 +110,14 @@ func (cbv *CachedBackendVersion) SaveStateToBlobstore(c btncrypt.Cipher, bs blob
 		func(enc *gob.Encoder) error { return cbv.encodeCacheToGob(enc) },
 	)
 }
+
+type CbvStats struct {
+	NumCache int `json:"num_cache"`
+}
+
+func (cbv *CachedBackendVersion) GetStats() CbvStats {
+	cbv.mu.Lock()
+	defer cbv.mu.Unlock()
+
+	return CbvStats{NumCache: len(cbv.cache)}
+}
