@@ -215,3 +215,38 @@ func TestScheduler_QueryAll(t *testing.T) {
 
 	s.AbortAllAndStop()
 }
+
+func TestScheduler_TaskGC(t *testing.T) {
+	counter = 0
+
+	s := scheduler.NewScheduler()
+	s.ZombiePeriod = 300 * time.Millisecond
+
+	v := s.RunImmediatelyBlock(HogeTask{})
+	if counter != 1 {
+		t.Errorf("err")
+	}
+
+	v2 := s.Query(v.ID)
+	if v2 == nil {
+		t.Errorf("Gc-ed too early!")
+	}
+
+	time.Sleep(1 * time.Second)
+	va := s.RunImmediatelyBlock(HogeTask{})
+
+	s.ForceGC()
+
+	v3 := s.Query(v.ID)
+	if v3 != nil {
+		t.Errorf("Should have gc-ed entry still exist")
+	}
+
+	va2 := s.Query(va.ID)
+	if va2 == nil {
+		t.Errorf("Gc-ed too early!")
+	}
+
+	s.RunAllAndStop()
+
+}

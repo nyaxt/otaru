@@ -133,8 +133,11 @@ type Scheduler struct {
 	queryC        chan *jobQuery
 	abortC        chan *abortReq
 	runC          chan *job
+	forceGCC      chan struct{}
 	joinScheduleC chan struct{}
 	joinRunnerC   chan struct{}
+
+	ZombiePeriod time.Duration
 }
 
 func NewScheduler() *Scheduler {
@@ -146,8 +149,11 @@ func NewScheduler() *Scheduler {
 		queryC:        make(chan *jobQuery, 1),
 		abortC:        make(chan *abortReq, 1),
 		runC:          make(chan *job, 8),
+		forceGCC:      make(chan struct{}),
 		joinScheduleC: make(chan struct{}),
 		joinRunnerC:   make(chan struct{}),
+
+		ZombiePeriod: 30 * time.Second,
 	}
 
 	go s.schedulerMain()
@@ -242,6 +248,7 @@ func (s *Scheduler) stop() {
 	close(s.scheduleC)
 	close(s.queryC)
 	close(s.abortC)
+	close(s.forceGCC)
 
 	<-s.joinScheduleC
 	for i := 0; i < s.numRunners; i++ {
@@ -275,6 +282,10 @@ func abortJob(j *job) {
 	j.mu.Unlock()
 }
 
+func (s *Scheduler) ForceGC() { s.forceGCC <- struct{}{} }
+
+const gcPeriod = 10 * time.Second
+
 func (s *Scheduler) schedulerMain() {
 	var tickC <-chan time.Time
 	tickC = make(chan time.Time)
@@ -293,6 +304,30 @@ func (s *Scheduler) schedulerMain() {
 
 	waitJobs := make([]*job, 0)
 	jobs := make(map[ID]*job)
+
+	gcTickC := time.Tick(gcPeriod)
+	doGC := func() {
+		logger.Debugf(mylog, "JobGC start.")
+		gcstart := time.Now()
+		threshold := gcstart.Add(-s.ZombiePeriod)
+
+		oldJobIDs := make([]ID, 0)
+		for id, j := range jobs {
+			j.mu.Lock()
+			if j.State == JobAborted || j.State == JobFinished {
+				if j.FinishedAt.Before(threshold) {
+					logger.Debugf(mylog, "GC-ing job %v: %v since aborted/finished.", j, gcstart.Sub(j.FinishedAt))
+					oldJobIDs = append(oldJobIDs, id)
+				}
+			}
+			j.mu.Unlock()
+		}
+		for _, id := range oldJobIDs {
+			delete(jobs, id)
+		}
+
+		logger.Debugf(mylog, "JobGC end. Took %v. Deleted %d entries", time.Since(gcstart), len(oldJobIDs))
+	}
 
 	defer func() {
 		close(s.runC)
@@ -402,6 +437,11 @@ func (s *Scheduler) schedulerMain() {
 			s.numWaitJobs = len(waitJobs)
 
 			renewTimer()
+
+		case <-gcTickC:
+			doGC()
+		case <-s.forceGCC:
+			doGC()
 		}
 	}
 }
