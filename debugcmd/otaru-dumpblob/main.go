@@ -4,15 +4,17 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path"
 
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
 	"github.com/nyaxt/otaru/facade"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
+
+var mylog = logger.Registry().Category("otaru-dumpblob")
 
 var (
 	flagPasswordFile = flag.String("passwordFile", path.Join(facade.DefaultConfigDir(), "password.txt"), "Path of a text file storing password")
@@ -26,7 +28,8 @@ func Usage() {
 }
 
 func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
+	logger.Registry().AddOutput(logger.HandleCritical(func() { os.Exit(1) }))
 
 	flag.Usage = Usage
 	flag.Parse()
@@ -39,7 +42,7 @@ func main() {
 
 	f, err := os.Open(filepath)
 	if err != nil {
-		log.Printf("Failed to read file: %s", filepath)
+		logger.Infof(mylog, "Failed to read file: %s", filepath)
 	}
 	defer f.Close()
 
@@ -47,18 +50,18 @@ func main() {
 	key := btncrypt.KeyFromPassword(password)
 	c, err := btncrypt.NewCipher(key)
 	if err != nil {
-		log.Printf("Failed to init Cipher: %v", err)
+		logger.Infof(mylog, "Failed to init Cipher: %v", err)
 		return
 	}
 
 	cr, err := chunkstore.NewChunkReader(f, c)
 	if err != nil {
-		log.Printf("Failed to init ChunkReader: %v", err)
+		logger.Infof(mylog, "Failed to init ChunkReader: %v", err)
 		return
 	}
 
 	if *flagHeader {
-		log.Printf("Header: %+v", cr.Header())
+		logger.Infof(mylog, "Header: %+v", cr.Header())
 	}
 	io.Copy(os.Stdout, cr)
 }

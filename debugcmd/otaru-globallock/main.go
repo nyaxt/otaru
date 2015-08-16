@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 
 	"golang.org/x/net/context"
@@ -12,7 +11,10 @@ import (
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
+	"github.com/nyaxt/otaru/logger"
 )
+
+var mylog = logger.Registry().Category("otaru-globallock")
 
 var (
 	flagConfigDir = flag.String("configDir", facade.DefaultConfigDir(), "Config dirpath")
@@ -27,14 +29,15 @@ func Usage() {
 }
 
 func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
+	logger.Registry().AddOutput(logger.HandleCritical(func() { os.Exit(1) }))
 
 	flag.Usage = Usage
 	flag.Parse()
 
 	cfg, err := facade.NewConfig(*flagConfigDir)
 	if err != nil {
-		log.Printf("%v", err)
+		logger.Infof(mylog, "%v", err)
 		Usage()
 		os.Exit(2)
 	}
@@ -46,13 +49,13 @@ func main() {
 	case "lock", "unlock", "query":
 		break
 	default:
-		log.Printf("Unknown cmd: %v", flag.Arg(0))
+		logger.Infof(mylog, "Unknown cmd: %v", flag.Arg(0))
 		os.Exit(1)
 	}
 
 	tsrc, err := auth.GetGCloudTokenSource(context.Background(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
 	if err != nil {
-		log.Fatalf("Failed to init GCloudClientSource: %v", err)
+		logger.Criticalf(mylog, "Failed to init GCloudClientSource: %v", err)
 	}
 	c := btncrypt.Cipher{} // Null cipher is fine, as we GlobalLocker doesn't make use of it.
 	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, tsrc)
@@ -65,24 +68,24 @@ func main() {
 	switch flag.Arg(0) {
 	case "lock":
 		if err := l.Lock(); err != nil {
-			log.Printf("Lock failed: %v", err)
+			logger.Infof(mylog, "Lock failed: %v", err)
 		}
 	case "unlock":
 		if *flagForce {
 			if err := l.ForceUnlock(); err != nil {
-				log.Printf("ForceUnlock failed: %v", err)
+				logger.Infof(mylog, "ForceUnlock failed: %v", err)
 				os.Exit(1)
 			}
 		} else {
 			if err := l.UnlockIgnoreCreatedAt(); err != nil {
-				log.Printf("Unlock failed: %v", err)
+				logger.Infof(mylog, "Unlock failed: %v", err)
 				os.Exit(1)
 			}
 		}
 	case "query":
 		entry, err := l.Query()
 		if err != nil {
-			log.Printf("Query failed: %v", err)
+			logger.Infof(mylog, "Query failed: %v", err)
 			os.Exit(1)
 		}
 		fmt.Printf("%+v\n", entry)

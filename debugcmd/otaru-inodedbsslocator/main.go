@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 
 	"golang.org/x/net/context"
@@ -13,7 +12,10 @@ import (
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
+	"github.com/nyaxt/otaru/logger"
 )
+
+var mylog = logger.Registry().Category("otaru-globallock")
 
 var (
 	flagConfigDir = flag.String("configDir", facade.DefaultConfigDir(), "Config dirpath")
@@ -26,7 +28,8 @@ func Usage() {
 }
 
 func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
+	logger.Registry().AddOutput(logger.HandleCritical(func() { os.Exit(1) }))
 
 	flag.Usage = Usage
 	flag.Parse()
@@ -38,26 +41,26 @@ func main() {
 	case "list", "purge":
 		break
 	default:
-		log.Printf("Unknown cmd: %v", flag.Arg(0))
+		logger.Infof(mylog, "Unknown cmd: %v", flag.Arg(0))
 		Usage()
 		os.Exit(2)
 	}
 
 	cfg, err := facade.NewConfig(*flagConfigDir)
 	if err != nil {
-		log.Printf("%v", err)
+		logger.Infof(mylog, "%v", err)
 		Usage()
 		os.Exit(1)
 	}
 
 	tsrc, err := auth.GetGCloudTokenSource(context.Background(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
 	if err != nil {
-		log.Fatalf("Failed to init GCloudTokenSource: %v", err)
+		logger.Criticalf(mylog, "Failed to init GCloudTokenSource: %v", err)
 	}
 	key := btncrypt.KeyFromPassword(cfg.Password)
 	c, err := btncrypt.NewCipher(key)
 	if err != nil {
-		log.Fatalf("Failed to init btncrypt.Cipher: %v", err)
+		logger.Criticalf(mylog, "Failed to init btncrypt.Cipher: %v", err)
 	}
 
 	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, tsrc)
@@ -71,15 +74,15 @@ func main() {
 			return
 		}
 		if sc.Text() != "deleteall" {
-			log.Printf("Cancelled.\n")
+			logger.Infof(mylog, "Cancelled.\n")
 			os.Exit(1)
 		}
 
 		es, err := ssloc.DeleteAll()
 		if err != nil {
-			log.Printf("DeleteAll failed: %v", err)
+			logger.Infof(mylog, "DeleteAll failed: %v", err)
 		}
-		log.Printf("DeleteAll deleted entries for blobpath: %v", es)
+		logger.Infof(mylog, "DeleteAll deleted entries for blobpath: %v", es)
 		// FIXME: delete the entries from blobpath too
 
 	case "list":
@@ -89,13 +92,13 @@ func main() {
 			bp, err := ssloc.Locate(history)
 			if err != nil {
 				if err == datastore.EEMPTY {
-					log.Printf("Locate(%d): no entry", history)
+					logger.Infof(mylog, "Locate(%d): no entry", history)
 				} else {
-					log.Printf("Locate(%d) err: %v", history, err)
+					logger.Infof(mylog, "Locate(%d) err: %v", history, err)
 				}
 				break histloop
 			}
-			log.Printf("Locate(%d): %v", history, bp)
+			logger.Infof(mylog, "Locate(%d): %v", history, bp)
 
 			history++
 		}

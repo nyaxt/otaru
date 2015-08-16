@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 
@@ -14,7 +13,10 @@ import (
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/logger"
 )
+
+var mylog = logger.Registry().Category("otaru-txlogio")
 
 var (
 	flagConfigDir = flag.String("configDir", facade.DefaultConfigDir(), "Config dirpath")
@@ -28,14 +30,15 @@ func Usage() {
 }
 
 func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
+	logger.Registry().AddOutput(logger.HandleCritical(func() { os.Exit(1) }))
 
 	flag.Usage = Usage
 	flag.Parse()
 
 	cfg, err := facade.NewConfig(*flagConfigDir)
 	if err != nil {
-		log.Printf("%v", err)
+		logger.Infof(mylog, "%v", err)
 		Usage()
 		os.Exit(2)
 	}
@@ -65,20 +68,20 @@ func main() {
 		}
 		break
 	default:
-		log.Printf("Unknown cmd: %v", flag.Arg(0))
+		logger.Infof(mylog, "Unknown cmd: %v", flag.Arg(0))
 		Usage()
 		os.Exit(2)
 	}
 
 	tsrc, err := auth.GetGCloudTokenSource(context.Background(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
 	if err != nil {
-		log.Fatalf("Failed to init GCloudClientSource: %v", err)
+		logger.Criticalf(mylog, "Failed to init GCloudClientSource: %v", err)
 	}
 
 	key := btncrypt.KeyFromPassword(cfg.Password)
 	c, err := btncrypt.NewCipher(key)
 	if err != nil {
-		log.Fatalf("Failed to init btncrypt.Cipher: %v", err)
+		logger.Criticalf(mylog, "Failed to init btncrypt.Cipher: %v", err)
 	}
 	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, tsrc)
 
@@ -87,20 +90,20 @@ func main() {
 	switch flag.Arg(0) {
 	case "purge":
 		if err := txlogio.DeleteAllTransactions(); err != nil {
-			log.Printf("DeleteAllTransactions() failed: %v", err)
+			logger.Infof(mylog, "DeleteAllTransactions() failed: %v", err)
 		}
 
 	case "query":
 		txs, err := txlogio.QueryTransactions(minID)
 		if err != nil {
-			log.Printf("QueryTransactions() failed: %v", err)
+			logger.Infof(mylog, "QueryTransactions() failed: %v", err)
 		}
 		for _, tx := range txs {
 			fmt.Printf("%s\n", tx)
 		}
 
 	default:
-		log.Printf("Unknown cmd: %v", flag.Arg(0))
+		logger.Infof(mylog, "Unknown cmd: %v", flag.Arg(0))
 		os.Exit(1)
 	}
 }

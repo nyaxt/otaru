@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 
 	"golang.org/x/net/context"
@@ -17,7 +16,10 @@ import (
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/gcloud/gcs"
+	"github.com/nyaxt/otaru/logger"
 )
+
+var mylog = logger.Registry().Category("otaru-globallock")
 
 var (
 	flagConfigDir = flag.String("configDir", facade.DefaultConfigDir(), "Config dirpath")
@@ -39,10 +41,10 @@ func clearBlobStore(bs BlobListerRemover) error {
 	if err != nil {
 		return fmt.Errorf("Failed to ListBlobs(): %v", err)
 	}
-	log.Printf("Found %d blobs!", len(bps))
+	logger.Infof(mylog, "Found %d blobs!", len(bps))
 
 	for i, bp := range bps {
-		log.Printf("Removing blob %d/%d: %s", i+1, len(bps), bp)
+		logger.Infof(mylog, "Removing blob %d/%d: %s", i+1, len(bps), bp)
 		if err := bs.RemoveBlob(bp); err != nil {
 			return fmt.Errorf("Failed to RemoveBlob(%s): %v", bp, err)
 		}
@@ -69,7 +71,8 @@ func clearGCS(projectName, bucketName string, tsrc oauth2.TokenSource) error {
 }
 
 func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
+	logger.Registry().AddOutput(logger.HandleCritical(func() { os.Exit(1) }))
 
 	flag.Usage = Usage
 	flag.Parse()
@@ -80,19 +83,19 @@ func main() {
 
 	cfg, err := facade.NewConfig(*flagConfigDir)
 	if err != nil {
-		log.Printf("%v", err)
+		logger.Infof(mylog, "%v", err)
 		Usage()
 		os.Exit(1)
 	}
 
 	tsrc, err := auth.GetGCloudTokenSource(context.Background(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
 	if err != nil {
-		log.Fatalf("Failed to init GCloudClientSource: %v", err)
+		logger.Criticalf(mylog, "Failed to init GCloudClientSource: %v", err)
 	}
 	key := btncrypt.KeyFromPassword(cfg.Password)
 	c, err := btncrypt.NewCipher(key)
 	if err != nil {
-		log.Fatalf("Failed to init btncrypt.Cipher: %v", err)
+		logger.Criticalf(mylog, "Failed to init btncrypt.Cipher: %v", err)
 	}
 
 	fmt.Printf("Do you really want to proceed with deleting all blobs in gs://%s{,-meta} and its cache in %s?\n", cfg.BucketName, cfg.CacheDir)
@@ -102,34 +105,34 @@ func main() {
 		return
 	}
 	if sc.Text() != "deleteall" {
-		log.Printf("Cancelled.\n")
+		logger.Infof(mylog, "Cancelled.\n")
 		os.Exit(1)
 	}
 
 	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, tsrc)
 	l := datastore.NewGlobalLocker(dscfg, "otaru-deleteallblobs", facade.GenHostName())
 	if err := l.Lock(); err != nil {
-		log.Printf("Failed to acquire global lock: %v", err)
+		logger.Infof(mylog, "Failed to acquire global lock: %v", err)
 		return
 	}
 	defer l.Unlock()
 
 	if err := clearGCS(cfg.ProjectName, cfg.BucketName, tsrc); err != nil {
-		log.Printf("Failed to clear bucket \"%s\": %v", cfg.BucketName, err)
+		logger.Infof(mylog, "Failed to clear bucket \"%s\": %v", cfg.BucketName, err)
 		return
 	}
 	if cfg.UseSeparateBucketForMetadata {
 		metabucketname := fmt.Sprintf("%s-meta", cfg.BucketName)
 		if err := clearGCS(cfg.ProjectName, metabucketname, tsrc); err != nil {
-			log.Printf("Failed to clear metadata bucket \"%s\": %v", metabucketname, err)
+			logger.Infof(mylog, "Failed to clear metadata bucket \"%s\": %v", metabucketname, err)
 			return
 		}
 	}
 	if err := clearCache(cfg.CacheDir); err != nil {
-		log.Printf("Failed to clear cache \"%s\": %v", cfg.CacheDir, err)
+		logger.Infof(mylog, "Failed to clear cache \"%s\": %v", cfg.CacheDir, err)
 		return
 	}
 
-	log.Printf("otaru-deleteallblobs: Successfully completed!")
-	log.Printf("Hint: You might also want to run \"otaru-txlogio purge\" to delete inodedb txlogs.")
+	logger.Infof(mylog, "otaru-deleteallblobs: Successfully completed!")
+	logger.Infof(mylog, "Hint: You might also want to run \"otaru-txlogio purge\" to delete inodedb txlogs.")
 }
