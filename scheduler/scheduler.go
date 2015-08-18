@@ -248,12 +248,12 @@ func (s *Scheduler) stop() {
 	close(s.scheduleC)
 	close(s.queryC)
 	close(s.abortC)
-	close(s.forceGCC)
 
 	<-s.joinScheduleC
 	for i := 0; i < s.numRunners; i++ {
 		<-s.joinRunnerC
 	}
+	close(s.forceGCC)
 	logger.Infof(mylog, "scheduler stop done")
 }
 
