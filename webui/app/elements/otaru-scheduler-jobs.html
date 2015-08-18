@@ -1,0 +1,144 @@
+<link rel="import" href="../elements/otaru-reltime.html">
+
+<dom-module id='otaru-scheduler-job-result'>
+  <style>
+    .null {
+      color: #f77; 
+    }
+    .ok {
+      color: #77f;  
+    }
+  </style>
+  <template>
+    <span class='null' hidden$="{{!isNull}}">null</span>  
+    <span class='ok' hidden$="{{!isOK}}">ok</span>  
+    <span hidden$='{{isNull}}'>{{newValue.error_str}}</span>
+  </template>
+</dom-module>
+<script>
+(function() {
+"use strict";
+
+Polymer({
+  is: 'otaru-scheduler-job-result',
+  properties: {
+    value: {
+      type: Object, 
+      value: {},
+      observer: '_valueChanged'
+    },
+    isNull: {
+      type: Boolean,
+      value: false,
+    },
+    isOK: {
+      type: Boolean,
+      value: false,
+    }
+  },
+  _valueChanged(newValue, oldValue) {
+    this.isNull = (newValue === null);
+    this.isOK = !this.isNull && Object.keys(newValue).length === 0;
+  }
+});
+})();
+</script>
+
+
+<dom-module id='otaru-scheduler-jobs'>
+  <style>
+    table {
+      border-collapse: collapse; 
+    }
+
+    tr {
+      text-align: left; 
+
+      border-bottom: 1px solid #ccc; 
+    }
+
+    thead tr {
+      border-bottom: 1px solid #333;
+    }
+
+    td,th {
+      padding: 5px 20px; 
+      color: #333;
+    }
+
+    th {
+      text-align: left; 
+      font-weight: normal;
+
+      color: #777;
+    }
+
+    .blobpath {
+      padding-left: 5px; 
+    }
+
+    .number_of_handles {
+      padding-right: 5px; 
+    }
+  </style>
+  <template>
+    <table>
+      <thead>
+        <tr>
+          <th class='id'>ID</th>
+          <th class='state'>State</th>
+          <th class='created_at'>Created at</th>
+          <th class='scheduled_at'>Scheduled at</th>
+          <th class='started_at'>Started at</th>
+          <th class='finished_at'>Finished at</th>
+          <th class='result'>Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template is='dom-repeat' items='{{entries}}'>
+          <tr>
+            <td class='id'>{{item.id}}</td>
+            <td class='state'>{{item.state}}</td>
+            <td class='created_at'><otaru-reltime value='{{item.created_at}}'></otaru-reltime></td>
+            <td class='scheduled_at'><otaru-reltime value='{{item.scheduled_at}}'></otaru-reltime></td>
+            <td class='started_at'><otaru-reltime value='{{item.started_at}}'></otaru-reltime></td>
+            <td class='finished_at'><otaru-reltime value='{{item.finished_at}}'></otaru-reltime></td>
+            <td class='result'><otaru-scheduler-job-result value='{{item.result}}'></otaru-scheduler-job-result></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </template>
+</dom-module>
+<script>
+(function() {
+"use strict";
+
+Polymer({
+  is: 'otaru-scheduler-jobs',
+  ready() {
+    this.entries = [];
+  },
+  created() {
+    this.query = new OtaruQuery({
+      endpointPath: '/api/scheduler/job/all',
+      onData: this._onData.bind(this),
+    });
+  },
+  attached() {
+    this.query.start(); 
+  },
+  detached() {
+    this.query.stop(); 
+  },
+  _onData(data) {
+    this.splice('entries', 0, this.entries.length);
+    data.sort((a, b) => b.id - a.id);
+    window.hoge = data;
+    for (let e of data) {
+      this.push('entries', e);
+    }
+  }
+});
+})();
+</script>

@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -21,7 +22,21 @@ type ErrorResult struct {
 	Error error
 }
 
-func (er ErrorResult) Err() error { return er.Error }
+func (er ErrorResult) Err() error    { return er.Error }
+func (ErrorResult) ImplName() string { return "ErrorResult" }
+
+func (er ErrorResult) MarshalJSON() ([]byte, error) {
+	type jsonRep struct {
+		ErrorString string `json:"error_str,omitempty"`
+	}
+
+	var errstr string
+	if er.Error != nil {
+		errstr = er.Error.Error()
+	}
+
+	return json.Marshal(jsonRep{ErrorString: errstr})
+}
 
 type Task interface {
 	Run(ctx context.Context) Result
@@ -82,13 +97,13 @@ func (j *job) String() string {
 
 type JobView struct {
 	ID    `json:"id"`
-	State `json:"state,string"`
+	State `json:"state"`
 	// Issuer string
 
 	CreatedAt   time.Time `json:"created_at"`
 	ScheduledAt time.Time `json:"scheduled_at"`
 	StartedAt   time.Time `json:"started_at"`
-	FinishedAt  time.Time `json:"finishd_at"`
+	FinishedAt  time.Time `json:"finished_at"`
 
 	Result `json:"result"`
 }
