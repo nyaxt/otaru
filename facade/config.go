@@ -3,6 +3,7 @@ package facade
 import (
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"path"
 
@@ -101,6 +102,7 @@ func NewConfig(configdir string) (*Config, error) {
 	if cfg.Fluent.TagPrefix == "" {
 		cfg.Fluent.TagPrefix = "otaru"
 	}
+	cfg.Fluent.MaxRetry = math.MaxInt32
 
 	return cfg, nil
 }
