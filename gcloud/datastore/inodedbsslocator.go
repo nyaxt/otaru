@@ -9,6 +9,7 @@ import (
 
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/metadata"
 )
 
 var sslog = logger.Registry().Category("inodedbsslocator")
@@ -97,6 +98,10 @@ func (loc *INodeDBSSLocator) tryPutOnce(blobpath string, txid int64) error {
 
 	logger.Infof(sslog, "Put(%s, %d) took %s.", blobpath, txid, time.Since(start))
 	return nil
+}
+
+func (*INodeDBSSLocator) GenerateBlobpath() string {
+	return metadata.GenINodeDBSnapshotBlobpath()
 }
 
 func (loc *INodeDBSSLocator) Put(blobpath string, txid int64) error {

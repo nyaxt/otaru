@@ -83,19 +83,21 @@ func NewConfig(configdir string) (*Config, error) {
 		return nil, fmt.Errorf("Config Error: BucketName must be given.")
 	}
 
-	if _, err := os.Stat(cfg.CredentialsFilePath); err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("Credentials not found at %s", cfg.CredentialsFilePath)
-		} else {
-			return nil, fmt.Errorf("Failed to stat credentials file \"%s\" from unknown err: %v", cfg.CredentialsFilePath, err)
+	if !cfg.LocalDebug {
+		if _, err := os.Stat(cfg.CredentialsFilePath); err != nil {
+			if os.IsNotExist(err) {
+				return nil, fmt.Errorf("Credentials not found at %s", cfg.CredentialsFilePath)
+			} else {
+				return nil, fmt.Errorf("Failed to stat credentials file \"%s\" from unknown err: %v", cfg.CredentialsFilePath, err)
+			}
 		}
-	}
 
-	if _, err := os.Stat(cfg.TokenCacheFilePath); err != nil {
-		if os.IsNotExist(err) {
-			logger.Warningf(mylog, "Warning: Token cache file found not at %s", cfg.TokenCacheFilePath)
-		} else {
-			return nil, fmt.Errorf("Failed to stat token cache file \"%s\" from unknown err: %v", cfg.TokenCacheFilePath, err)
+		if _, err := os.Stat(cfg.TokenCacheFilePath); err != nil {
+			if os.IsNotExist(err) {
+				logger.Warningf(mylog, "Warning: Token cache file found not at %s", cfg.TokenCacheFilePath)
+			} else {
+				return nil, fmt.Errorf("Failed to stat token cache file \"%s\" from unknown err: %v", cfg.TokenCacheFilePath, err)
+			}
 		}
 	}
 

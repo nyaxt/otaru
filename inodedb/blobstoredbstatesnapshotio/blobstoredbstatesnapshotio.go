@@ -8,7 +8,6 @@ import (
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
-	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/metadata/statesnapshot"
 )
 
@@ -16,6 +15,7 @@ var mylog = logger.Registry().Category("bsdbssio")
 
 type SSLocator interface {
 	Locate(history int) (string, error)
+	GenerateBlobpath() string
 	Put(blobpath string, txid int64) error
 }
 
@@ -43,7 +43,7 @@ func (sio *DBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) error {
 		return nil
 	}
 
-	ssbp := metadata.GenINodeDBSnapshotBlobpath()
+	ssbp := sio.loc.GenerateBlobpath()
 	if err := statesnapshot.Save(
 		ssbp, sio.c, sio.bs,
 		func(enc *gob.Encoder) error { return s.EncodeToGob(enc) },

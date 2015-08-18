@@ -2,7 +2,6 @@ package facade
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"time"
 
@@ -119,7 +118,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 			}
 		}
 	} else {
-		o.BackendBS, err = blobstore.NewFileBlobStore(path.Join(os.Getenv("HOME"), ".otaru", "bbs"), oflags.O_RDWRCREATE)
+		o.BackendBS, err = blobstore.NewFileBlobStore(path.Join(DefaultConfigDir(), "bbs"), oflags.O_RDWRCREATE)
 	}
 
 	queryFn := chunkstore.NewQueryChunkVersion(o.C)
@@ -136,7 +135,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	if !cfg.LocalDebug {
 		o.SSLoc = datastore.NewINodeDBSSLocator(o.DSCfg)
 	} else {
-		logger.Panicf(mylog, "Implement mock sslocator that doesn't depend on gcloud/datastore")
+		o.SSLoc = blobstoredbstatesnapshotio.SimpleSSLocator{}
 	}
 	o.SIO = blobstoredbstatesnapshotio.New(o.CBS, o.C, o.SSLoc)
 
