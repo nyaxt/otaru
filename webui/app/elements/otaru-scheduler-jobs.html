@@ -1,5 +1,39 @@
 <link rel="import" href="../elements/otaru-reltime.html">
 
+<dom-module id='otaru-scheduler-job-state'>
+  <template>
+    <span class$='{{stateStr}}'>{{stateStr}}</span>
+  </template>
+</dom-module>
+<script>
+(function() {
+"use strict";
+
+Polymer({
+  is: 'otaru-scheduler-job-state',
+  properties: {
+    value: {
+      type: Number,
+      value: 0,
+    },
+    stateStr: {
+      type: String,
+      computed: 'stringify(value)'
+    },
+  },
+  stringify(v) {
+    switch(v) {
+    case 0: return "Scheduled";
+    case 1: return "Started";
+    case 2: return "Finished";
+    case 3: return "Aborted";
+    default: return "Unknown";
+    }
+  }
+});
+})();
+</script>
+
 <dom-module id='otaru-scheduler-job-result'>
   <style>
     .null {
@@ -98,7 +132,7 @@ Polymer({
         <template is='dom-repeat' items='{{entries}}'>
           <tr>
             <td class='id'>{{item.id}}</td>
-            <td class='state'>{{item.state}}</td>
+            <td class='state'><otaru-scheduler-job-state value='{{item.state}}'></otaru-scheduler-job-state></td>
             <td class='created_at'><otaru-reltime value='{{item.created_at}}'></otaru-reltime></td>
             <td class='scheduled_at'><otaru-reltime value='{{item.scheduled_at}}'></otaru-reltime></td>
             <td class='started_at'><otaru-reltime value='{{item.started_at}}'></otaru-reltime></td>
