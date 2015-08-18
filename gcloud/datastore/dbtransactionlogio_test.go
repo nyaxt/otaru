@@ -8,7 +8,10 @@ import (
 	authtu "github.com/nyaxt/otaru/gcloud/auth/testutils"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/testutils"
 )
+
+func init() { testutils.EnsureLogger() }
 
 func testDBTransactionIOWithRootKey(rootKeyStr string) *datastore.DBTransactionLogIO {
 	return datastore.NewDBTransactionLogIO(authtu.TestDSConfig(rootKeyStr))
@@ -143,5 +146,27 @@ func TestDBTransactionIO_DeleteAll_IsIsolated(t *testing.T) {
 		if !reflect.DeepEqual(txs[0], tx2) {
 			t.Errorf("serdes mismatch: %+v", txs)
 		}
+	}
+}
+
+func TestDBTransactionIO_BigTx(t *testing.T) {
+	txio := testDBTransactionIO()
+
+	if err := txio.DeleteAllTransactions(); err != nil {
+		t.Errorf("DeleteTransactions failed: %v", err)
+	}
+
+	ops := make([]inodedb.DBOperation, 0, 300)
+	for i := 0; i < 300; i++ {
+		ops = append(ops, &inodedb.CreateNodeOp{NodeLock: inodedb.NodeLock{inodedb.ID(i), inodedb.Ticket(1000 + i)}, OrigPath: "/hoge.txt", Type: inodedb.FileNodeT, ModifiedT: stableT})
+	}
+	tx := inodedb.DBTransaction{TxID: 567, Ops: ops}
+
+	if err := txio.AppendTransaction(tx); err != nil {
+		t.Errorf("AppendTransaction failed: %v", err)
+		return
+	}
+	if err := txio.Sync(); err != nil {
+		t.Errorf("Sync failed: %v", err)
 	}
 }

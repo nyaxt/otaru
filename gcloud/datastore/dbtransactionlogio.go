@@ -41,7 +41,7 @@ func NewDBTransactionLogIO(cfg *Config) *DBTransactionLogIO {
 }
 
 type storedbtx struct {
-	OpsJSON []byte `datastore:,noindex`
+	OpsJSON []byte `datastore:",noindex"`
 }
 
 func (txio *DBTransactionLogIO) encodeKey(id inodedb.TxID) *datastore.Key {
@@ -61,6 +61,7 @@ func (txio *DBTransactionLogIO) encode(tx inodedb.DBTransaction) (*datastore.Key
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to encrypt OpsJSON: %v", err)
 	}
+	logger.Debugf(txlog, "len(OpsJSON): %d", len(env))
 
 	return key, &storedbtx{OpsJSON: env}, nil
 }
