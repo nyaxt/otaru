@@ -95,6 +95,8 @@ func (j *repetitiveJob) scheduleNext(s *Scheduler, v *JobView) {
 type RepetitiveJobView struct {
 	ID `json:"id"`
 
+	TaskDesc string `json:"task_desc"`
+
 	CreatedAt       time.Time `json:"created_at"`
 	LastScheduledAt time.Time `json:"last_scheduled_at"`
 
@@ -103,12 +105,13 @@ type RepetitiveJobView struct {
 	ScheduledJob ID `json:"scheduled_job"`
 }
 
-func (j *repetitiveJob) View() RepetitiveJobView {
+func (j *repetitiveJob) View() *RepetitiveJobView {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	return RepetitiveJobView{
+	return &RepetitiveJobView{
 		ID:              j.id,
+		TaskDesc:        describeTask(j.task),
 		CreatedAt:       j.createdAt,
 		LastScheduledAt: j.lastScheduledAt,
 		Period:          j.period,
@@ -140,13 +143,24 @@ func (r *RepetitiveJobRunner) RunEveryPeriod(t Task, period time.Duration) ID {
 	return j.id
 }
 
-func (r *RepetitiveJobRunner) Query(id ID) RepetitiveJobView {
+func (r *RepetitiveJobRunner) QueryAll() []*RepetitiveJobView {
+	r.muJobs.Lock()
+	defer r.muJobs.Unlock()
+
+	ret := make([]*RepetitiveJobView, 0, len(r.jobs))
+	for _, j := range r.jobs {
+		ret = append(ret, j.View())
+	}
+	return ret
+}
+
+func (r *RepetitiveJobRunner) Query(id ID) *RepetitiveJobView {
 	r.muJobs.Lock()
 	defer r.muJobs.Unlock()
 
 	j, ok := r.jobs[id]
 	if !ok {
-		return RepetitiveJobView{}
+		return nil
 	}
 	return j.View()
 }

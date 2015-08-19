@@ -20,7 +20,7 @@ func (o *Otaru) setupMgmtAPIs() error {
 		mgcsblobstore.Install(o.MGMT, gcsbs)
 	}
 	minodedb.Install(o.MGMT, o.IDBS)
-	mscheduler.Install(o.MGMT, o.S)
+	mscheduler.Install(o.MGMT, o.S, o.R)
 	mgc.Install(o.MGMT, o.S, o.CBS, o.IDBS)
 
 	return nil
