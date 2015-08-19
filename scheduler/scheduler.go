@@ -42,6 +42,16 @@ type Task interface {
 	Run(ctx context.Context) Result
 }
 
+func describeTask(t Task) string {
+	type stringifier interface {
+		String() string
+	}
+	if sf, ok := t.(stringifier); ok {
+		return sf.String()
+	}
+	return util.TryGetImplName(t)
+}
+
 type State int32
 
 const (
@@ -100,6 +110,8 @@ type JobView struct {
 	State `json:"state"`
 	// Issuer string
 
+	TaskDesc string `json:"task_desc"`
+
 	CreatedAt   time.Time `json:"created_at"`
 	ScheduledAt time.Time `json:"scheduled_at"`
 	StartedAt   time.Time `json:"started_at"`
@@ -114,6 +126,7 @@ func (j *job) ViewWithLock() *JobView {
 	return &JobView{
 		ID:          j.ID,
 		State:       j.State,
+		TaskDesc:    describeTask(j.Task),
 		CreatedAt:   j.CreatedAt,
 		ScheduledAt: j.ScheduledAt,
 		StartedAt:   j.StartedAt,
@@ -482,7 +495,7 @@ func (s *Scheduler) runnerMain() {
 		j.State = JobStarted
 
 		j.mu.Unlock()
-		logger.Infof(mylog, "About to run job %v", j)
+		logger.Debugf(mylog, "About to run job %v", j)
 		result := task.Run(ctx)
 		if result != nil {
 			if err := result.Err(); err != nil {

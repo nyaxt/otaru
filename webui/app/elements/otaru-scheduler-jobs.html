@@ -120,6 +120,7 @@ Polymer({
       <thead>
         <tr>
           <th class='id'>ID</th>
+          <th class='task_desc'>Task</th>
           <th class='state'>State</th>
           <th class='created_at'>Created at</th>
           <th class='scheduled_at'>Scheduled at</th>
@@ -132,6 +133,7 @@ Polymer({
         <template is='dom-repeat' items='{{entries}}'>
           <tr>
             <td class='id'>{{item.id}}</td>
+            <td class='task_desc'>{{item.task_desc}}</td>
             <td class='state'><otaru-scheduler-job-state value='{{item.state}}'></otaru-scheduler-job-state></td>
             <td class='created_at'><otaru-reltime value='{{item.created_at}}'></otaru-reltime></td>
             <td class='scheduled_at'><otaru-reltime value='{{item.scheduled_at}}'></otaru-reltime></td>
