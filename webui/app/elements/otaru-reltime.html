@@ -11,7 +11,7 @@
   <template>
     <span class='never' hidden$="{{!never}}">never</span>
     <span hidden$="{{never}}">
-      <span>{{reltime}}</span><span class='unit'><span>{{relunit}}</span> ago</span>
+      <span>{{reltime}}</span><span class='unit'><span>{{relunit}}</span> <span hidden$='{{past}}'>ago</span><span hidden$='{{!past}}'>later</span></span>
     </span>
   </template>
 </dom-module>
@@ -49,6 +49,11 @@ Polymer({
 
     let now = new Date;
     let diff = now.getTime() - this.value.getTime();
+
+    this.past = diff < 0; 
+    if (this.past) {
+      diff = -diff; 
+    }
 
     let relsecs = diff / 1000;
     if (relsecs < 120) {

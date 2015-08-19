@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
@@ -141,6 +143,23 @@ func (r *RepetitiveJobRunner) RunEveryPeriod(t Task, period time.Duration) ID {
 	j.scheduleNext(r.sched, nil)
 
 	return j.id
+}
+
+type SyncTask struct {
+	S util.Syncer
+}
+
+func (t SyncTask) Run(ctx context.Context) Result {
+	err := t.S.Sync()
+	return ErrorResult{err}
+}
+
+func (t SyncTask) String() string {
+	return fmt.Sprintf("SyncTask{%s}", util.TryGetImplName(t.S))
+}
+
+func (r *RepetitiveJobRunner) SyncEveryPeriod(s util.Syncer, period time.Duration) ID {
+	return r.RunEveryPeriod(SyncTask{s}, period)
 }
 
 func (r *RepetitiveJobRunner) QueryAll() []*RepetitiveJobView {

@@ -50,13 +50,13 @@ type Otaru struct {
 	SSLoc blobstoredbstatesnapshotio.SSLocator
 	SIO   *blobstoredbstatesnapshotio.DBStateSnapshotIO
 
-	TxIO   inodedb.DBTransactionLogIO
-	CTxIO  inodedb.DBTransactionLogIO
-	TxIOSS *util.PeriodicRunner
+	TxIO        inodedb.DBTransactionLogIO
+	CTxIO       inodedb.DBTransactionLogIO
+	TxIOSyncJob scheduler.ID
 
-	IDBBE *inodedb.DB
-	IDBS  *inodedb.DBService
-	IDBSS *util.PeriodicRunner
+	IDBBE      *inodedb.DB
+	IDBS       *inodedb.DBService
+	IDBSyncJob scheduler.ID
 
 	FS   *otaru.FileSystem
 	MGMT *mgmt.Server
@@ -142,7 +142,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	if !cfg.LocalDebug {
 		txio := datastore.NewDBTransactionLogIO(o.DSCfg)
 		o.TxIO = txio
-		o.TxIOSS = util.NewSyncScheduler(txio, 300*time.Millisecond)
+		o.TxIOSyncJob = o.R.SyncEveryPeriod(txio, 300*time.Millisecond)
 	} else {
 		o.TxIO = inodedb.NewSimpleDBTransactionLogIO()
 	}
@@ -163,7 +163,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	}
 
 	o.IDBS = inodedb.NewDBService(o.IDBBE)
-	o.IDBSS = util.NewSyncScheduler(o.IDBS, 30*time.Second)
+	o.IDBSyncJob = o.R.SyncEveryPeriod(o.IDBS, 30*time.Second)
 
 	o.FS = otaru.NewFileSystem(o.IDBS, o.CBS, o.C)
 	o.MGMT = mgmt.NewServer()
@@ -190,10 +190,6 @@ func (o *Otaru) Close() error {
 		if err := o.FS.Sync(); err != nil {
 			errs = append(errs, err)
 		}
-	}
-
-	if o.IDBSS != nil {
-		o.IDBSS.Stop()
 	}
 
 	if o.IDBS != nil {

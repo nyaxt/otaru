@@ -140,3 +140,5 @@ func (srv *DBService) Fsck() (foundblobpaths []string, errs []error) {
 	<-ch
 	return
 }
+
+func (*DBService) ImplName() string { return "inodedb.DBService" }
