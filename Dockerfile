@@ -1,4 +1,4 @@
-FROM golang:1.4
+FROM golang:1.5
 ENV GOOS linux
 ENV GOARCH amd64
 RUN go get github.com/tools/godep && go get github.com/jteeuwen/go-bindata/...
