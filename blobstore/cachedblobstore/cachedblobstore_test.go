@@ -1,6 +1,8 @@
 package cachedblobstore_test
 
 import (
+	"fmt"
+	"io"
 	"reflect"
 	"sort"
 	"testing"
@@ -10,6 +12,8 @@ import (
 	"github.com/nyaxt/otaru/scheduler"
 	tu "github.com/nyaxt/otaru/testutils"
 )
+
+func init() { tu.EnsureLogger() }
 
 func TestCachedBlobStore(t *testing.T) {
 	backendbs := tu.TestFileBlobStoreOfName("backend")
@@ -69,8 +73,34 @@ func TestCachedBlobStore(t *testing.T) {
 	}
 }
 
-func TestCachedBlobStore_Invalidate(t *testing.T) {
-	backendbs := tu.TestFileBlobStoreOfName("backend")
+type PausableReader struct {
+	BE      io.ReadCloser
+	OnReadC chan struct{}
+	WaitC   chan struct{}
+}
+
+func (r PausableReader) Read(p []byte) (int, error) {
+	r.OnReadC <- struct{}{}
+	<-r.WaitC
+	fmt.Printf("Read!!!\n")
+	return r.BE.Read(p)
+}
+
+func (r PausableReader) Close() error {
+	return r.BE.Close()
+}
+
+func TestCachedBlobStore_InvalidateCancel(t *testing.T) {
+	onReadC := make(chan struct{})
+	waitC := make(chan struct{})
+
+	backendbs := tu.RWInterceptBlobStore{
+		BE:         tu.TestFileBlobStoreOfName("backend"),
+		WrapWriter: func(orig io.WriteCloser) (io.WriteCloser, error) { return orig, nil },
+		WrapReader: func(orig io.ReadCloser) (io.ReadCloser, error) {
+			return PausableReader{orig, onReadC, waitC}, nil
+		},
+	}
 	cachebs := tu.TestFileBlobStoreOfName("cache")
 	s := scheduler.NewScheduler()
 
@@ -88,39 +118,25 @@ func TestCachedBlobStore_Invalidate(t *testing.T) {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
 	}
-	if err := tu.AssertBlobVersionRA(bs, "backendnewer", 3); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
 
-	// assert cache fill
-	if err := tu.AssertBlobVersion(cachebs, "backendnewer", 3); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
+	join := make(chan struct{})
+	go func() {
+		if err := tu.AssertBlobVersionRA(bs, "backendnewer", 3); err == nil {
+			t.Errorf("Unexpected read succeed. Expected invalidate failed error.")
+		}
+		close(join)
+	}()
 
-	if err := tu.WriteVersionedBlobRA(bs, "backendnewer", 4); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
+	// Allow version query.
+	<-onReadC
+	waitC <- struct{}{}
 
-	if err := tu.AssertBlobVersionRA(bs, "backendnewer", 4); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
+	// But block on invalidate.
+	<-onReadC
+	s.AbortAllAndStop()
 
-	if err := bs.Sync(); err != nil {
-		t.Errorf("Sync failed: %v", err)
-		return
-	}
-	if err := tu.AssertBlobVersion(cachebs, "backendnewer", 4); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	if err := tu.AssertBlobVersion(backendbs, "backendnewer", 4); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
+	close(waitC)
+	<-join
 }
 
 func TestCachedBlobStore_NewEntry(t *testing.T) {

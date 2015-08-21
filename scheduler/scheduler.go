@@ -101,7 +101,7 @@ func (j *job) String() string {
 	return fmt.Sprintf("job{ID: %d, CreatedAt: %v, Task: %s}",
 		j.ID,
 		j.CreatedAt,
-		util.TryGetImplName(j.Task),
+		describeTask(j.Task),
 	)
 }
 
@@ -499,7 +499,7 @@ func (s *Scheduler) runnerMain() {
 		result := task.Run(ctx)
 		if result != nil {
 			if err := result.Err(); err != nil {
-				logger.Warningf(mylog, "Job %d failed with error: %v", j, err)
+				logger.Warningf(mylog, "Job %v failed with error: %v", j, err)
 			}
 		}
 		finishedAt := time.Now()

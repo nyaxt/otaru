@@ -160,7 +160,7 @@ func (mgr *CachedBlobEntriesManager) OpenEntry(blobpath string) (be *CachedBlobE
 			blobpath: blobpath,
 			bloblen:  -1,
 		}
-		be.validlenExtended = sync.NewCond(&be.mu)
+		be.invalidationProgress = sync.NewCond(&be.mu)
 		mgr.entries[blobpath] = be
 	}
 	<-ch
@@ -183,7 +183,9 @@ func (mgr *CachedBlobEntriesManager) closeOldCacheEntriesIfNeeded() error {
 		return nil
 	}
 
-	threshold := time.Now().Add(-inactiveCloseTimeout)
+	logger.Infof(mylog, "closeOldCacheEntriesIfNeeded started")
+	start := time.Now()
+	threshold := start.Add(-inactiveCloseTimeout)
 
 	oldEntries := make([]*CachedBlobEntry, 0)
 	var oldestEntry *CachedBlobEntry
@@ -212,9 +214,11 @@ func (mgr *CachedBlobEntriesManager) closeOldCacheEntriesIfNeeded() error {
 	}
 
 	if len(mgr.entries) > maxEntries {
+		logger.Infof(mylog, "closeOldCacheEntriesIfNeeded giving up. Couldn't reduce to <maxEntries. Took %s.", time.Since(start))
 		return ENFILE // give up
 	}
 
+	logger.Infof(mylog, "closeOldCacheEntriesIfNeeded finished. Took %s.", time.Since(start))
 	return nil
 }
 

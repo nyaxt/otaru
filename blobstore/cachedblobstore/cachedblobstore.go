@@ -18,6 +18,7 @@ import (
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/scheduler"
 	"github.com/nyaxt/otaru/util"
+	"github.com/nyaxt/otaru/util/cancellable"
 )
 
 var mylog = logger.Registry().Category("cachedbs")
@@ -46,12 +47,12 @@ const maxEntries = 128
 type cacheEntryState int
 
 const (
-	cacheEntryUninitialized    cacheEntryState = iota
-	cacheEntryInvalidating     cacheEntryState = iota
-	cacheEntryInvalidateFailed cacheEntryState = iota
-	cacheEntryClean            cacheEntryState = iota
-	cacheEntryDirty            cacheEntryState = iota
-	cacheEntryClosed           cacheEntryState = iota
+	cacheEntryUninitialized cacheEntryState = iota
+	cacheEntryInvalidating
+	cacheEntryInvalidateFailed
+	cacheEntryClean
+	cacheEntryDirty
+	cacheEntryClosed
 )
 
 func (s cacheEntryState) IsActive() bool {
@@ -86,9 +87,9 @@ type CachedBlobEntry struct {
 
 	state cacheEntryState
 
-	bloblen          int64
-	validlen         int64
-	validlenExtended *sync.Cond
+	bloblen              int64
+	validlen             int64
+	invalidationProgress *sync.Cond
 
 	lastUsed  time.Time
 	lastWrite time.Time
@@ -100,9 +101,55 @@ type CachedBlobEntry struct {
 
 const invalidateBlockSize int = 32 * 1024
 
+type InvalidateFailedErr struct {
+	Blobpath string
+}
+
+func (e InvalidateFailedErr) Error() string {
+	return fmt.Sprintf("InvalidationFailed for blob \"%s\"", e.Blobpath)
+}
+
+func IsInvalidateFailedErr(e error) bool {
+	if e == nil {
+		return false
+	}
+
+	_, ok := e.(InvalidateFailedErr)
+	return ok
+}
+
+func (be *CachedBlobEntry) waitUntilInvalidateAtLeast(requiredLen int64) error {
+	logger.Infof(mylog, "Waiting for cache to be fulfilled: reqlen: %d, validlen: %d", requiredLen, be.validlen)
+	for {
+		switch be.state {
+		case cacheEntryInvalidating:
+			break
+
+		case cacheEntryInvalidateFailed:
+			return InvalidateFailedErr{be.blobpath}
+
+		case cacheEntryClean, cacheEntryDirty:
+			return nil
+
+		case cacheEntryUninitialized, cacheEntryClosed:
+			logger.Panicf(mylog, "Invalid state while in waitUntilInvalidateAtLeast! %+v", be)
+		}
+
+		if be.validlen >= requiredLen {
+			return nil
+		}
+
+		be.invalidationProgress.Wait()
+	}
+}
+
+func (be *CachedBlobEntry) waitUntilInvalidateDone() error {
+	return be.waitUntilInvalidateAtLeast(be.bloblen)
+}
+
 // invalidateCacheBlob fetches new version of the blob from backendbs.
 // This func should be only called from be.invalidateCache()
-func (be *CachedBlobEntry) invalidateCacheBlob(cbs *CachedBlobStore) error {
+func (be *CachedBlobEntry) invalidateCacheBlob(ctx context.Context, cbs *CachedBlobStore) error {
 	blobpath := be.blobpath
 
 	backendr, err := cbs.backendbs.OpenReader(blobpath)
@@ -129,17 +176,17 @@ func (be *CachedBlobEntry) invalidateCacheBlob(cbs *CachedBlobStore) error {
 
 	buf := make([]byte, invalidateBlockSize)
 	for {
-		nr, er := backendr.Read(buf)
+		nr, er := cancellable.Read(ctx, backendr, buf)
 		if nr > 0 {
 			nw, ew := cachew.Write(buf[:nr])
 			if nw > 0 {
 				be.mu.Lock()
 				be.validlen += int64(nw)
-				be.validlenExtended.Broadcast()
+				be.invalidationProgress.Broadcast()
 				be.mu.Unlock()
 			}
 			if ew != nil {
-				return fmt.Errorf("Failed to write backend blob content to cache: %v", err)
+				return fmt.Errorf("Failed to write backend blob content to cache: %v", ew)
 			}
 			if nw != nr {
 				return fmt.Errorf("Failed to write backend blob content to cache: %v", io.ErrShortWrite)
@@ -149,12 +196,8 @@ func (be *CachedBlobEntry) invalidateCacheBlob(cbs *CachedBlobStore) error {
 			if er == io.EOF {
 				break
 			}
-			return fmt.Errorf("Failed to read backend blob content: %v", err)
+			return fmt.Errorf("Failed to read backend blob content: %v", er)
 		}
-	}
-
-	if _, err := io.Copy(cachew, backendr); err != nil {
-		return fmt.Errorf("Failed to copy blob from backend: %v", err)
 	}
 
 	// FIXME: check integrity here?
@@ -162,11 +205,12 @@ func (be *CachedBlobEntry) invalidateCacheBlob(cbs *CachedBlobStore) error {
 	return nil
 }
 
-func (be *CachedBlobEntry) invalidateCache(cbs *CachedBlobStore) error {
-	if err := be.invalidateCacheBlob(cbs); err != nil {
-		be.validlen = 0
+func (be *CachedBlobEntry) invalidateCache(ctx context.Context, cbs *CachedBlobStore) error {
+	if err := be.invalidateCacheBlob(ctx, cbs); err != nil {
 		be.mu.Lock()
+		be.validlen = 0
 		be.state = cacheEntryInvalidateFailed
+		be.invalidationProgress.Broadcast()
 		be.mu.Unlock()
 		return err
 	}
@@ -257,10 +301,9 @@ func (be *CachedBlobEntry) PRead(p []byte, offset int64) error {
 
 	be.lastUsed = time.Now()
 
-	requiredlen := util.Int64Min(offset+int64(len(p)), be.bloblen)
-	for be.validlen < requiredlen {
-		logger.Infof(mylog, "Waiting for cache to be fulfilled: reqlen: %d, validlen: %d", requiredlen, be.validlen)
-		be.validlenExtended.Wait()
+	requiredLen := util.Int64Min(offset+int64(len(p)), be.bloblen)
+	if err := be.waitUntilInvalidateAtLeast(requiredLen); err != nil {
+		return err
 	}
 
 	return be.cachebh.PRead(p, offset)
@@ -293,9 +336,8 @@ func (be *CachedBlobEntry) PWrite(p []byte, offset int64) error {
 
 	// Avoid any write when in invalidating state.
 	// FIXME: maybe allow when offset+len(p) < be.validlen
-	for be.state == cacheEntryInvalidating {
-		logger.Infof(mylog, "Waiting for cache to be fully invalidated before write.")
-		be.validlenExtended.Wait()
+	if err := be.waitUntilInvalidateDone(); err != nil {
+		return err
 	}
 
 	if len(p) == 0 {
@@ -324,9 +366,8 @@ func (be *CachedBlobEntry) Truncate(newsize int64) error {
 
 	// Avoid truncate when in invalidating state.
 	// FIXME: maybe allow if newsize < be.validlen
-	for be.state == cacheEntryInvalidating {
+	if err := be.waitUntilInvalidateDone(); err != nil {
 		logger.Infof(mylog, "Waiting for cache to be fully invalidated before truncate.")
-		be.validlenExtended.Wait()
 	}
 
 	if be.bloblen == newsize {
@@ -380,9 +421,8 @@ func (be *CachedBlobEntry) Sync() error {
 	defer be.mu.Unlock()
 
 	// Wait for invalidation to complete
-	for be.state == cacheEntryInvalidating {
-		logger.Infof(mylog, "Waiting for cache to be fully invalidated before sync.")
-		be.validlenExtended.Wait()
+	if err := be.waitUntilInvalidateDone(); err != nil {
+		return err
 	}
 
 	if !be.state.IsActive() {
@@ -442,9 +482,8 @@ func (be *CachedBlobEntry) closeWithLock(abandon bool) error {
 	logger.Infof(mylog, "Close entry: %+v", be.infoWithLock())
 
 	if !abandon {
-		for be.state == cacheEntryInvalidating {
-			logger.Warningf(mylog, "Waiting for cache to be fully invalidated before close. (shouldn't come here, as PWrite should block)")
-			be.validlenExtended.Wait()
+		if err := be.waitUntilInvalidateDone(); err != nil {
+			return err
 		}
 
 		if err := be.writeBackWithLock(); err != nil {
