@@ -16,6 +16,8 @@ type CachedBlobEntriesManager struct {
 	entries map[string]*CachedBlobEntry
 }
 
+const maxEntries = 128
+
 func NewCachedBlobEntriesManager() CachedBlobEntriesManager {
 	return CachedBlobEntriesManager{
 		reqC:    make(chan func()),
