@@ -2,7 +2,6 @@ package cachedblobstore
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/nyaxt/otaru/blobstore"
@@ -113,7 +112,7 @@ func (mgr *CachedBlobEntriesManager) ListBlobs() (bpaths []string) {
 
 		bpaths = make([]string, 0, len(mgr.entries))
 		for _, be := range mgr.entries {
-			if !be.state.IsActive() {
+			if !be.AcceptsIO() {
 				continue
 			}
 			bpaths = append(bpaths, be.blobpath)
@@ -157,12 +156,7 @@ func (mgr *CachedBlobEntriesManager) OpenEntry(blobpath string) (be *CachedBlobE
 			return
 		}
 
-		be = &CachedBlobEntry{
-			state:    cacheEntryUninitialized,
-			blobpath: blobpath,
-			bloblen:  -1,
-		}
-		be.invalidationProgress = sync.NewCond(&be.mu)
+		be = NewCachedBlobEntry(blobpath)
 		mgr.entries[blobpath] = be
 	}
 	<-ch

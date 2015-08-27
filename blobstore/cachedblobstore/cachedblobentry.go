@@ -26,7 +26,7 @@ const (
 	cacheEntryClosed
 )
 
-func (s cacheEntryState) IsActive() bool {
+func (s cacheEntryState) AcceptsIO() bool {
 	return s == cacheEntryInvalidating || s == cacheEntryClean || s == cacheEntryDirty
 }
 
@@ -68,6 +68,20 @@ type CachedBlobEntry struct {
 	syncCount int
 
 	handles map[*CachedBlobHandle]struct{}
+}
+
+func NewCachedBlobEntry(blobpath string) *CachedBlobEntry {
+	be := &CachedBlobEntry{
+		state:    cacheEntryUninitialized,
+		blobpath: blobpath,
+		bloblen:  -1,
+	}
+	be.invalidationProgress = sync.NewCond(&be.mu)
+	return be
+}
+
+func (be *CachedBlobEntry) AcceptsIO() bool {
+	return be.state.AcceptsIO()
 }
 
 const invalidateBlockSize int = 32 * 1024
@@ -396,11 +410,7 @@ func (be *CachedBlobEntry) Sync() error {
 		return err
 	}
 
-	if !be.state.IsActive() {
-		logger.Warningf(mylog, "Attempted to sync already uninitialized/closed entry: %+v", be.infoWithLock())
-		return nil
-	}
-	if be.state == cacheEntryClean {
+	if be.state != cacheEntryDirty {
 		return nil
 	}
 
@@ -478,8 +488,8 @@ func (be *CachedBlobEntry) Close(abandon bool) error {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
-	if !be.state.IsActive() {
-		logger.Warningf(mylog, "Attempted to close uninitialized/already closed entry: %+v", be.infoWithLock())
+	if !be.state.AcceptsIO() {
+		logger.Warningf(mylog, "Attempted to close entry that already doesn't accept any IO: %+v", be.infoWithLock())
 		return nil
 	}
 
