@@ -26,10 +26,11 @@ func TestRepetitiveJobRunner_RunEveryPeriod(t *testing.T) {
 	if err := r.Abort(rid); err != nil {
 		t.Errorf("Abort err: %v", err)
 	}
-	ss := counter
-	time.Sleep(1 * time.Second)
+	time.Sleep(500 * time.Millisecond)
 
+	ss := counter
+	time.Sleep(500 * time.Millisecond)
 	if ss != counter {
-		t.Errorf("Detected task run after Abort()")
+		t.Errorf("Detected task run after Abort(): %d != %d", ss, counter)
 	}
 }
