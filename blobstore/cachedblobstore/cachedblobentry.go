@@ -23,6 +23,7 @@ const (
 	cacheEntryInvalidateFailed
 	cacheEntryClean
 	cacheEntryDirty
+	cacheEntryClosing
 	cacheEntryClosed
 )
 
@@ -42,6 +43,8 @@ func (s cacheEntryState) String() string {
 		return "Clean"
 	case cacheEntryDirty:
 		return "Dirty"
+	case cacheEntryClosing:
+		return "Closing"
 	case cacheEntryClosed:
 		return "Closed"
 	default:
@@ -116,7 +119,7 @@ func (be *CachedBlobEntry) waitUntilInvalidateAtLeast(requiredLen int64) error {
 		case cacheEntryClean, cacheEntryDirty:
 			return nil
 
-		case cacheEntryUninitialized, cacheEntryClosed:
+		case cacheEntryUninitialized, cacheEntryClosing, cacheEntryClosed:
 			logger.Panicf(mylog, "Invalid state while in waitUntilInvalidateAtLeast! %+v", be)
 		}
 
@@ -135,7 +138,19 @@ func (be *CachedBlobEntry) waitUntilInvalidateDone() error {
 // invalidateCacheBlob fetches new version of the blob from backendbs.
 // This func should be only called from be.invalidateCache()
 func (be *CachedBlobEntry) invalidateCacheBlob(ctx context.Context, cbs *CachedBlobStore) error {
+	be.mu.Lock()
+	ul := util.EnsureUnlocker{&be.mu}
+	defer ul.Unlock()
 	blobpath := be.blobpath
+	if be.state != cacheEntryInvalidating {
+		return fmt.Errorf("invalidCacheBlob: blobentry in invalid state: %+v", be)
+	}
+	if be.validlen >= be.bloblen {
+		logger.Warningf(mylog, "tried to invalidate a blobentry already clean: %+v", be)
+		be.state = cacheEntryClean
+		return nil
+	}
+	ul.Unlock()
 
 	backendr, err := cbs.backendbs.OpenReader(blobpath)
 	if err != nil {
@@ -160,7 +175,8 @@ func (be *CachedBlobEntry) invalidateCacheBlob(ctx context.Context, cbs *CachedB
 	}()
 
 	buf := make([]byte, invalidateBlockSize)
-	for {
+	done := false
+	for !done {
 		nr, er := cancellable.Read(ctx, backendr, buf)
 		if nr > 0 {
 			nw, ew := cachew.Write(buf[:nr])
@@ -168,6 +184,12 @@ func (be *CachedBlobEntry) invalidateCacheBlob(ctx context.Context, cbs *CachedB
 				be.mu.Lock()
 				be.validlen += int64(nw)
 				be.invalidationProgress.Broadcast()
+				if be.validlen == be.bloblen {
+					be.state = cacheEntryClean
+					done = true
+				} else if be.validlen > be.bloblen {
+					logger.Panicf(mylog, "wrote more than bloblen: %d > %d", be.validlen, be.bloblen)
+				}
 				be.mu.Unlock()
 			}
 			if ew != nil {
@@ -185,8 +207,6 @@ func (be *CachedBlobEntry) invalidateCacheBlob(ctx context.Context, cbs *CachedB
 		}
 	}
 
-	// FIXME: check integrity here?
-
 	return nil
 }
 
@@ -199,9 +219,6 @@ func (be *CachedBlobEntry) invalidateCache(ctx context.Context, cbs *CachedBlobS
 		be.mu.Unlock()
 		return err
 	}
-	be.mu.Lock()
-	be.state = cacheEntryClean
-	be.mu.Unlock()
 	return nil
 }
 
@@ -242,10 +259,13 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 			be.closeWithLock(abandonAndClose)
 			return fmt.Errorf("Failed to query backend blobsize: %v", err)
 		}
-		be.state = cacheEntryInvalidating
-		be.validlen = 0
-
-		cbs.s.RunImmediately(&InvalidateCacheTask{cbs, be}, nil)
+		if be.bloblen == 0 {
+			be.state = cacheEntryClean
+		} else {
+			be.state = cacheEntryInvalidating
+			be.validlen = 0
+			cbs.s.RunImmediately(&InvalidateCacheTask{cbs, be}, nil)
+		}
 	}
 	if be.state == cacheEntryUninitialized {
 		panic("be.state should be set above")
@@ -459,6 +479,8 @@ func (be *CachedBlobEntry) closeWithLock(abandon bool) error {
 	if len(be.handles) > 0 {
 		return fmt.Errorf("Entry has %d handles", len(be.handles))
 	}
+
+	be.state = cacheEntryClosing
 
 	logger.Infof(mylog, "Close entry: %+v", be.infoWithLock())
 

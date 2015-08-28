@@ -1,0 +1,15 @@
+# State
+- Uninitialized
+  -> Invalidating or Clean
+- Invalidating
+  -> Clean or InvalidateFailed
+- InvalidateFailed
+  ->∅
+- Clean
+  -> Dirty or Closing
+- Dirty
+  -> Clean or Closing
+- Closing
+  -> Closed
+- Closed
+  ->∅
