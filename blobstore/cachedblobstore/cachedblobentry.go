@@ -20,15 +20,17 @@ type cacheEntryState int
 const (
 	cacheEntryUninitialized cacheEntryState = iota
 	cacheEntryInvalidating
-	cacheEntryInvalidateFailed
+	cacheEntryErrored
+	cacheEntryErroredClosed
 	cacheEntryClean
+	cacheEntryWriteInProgress
 	cacheEntryDirty
 	cacheEntryClosing
 	cacheEntryClosed
 )
 
 func (s cacheEntryState) AcceptsIO() bool {
-	return s == cacheEntryInvalidating || s == cacheEntryClean || s == cacheEntryDirty
+	return s == cacheEntryInvalidating || s == cacheEntryClean || s == cacheEntryWriteInProgress || s == cacheEntryDirty
 }
 
 func (s cacheEntryState) String() string {
@@ -37,10 +39,14 @@ func (s cacheEntryState) String() string {
 		return "Uninitialized"
 	case cacheEntryInvalidating:
 		return "Invalidating"
-	case cacheEntryInvalidateFailed:
-		return "InvalidateFailed"
+	case cacheEntryErrored:
+		return "Errored"
+	case cacheEntryErroredClosed:
+		return "ErroredClosed"
 	case cacheEntryClean:
 		return "Clean"
+	case cacheEntryWriteInProgress:
+		return "WriteInProgress"
 	case cacheEntryDirty:
 		return "Dirty"
 	case cacheEntryClosing:
@@ -53,7 +59,8 @@ func (s cacheEntryState) String() string {
 }
 
 type CachedBlobEntry struct {
-	mu sync.Mutex
+	mu           sync.Mutex
+	progressCond *sync.Cond
 
 	cbs      *CachedBlobStore
 	blobpath string
@@ -61,9 +68,8 @@ type CachedBlobEntry struct {
 
 	state cacheEntryState
 
-	bloblen              int64
-	validlen             int64
-	invalidationProgress *sync.Cond
+	bloblen  int64
+	validlen int64
 
 	lastUsed  time.Time
 	lastWrite time.Time
@@ -79,7 +85,7 @@ func NewCachedBlobEntry(blobpath string) *CachedBlobEntry {
 		blobpath: blobpath,
 		bloblen:  -1,
 	}
-	be.invalidationProgress = sync.NewCond(&be.mu)
+	be.progressCond = sync.NewCond(&be.mu)
 	return be
 }
 
@@ -97,6 +103,7 @@ func (e InvalidateFailedErr) Error() string {
 	return fmt.Sprintf("InvalidationFailed for blob \"%s\"", e.Blobpath)
 }
 
+/*
 func IsInvalidateFailedErr(e error) bool {
 	if e == nil {
 		return false
@@ -105,6 +112,7 @@ func IsInvalidateFailedErr(e error) bool {
 	_, ok := e.(InvalidateFailedErr)
 	return ok
 }
+*/
 
 func (be *CachedBlobEntry) waitUntilInvalidateAtLeast(requiredLen int64) error {
 	logger.Infof(mylog, "Waiting for cache to be fulfilled: reqlen: %d, validlen: %d", requiredLen, be.validlen)
@@ -113,7 +121,7 @@ func (be *CachedBlobEntry) waitUntilInvalidateAtLeast(requiredLen int64) error {
 		case cacheEntryInvalidating:
 			break
 
-		case cacheEntryInvalidateFailed:
+		case cacheEntryErrored, cacheEntryErroredClosed:
 			return InvalidateFailedErr{be.blobpath}
 
 		case cacheEntryClean, cacheEntryDirty:
@@ -127,7 +135,7 @@ func (be *CachedBlobEntry) waitUntilInvalidateAtLeast(requiredLen int64) error {
 			return nil
 		}
 
-		be.invalidationProgress.Wait()
+		be.progressCond.Wait()
 	}
 }
 
@@ -183,7 +191,7 @@ func (be *CachedBlobEntry) invalidateCacheBlob(ctx context.Context, cbs *CachedB
 			if nw > 0 {
 				be.mu.Lock()
 				be.validlen += int64(nw)
-				be.invalidationProgress.Broadcast()
+				be.progressCond.Broadcast()
 				if be.validlen == be.bloblen {
 					be.state = cacheEntryClean
 					done = true
@@ -214,9 +222,10 @@ func (be *CachedBlobEntry) invalidateCache(ctx context.Context, cbs *CachedBlobS
 	if err := be.invalidateCacheBlob(ctx, cbs); err != nil {
 		be.mu.Lock()
 		be.validlen = 0
-		be.state = cacheEntryInvalidateFailed
-		be.invalidationProgress.Broadcast()
+		be.state = cacheEntryErrored
+		be.progressCond.Broadcast()
 		be.mu.Unlock()
+		logger.Criticalf(mylog, "Failed to invalidate entry: %+v", be)
 		return err
 	}
 	return nil
@@ -225,17 +234,20 @@ func (be *CachedBlobEntry) invalidateCache(ctx context.Context, cbs *CachedBlobS
 func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 	cachebh, err := cbs.cachebs.Open(be.blobpath, fl.O_RDWRCREATE)
 	if err != nil {
-		be.closeWithLock(abandonAndClose)
+		be.state = cacheEntryErrored
+		go func() { be.Close(abandonAndClose) }()
 		return fmt.Errorf("Failed to open cache blob: %v", err)
 	}
 	cachever, err := cbs.queryVersion(&blobstore.OffsetReader{cachebh, 0})
 	if err != nil {
-		be.closeWithLock(abandonAndClose)
+		be.state = cacheEntryErrored
+		go func() { be.Close(abandonAndClose) }()
 		return fmt.Errorf("Failed to query cached blob ver: %v", err)
 	}
 	backendver, err := cbs.bever.Query(be.blobpath)
 	if err != nil {
-		be.closeWithLock(abandonAndClose)
+		be.state = cacheEntryErrored
+		go func() { be.Close(abandonAndClose) }()
 		return err
 	}
 
@@ -256,7 +268,8 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 		blobsizer := cbs.backendbs.(blobstore.BlobSizer)
 		be.bloblen, err = blobsizer.BlobSize(be.blobpath)
 		if err != nil {
-			be.closeWithLock(abandonAndClose)
+			be.state = cacheEntryErrored
+			go func() { be.Close(abandonAndClose) }()
 			return fmt.Errorf("Failed to query backend blobsize: %v", err)
 		}
 		if be.bloblen == 0 {
@@ -278,9 +291,25 @@ func (be *CachedBlobEntry) OpenHandle(cbs *CachedBlobStore, flags int) (*CachedB
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
-	if be.state == cacheEntryUninitialized {
-		if err := be.initializeWithLock(cbs); err != nil {
-			return nil, err
+Loop:
+	for {
+		switch be.state {
+		case cacheEntryClosed, cacheEntryUninitialized:
+			if err := be.initializeWithLock(cbs); err != nil {
+				return nil, err
+			}
+
+		case cacheEntryErrored:
+			return nil, fmt.Errorf("Cache entry is in errored state.")
+
+		case cacheEntryErroredClosed:
+			return nil, fmt.Errorf("Previous attempt to open the entry has failed. Declining to OpenHandle.")
+
+		case cacheEntryInvalidating, cacheEntryClean, cacheEntryWriteInProgress, cacheEntryDirty:
+			break Loop
+
+		case cacheEntryClosing:
+			be.progressCond.Wait()
 		}
 	}
 
@@ -300,16 +329,14 @@ func (be *CachedBlobEntry) CloseHandle(bh *CachedBlobHandle) {
 }
 
 func (be *CachedBlobEntry) PRead(p []byte, offset int64) error {
-	// FIXME: may be we should allow stale reads w/o lock
 	be.mu.Lock()
-	defer be.mu.Unlock()
-
 	be.lastUsed = time.Now()
-
 	requiredLen := util.Int64Min(offset+int64(len(p)), be.bloblen)
 	if err := be.waitUntilInvalidateAtLeast(requiredLen); err != nil {
+		be.mu.Unlock()
 		return err
 	}
+	be.mu.Unlock()
 
 	return be.cachebh.PRead(p, offset)
 }
@@ -317,27 +344,34 @@ func (be *CachedBlobEntry) PRead(p []byte, offset int64) error {
 func (be *CachedBlobEntry) LastWrite() time.Time { return be.lastWrite }
 func (be *CachedBlobEntry) LastSync() time.Time  { return be.lastSync }
 
-func (be *CachedBlobEntry) markDirtyWithLock() {
+func (be *CachedBlobEntry) markWriteInProgressWithLock() {
 	now := time.Now()
 	be.lastUsed = now
 	be.lastWrite = now
 
-	if be.state == cacheEntryDirty {
-		return
+	if be.state != cacheEntryClean && be.state != cacheEntryDirty {
+		logger.Panicf(mylog, "markWriteInProgressWithLock called from unexpected state: %+v", be.infoWithLock())
 	}
-	if be.state != cacheEntryClean {
-		logger.Panicf(mylog, "markDirty called from unexpected state: %+v", be.infoWithLock())
-	}
-	be.state = cacheEntryDirty
+	be.state = cacheEntryWriteInProgress
 
 	if be.lastSync.IsZero() {
 		be.lastSync = time.Now()
 	}
 }
 
+func (be *CachedBlobEntry) markDirtyWithLock() {
+	if be.state != cacheEntryWriteInProgress {
+		logger.Panicf(mylog, "markDirtyWithLock called from unexpected state: %+v", be.infoWithLock())
+	}
+
+	be.state = cacheEntryDirty
+	be.progressCond.Broadcast()
+}
+
 func (be *CachedBlobEntry) PWrite(p []byte, offset int64) error {
 	be.mu.Lock()
-	defer be.mu.Unlock()
+	ul := util.EnsureUnlocker{&be.mu}
+	defer ul.Unlock()
 
 	// Avoid any write when in invalidating state.
 	// FIXME: maybe allow when offset+len(p) < be.validlen
@@ -348,17 +382,21 @@ func (be *CachedBlobEntry) PWrite(p []byte, offset int64) error {
 	if len(p) == 0 {
 		return nil
 	}
-	be.markDirtyWithLock()
-	if err := be.cachebh.PWrite(p, offset); err != nil {
-		return err
-	}
-
 	right := offset + int64(len(p))
 	if right > be.bloblen {
 		be.bloblen = right
 		be.validlen = right
 	}
-	return nil
+
+	be.markWriteInProgressWithLock()
+	ul.Unlock()
+
+	err := be.cachebh.PWrite(p, offset)
+
+	be.mu.Lock()
+	be.markDirtyWithLock()
+	be.mu.Unlock()
+	return err
 }
 
 func (be *CachedBlobEntry) Size() int64 {
@@ -367,7 +405,8 @@ func (be *CachedBlobEntry) Size() int64 {
 
 func (be *CachedBlobEntry) Truncate(newsize int64) error {
 	be.mu.Lock()
-	defer be.mu.Unlock()
+	ul := util.EnsureUnlocker{&be.mu}
+	defer ul.Unlock()
 
 	// Avoid truncate when in invalidating state.
 	// FIXME: maybe allow if newsize < be.validlen
@@ -378,13 +417,18 @@ func (be *CachedBlobEntry) Truncate(newsize int64) error {
 	if be.bloblen == newsize {
 		return nil
 	}
-	be.markDirtyWithLock()
-	if err := be.cachebh.Truncate(newsize); err != nil {
-		return err
-	}
 	be.bloblen = newsize
 	be.validlen = newsize
-	return nil
+
+	be.markWriteInProgressWithLock()
+	ul.Unlock()
+
+	err := be.cachebh.Truncate(newsize)
+
+	be.mu.Lock()
+	be.markDirtyWithLock()
+	be.mu.Unlock()
+	return err
 }
 
 func (be *CachedBlobEntry) writeBackWithLock() error {
@@ -430,11 +474,29 @@ func (be *CachedBlobEntry) Sync() error {
 		return err
 	}
 
-	if be.state != cacheEntryDirty {
-		return nil
+Loop:
+	for {
+		switch be.state {
+		case cacheEntryUninitialized, cacheEntryInvalidating, cacheEntryErrored, cacheEntryErroredClosed:
+			logger.Panicf(mylog, "Sync shouldn't get into this state: %+v", be.infoWithLock())
+
+		case cacheEntryClean:
+			return nil
+
+		case cacheEntryWriteInProgress:
+			be.progressCond.Wait()
+
+		case cacheEntryDirty:
+			break Loop
+
+		case cacheEntryClosing, cacheEntryClosed:
+			logger.Warningf(mylog, "Attempted sync on closed entry: %+v", be.infoWithLock())
+			return nil
+		}
 	}
 
-	logger.Infof(mylog, "Sync entry: %+v", be.infoWithLock())
+	logger.Infof(mylog, "Sync entry \"%s\"", be.blobpath)
+	start := time.Now()
 
 	errC := make(chan error)
 
@@ -467,6 +529,7 @@ func (be *CachedBlobEntry) Sync() error {
 
 	be.syncCount++
 	be.lastSync = time.Now()
+	logger.Infof(mylog, "Sync entry \"%s\" took %v", be.blobpath, be.lastSync.Sub(start))
 	return util.ToErrors(errs)
 }
 
@@ -475,9 +538,24 @@ const (
 	writebackAndClose = false
 )
 
-func (be *CachedBlobEntry) closeWithLock(abandon bool) error {
+func (be *CachedBlobEntry) Close(abandon bool) error {
+	be.mu.Lock()
+	defer be.mu.Unlock()
+
+	// if !be.state.AcceptsIO() {
+	// 	logger.Warningf(mylog, "Attempted to close entry that already doesn't accept any IO: %+v", be.infoWithLock())
+	// 	return nil
+	// }
+
 	if len(be.handles) > 0 {
-		return fmt.Errorf("Entry has %d handles", len(be.handles))
+		nhandles := len(be.handles)
+		return fmt.Errorf("Entry has %d handles", nhandles)
+	}
+
+	if !abandon {
+		if err := be.waitUntilInvalidateDone(); err != nil {
+			return err
+		}
 	}
 
 	be.state = cacheEntryClosing
@@ -485,10 +563,6 @@ func (be *CachedBlobEntry) closeWithLock(abandon bool) error {
 	logger.Infof(mylog, "Close entry: %+v", be.infoWithLock())
 
 	if !abandon {
-		if err := be.waitUntilInvalidateDone(); err != nil {
-			return err
-		}
-
 		if err := be.writeBackWithLock(); err != nil {
 			return fmt.Errorf("Failed to writeback dirty: %v", err)
 		}
@@ -503,19 +577,8 @@ func (be *CachedBlobEntry) closeWithLock(abandon bool) error {
 	}
 
 	be.state = cacheEntryClosed
+	be.progressCond.Broadcast()
 	return nil
-}
-
-func (be *CachedBlobEntry) Close(abandon bool) error {
-	be.mu.Lock()
-	defer be.mu.Unlock()
-
-	if !be.state.AcceptsIO() {
-		logger.Warningf(mylog, "Attempted to close entry that already doesn't accept any IO: %+v", be.infoWithLock())
-		return nil
-	}
-
-	return be.closeWithLock(abandon)
 }
 
 type CachedBlobEntryInfo struct {
