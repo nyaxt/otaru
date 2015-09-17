@@ -307,3 +307,7 @@ func (cbs *CachedBlobStore) GetStats() Stats {
 		CbvStats:            cbs.bever.GetStats(),
 	}
 }
+
+func (cbs *CachedBlobStore) CloseEntryForTesting(blobpath string) {
+	cbs.entriesmgr.CloseEntryForTesting(blobpath)
+}

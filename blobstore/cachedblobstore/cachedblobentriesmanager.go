@@ -172,6 +172,23 @@ func (mgr *CachedBlobEntriesManager) tryCloseEntry(be *CachedBlobEntry) {
 	delete(mgr.entries, be.blobpath)
 }
 
+func (mgr *CachedBlobEntriesManager) CloseEntryForTesting(blobpath string) {
+	ch := make(chan struct{})
+	mgr.reqC <- func() {
+		defer close(ch)
+
+		be, ok := mgr.entries[blobpath]
+		if !ok {
+			logger.Warningf(mylog, "CloseEntryForTesting \"\" couldn't find any entry to close", blobpath)
+			return
+		}
+
+		mgr.tryCloseEntry(be)
+	}
+	<-ch
+	return
+}
+
 const inactiveCloseTimeout = 10 * time.Second
 
 func (mgr *CachedBlobEntriesManager) closeOldCacheEntriesIfNeeded() error {

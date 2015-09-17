@@ -1,3 +1,13 @@
+# ChunkIO and CachedBlobStore
+
+- ChunkedFileIO.PWrite()
+-- cio := NewChunkIO()
+--- bh := cbs.Open()
+-- cio.PWrite()
+--- bh.PWrite()
+-- cio.Close() -> cio.Sync()
+--- bh.PWrite() (updateHeader)
+
 # State
 - Uninitialized
   -> Invalidating or Clean or Errored
@@ -12,7 +22,9 @@
 - WriteInProgress
   -> Dirty
 - Dirty
-  -> Clean or WriteInProgress or Closing
+  -> Clean or WriteInProgress or DirtyClosing
+- DirtyClosing
+  -> Closed
 - Closing
   -> Closed
 - Closed
@@ -32,3 +44,9 @@ Which is better?
   - less blocking
 - forbid new write during writeback
   - ???
+
+Q: Should we really sync during chunk write? Good chance where chunk may become unreadable.
+A: Yes
+- Supporting transactional IO in cachedblobstore makes it even more complicated.
+- ChooseSyncEntry would do best to avoid the situation.
+- We should make ChunkedIO tolerant to bad blocks anyway.

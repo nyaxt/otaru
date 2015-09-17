@@ -139,6 +139,81 @@ func TestCachedBlobStore_InvalidateCancel(t *testing.T) {
 	<-join
 }
 
+type PausableWriter struct {
+	BE       io.WriteCloser
+	OnWriteC chan struct{}
+	WaitC    chan struct{}
+}
+
+func (r PausableWriter) Write(p []byte) (int, error) {
+	r.OnWriteC <- struct{}{}
+	<-r.WaitC
+	fmt.Printf("Write!!!\n")
+	return r.BE.Write(p)
+}
+
+func (r PausableWriter) Close() error {
+	return r.BE.Close()
+}
+
+func TestCachedBlobStore_OpenWhileClosing(t *testing.T) {
+	onWriteC := make(chan struct{})
+	waitC := make(chan struct{})
+
+	backendbs := tu.RWInterceptBlobStore{
+		BE: tu.TestFileBlobStoreOfName("backend"),
+		WrapWriter: func(orig io.WriteCloser) (io.WriteCloser, error) {
+			return PausableWriter{orig, onWriteC, waitC}, nil
+		},
+		WrapReader: func(orig io.ReadCloser) (io.ReadCloser, error) { return orig, nil },
+	}
+	cachebs := tu.TestFileBlobStoreOfName("cache")
+	s := scheduler.NewScheduler()
+
+	bs, err := cachedblobstore.New(backendbs, cachebs, s, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	if err != nil {
+		t.Errorf("Failed to create CachedBlobStore: %v", err)
+		return
+	}
+
+	if err := tu.WriteVersionedBlob(bs, "hoge", 1); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// join := make(chan struct{})
+	bs.CloseEntryForTesting("hoge")
+
+	go func() {
+		for range onWriteC {
+			fmt.Printf("onw!")
+			waitC <- struct{}{}
+		}
+	}()
+	//<-join
+
+	/*
+		join := make(chan struct{})
+		go func() {
+			if err := tu.AssertBlobVersionRA(bs, "backendnewer", 3); err == nil {
+				t.Errorf("Unexpected read succeed. Expected invalidate failed error.")
+			}
+			close(join)
+		}()
+
+		// Allow version query.
+		<-onReadC
+		waitC <- struct{}{}
+
+		// But block on invalidate.
+		<-onReadC
+		s.AbortAllAndStop()
+
+		close(waitC)
+		<-join
+	*/
+}
+
 func TestCachedBlobStore_NewEntry(t *testing.T) {
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")

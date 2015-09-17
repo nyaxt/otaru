@@ -89,6 +89,11 @@ func NewCachedBlobEntry(blobpath string) *CachedBlobEntry {
 	return be
 }
 
+func (be *CachedBlobEntry) updateState(s cacheEntryState) {
+	logger.Debugf(mylog, "Cache state \"%s\": %v -> %v", be.blobpath, be.state, s)
+	be.state = s
+}
+
 func (be *CachedBlobEntry) AcceptsIO() bool {
 	return be.state.AcceptsIO()
 }
@@ -155,7 +160,7 @@ func (be *CachedBlobEntry) invalidateCacheBlob(ctx context.Context, cbs *CachedB
 	}
 	if be.validlen >= be.bloblen {
 		logger.Warningf(mylog, "tried to invalidate a blobentry already clean: %+v", be)
-		be.state = cacheEntryClean
+		be.updateState(cacheEntryClean)
 		return nil
 	}
 	ul.Unlock()
@@ -193,7 +198,7 @@ func (be *CachedBlobEntry) invalidateCacheBlob(ctx context.Context, cbs *CachedB
 				be.validlen += int64(nw)
 				be.progressCond.Broadcast()
 				if be.validlen == be.bloblen {
-					be.state = cacheEntryClean
+					be.updateState(cacheEntryClean)
 					done = true
 				} else if be.validlen > be.bloblen {
 					logger.Panicf(mylog, "wrote more than bloblen: %d > %d", be.validlen, be.bloblen)
@@ -222,7 +227,7 @@ func (be *CachedBlobEntry) invalidateCache(ctx context.Context, cbs *CachedBlobS
 	if err := be.invalidateCacheBlob(ctx, cbs); err != nil {
 		be.mu.Lock()
 		be.validlen = 0
-		be.state = cacheEntryErrored
+		be.updateState(cacheEntryErrored)
 		be.progressCond.Broadcast()
 		be.mu.Unlock()
 		logger.Criticalf(mylog, "Failed to invalidate entry: %+v", be)
@@ -234,19 +239,19 @@ func (be *CachedBlobEntry) invalidateCache(ctx context.Context, cbs *CachedBlobS
 func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 	cachebh, err := cbs.cachebs.Open(be.blobpath, fl.O_RDWRCREATE)
 	if err != nil {
-		be.state = cacheEntryErrored
+		be.updateState(cacheEntryErrored)
 		go func() { be.Close(abandonAndClose) }()
 		return fmt.Errorf("Failed to open cache blob: %v", err)
 	}
 	cachever, err := cbs.queryVersion(&blobstore.OffsetReader{cachebh, 0})
 	if err != nil {
-		be.state = cacheEntryErrored
+		be.updateState(cacheEntryErrored)
 		go func() { be.Close(abandonAndClose) }()
 		return fmt.Errorf("Failed to query cached blob ver: %v", err)
 	}
 	backendver, err := cbs.bever.Query(be.blobpath)
 	if err != nil {
-		be.state = cacheEntryErrored
+		be.updateState(cacheEntryErrored)
 		go func() { be.Close(abandonAndClose) }()
 		return err
 	}
@@ -257,25 +262,25 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 
 	if cachever > backendver {
 		logger.Warningf(mylog, "FIXME: cache is newer than backend when open")
-		be.state = cacheEntryDirty
+		be.updateState(cacheEntryDirty)
 		be.bloblen = cachebh.Size()
 		be.validlen = be.bloblen
 	} else if cachever == backendver {
-		be.state = cacheEntryClean
+		be.updateState(cacheEntryClean)
 		be.bloblen = cachebh.Size()
 		be.validlen = be.bloblen
 	} else {
 		blobsizer := cbs.backendbs.(blobstore.BlobSizer)
 		be.bloblen, err = blobsizer.BlobSize(be.blobpath)
 		if err != nil {
-			be.state = cacheEntryErrored
+			be.updateState(cacheEntryErrored)
 			go func() { be.Close(abandonAndClose) }()
 			return fmt.Errorf("Failed to query backend blobsize: %v", err)
 		}
 		if be.bloblen == 0 {
-			be.state = cacheEntryClean
+			be.updateState(cacheEntryClean)
 		} else {
-			be.state = cacheEntryInvalidating
+			be.updateState(cacheEntryInvalidating)
 			be.validlen = 0
 			cbs.s.RunImmediately(&InvalidateCacheTask{cbs, be}, nil)
 		}
@@ -352,7 +357,7 @@ func (be *CachedBlobEntry) markWriteInProgressWithLock() {
 	if be.state != cacheEntryClean && be.state != cacheEntryDirty {
 		logger.Panicf(mylog, "markWriteInProgressWithLock called from unexpected state: %+v", be.infoWithLock())
 	}
-	be.state = cacheEntryWriteInProgress
+	be.updateState(cacheEntryWriteInProgress)
 
 	if be.lastSync.IsZero() {
 		be.lastSync = time.Now()
@@ -364,7 +369,7 @@ func (be *CachedBlobEntry) markDirtyWithLock() {
 		logger.Panicf(mylog, "markDirtyWithLock called from unexpected state: %+v", be.infoWithLock())
 	}
 
-	be.state = cacheEntryDirty
+	be.updateState(cacheEntryDirty)
 	be.progressCond.Broadcast()
 }
 
@@ -432,20 +437,40 @@ func (be *CachedBlobEntry) Truncate(newsize int64) error {
 }
 
 func (be *CachedBlobEntry) writeBackWithLock() error {
+	logger.Debugf(mylog, "writeBackWithLock called for \"%s\" state %v", be.blobpath, be.state)
 	if be.state == cacheEntryInvalidating {
-		panic("writeback while invalidating isn't supported!!!")
+		logger.Panicf(mylog, "writeback while invalidating isn't supported!!!")
 	}
 	if be.state != cacheEntryDirty {
 		return nil
 	}
 
+	// queryVersion is issued while holding be.mu, so it is guaranteed that no racing writes to be.cbs are issued after this query.
 	cachever, err := be.cbs.queryVersion(&blobstore.OffsetReader{be.cachebh, 0})
 	if err != nil {
 		return fmt.Errorf("Failed to query cached blob ver: %v", err)
 	}
 
+	bever, err := be.cbs.bever.Query(be.blobpath)
+	if err != nil {
+		return fmt.Errorf("Failed to query backend blob ver: %v", err)
+	}
+	if bever == cachever {
+		logger.Debugf(mylog, "writeBackWithLock \"%s\" write operations to the cache didn't increment its version.", be.blobpath, bever)
+		be.updateState(cacheEntryClean)
+		return nil
+	} else if bever > cachever {
+		return fmt.Errorf("backend version %d is newer than cached version %d when writeBack \"%s\"", bever, cachever, be.blobpath)
+	}
+
+	logger.Infof(mylog, "writeBack blob \"%s\" cache ver %d overwriting backend ver %d.", be.blobpath, cachever, bever)
+
+	// unlock be.mu while writeback
+	be.mu.Unlock()
+
 	w, err := be.cbs.backendbs.OpenWriter(be.blobpath)
 	if err != nil {
+		be.mu.Lock()
 		return fmt.Errorf("Failed to open backend blob writer: %v", err)
 	}
 	defer func() {
@@ -455,11 +480,33 @@ func (be *CachedBlobEntry) writeBackWithLock() error {
 	}()
 	r := io.LimitReader(&blobstore.OffsetReader{be.cachebh, 0}, be.cachebh.Size())
 	if _, err := io.Copy(w, r); err != nil {
+		be.mu.Lock()
 		return fmt.Errorf("Failed to copy dirty data to backend blob writer: %v", err)
 	}
 
+	be.mu.Lock()
 	be.cbs.bever.Set(be.blobpath, cachever)
-	be.state = cacheEntryClean
+
+	switch be.state {
+	case cacheEntryUninitialized:
+		logger.Panicf(mylog, "Sync shouldn't get into this state: %+v", be.infoWithLock())
+
+	case cacheEntryInvalidating, cacheEntryErrored, cacheEntryErroredClosed, cacheEntryClosing, cacheEntryClosed:
+		return nil
+
+	case cacheEntryClean:
+		logger.Infof(mylog, "cache entry already clean after writeBack. Possibly two writeBack ran concurrently?")
+		return nil
+
+	case cacheEntryDirty:
+		cacheverAfterWriteback, err := be.cbs.queryVersion(&blobstore.OffsetReader{be.cachebh, 0})
+		if err != nil {
+			return fmt.Errorf("Failed to query cached blob ver: %v", err)
+		}
+		if cacheverAfterWriteback == cachever {
+			be.updateState(cacheEntryClean)
+		}
+	}
 	return nil
 }
 
@@ -484,6 +531,7 @@ Loop:
 			return nil
 
 		case cacheEntryWriteInProgress:
+			logger.Debugf(mylog, "Sync for \"%s\" waiting for write to finish", be.blobpath)
 			be.progressCond.Wait()
 
 		case cacheEntryDirty:
@@ -558,7 +606,7 @@ func (be *CachedBlobEntry) Close(abandon bool) error {
 		}
 	}
 
-	be.state = cacheEntryClosing
+	be.updateState(cacheEntryClosing)
 
 	logger.Infof(mylog, "Close entry: %+v", be.infoWithLock())
 
@@ -576,7 +624,7 @@ func (be *CachedBlobEntry) Close(abandon bool) error {
 		}
 	}
 
-	be.state = cacheEntryClosed
+	be.updateState(cacheEntryClosed)
 	be.progressCond.Broadcast()
 	return nil
 }
