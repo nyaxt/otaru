@@ -5,6 +5,7 @@ import (
 	"io"
 	"reflect"
 	"sort"
+	"sync"
 	"testing"
 
 	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
@@ -181,37 +182,44 @@ func TestCachedBlobStore_OpenWhileClosing(t *testing.T) {
 		return
 	}
 
-	// join := make(chan struct{})
-	bs.CloseEntryForTesting("hoge")
+	var wg sync.WaitGroup
 
+	wg.Add(1)
 	go func() {
-		for range onWriteC {
-			fmt.Printf("onw!")
-			waitC <- struct{}{}
+		defer wg.Done()
+
+		// this would block
+		bs.CloseEntryForTesting("hoge")
+		fmt.Printf("CloseEntryForTesting done\n")
+	}()
+
+	// wait until write attempt
+	<-onWriteC
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		// try writing to the "closing" entry
+		if err := tu.WriteVersionedBlob(bs, "hoge", 2); err != nil {
+			t.Errorf("%v", err)
+			return
 		}
 	}()
-	//<-join
 
-	/*
-		join := make(chan struct{})
-		go func() {
-			if err := tu.AssertBlobVersionRA(bs, "backendnewer", 3); err == nil {
-				t.Errorf("Unexpected read succeed. Expected invalidate failed error.")
-			}
-			close(join)
-		}()
+	// unblock write to continue closing
+	waitC <- struct{}{}
 
-		// Allow version query.
-		<-onReadC
-		waitC <- struct{}{}
+	wg.Wait()
 
-		// But block on invalidate.
-		<-onReadC
-		s.AbortAllAndStop()
-
-		close(waitC)
-		<-join
-	*/
+	if err := tu.AssertBlobVersion(cachebs, "hoge", 2); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := tu.AssertBlobVersion(bs, "hoge", 2); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 }
 
 func TestCachedBlobStore_NewEntry(t *testing.T) {

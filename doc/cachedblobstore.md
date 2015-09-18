@@ -9,26 +9,6 @@
 --- bh.PWrite() (updateHeader)
 
 # State
-- Uninitialized
-  -> Invalidating or Clean or Errored
-- Invalidating
-  -> Clean or Errored
-- Errored
-  -> ErroredClosed
-- ErroredClosed
-  -> ∅
-- Clean
-  -> WriteInProgress or Closing
-- WriteInProgress
-  -> Dirty
-- Dirty
-  -> Clean or WriteInProgress or DirtyClosing
-- DirtyClosing
-  -> Closed
-- Closing
-  -> Closed
-- Closed
-  -> ∅
 
 writeBackWithLock is called from:
 - Sync

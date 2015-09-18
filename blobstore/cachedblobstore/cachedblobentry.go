@@ -25,6 +25,7 @@ const (
 	cacheEntryClean
 	cacheEntryWriteInProgress
 	cacheEntryDirty
+	cacheEntryDirtyClosing
 	cacheEntryClosing
 	cacheEntryClosed
 )
@@ -49,6 +50,8 @@ func (s cacheEntryState) String() string {
 		return "WriteInProgress"
 	case cacheEntryDirty:
 		return "Dirty"
+	case cacheEntryDirtyClosing:
+		return "DirtyClosing"
 	case cacheEntryClosing:
 		return "Closing"
 	case cacheEntryClosed:
@@ -438,11 +441,15 @@ func (be *CachedBlobEntry) Truncate(newsize int64) error {
 
 func (be *CachedBlobEntry) writeBackWithLock() error {
 	logger.Debugf(mylog, "writeBackWithLock called for \"%s\" state %v", be.blobpath, be.state)
-	if be.state == cacheEntryInvalidating {
-		logger.Panicf(mylog, "writeback while invalidating isn't supported!!!")
-	}
-	if be.state != cacheEntryDirty {
+	switch be.state {
+	case cacheEntryUninitialized, cacheEntryInvalidating, cacheEntryWriteInProgress, cacheEntryErrored, cacheEntryErroredClosed, cacheEntryClosed:
+		logger.Panicf(mylog, "writeBackWithLock called for \"%s\" in state %v", be.blobpath, be.state)
+
+	case cacheEntryClean, cacheEntryClosing:
+		// no need to writeback
 		return nil
+	case cacheEntryDirty, cacheEntryDirtyClosing:
+		break
 	}
 
 	// queryVersion is issued while holding be.mu, so it is guaranteed that no racing writes to be.cbs are issued after this query.
@@ -590,11 +597,6 @@ func (be *CachedBlobEntry) Close(abandon bool) error {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
-	// if !be.state.AcceptsIO() {
-	// 	logger.Warningf(mylog, "Attempted to close entry that already doesn't accept any IO: %+v", be.infoWithLock())
-	// 	return nil
-	// }
-
 	if len(be.handles) > 0 {
 		nhandles := len(be.handles)
 		return fmt.Errorf("Entry has %d handles", nhandles)
@@ -606,11 +608,26 @@ func (be *CachedBlobEntry) Close(abandon bool) error {
 		}
 	}
 
-	be.updateState(cacheEntryClosing)
+	switch be.state {
+	case cacheEntryUninitialized, cacheEntryInvalidating, cacheEntryErroredClosed, cacheEntryWriteInProgress, cacheEntryDirtyClosing, cacheEntryClosing, cacheEntryClosed:
+		return fmt.Errorf("logicerr: cacheBlobEntry \"%s\" of state %v shouldn't be Close()-d", be.blobpath, be.state)
+
+	case cacheEntryErrored:
+		if abandon != abandonAndClose {
+			logger.Warningf(mylog, "errored entry \"%s\" should be abandoned", be.blobpath)
+		}
+		be.updateState(cacheEntryClosing)
+
+	case cacheEntryClean:
+		be.updateState(cacheEntryClosing)
+
+	case cacheEntryDirty:
+		be.updateState(cacheEntryDirtyClosing)
+	}
 
 	logger.Infof(mylog, "Close entry: %+v", be.infoWithLock())
 
-	if !abandon {
+	if abandon == writebackAndClose {
 		if err := be.writeBackWithLock(); err != nil {
 			return fmt.Errorf("Failed to writeback dirty: %v", err)
 		}

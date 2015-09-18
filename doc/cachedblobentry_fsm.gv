@@ -1,0 +1,23 @@
+#!dot -Tpng cachedblobentry_fsm.gv -ocachedblobentry_fsm.png 
+digraph finite_state_machine {
+	rankdir=TB;
+	size="8,5";
+  graph [ dpi = 300 ]; 
+
+	Uninitialized -> Invalidating [ label = "OpenHandle (old)" ];
+	Uninitialized -> Clean [ label = "OpenHandle (up-to-date)" ];
+	Uninitialized -> Errored [ label = "OpenHandle (error)" ];
+  Invalidating -> Clean [ label = "succeed" ];
+  Invalidating -> Errored [ label = "error" ];
+  Errored -> ErroredClosed [ label = "cleaned up" ];
+  Clean -> WriteInProgress [ label = "write/truncate started" ];
+  Clean -> Closing [ label = "close started" ];
+  WriteInProgress -> Dirty [ label = "write/truncate done" ];
+  Dirty -> Clean [ label = "writeback done" ];
+  Dirty -> WriteInProgress [ label = "write/truncate started" ];
+  Dirty -> DirtyClosing [ label = "closing started" ];
+  Closing -> Closed [ label = "close end" ];
+  DirtyClosing -> Closed [ label = "writeback done+close end" ];
+  Closed -> Clean [ label = "OpenHandle" ];
+	Closed -> Errored [ label = "OpenHandle (error)" ];
+}
