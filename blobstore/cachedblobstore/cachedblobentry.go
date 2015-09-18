@@ -237,7 +237,7 @@ func (be *CachedBlobEntry) invalidateCache(ctx context.Context, cbs *CachedBlobS
 		be.mu.Lock()
 		be.validlen = 0
 		be.updateState(cacheEntryErrored)
-		go func() { be.CloseWithLogErr(abandonAndClose) }()
+		go be.CloseWithLogErr(abandonAndClose)
 		be.progressCond.Broadcast()
 		be.mu.Unlock()
 		logger.Criticalf(mylog, "Failed to invalidate entry: %+v", be)
@@ -250,19 +250,19 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 	cachebh, err := cbs.cachebs.Open(be.blobpath, fl.O_RDWRCREATE)
 	if err != nil {
 		be.updateState(cacheEntryErrored)
-		go func() { be.Close(abandonAndClose) }()
+		go be.CloseWithLogErr(abandonAndClose)
 		return fmt.Errorf("Failed to open cache blob: %v", err)
 	}
 	cachever, err := cbs.queryVersion(&blobstore.OffsetReader{cachebh, 0})
 	if err != nil {
 		be.updateState(cacheEntryErrored)
-		go func() { be.Close(abandonAndClose) }()
+		go be.CloseWithLogErr(abandonAndClose)
 		return fmt.Errorf("Failed to query cached blob ver: %v", err)
 	}
 	backendver, err := cbs.bever.Query(be.blobpath)
 	if err != nil {
 		be.updateState(cacheEntryErrored)
-		go func() { be.Close(abandonAndClose) }()
+		go be.CloseWithLogErr(abandonAndClose)
 		return err
 	}
 
@@ -284,7 +284,7 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 		be.bloblen, err = blobsizer.BlobSize(be.blobpath)
 		if err != nil {
 			be.updateState(cacheEntryErrored)
-			go func() { be.Close(abandonAndClose) }()
+			go be.CloseWithLogErr(abandonAndClose)
 			return fmt.Errorf("Failed to query backend blobsize: %v", err)
 		}
 		if be.bloblen == 0 {
