@@ -62,8 +62,9 @@ func (s cacheEntryState) String() string {
 }
 
 type CachedBlobEntry struct {
-	mu           sync.Mutex
-	progressCond *sync.Cond
+	mu               sync.Mutex
+	progressCond     *sync.Cond
+	cancelInvalidate func()
 
 	cbs      *CachedBlobStore
 	blobpath string
@@ -129,13 +130,13 @@ func (be *CachedBlobEntry) waitUntilInvalidateAtLeast(requiredLen int64) error {
 		case cacheEntryInvalidating:
 			break
 
-		case cacheEntryErrored, cacheEntryErroredClosed:
+		case cacheEntryErrored, cacheEntryClosing, cacheEntryErroredClosed:
 			return InvalidateFailedErr{be.blobpath}
 
 		case cacheEntryClean, cacheEntryDirty:
 			return nil
 
-		case cacheEntryUninitialized, cacheEntryClosing, cacheEntryClosed:
+		case cacheEntryUninitialized, cacheEntryDirtyClosing, cacheEntryClosed:
 			logger.Panicf(mylog, "Invalid state while in waitUntilInvalidateAtLeast! %+v", be)
 		}
 
@@ -151,21 +152,24 @@ func (be *CachedBlobEntry) waitUntilInvalidateDone() error {
 	return be.waitUntilInvalidateAtLeast(be.bloblen)
 }
 
-// invalidateCacheBlob fetches new version of the blob from backendbs.
+// invalidate fetches new version of the blob from backendbs.
 // This func should be only called from be.invalidateCache()
-func (be *CachedBlobEntry) invalidateCacheBlob(ctx context.Context, cbs *CachedBlobStore) error {
+func (be *CachedBlobEntry) invalidate(ctx context.Context, cbs *CachedBlobStore) error {
 	be.mu.Lock()
 	ul := util.EnsureUnlocker{&be.mu}
 	defer ul.Unlock()
 	blobpath := be.blobpath
 	if be.state != cacheEntryInvalidating {
-		return fmt.Errorf("invalidCacheBlob: blobentry in invalid state: %+v", be)
+		return fmt.Errorf("invalidate: blobentry in invalid state: %+v", be)
 	}
 	if be.validlen >= be.bloblen {
 		logger.Warningf(mylog, "tried to invalidate a blobentry already clean: %+v", be)
 		be.updateState(cacheEntryClean)
 		return nil
 	}
+
+	ctx, cancelfn := context.WithCancel(ctx)
+	be.cancelInvalidate = cancelfn
 	ul.Unlock()
 
 	backendr, err := cbs.backendbs.OpenReader(blobpath)
@@ -202,6 +206,7 @@ func (be *CachedBlobEntry) invalidateCacheBlob(ctx context.Context, cbs *CachedB
 				be.progressCond.Broadcast()
 				if be.validlen == be.bloblen {
 					be.updateState(cacheEntryClean)
+					be.cancelInvalidate = nil
 					done = true
 				} else if be.validlen > be.bloblen {
 					logger.Panicf(mylog, "wrote more than bloblen: %d > %d", be.validlen, be.bloblen)
@@ -226,11 +231,13 @@ func (be *CachedBlobEntry) invalidateCacheBlob(ctx context.Context, cbs *CachedB
 	return nil
 }
 
+// FIXME: invalidate / invalidateCache is super confusing.
 func (be *CachedBlobEntry) invalidateCache(ctx context.Context, cbs *CachedBlobStore) error {
-	if err := be.invalidateCacheBlob(ctx, cbs); err != nil {
+	if err := be.invalidate(ctx, cbs); err != nil {
 		be.mu.Lock()
 		be.validlen = 0
 		be.updateState(cacheEntryErrored)
+		go func() { be.CloseWithLogErr(abandonAndClose) }()
 		be.progressCond.Broadcast()
 		be.mu.Unlock()
 		logger.Criticalf(mylog, "Failed to invalidate entry: %+v", be)
@@ -593,24 +600,38 @@ const (
 	writebackAndClose = false
 )
 
+func (be *CachedBlobEntry) CloseWithLogErr(abandon bool) {
+	if err := be.Close(abandon); err != nil {
+		logger.Warningf(mylog, "Close blobentry \"%s\" failed with err: %v", be.blobpath, err)
+	}
+}
+
 func (be *CachedBlobEntry) Close(abandon bool) error {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
-	if len(be.handles) > 0 {
-		nhandles := len(be.handles)
-		return fmt.Errorf("Entry has %d handles", nhandles)
-	}
-
-	if !abandon {
-		if err := be.waitUntilInvalidateDone(); err != nil {
-			return err
+	if be.state != cacheEntryErrored {
+		if nhandles := len(be.handles); nhandles > 0 {
+			return fmt.Errorf("Entry has %d handles", nhandles)
 		}
 	}
 
+	if fn := be.cancelInvalidate; fn != nil {
+		logger.Debugf(mylog, "cancelInvalidate triggered for blob cache \"%s\"", be.blobpath)
+		fn()
+	}
+
+	be.waitUntilInvalidateDone()
+	wasErrored := be.state == cacheEntryErrored
 	switch be.state {
-	case cacheEntryUninitialized, cacheEntryInvalidating, cacheEntryErroredClosed, cacheEntryWriteInProgress, cacheEntryDirtyClosing, cacheEntryClosing, cacheEntryClosed:
+	case cacheEntryUninitialized, cacheEntryErroredClosed, cacheEntryWriteInProgress, cacheEntryDirtyClosing, cacheEntryClosing, cacheEntryClosed:
 		return fmt.Errorf("logicerr: cacheBlobEntry \"%s\" of state %v shouldn't be Close()-d", be.blobpath, be.state)
+
+	case cacheEntryInvalidating:
+		if abandon != abandonAndClose {
+			return fmt.Errorf("invalidating entry \"%s\" can be only closed if going to be abandoned", be.blobpath)
+		}
+		be.updateState(cacheEntryClosing)
 
 	case cacheEntryErrored:
 		if abandon != abandonAndClose {
@@ -641,7 +662,15 @@ func (be *CachedBlobEntry) Close(abandon bool) error {
 		}
 	}
 
-	be.updateState(cacheEntryClosed)
+	if wasErrored {
+		br := be.cbs.cachebs.(blobstore.BlobRemover)
+		if err := br.RemoveBlob(be.blobpath); err != nil {
+			logger.Criticalf(mylog, "Failed to remove errored blob cache \"%v\"", be.blobpath)
+		}
+		be.updateState(cacheEntryErroredClosed)
+	} else {
+		be.updateState(cacheEntryClosed)
+	}
 	be.progressCond.Broadcast()
 	return nil
 }

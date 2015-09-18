@@ -40,24 +40,6 @@ type CachedBlobStore struct {
 	usagestats *CacheUsageStats
 }
 
-func (cbs *CachedBlobStore) Sync() error {
-	return cbs.entriesmgr.SyncAll()
-}
-
-const (
-	syncTimeoutDuration  = 300 * time.Second
-	writeTimeoutDuration = 3 * time.Second
-)
-
-func (cbs *CachedBlobStore) SyncOneEntry() error {
-	be := cbs.entriesmgr.ChooseSyncEntry()
-	if be == nil {
-		return ENOENT
-	}
-
-	return be.Sync()
-}
-
 func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore, s *scheduler.Scheduler, flags int, queryVersion version.QueryFunc) (*CachedBlobStore, error) {
 	if fl.IsWriteAllowed(flags) {
 		if fr, ok := backendbs.(fl.FlagsReader); ok {
@@ -81,6 +63,9 @@ func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore,
 		usagestats:   NewCacheUsageStats(),
 	}
 
+	if _, ok := cachebs.(blobstore.BlobRemover); !ok {
+		return nil, fmt.Errorf("cachebs backend must support blob removals for failed-to-invalidate caches")
+	}
 	if lister, ok := cachebs.(blobstore.BlobLister); ok {
 		bps, err := lister.ListBlobs()
 		if err != nil {
@@ -111,6 +96,24 @@ func (cbs *CachedBlobStore) SaveState(c btncrypt.Cipher) error {
 	}
 
 	return util.ToErrors(errs)
+}
+
+func (cbs *CachedBlobStore) Sync() error {
+	return cbs.entriesmgr.SyncAll()
+}
+
+const (
+	syncTimeoutDuration  = 300 * time.Second
+	writeTimeoutDuration = 3 * time.Second
+)
+
+func (cbs *CachedBlobStore) SyncOneEntry() error {
+	be := cbs.entriesmgr.ChooseSyncEntry()
+	if be == nil {
+		return ENOENT
+	}
+
+	return be.Sync()
 }
 
 var _ = blobstore.BlobStore(&CachedBlobStore{})

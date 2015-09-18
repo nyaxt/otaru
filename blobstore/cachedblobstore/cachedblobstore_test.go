@@ -3,10 +3,12 @@ package cachedblobstore_test
 import (
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"sort"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
 	"github.com/nyaxt/otaru/flags"
@@ -394,3 +396,64 @@ func TestCachedBlobStore_RemoveBlob(t *testing.T) {
 		}
 	}
 }
+
+func TestCachedBlobStore_CancelInvalidatingBlobsOnExit(t *testing.T) {
+	onReadC := make(chan struct{})
+	waitC := make(chan struct{})
+
+	backendbs := tu.RWInterceptBlobStore{
+		BE:         tu.TestFileBlobStoreOfName("backend"),
+		WrapWriter: func(orig io.WriteCloser) (io.WriteCloser, error) { return orig, nil },
+		WrapReader: func(orig io.ReadCloser) (io.ReadCloser, error) {
+			return PausableReader{orig, onReadC, waitC}, nil
+		},
+	}
+	if err := tu.WriteVersionedBlob(backendbs, "backendonly", 2); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	cachebs := tu.TestFileBlobStoreOfName("cache")
+	s := scheduler.NewScheduler()
+
+	bs, err := cachedblobstore.New(backendbs, cachebs, s, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	if err != nil {
+		t.Errorf("Failed to create CachedBlobStore: %v", err)
+		return
+	}
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r, err := bs.OpenReader("backendonly")
+		if err != nil {
+			t.Errorf("Unexpected OpenReader failure: %v", err)
+			return
+		}
+
+		if _, err := tu.TestQueryVersion(r); err == nil {
+			t.Errorf("Unexpected read succeed. Expected invalidate failed error.")
+		}
+	}()
+
+	// Allow version query.
+	<-onReadC
+	waitC <- struct{}{}
+
+	// But cancel invalidate.
+	<-onReadC
+	s.AbortAllAndStop()
+
+	wg.Wait()
+
+	// FIXME: Wait for Close(abandonAndClose) goroutine to run.
+	time.Sleep(100 * time.Millisecond)
+
+	if _, err := cachebs.OpenReader("backendonly"); !os.IsNotExist(err) {
+		t.Errorf("invalidate failed blob is still cached!")
+	}
+}
+
+func TestCachedBlobStore_CancelInvalidatingBlobsByClose(t *testing.T) {}
