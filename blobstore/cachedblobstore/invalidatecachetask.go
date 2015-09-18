@@ -9,12 +9,11 @@ import (
 )
 
 type InvalidateCacheTask struct {
-	CBS *CachedBlobStore
-	BE  *CachedBlobEntry
+	BE *CachedBlobEntry
 }
 
 func (t *InvalidateCacheTask) Run(ctx context.Context) scheduler.Result {
-	err := t.BE.invalidateCache(ctx, t.CBS)
+	err := t.BE.invalidate(ctx)
 	return scheduler.ErrorResult{err}
 }
 

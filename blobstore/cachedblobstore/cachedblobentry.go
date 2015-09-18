@@ -152,10 +152,11 @@ func (be *CachedBlobEntry) waitUntilInvalidateDone() error {
 	return be.waitUntilInvalidateAtLeast(be.bloblen)
 }
 
-// invalidate fetches new version of the blob from backendbs.
-// This func should be only called from be.invalidateCache()
-func (be *CachedBlobEntry) invalidate(ctx context.Context, cbs *CachedBlobStore) error {
+// invalidateInternal is invalidate logic but errror handling.
+// should only be called from invalidate()
+func (be *CachedBlobEntry) invalidateInternal(ctx context.Context) error {
 	be.mu.Lock()
+	cbs := be.cbs
 	ul := util.EnsureUnlocker{&be.mu}
 	defer ul.Unlock()
 	blobpath := be.blobpath
@@ -231,9 +232,10 @@ func (be *CachedBlobEntry) invalidate(ctx context.Context, cbs *CachedBlobStore)
 	return nil
 }
 
-// FIXME: invalidate / invalidateCache is super confusing.
-func (be *CachedBlobEntry) invalidateCache(ctx context.Context, cbs *CachedBlobStore) error {
-	if err := be.invalidate(ctx, cbs); err != nil {
+// invalidate fetches new version of the blob from backendbs.
+// This func should be only called from be.invalidateCache()
+func (be *CachedBlobEntry) invalidate(ctx context.Context) error {
+	if err := be.invalidateInternal(ctx); err != nil {
 		be.mu.Lock()
 		be.validlen = 0
 		be.updateState(cacheEntryErrored)
@@ -292,7 +294,7 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 		} else {
 			be.updateState(cacheEntryInvalidating)
 			be.validlen = 0
-			cbs.s.RunImmediately(&InvalidateCacheTask{cbs, be}, nil)
+			cbs.s.RunImmediately(&InvalidateCacheTask{be}, nil)
 		}
 	}
 	if be.state == cacheEntryUninitialized {
