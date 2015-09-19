@@ -98,10 +98,11 @@ type job struct {
 }
 
 func (j *job) String() string {
-	return fmt.Sprintf("job{ID: %d, CreatedAt: %v, Task: %s}",
+	return fmt.Sprintf("job{ID: %d, CreatedAt: %v, Task: %s, State: %v}",
 		j.ID,
 		j.CreatedAt,
 		describeTask(j.Task),
+		j.State,
 	)
 }
 
@@ -373,6 +374,10 @@ func (s *Scheduler) schedulerMain() {
 			if !more {
 				// stop polling on scheduleC
 				scheduleC = nil
+
+				// kick scheduler
+				nextWakeUp = time.Now()
+				renewTimer()
 				continue
 			}
 
@@ -451,6 +456,9 @@ func (s *Scheduler) schedulerMain() {
 			var zero time.Time
 			nextWakeUp = zero
 			for _, j := range waitJobs {
+				if j.State != JobScheduled {
+					continue
+				}
 				if j.ScheduledAt.Before(now) {
 					s.runC <- j
 				} else {
