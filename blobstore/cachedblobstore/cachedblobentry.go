@@ -225,7 +225,7 @@ func (be *CachedBlobEntry) invalidateInternal(ctx context.Context) error {
 			if er == io.EOF {
 				break
 			}
-			return fmt.Errorf("Failed to read backend blob content: %v", er)
+			return er
 		}
 	}
 
@@ -242,7 +242,9 @@ func (be *CachedBlobEntry) invalidate(ctx context.Context) error {
 		go be.CloseWithLogErr(abandonAndClose)
 		be.progressCond.Broadcast()
 		be.mu.Unlock()
-		logger.Criticalf(mylog, "Failed to invalidate entry: %+v", be)
+		if !cancellable.IsCancelledErr(err) {
+			logger.Criticalf(mylog, "Failed to invalidate entry \"%s\". err: %v", be.blobpath, err)
+		}
 		return err
 	}
 	return nil
@@ -626,8 +628,12 @@ func (be *CachedBlobEntry) Close(abandon bool) error {
 	be.waitUntilInvalidateDone()
 	wasErrored := be.state == cacheEntryErrored
 	switch be.state {
-	case cacheEntryUninitialized, cacheEntryErroredClosed, cacheEntryWriteInProgress, cacheEntryDirtyClosing, cacheEntryClosing, cacheEntryClosed:
+	case cacheEntryUninitialized, cacheEntryWriteInProgress:
 		return fmt.Errorf("logicerr: cacheBlobEntry \"%s\" of state %v shouldn't be Close()-d", be.blobpath, be.state)
+
+	case cacheEntryDirtyClosing, cacheEntryClosing, cacheEntryErroredClosed, cacheEntryClosed:
+		logger.Debugf(mylog, "blob cache \"%s\" already (being) closed: %v", be.blobpath, be.state)
+		return nil
 
 	case cacheEntryInvalidating:
 		if abandon != abandonAndClose {

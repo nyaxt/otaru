@@ -19,6 +19,9 @@ func IsCancelledErr(e error) bool {
 	if e == nil {
 		return false
 	}
+	if e == context.Canceled {
+		return true
+	}
 
 	_, ok := e.(CancelledErr)
 	return ok
