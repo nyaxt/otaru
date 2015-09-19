@@ -60,11 +60,15 @@ type Credentials interface {
 	// GetRequestMetadata gets the current request metadata, refreshing
 	// tokens if required. This should be called by the transport layer on
 	// each request, and the data should be populated in headers or other
-	// context. When supported by the underlying implementation, ctx can
-	// be used for timeout and cancellation.
+	// context. uri is the URI of the entry point for the request. When
+	// supported by the underlying implementation, ctx can be used for
+	// timeout and cancellation.
 	// TODO(zhaoq): Define the set of the qualified keys instead of leaving
 	// it as an arbitrary string.
-	GetRequestMetadata(ctx context.Context) (map[string]string, error)
+	GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error)
+	// RequireTransportSecurity indicates whether the credentails requires
+	// transport security.
+	RequireTransportSecurity() bool
 }
 
 // ProtocolInfo provides information regarding the gRPC wire protocol version,
@@ -78,17 +82,48 @@ type ProtocolInfo struct {
 	SecurityVersion string
 }
 
+// AuthInfo defines the common interface for the auth information the users are interested in.
+type AuthInfo interface {
+	AuthType() string
+}
+
+type authInfoKey struct{}
+
+// NewContext creates a new context with authInfo attached.
+func NewContext(ctx context.Context, authInfo AuthInfo) context.Context {
+	return context.WithValue(ctx, authInfoKey{}, authInfo)
+}
+
+// FromContext returns the authInfo in ctx if it exists.
+func FromContext(ctx context.Context) (authInfo AuthInfo, ok bool) {
+	authInfo, ok = ctx.Value(authInfoKey{}).(AuthInfo)
+	return
+}
+
 // TransportAuthenticator defines the common interface for all the live gRPC wire
 // protocols and supported transport security protocols (e.g., TLS, SSL).
 type TransportAuthenticator interface {
 	// ClientHandshake does the authentication handshake specified by the corresponding
-	// authentication protocol on rawConn for clients.
-	ClientHandshake(addr string, rawConn net.Conn, timeout time.Duration) (net.Conn, error)
-	// ServerHandshake does the authentication handshake for servers.
-	ServerHandshake(rawConn net.Conn) (net.Conn, error)
+	// authentication protocol on rawConn for clients. It returns the authenticated
+	// connection and the corresponding auth information about the connection.
+	ClientHandshake(addr string, rawConn net.Conn, timeout time.Duration) (net.Conn, AuthInfo, error)
+	// ServerHandshake does the authentication handshake for servers. It returns
+	// the authenticated connection and the corresponding auth information about
+	// the connection.
+	ServerHandshake(rawConn net.Conn) (net.Conn, AuthInfo, error)
 	// Info provides the ProtocolInfo of this TransportAuthenticator.
 	Info() ProtocolInfo
 	Credentials
+}
+
+// TLSInfo contains the auth information for a TLS authenticated connection.
+// It implements the AuthInfo interface.
+type TLSInfo struct {
+	State tls.ConnectionState
+}
+
+func (t TLSInfo) AuthType() string {
+	return "tls"
 }
 
 // tlsCreds is the credentials required for authenticating a connection using TLS.
@@ -97,7 +132,7 @@ type tlsCreds struct {
 	config tls.Config
 }
 
-func (c *tlsCreds) Info() ProtocolInfo {
+func (c tlsCreds) Info() ProtocolInfo {
 	return ProtocolInfo{
 		SecurityProtocol: "tls",
 		SecurityVersion:  "1.2",
@@ -106,8 +141,12 @@ func (c *tlsCreds) Info() ProtocolInfo {
 
 // GetRequestMetadata returns nil, nil since TLS credentials does not have
 // metadata.
-func (c *tlsCreds) GetRequestMetadata(ctx context.Context) (map[string]string, error) {
+func (c *tlsCreds) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
 	return nil, nil
+}
+
+func (c *tlsCreds) RequireTransportSecurity() bool {
+	return true
 }
 
 type timeoutError struct{}
@@ -116,7 +155,7 @@ func (timeoutError) Error() string   { return "credentials: Dial timed out" }
 func (timeoutError) Timeout() bool   { return true }
 func (timeoutError) Temporary() bool { return true }
 
-func (c *tlsCreds) ClientHandshake(addr string, rawConn net.Conn, timeout time.Duration) (_ net.Conn, err error) {
+func (c *tlsCreds) ClientHandshake(addr string, rawConn net.Conn, timeout time.Duration) (_ net.Conn, _ AuthInfo, err error) {
 	// borrow some code from tls.DialWithDialer
 	var errChannel chan error
 	if timeout != 0 {
@@ -143,18 +182,20 @@ func (c *tlsCreds) ClientHandshake(addr string, rawConn net.Conn, timeout time.D
 	}
 	if err != nil {
 		rawConn.Close()
-		return nil, err
+		return nil, nil, err
 	}
-	return conn, nil
+	// TODO(zhaoq): Omit the auth info for client now. It is more for
+	// information than anything else.
+	return conn, nil, nil
 }
 
-func (c *tlsCreds) ServerHandshake(rawConn net.Conn) (net.Conn, error) {
+func (c *tlsCreds) ServerHandshake(rawConn net.Conn) (net.Conn, AuthInfo, error) {
 	conn := tls.Server(rawConn, &c.config)
 	if err := conn.Handshake(); err != nil {
 		rawConn.Close()
-		return nil, err
+		return nil, nil, err
 	}
-	return conn, nil
+	return conn, TLSInfo{conn.ConnectionState()}, nil
 }
 
 // NewTLS uses c to construct a TransportAuthenticator based on TLS.

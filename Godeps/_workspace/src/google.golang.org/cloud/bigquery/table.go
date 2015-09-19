@@ -16,6 +16,9 @@ package bigquery
 
 import (
 	"fmt"
+	"time"
+
+	"golang.org/x/net/context"
 
 	bq "google.golang.org/api/bigquery/v2"
 )
@@ -30,44 +33,98 @@ type Table struct {
 	// The maximum length is 1,024 characters.
 	TableID string
 
-	// All following fields are optional.
-	CreateDisposition CreateDisposition // default is CreateIfNeeded.
-	WriteDisposition  WriteDisposition  // default is WriteAppend.
+	service service
+}
 
-	// Name is the user-friendly name for this table.
-	Name string
+// TableMetadata contains information about a BigQuery table.
+type TableMetadata struct {
+	Description string // The user-friendly description of this table.
+	Name        string // The user-friendly name for this table.
+	Schema      Schema
+	View        string
+
+	ID   string // An opaque ID uniquely identifying the table.
 	Type TableType
+
+	// The time when this table expires. If not set, the table will persist
+	// indefinitely. Expired tables will be deleted and their storage reclaimed.
+	ExpirationTime time.Time
+
+	CreationTime     time.Time
+	LastModifiedTime time.Time
+
+	// The size of the table in bytes.
+	// This does not include data that is being buffered during a streaming insert.
+	NumBytes int64
+
+	// The number of rows of data in this table.
+	// This does not include data that is being buffered during a streaming insert.
+	NumRows uint64
 }
 
 // Tables is a group of tables. The tables may belong to differing projects or datasets.
 type Tables []*Table
 
 // CreateDisposition specifies the circumstances under which destination table will be created.
-type CreateDisposition string
+// Default is CreateIfNeeded.
+type TableCreateDisposition string
 
 const (
 	// The table will be created if it does not already exist.  Tables are created atomically on successful completion of a job.
-	CreateIfNeeded CreateDisposition = "CREATE_IF_NEEDED"
+	CreateIfNeeded TableCreateDisposition = "CREATE_IF_NEEDED"
 
 	// The table must already exist and will not be automatically created.
-	CreateNever CreateDisposition = "CREATE_NEVER"
+	CreateNever TableCreateDisposition = "CREATE_NEVER"
 )
 
-// WriteDisposition specifies how existing data in a destination table is treated.
-type WriteDisposition string
+func CreateDisposition(disp TableCreateDisposition) Option { return disp }
+
+func (opt TableCreateDisposition) implementsOption() {}
+
+func (opt TableCreateDisposition) customizeLoad(conf *bq.JobConfigurationLoad, projectID string) {
+	conf.CreateDisposition = string(opt)
+}
+
+func (opt TableCreateDisposition) customizeCopy(conf *bq.JobConfigurationTableCopy, projectID string) {
+	conf.CreateDisposition = string(opt)
+}
+
+func (opt TableCreateDisposition) customizeQuery(conf *bq.JobConfigurationQuery, projectID string) {
+	conf.CreateDisposition = string(opt)
+}
+
+// TableWriteDisposition specifies how existing data in a destination table is treated.
+// Default is WriteAppend.
+type TableWriteDisposition string
 
 const (
 	// Data will be appended to any existing data in the destination table.
 	// Data is appended atomically on successful completion of a job.
-	WriteAppend WriteDisposition = "WRITE_APPEND"
+	WriteAppend TableWriteDisposition = "WRITE_APPEND"
 
 	// Existing data in the destination table will be overwritten.
 	// Data is overwritten atomically on successful completion of a job.
-	WriteTruncate WriteDisposition = "WRITE_TRUNCATE"
+	WriteTruncate TableWriteDisposition = "WRITE_TRUNCATE"
 
 	// Writes will fail if the destination table already contains data.
-	WriteEmpty WriteDisposition = "WRITE_EMPTY"
+	WriteEmpty TableWriteDisposition = "WRITE_EMPTY"
 )
+
+func WriteDisposition(disp TableWriteDisposition) Option { return disp }
+
+func (opt TableWriteDisposition) implementsOption() {}
+
+func (opt TableWriteDisposition) customizeLoad(conf *bq.JobConfigurationLoad, projectID string) {
+	conf.WriteDisposition = string(opt)
+}
+
+func (opt TableWriteDisposition) customizeCopy(conf *bq.JobConfigurationTableCopy, projectID string) {
+	conf.WriteDisposition = string(opt)
+}
+
+func (opt TableWriteDisposition) customizeQuery(conf *bq.JobConfigurationQuery, projectID string) {
+	conf.WriteDisposition = string(opt)
+}
 
 // TableType is the type of table.
 type TableType string
@@ -102,8 +159,6 @@ func (t *Table) implicitTable() bool {
 
 func (t *Table) customizeLoadDst(conf *bq.JobConfigurationLoad, projectID string) {
 	conf.DestinationTable = t.tableRefProto()
-	conf.CreateDisposition = string(t.CreateDisposition)
-	conf.WriteDisposition = string(t.WriteDisposition)
 }
 
 func (t *Table) customizeExtractSrc(conf *bq.JobConfigurationExtract, projectID string) {
@@ -112,8 +167,6 @@ func (t *Table) customizeExtractSrc(conf *bq.JobConfigurationExtract, projectID 
 
 func (t *Table) customizeCopyDst(conf *bq.JobConfigurationTableCopy, projectID string) {
 	conf.DestinationTable = t.tableRefProto()
-	conf.CreateDisposition = string(t.CreateDisposition)
-	conf.WriteDisposition = string(t.WriteDisposition)
 }
 
 func (ts Tables) customizeCopySrc(conf *bq.JobConfigurationTableCopy, projectID string) {
@@ -126,12 +179,65 @@ func (t *Table) customizeQueryDst(conf *bq.JobConfigurationQuery, projectID stri
 	if !t.implicitTable() {
 		conf.DestinationTable = t.tableRefProto()
 	}
-	conf.CreateDisposition = string(t.CreateDisposition)
-	conf.WriteDisposition = string(t.WriteDisposition)
 }
 
 func (t *Table) customizeReadSrc(cursor *readTableConf) {
 	cursor.projectID = t.ProjectID
 	cursor.datasetID = t.DatasetID
 	cursor.tableID = t.TableID
+}
+
+// OpenTable creates a handle to an existing BigQuery table.  If the table does not already exist, subsequent uses of the *Table will fail.
+func (c *Client) OpenTable(projectID, datasetID, tableID string) *Table {
+	return &Table{ProjectID: projectID, DatasetID: datasetID, TableID: tableID, service: c.service}
+}
+
+// CreateTable creates a table in the BigQuery service and returns a handle to it.
+func (c *Client) CreateTable(ctx context.Context, projectID, datasetID, tableID string, options ...CreateTableOption) (*Table, error) {
+	conf := &createTableConf{
+		projectID: projectID,
+		datasetID: datasetID,
+		tableID:   tableID,
+	}
+	for _, o := range options {
+		o.customizeCreateTable(conf)
+	}
+	if err := c.service.createTable(ctx, conf); err != nil {
+		return nil, err
+	}
+	return &Table{ProjectID: projectID, DatasetID: datasetID, TableID: tableID, service: c.service}, nil
+}
+
+// Metadata fetches the metadata for the table.
+func (t *Table) Metadata(ctx context.Context) (*TableMetadata, error) {
+	return t.service.getTableMetadata(ctx, t.ProjectID, t.DatasetID, t.TableID)
+}
+
+// Delete deletes the table.
+func (t *Table) Delete(ctx context.Context) error {
+	return t.service.deleteTable(ctx, t.ProjectID, t.DatasetID, t.TableID)
+}
+
+// A CreateTableOption is an optional argument to CreateTable.
+type CreateTableOption interface {
+	customizeCreateTable(*createTableConf)
+}
+
+type tableExpiration time.Time
+
+// TableExpiration returns a CreateTableOption which will cause the created table to be deleted after the expiration time.
+func TableExpiration(exp time.Time) CreateTableOption { return tableExpiration(exp) }
+
+func (opt tableExpiration) customizeCreateTable(conf *createTableConf) {
+	conf.expiration = time.Time(opt)
+}
+
+type viewQuery string
+
+// ViewQuery returns a CreateTableOption that causes the created table to be a virtual table defined by the supplied query.
+// For more information see: https://cloud.google.com/bigquery/querying-data#views
+func ViewQuery(query string) CreateTableOption { return viewQuery(query) }
+
+func (opt viewQuery) customizeCreateTable(conf *createTableConf) {
+	conf.viewQuery = string(opt)
 }

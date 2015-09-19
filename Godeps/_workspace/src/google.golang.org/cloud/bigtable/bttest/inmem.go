@@ -21,7 +21,7 @@ To use a Server, create it, and then connect to it with no security:
 (The project/zone/cluster values are ignored.)
 	srv, err := bttest.NewServer()
 	...
-	conn, err := grpc.Dial(srv.Addr)
+	conn, err := grpc.Dial(srv.Addr, grpc.WithInsecure())
 	...
 	client, err := bigtable.NewClient(ctx, proj, zone, cluster,
 		bigtable.WithBaseGRPC(conn))
@@ -170,12 +170,15 @@ func (s *server) ReadRows(req *btspb.ReadRowsRequest, stream btspb.BigtableServi
 	}
 
 	var start, end string // half-open interval
-	if rr := req.RowRange; rr != nil {
-		start, end = string(rr.StartKey), string(rr.EndKey)
-	} else {
+	switch targ := req.Target.(type) {
+	case *btspb.ReadRowsRequest_RowRange:
+		start, end = string(targ.RowRange.StartKey), string(targ.RowRange.EndKey)
+	case *btspb.ReadRowsRequest_RowKey:
 		// A single row read is simply an edge case.
-		start = string(req.RowKey)
+		start = string(targ.RowKey)
 		end = start + "\x00"
+	default:
+		return fmt.Errorf("unknown ReadRowsRequest.Target oneof %T", targ)
 	}
 
 	// Get rows to stream back.
@@ -206,77 +209,112 @@ func (s *server) ReadRows(req *btspb.ReadRowsRequest, stream btspb.BigtableServi
 
 func streamRow(stream btspb.BigtableService_ReadRowsServer, r *row, f *btdpb.RowFilter) error {
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	nr := r.copy()
+	r.mu.Unlock()
+	r = nr
+
+	filterRow(f, r)
 
 	rrr := &btspb.ReadRowsResponse{
 		RowKey: []byte(r.key),
 	}
-	for col, cs := range r.cells {
+	for col, cells := range r.cells {
 		i := strings.Index(col, ":") // guaranteed to exist
 		fam, col := col[:i], col[i+1:]
-		cells := filterCells(f, r, fam, col, cs)
 		if len(cells) == 0 {
 			continue
 		}
 		// TODO(dsymonds): Apply transformers.
-		chunk := &btspb.ReadRowsResponse_Chunk{
-			RowContents: &btdpb.Family{
-				Name: fam,
-				Columns: []*btdpb.Column{{
-					Qualifier: []byte(col),
-					// Cells is populated below.
-				}},
-			},
+		colm := &btdpb.Column{
+			Qualifier: []byte(col),
+			// Cells is populated below.
 		}
-		colm := chunk.RowContents.Columns[0]
 		for _, cell := range cells {
 			colm.Cells = append(colm.Cells, &btdpb.Cell{
 				TimestampMicros: cell.ts,
 				Value:           cell.value,
 			})
 		}
-		rrr.Chunks = append(rrr.Chunks, chunk)
+		rrr.Chunks = append(rrr.Chunks, &btspb.ReadRowsResponse_Chunk{
+			Chunk: &btspb.ReadRowsResponse_Chunk_RowContents{&btdpb.Family{
+				Name:    fam,
+				Columns: []*btdpb.Column{colm},
+			}},
+		})
 	}
-	rrr.Chunks = append(rrr.Chunks, &btspb.ReadRowsResponse_Chunk{CommitRow: true})
+	rrr.Chunks = append(rrr.Chunks, &btspb.ReadRowsResponse_Chunk{Chunk: &btspb.ReadRowsResponse_Chunk_CommitRow{true}})
 	return stream.Send(rrr)
 }
 
-func filterCells(f *btdpb.RowFilter, r *row, fam, col string, cs []cell) []cell {
-	// Special handling for cells_per_column_limit_filter.
-	if f != nil && f.CellsPerColumnLimitFilter > 0 {
-		n := int(f.CellsPerColumnLimitFilter)
-		if n > len(cs) {
-			n = len(cs)
+// filterRow modifies a row with the given filter.
+func filterRow(f *btdpb.RowFilter, r *row) {
+	if f == nil {
+		return
+	}
+	// Handle filters that apply beyond just including/excluding cells.
+	switch f := f.Filter.(type) {
+	case *btdpb.RowFilter_Chain_:
+		for _, sub := range f.Chain.Filters {
+			filterRow(sub, r)
 		}
-		return cs[:n]
+		return
+	case *btdpb.RowFilter_Interleave_:
+		srs := make([]*row, 0, len(f.Interleave.Filters))
+		for _, sub := range f.Interleave.Filters {
+			sr := r.copy()
+			filterRow(sub, sr)
+			srs = append(srs, sr)
+		}
+		// merge
+		// TODO(dsymonds): is this correct?
+		r.cells = make(map[string][]cell)
+		for _, sr := range srs {
+			for col, cs := range sr.cells {
+				r.cells[col] = append(r.cells[col], cs...)
+			}
+		}
+		for _, cs := range r.cells {
+			sort.Sort(byDescTS(cs))
+		}
+		return
+	case *btdpb.RowFilter_CellsPerColumnLimitFilter:
+		lim := int(f.CellsPerColumnLimitFilter)
+		for col, cs := range r.cells {
+			if len(cs) > lim {
+				r.cells[col] = cs[:lim]
+			}
+		}
+		return
 	}
 
+	// Any other case, operate on a per-cell basis.
+	for key, cs := range r.cells {
+		i := strings.Index(key, ":") // guaranteed to exist
+		fam, col := key[:i], key[i+1:]
+		r.cells[key] = filterCells(f, fam, col, cs)
+	}
+}
+
+func filterCells(f *btdpb.RowFilter, fam, col string, cs []cell) []cell {
 	var ret []cell
 	for _, cell := range cs {
-		if includeCell(f, r, fam, col, cell) {
+		if includeCell(f, fam, col, cell) {
 			ret = append(ret, cell)
 		}
 	}
 	return ret
 }
 
-func includeCell(f *btdpb.RowFilter, r *row, fam, col string, cell cell) bool {
+func includeCell(f *btdpb.RowFilter, fam, col string, cell cell) bool {
 	if f == nil {
 		return true
 	}
 	// TODO(dsymonds): Implement many more filters.
-	switch {
+	switch f := f.Filter.(type) {
 	default:
-		log.Printf("WARNING: don't know how to handle filter (ignoring it): %v", f)
+		log.Printf("WARNING: don't know how to handle filter of type %T (ignoring it)", f)
 		return true
-	case f.Chain != nil:
-		for _, sub := range f.Chain.Filters {
-			if !includeCell(sub, r, fam, col, cell) {
-				return false
-			}
-		}
-		return true
-	case len(f.ColumnQualifierRegexFilter) > 0:
+	case *btdpb.RowFilter_ColumnQualifierRegexFilter:
 		pat := string(f.ColumnQualifierRegexFilter)
 		rx, err := regexp.Compile(pat)
 		if err != nil {
@@ -284,7 +322,7 @@ func includeCell(f *btdpb.RowFilter, r *row, fam, col string, cell cell) bool {
 			return false
 		}
 		return rx.MatchString(col)
-	case len(f.ValueRegexFilter) > 0:
+	case *btdpb.RowFilter_ValueRegexFilter:
 		pat := string(f.ValueRegexFilter)
 		rx, err := regexp.Compile(pat)
 		if err != nil {
@@ -334,16 +372,12 @@ func (s *server) CheckAndMutateRow(ctx context.Context, req *btspb.CheckAndMutat
 		whichMut = len(r.cells) > 0
 	} else {
 		// Use true_mutations iff any cells in the row match the filter.
-		for col, cs := range r.cells {
-			i := strings.Index(col, ":") // guaranteed to exist
-			fam, col := col[:i], col[i+1:]
-			for _, cell := range cs {
-				if includeCell(req.PredicateFilter, r, fam, col, cell) {
-					whichMut = true
-					break
-				}
-			}
-			if whichMut {
+		// TODO(dsymonds): This could be cheaper.
+		nr := r.copy()
+		filterRow(req.PredicateFilter, nr)
+		for _, cs := range nr.cells {
+			if len(cs) > 0 {
+				whichMut = true
 				break
 			}
 		}
@@ -366,10 +400,10 @@ func (s *server) CheckAndMutateRow(ctx context.Context, req *btspb.CheckAndMutat
 // It assumes r.mu is locked.
 func applyMutations(tbl *table, r *row, muts []*btdpb.Mutation) error {
 	for _, mut := range muts {
-		switch {
+		switch mut := mut.Mutation.(type) {
 		default:
-			return fmt.Errorf("can't handle mutation %v", mut)
-		case mut.SetCell != nil:
+			return fmt.Errorf("can't handle mutation type %T", mut)
+		case *btdpb.Mutation_SetCell_:
 			set := mut.SetCell
 			tbl.mu.RLock()
 			famOK := tbl.families[set.FamilyName]
@@ -402,7 +436,7 @@ func applyMutations(tbl *table, r *row, muts []*btdpb.Mutation) error {
 			}
 			sort.Sort(byDescTS(cs))
 			r.cells[col] = cs
-		case mut.DeleteFromColumn != nil:
+		case *btdpb.Mutation_DeleteFromColumn_:
 			del := mut.DeleteFromColumn
 			col := fmt.Sprintf("%s:%s", del.FamilyName, del.ColumnQualifier)
 
@@ -437,7 +471,7 @@ func applyMutations(tbl *table, r *row, muts []*btdpb.Mutation) error {
 			} else {
 				r.cells[col] = cs
 			}
-		case mut.DeleteFromRow != nil:
+		case *btdpb.Mutation_DeleteFromRow_:
 			r.cells = make(map[string][]cell)
 		}
 	}
@@ -471,10 +505,12 @@ func (s *server) ReadModifyWriteRow(ctx context.Context, req *btspb.ReadModifyWr
 		}
 		cell := &r.cells[key][0]
 
-		if len(rule.AppendValue) > 0 {
+		switch rule := rule.Rule.(type) {
+		default:
+			return nil, fmt.Errorf("unknown RMW rule oneof %T", rule)
+		case *btdpb.ReadModifyWriteRule_AppendValue:
 			cell.value = append(cell.value, rule.AppendValue...)
-		}
-		if rule.IncrementAmount != 0 {
+		case *btdpb.ReadModifyWriteRule_IncrementAmount:
 			var v int64
 			if !newCell {
 				if len(cell.value) != 8 {
@@ -576,6 +612,21 @@ func newRow(key string) *row {
 		key:   key,
 		cells: make(map[string][]cell),
 	}
+}
+
+// copy returns a copy of the row.
+// Cell values are aliased.
+// r.mu should be held.
+func (r *row) copy() *row {
+	nr := &row{
+		key:   r.key,
+		cells: make(map[string][]cell, len(r.cells)),
+	}
+	for col, cs := range r.cells {
+		// Copy the []cell slice, but not the []byte inside each cell.
+		nr.cells[col] = append([]cell(nil), cs...)
+	}
+	return nr
 }
 
 type cell struct {

@@ -50,6 +50,14 @@ import (
 var (
 	// ErrUnspecTarget indicates that the target address is unspecified.
 	ErrUnspecTarget = errors.New("grpc: target is unspecified")
+	// ErrNoTransportSecurity indicates that there is no transport security
+	// being set for ClientConn. Users should either set one or explicityly
+	// call WithInsecure DialOption to disable security.
+	ErrNoTransportSecurity = errors.New("grpc: no transport security set (use grpc.WithInsecure() explicitly or set credentials)")
+	// ErrCredentialsMisuse indicates that users want to transmit security infomation
+	// (e.g., oauth2 token) which requires secure connection on an insecure
+	// connection.
+	ErrCredentialsMisuse = errors.New("grpc: the credentials require transport level security (use grpc.WithTransportAuthenticator() to set)")
 	// ErrClientConnClosing indicates that the operation is illegal because
 	// the session is closing.
 	ErrClientConnClosing = errors.New("grpc: the client connection is closing")
@@ -63,9 +71,10 @@ var (
 // dialOptions configure a Dial call. dialOptions are set by the DialOption
 // values passed to Dial.
 type dialOptions struct {
-	codec Codec
-	block bool
-	copts transport.ConnectOptions
+	codec    Codec
+	block    bool
+	insecure bool
+	copts    transport.ConnectOptions
 }
 
 // DialOption configures how we set up the connection.
@@ -84,6 +93,12 @@ func WithCodec(c Codec) DialOption {
 func WithBlock() DialOption {
 	return func(o *dialOptions) {
 		o.block = true
+	}
+}
+
+func WithInsecure() DialOption {
+	return func(o *dialOptions) {
+		o.insecure = true
 	}
 }
 
@@ -136,6 +151,24 @@ func Dial(target string, opts ...DialOption) (*ClientConn, error) {
 	for _, opt := range opts {
 		opt(&cc.dopts)
 	}
+	if !cc.dopts.insecure {
+		var ok bool
+		for _, c := range cc.dopts.copts.AuthOptions {
+			if _, ok := c.(credentials.TransportAuthenticator); !ok {
+				continue
+			}
+			ok = true
+		}
+		if !ok {
+			return nil, ErrNoTransportSecurity
+		}
+	} else {
+		for _, c := range cc.dopts.copts.AuthOptions {
+			if c.RequireTransportSecurity() {
+				return nil, ErrCredentialsMisuse
+			}
+		}
+	}
 	colonPos := strings.LastIndex(target, ":")
 	if colonPos == -1 {
 		colonPos = len(target)
@@ -179,7 +212,7 @@ const (
 	Ready
 	// TransientFailure indicates the ClientConn has seen a failure but expects to recover.
 	TransientFailure
-	// Shutdown indicates the ClientConn has stated shutting down.
+	// Shutdown indicates the ClientConn has started shutting down.
 	Shutdown
 )
 
@@ -264,14 +297,16 @@ func (cc *ClientConn) WaitForStateChange(timeout time.Duration, sourceState Conn
 func (cc *ClientConn) resetTransport(closeTransport bool) error {
 	var retries int
 	start := time.Now()
+	cc.mu.Lock()
+	ts := cc.transportSeq
+	// Avoid wait() picking up a dying transport unnecessarily.
+	cc.transportSeq = 0
+	cc.mu.Unlock()
 	for {
 		cc.mu.Lock()
 		cc.state = Connecting
 		cc.stateCV.Broadcast()
 		t := cc.transport
-		ts := cc.transportSeq
-		// Avoid wait() picking up a dying transport unnecessarily.
-		cc.transportSeq = 0
 		if cc.state == Shutdown {
 			cc.mu.Unlock()
 			return ErrClientConnClosing

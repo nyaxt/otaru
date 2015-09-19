@@ -46,6 +46,7 @@ import (
 	"github.com/bradfitz/http2/hpack"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/metadata"
 )
@@ -57,7 +58,8 @@ var ErrIllegalHeaderWrite = errors.New("transport: the stream is done or WriteHe
 // http2Server implements the ServerTransport interface with HTTP2.
 type http2Server struct {
 	conn        net.Conn
-	maxStreamID uint32 // max stream ID ever seen
+	maxStreamID uint32               // max stream ID ever seen
+	authInfo    credentials.AuthInfo // auth info about the connection
 	// writableChan synchronizes write access to the transport.
 	// A writer acquires the write lock by sending a value on writableChan
 	// and releases it by receiving from writableChan.
@@ -88,7 +90,7 @@ type http2Server struct {
 
 // newHTTP2Server constructs a ServerTransport based on HTTP2. ConnectionError is
 // returned if something goes wrong.
-func newHTTP2Server(conn net.Conn, maxStreams uint32) (_ ServerTransport, err error) {
+func newHTTP2Server(conn net.Conn, maxStreams uint32, authInfo credentials.AuthInfo) (_ ServerTransport, err error) {
 	framer := newFramer(conn)
 	// Send initial settings as connection preface to client.
 	var settings []http2.Setting
@@ -114,6 +116,7 @@ func newHTTP2Server(conn net.Conn, maxStreams uint32) (_ ServerTransport, err er
 	var buf bytes.Buffer
 	t := &http2Server{
 		conn:            conn,
+		authInfo:        authInfo,
 		framer:          framer,
 		hBuf:            &buf,
 		hEnc:            hpack.NewEncoder(&buf),
@@ -180,6 +183,10 @@ func (t *http2Server) operateHeaders(hDec *hpackDecoder, s *Stream, frame header
 		s.ctx, s.cancel = context.WithTimeout(context.TODO(), hDec.state.timeout)
 	} else {
 		s.ctx, s.cancel = context.WithCancel(context.TODO())
+	}
+	// Attach Auth info if there is any.
+	if t.authInfo != nil {
+		s.ctx = credentials.NewContext(s.ctx, t.authInfo)
 	}
 	// Cache the current stream to the context so that the server application
 	// can find out. Required when the server wants to send some metadata

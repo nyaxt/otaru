@@ -514,7 +514,7 @@ func main() {
 			}
 			opts = append(opts, grpc.WithPerRPCCredentials(jwtCreds))
 		} else if *testCase == "jwt_token_creds" {
-			jwtCreds, err := oauth.NewJWTAccessFromFile(*serviceAccountKeyFile, "https://"+*serverHost+":"+string(*serverPort)+"/"+"TestService")
+			jwtCreds, err := oauth.NewJWTAccessFromFile(*serviceAccountKeyFile)
 			if err != nil {
 				grpclog.Fatalf("Failed to create JWT credentials: %v", err)
 			}
@@ -522,6 +522,8 @@ func main() {
 		} else if *testCase == "oauth2_auth_token" {
 			opts = append(opts, grpc.WithPerRPCCredentials(oauth.NewOauthAccess(getToken())))
 		}
+	} else {
+		opts = append(opts, grpc.WithInsecure())
 	}
 	conn, err := grpc.Dial(serverAddr, opts...)
 	if err != nil {
@@ -566,7 +568,7 @@ func main() {
 		doPerRPCCreds(tc)
 	case "oauth2_auth_token":
 		if !*useTLS {
-			grpclog.Fatalf("TLS is not enabled. TLS is required to execute oauth2_token_creds test case.")
+			grpclog.Fatalf("TLS is not enabled. TLS is required to execute oauth2_auth_token test case.")
 		}
 		doOauth2TokenCreds(tc)
 	case "cancel_after_begin":
