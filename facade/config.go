@@ -11,6 +11,7 @@ import (
 	"github.com/naoina/toml"
 
 	"github.com/nyaxt/otaru/logger"
+	loggerconfig "github.com/nyaxt/otaru/logger/config"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -29,6 +30,8 @@ type Config struct {
 	TokenCacheFilePath  string
 
 	Fluent gfluent.Config
+
+	Logger loggerconfig.Config
 }
 
 func DefaultConfigDir() string {
@@ -105,6 +108,10 @@ func NewConfig(configdir string) (*Config, error) {
 		cfg.Fluent.TagPrefix = "otaru"
 	}
 	cfg.Fluent.MaxRetry = math.MaxInt32
+
+	if err := loggerconfig.Apply(cfg.Logger); err != nil {
+		return nil, err
+	}
 
 	return cfg, nil
 }

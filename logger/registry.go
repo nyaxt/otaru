@@ -50,6 +50,13 @@ func (r *registry) Category(c string) *CategoryLogger {
 	return l
 }
 
+func (r *registry) CategoryIfExist(c string) *CategoryLogger {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.catmap[c]
+}
+
 type CategoryEntry struct {
 	Category string `json:"category"`
 	Level    `json:"level"`
