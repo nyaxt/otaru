@@ -14,6 +14,7 @@ import (
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
 	oflags "github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/gc"
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/gcloud/gcs"
@@ -58,7 +59,10 @@ type Otaru struct {
 	IDBS       *inodedb.DBService
 	IDBSyncJob scheduler.ID
 
-	FS   *otaru.FileSystem
+	FS *otaru.FileSystem
+
+	AutoGCJob scheduler.ID
+
 	MGMT *mgmt.Server
 }
 
@@ -166,6 +170,9 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	o.IDBSyncJob = o.R.SyncEveryPeriod(o.IDBS, 30*time.Second)
 
 	o.FS = otaru.NewFileSystem(o.IDBS, o.CBS, o.C)
+
+	o.AutoGCJob = o.R.RunEveryPeriod(&gc.GCTask{o.CBS, o.IDBS, false}, time.Duration(cfg.GCPeriod)*time.Second)
+
 	o.MGMT = mgmt.NewServer()
 	if err := o.runMgmtServer(); err != nil {
 		o.Close()

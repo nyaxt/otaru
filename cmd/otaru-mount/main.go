@@ -28,6 +28,8 @@ var (
 	flagConfigDir = flag.String("configDir", facade.DefaultConfigDir(), "Config dirpath")
 )
 
+var bfuseLogger = logger.Registry().Category("bfuse")
+
 func main() {
 	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
 	flag.Usage = Usage
@@ -87,7 +89,6 @@ func main() {
 		closeOtaruAndExit(1)
 	}))
 
-	bfuseLogger := logger.Registry().Category("bfuse")
 	bfuse.Debug = func(msg interface{}) { logger.Debugf(bfuseLogger, "%v", msg) }
 	if err := fuse.ServeFUSE(cfg.BucketName, mountpoint, o.FS, nil); err != nil {
 		logger.Warningf(mylog, "ServeFUSE failed: %v", err)

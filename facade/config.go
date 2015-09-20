@@ -29,6 +29,9 @@ type Config struct {
 	CredentialsFilePath string
 	TokenCacheFilePath  string
 
+	// Run GC every "GCPeriod" seconds.
+	GCPeriod int64
+
 	Fluent gfluent.Config
 
 	Logger loggerconfig.Config
@@ -84,6 +87,10 @@ func NewConfig(configdir string) (*Config, error) {
 	}
 	if cfg.BucketName == "" {
 		return nil, fmt.Errorf("Config Error: BucketName must be given.")
+	}
+
+	if cfg.GCPeriod == 0 {
+		cfg.GCPeriod = 15 * 60
 	}
 
 	if !cfg.LocalDebug {
