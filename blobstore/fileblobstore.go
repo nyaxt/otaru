@@ -204,7 +204,7 @@ func (f *FileBlobStore) TotalSize() (int64, error) {
 		totalSize += fi.Size()
 	}
 
-	logger.Infof(mylog, "FileBlobStore.TotalSize() was %s. took %s.", humanize.Bytes(uint64(totalSize)), time.Since(start))
+	logger.Debugf(mylog, "FileBlobStore.TotalSize() was %s. took %s.", humanize.Bytes(uint64(totalSize)), time.Since(start))
 	return totalSize, nil
 }
 

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/dustin/go-humanize"
 	gfluent "github.com/fluent/fluent-logger-golang/fluent"
 	"github.com/naoina/toml"
 
@@ -21,8 +22,16 @@ type Config struct {
 	ProjectName                  string
 	BucketName                   string
 	UseSeparateBucketForMetadata bool
-	CacheDir                     string
-	LocalDebug                   bool
+
+	CacheDir string
+	// Cache size high watermark: discard cache when cache dir usage reach here.
+	CacheHighWatermarkInBytes int64
+	CacheHighWatermark        string
+	// Cache size low watermark: when discarding cache, try to reduce cache dir usage under here.
+	CacheLowWatermarkInBytes int64
+	CacheLowWatermark        string
+
+	LocalDebug bool
 
 	Password string
 
@@ -57,12 +66,34 @@ func NewConfig(configdir string) (*Config, error) {
 		PasswordFile:                 path.Join(configdir, "password.txt"),
 		UseSeparateBucketForMetadata: false,
 		CacheDir:                     "/var/cache/otaru",
+		CacheHighWatermarkInBytes:    math.MaxInt64,
+		CacheLowWatermarkInBytes:     math.MaxInt64,
 		CredentialsFilePath:          path.Join(configdir, "credentials.json"),
 		TokenCacheFilePath:           path.Join(configdir, "tokencache.json"),
+		GCPeriod:                     15 * 60,
 	}
 
 	if err := toml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("Failed to parse config file: %v", err)
+	}
+
+	if cfg.CacheHighWatermark != "" {
+		bytes, err := humanize.ParseBytes(cfg.CacheHighWatermark)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse cache_high_watermark \"%s\"", cfg.CacheHighWatermark)
+		}
+		cfg.CacheHighWatermarkInBytes = int64(bytes)
+	}
+	if cfg.CacheLowWatermark != "" {
+		bytes, err := humanize.ParseBytes(cfg.CacheLowWatermark)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse cache_low_watermark \"%s\"", cfg.CacheLowWatermark)
+		}
+		cfg.CacheLowWatermarkInBytes = int64(bytes)
+	}
+	if cfg.CacheLowWatermarkInBytes > cfg.CacheHighWatermarkInBytes {
+		return nil, fmt.Errorf("cache_low_watermark %s higher than cache_high_watermark %s",
+			humanize.Bytes(uint64(cfg.CacheLowWatermarkInBytes)), humanize.Bytes(uint64(cfg.CacheHighWatermarkInBytes)))
 	}
 
 	if cfg.Password != "" {
@@ -87,10 +118,6 @@ func NewConfig(configdir string) (*Config, error) {
 	}
 	if cfg.BucketName == "" {
 		return nil, fmt.Errorf("Config Error: BucketName must be given.")
-	}
-
-	if cfg.GCPeriod == 0 {
-		cfg.GCPeriod = 15 * 60
 	}
 
 	if !cfg.LocalDebug {
