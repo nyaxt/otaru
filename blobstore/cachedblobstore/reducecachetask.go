@@ -73,5 +73,5 @@ func SetupAutoReduceCache(cbs *CachedBlobStore, r *scheduler.RepetitiveJobRunner
 	logger.Infof(mylog, "Setting up automatic cache discards. high/low watermark: %s/%s",
 		humanize.Bytes(uint64(highwm)), humanize.Bytes(uint64(lowwm)))
 
-	return r.RunEveryPeriod(AutoReduceCacheTask{cbs, lowwm, highwm}, autoReduceCachePeriod)
+	return r.RunEveryPeriod(AutoReduceCacheTask{cbs, highwm, lowwm}, autoReduceCachePeriod)
 }
