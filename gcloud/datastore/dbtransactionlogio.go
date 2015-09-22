@@ -40,6 +40,8 @@ func NewDBTransactionLogIO(cfg *Config) *DBTransactionLogIO {
 	}
 }
 
+func (*DBTransactionLogIO) ImplName() string { return "gcloud/datastore.DBTransactionLogIO" }
+
 type storedbtx struct {
 	OpsJSON []byte `datastore:",noindex"`
 }
