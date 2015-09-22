@@ -24,6 +24,8 @@ type SystemInfo struct {
 	MemAlloc uint64 `json:"mem_alloc"`
 	MemSys   uint64 `json:"mem_sys"`
 
+	NumGC uint32 `json:"num_gc"`
+
 	Fds int `json:"fds"`
 }
 
@@ -49,6 +51,8 @@ func GetSystemInfo() SystemInfo {
 
 		MemAlloc: m.Alloc,
 		MemSys:   m.Sys,
+
+		NumGC: m.NumGC,
 
 		Fds: countfds.CountFds(),
 	}
