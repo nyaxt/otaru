@@ -13,9 +13,12 @@ import (
 	"github.com/nyaxt/otaru/mgmt/msystem"
 )
 
-func (o *Otaru) setupMgmtAPIs() error {
-	mdebug.Install(o.MGMT)
+func (o *Otaru) setupMgmtAPIs(cfg *Config) error {
 	mlogger.Install(o.MGMT)
+	if cfg.InstallDebugApi {
+		logger.Infof(mylog, "Installing Debug APIs.")
+		mdebug.Install(o.MGMT)
+	}
 	msystem.Install(o.MGMT)
 	mblobstore.Install(o.MGMT, o.S, o.DefaultBS, o.CBS)
 	if gcsbs, ok := o.DefaultBS.(*gcs.GCSBlobStore); ok {
@@ -28,8 +31,8 @@ func (o *Otaru) setupMgmtAPIs() error {
 	return nil
 }
 
-func (o *Otaru) runMgmtServer() error {
-	if err := o.setupMgmtAPIs(); err != nil {
+func (o *Otaru) runMgmtServer(cfg *Config) error {
+	if err := o.setupMgmtAPIs(cfg); err != nil {
 		return err
 	}
 

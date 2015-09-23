@@ -41,6 +41,9 @@ type Config struct {
 	// Run GC every "GCPeriod" seconds.
 	GCPeriod int64
 
+	// Install /api/debug handlers.
+	InstallDebugApi bool
+
 	Fluent gfluent.Config
 
 	Logger loggerconfig.Config
@@ -71,6 +74,7 @@ func NewConfig(configdir string) (*Config, error) {
 		CredentialsFilePath:          path.Join(configdir, "credentials.json"),
 		TokenCacheFilePath:           path.Join(configdir, "tokencache.json"),
 		GCPeriod:                     15 * 60,
+		InstallDebugApi:              false,
 	}
 
 	if err := toml.Unmarshal(buf, &cfg); err != nil {
