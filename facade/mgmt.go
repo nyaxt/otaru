@@ -4,6 +4,7 @@ import (
 	"github.com/nyaxt/otaru/gcloud/gcs"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/mgmt/mblobstore"
+	"github.com/nyaxt/otaru/mgmt/mdebug"
 	"github.com/nyaxt/otaru/mgmt/mgc"
 	"github.com/nyaxt/otaru/mgmt/mgcsblobstore"
 	"github.com/nyaxt/otaru/mgmt/minodedb"
@@ -13,6 +14,7 @@ import (
 )
 
 func (o *Otaru) setupMgmtAPIs() error {
+	mdebug.Install(o.MGMT)
 	mlogger.Install(o.MGMT)
 	msystem.Install(o.MGMT)
 	mblobstore.Install(o.MGMT, o.S, o.DefaultBS, o.CBS)
