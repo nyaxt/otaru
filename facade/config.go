@@ -147,7 +147,7 @@ func NewConfig(configdir string) (*Config, error) {
 	}
 	cfg.Fluent.MaxRetry = math.MaxInt32
 
-	if err := loggerconfig.Apply(cfg.Logger); err != nil {
+	if err := loggerconfig.Apply(mylog, cfg.Logger); err != nil {
 		return nil, err
 	}
 

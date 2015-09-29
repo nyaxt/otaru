@@ -94,6 +94,7 @@ func main() {
 		}
 
 	case "query":
+		logger.Infof(mylog, "Start QueryTransactions(%v)", minID)
 		txs, err := txlogio.QueryTransactions(minID)
 		if err != nil {
 			logger.Infof(mylog, "QueryTransactions() failed: %v", err)

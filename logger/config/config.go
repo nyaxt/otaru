@@ -28,7 +28,7 @@ func Str2Level(s string) (logger.Level, error) {
 	}
 }
 
-func Apply(c Config) error {
+func Apply(l logger.Logger, c Config) error {
 	r := logger.Registry()
 
 	if v, ok := c.LogLevel["*"]; ok {
@@ -47,7 +47,8 @@ func Apply(c Config) error {
 		}
 		c := r.CategoryIfExist(k)
 		if c == nil {
-			return fmt.Errorf("Log category \"%s\" does not exist.", k)
+			logger.Warningf(l, "Log category \"%s\" does not exist.", k)
+			continue
 		}
 		lv, err := Str2Level(v)
 		if err != nil {
