@@ -177,7 +177,7 @@ func (txio *DBTransactionLogIO) Sync() error {
 	txio.committing = []inodedb.DBTransaction{}
 	txio.mu.Unlock()
 
-	logger.Infof(txlog, "Sync() took %s. Committed %d txs", time.Since(start), len(batch))
+	logger.Infof(txlog, "Sync() took %s. Committed %d txs. Last committed txid: %v", time.Since(start), len(batch), batch[len(batch)-1].TxID)
 	return nil
 }
 

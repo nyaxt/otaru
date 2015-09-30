@@ -27,7 +27,7 @@ type repetitiveJob struct {
 
 func (j *repetitiveJob) String() string {
 	return fmt.Sprintf("repetitiveJob{id: %d, period: %v, task: %s}",
-		j.id, j.period, util.TryGetImplName(j.task),
+		j.id, j.period, describeTask(j.task),
 	)
 }
 

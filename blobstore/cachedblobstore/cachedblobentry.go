@@ -124,7 +124,7 @@ func IsInvalidateFailedErr(e error) bool {
 */
 
 func (be *CachedBlobEntry) waitUntilInvalidateAtLeast(requiredLen int64) error {
-	logger.Infof(mylog, "Waiting for cache to be fulfilled: reqlen: %d, validlen: %d", requiredLen, be.validlen)
+	logger.Debugf(mylog, "Waiting for cache to be fulfilled: reqlen: %d, validlen: %d", requiredLen, be.validlen)
 	for {
 		switch be.state {
 		case cacheEntryInvalidating:
