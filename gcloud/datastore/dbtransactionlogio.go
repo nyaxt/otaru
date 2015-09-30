@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/util"
 )
 
 var txlog = logger.Registry().Category("dbtxlogio")
@@ -28,7 +30,7 @@ type DBTransactionLogIO struct {
 	committing []inodedb.DBTransaction
 }
 
-const kindTransaction = "OtaruINodeDBTx"
+const kindTransaction = "OtaruINodeDBTxBulk"
 
 var _ = inodedb.DBTransactionLogIO(&DBTransactionLogIO{})
 
@@ -43,43 +45,69 @@ func NewDBTransactionLogIO(cfg *Config) *DBTransactionLogIO {
 func (*DBTransactionLogIO) ImplName() string { return "gcloud/datastore.DBTransactionLogIO" }
 
 type storedbtx struct {
-	OpsJSON []byte `datastore:",noindex"`
+	TxsJSON []byte `datastore:",noindex"`
 }
 
 func (txio *DBTransactionLogIO) encodeKey(id inodedb.TxID) *datastore.Key {
 	return datastore.NewKey(ctxNoNamespace, kindTransaction, "", int64(id), txio.rootKey)
 }
 
-func (txio *DBTransactionLogIO) encode(tx inodedb.DBTransaction) (*datastore.Key, *storedbtx, error) {
-	key := txio.encodeKey(tx.TxID)
+func (txio *DBTransactionLogIO) encodeBatch(txs []inodedb.DBTransaction) (*datastore.Key, *storedbtx, error) {
+	if len(txs) == 0 {
+		return nil, nil, fmt.Errorf("txs empty")
+	}
 
-	jsonops, err := inodedb.EncodeDBOperationsToJson(tx.Ops)
+	id := txs[len(txs)-1].TxID
+	for _, tx := range txs {
+		inodedb.SetOpMetas(tx.Ops)
+	}
+
+	jsonops, err := json.Marshal(txs)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to encode dbtx: %v", err)
+		return nil, nil, fmt.Errorf("Failed to encode txs: %v", err)
+	}
+
+	gzjsonops, err := util.Gzip(jsonops)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to compress txs: %v", err)
 	}
 
 	c := txio.cfg.c
-	env, err := btncrypt.Encrypt(c, jsonops)
+	env, err := btncrypt.Encrypt(c, gzjsonops)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to encrypt OpsJSON: %v", err)
+		return nil, nil, fmt.Errorf("Failed to encrypt TxsJSON: %v", err)
 	}
-	logger.Debugf(txlog, "len(OpsJSON): %d", len(env))
+	logger.Debugf(txlog, "len(TxsJSON): %d", len(env))
 
-	return key, &storedbtx{OpsJSON: env}, nil
+	key := txio.encodeKey(id)
+	return key, &storedbtx{TxsJSON: env}, nil
 }
 
-func decode(c btncrypt.Cipher, key *datastore.Key, stx *storedbtx) (inodedb.DBTransaction, error) {
-	jsonop, err := btncrypt.Decrypt(c, stx.OpsJSON, len(stx.OpsJSON)-c.FrameOverhead())
+func decodeBatch(c btncrypt.Cipher, key *datastore.Key, stx *storedbtx) ([]inodedb.DBTransaction, error) {
+	gzjsontxs, err := btncrypt.Decrypt(c, stx.TxsJSON, len(stx.TxsJSON)-c.FrameOverhead())
 	if err != nil {
-		return inodedb.DBTransaction{}, fmt.Errorf("Failed to decrypt OpsJSON: %v", err)
+		return nil, fmt.Errorf("Failed to decrypt TxsJSON: %v", err)
 	}
 
-	ops, err := inodedb.DecodeDBOperationsFromJson(jsonop)
+	jsontxs, err := util.Gunzip(gzjsontxs)
 	if err != nil {
-		return inodedb.DBTransaction{}, err
+		return nil, fmt.Errorf("Failed to uncompress TxsJSON: %v", err)
 	}
 
-	return inodedb.DBTransaction{TxID: inodedb.TxID(key.ID()), Ops: ops}, nil
+	var utxs []*inodedb.UnresolvedDBTransaction
+	if err := json.Unmarshal(jsontxs, &utxs); err != nil {
+		return nil, err
+	}
+
+	txs := make([]inodedb.DBTransaction, 0, len(utxs))
+	for _, utx := range utxs {
+		tx, err := inodedb.ResolveDBTransaction(*utx)
+		if err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+	return txs, nil
 }
 
 func (txio *DBTransactionLogIO) AppendTransaction(tx inodedb.DBTransaction) error {
@@ -104,6 +132,7 @@ func (txio *DBTransactionLogIO) Sync() error {
 	batch := txio.committing
 	txio.nextbatch = make([]inodedb.DBTransaction, 0)
 	txio.mu.Unlock()
+
 	rollback := func() {
 		txio.mu.Lock()
 		txio.nextbatch = append(txio.committing, txio.nextbatch...)
@@ -121,17 +150,10 @@ func (txio *DBTransactionLogIO) Sync() error {
 		return err
 	}
 
-	keys := make([]*datastore.Key, 0, len(batch))
-	stxs := make([]*storedbtx, 0, len(batch))
-	for _, tx := range batch {
-		key, stx, err := txio.encode(tx)
-		if err != nil {
-			rollback()
-			return err
-		}
-
-		keys = append(keys, key)
-		stxs = append(stxs, stx)
+	key, txbatch, err := txio.encodeBatch(batch)
+	if err != nil {
+		rollback()
+		return err
 	}
 
 	dstx, err := cli.NewTransaction(context.Background(), datastore.Serializable)
@@ -140,7 +162,7 @@ func (txio *DBTransactionLogIO) Sync() error {
 		return err
 	}
 
-	if _, err := dstx.PutMulti(keys, stxs); err != nil {
+	if _, err := dstx.Put(key, txbatch); err != nil {
 		rollback()
 		dstx.Rollback()
 		return err
@@ -155,7 +177,7 @@ func (txio *DBTransactionLogIO) Sync() error {
 	txio.committing = []inodedb.DBTransaction{}
 	txio.mu.Unlock()
 
-	logger.Infof(txlog, "Sync() took %s. Committed %d txs", time.Since(start), len(stxs))
+	logger.Infof(txlog, "Sync() took %s. Committed %d txs", time.Since(start), len(batch))
 	return nil
 }
 
@@ -220,13 +242,17 @@ func (txio *DBTransactionLogIO) queryTransactionsOnce(minID inodedb.TxID) ([]ino
 			return []inodedb.DBTransaction{}, err
 		}
 
-		tx, err := decode(txio.cfg.c, key, &stx)
+		batchtxs, err := decodeBatch(txio.cfg.c, key, &stx)
 		if err != nil {
 			dstx.Commit()
 			return []inodedb.DBTransaction{}, err
 		}
 
-		txs = append(txs, tx)
+		for _, tx := range batchtxs {
+			if tx.TxID >= minID {
+				txs = append(txs, tx)
+			}
+		}
 	}
 
 	// FIXME: not sure if Rollback() is better

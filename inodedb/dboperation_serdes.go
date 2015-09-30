@@ -54,12 +54,30 @@ func EncodeDBOperationsToJson(ops []DBOperation) ([]byte, error) {
 	return json.Marshal(ops)
 }
 
+type UnresolvedDBTransaction struct {
+	TxID `json:"txid"`
+	Ops  []*json.RawMessage
+}
+
 func DecodeDBOperationsFromJson(jsonb []byte) ([]DBOperation, error) {
 	var msgs []*json.RawMessage
 	if err := json.Unmarshal(jsonb, &msgs); err != nil {
 		return nil, fmt.Errorf("Failed to unmarshal messages: %v", err)
 	}
 
+	return ResolveDBOperations(msgs)
+}
+
+func ResolveDBTransaction(utx UnresolvedDBTransaction) (DBTransaction, error) {
+	ops, err := ResolveDBOperations(utx.Ops)
+	if err != nil {
+		return DBTransaction{}, nil
+	}
+
+	return DBTransaction{TxID: utx.TxID, Ops: ops}, nil
+}
+
+func ResolveDBOperations(msgs []*json.RawMessage) ([]DBOperation, error) {
 	ops := make([]DBOperation, 0, len(msgs))
 	for _, msg := range msgs {
 		var meta OpMeta
