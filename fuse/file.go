@@ -27,20 +27,23 @@ type FileNode struct {
 }
 
 func (n FileNode) Attr(ctx context.Context, a *bfuse.Attr) error {
+	const blockSize = 512
+
 	attr, err := n.fs.Attr(n.id)
 	if err != nil {
 		panic("fs.Attr failed for FileNode")
 	}
 
 	a.Valid = 1 * time.Minute
-	a.Nlink = 1
 	a.Inode = uint64(n.id)
+	a.Size = uint64(attr.Size)
+	a.Blocks = a.Size / blockSize
 	a.Mode = os.FileMode(attr.PermMode) & os.ModePerm
 	a.Atime = attr.ModifiedT
 	a.Mtime = attr.ModifiedT
 	a.Ctime = attr.ModifiedT
 	a.Crtime = attr.ModifiedT
-	a.Size = uint64(attr.Size)
+	a.Nlink = 1
 	a.Uid = attr.Uid
 	a.Gid = attr.Gid
 	return nil
