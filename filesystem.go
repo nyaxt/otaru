@@ -97,6 +97,14 @@ func (fs *FileSystem) Sync() error {
 	return util.ToErrors(es)
 }
 
+func (fs *FileSystem) TotalSize() (int64, error) {
+	tsizer, ok := fs.bs.(blobstore.TotalSizer)
+	if !ok {
+		return 0, fmt.Errorf("Backend blobstore doesn't support TotalSize()")
+	}
+	return tsizer.TotalSize()
+}
+
 func (fs *FileSystem) ParentID(id inodedb.ID) (inodedb.ID, error) {
 	v, _, err := fs.idb.QueryNode(id, false)
 	if err != nil {

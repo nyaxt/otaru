@@ -2,6 +2,7 @@ package fuse
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/inodedb"
@@ -9,6 +10,7 @@ import (
 
 	bfuse "bazil.org/fuse"
 	bfs "bazil.org/fuse/fs"
+	"golang.org/x/net/context"
 )
 
 var mylog = logger.Registry().Category("fuse")
@@ -19,6 +21,23 @@ type FileSystem struct {
 
 func (fs FileSystem) Root() (bfs.Node, error) {
 	return DirNode{fs: fs.ofs, id: inodedb.RootDirID}, nil
+}
+
+func (fs FileSystem) Statfs(ctx context.Context, req *bfuse.StatfsRequest, resp *bfuse.StatfsResponse) error {
+	// fill dummy
+	resp.Blocks = 0
+	if tsize, err := fs.ofs.TotalSize(); err != nil {
+		resp.Blocks = uint64(tsize)
+	}
+	resp.Bfree = math.MaxUint64
+	resp.Bavail = math.MaxUint64
+	resp.Files = 0
+	resp.Ffree = 0
+	resp.Bsize = 32 * 1024
+	resp.Namelen = 32 * 1024
+	resp.Frsize = 1
+
+	return nil
 }
 
 func ServeFUSE(bucketName string, mountpoint string, ofs *otaru.FileSystem, ready chan<- bool) error {
