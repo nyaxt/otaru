@@ -29,12 +29,13 @@ Building otaru takes a bit of time (Approx 6 min with decent internet connection
   - Name the ID "Otaru client" or something distinguishable.
   - Download the client secret by clicking on the "Download JSON" icon button located on the left of the table.
 
-### Create config file & place OAuth 2.0 credentials
+### Create {config,password} file & place OAuth 2.0 credentials
 
     $ mkdir ~/.otaru # You may change this dir to any dir you want, but a new directory is needed as otaru has multiple config files to keep.
     $ cp doc/config.toml.example ~/.otaru/config.toml
     $ $EDITOR ~/.otaru/config.toml # replace placeholders
     $ cp [downloaded-client-secret-json] ~/.otaru/credentials.json
+    $ echo [your-password] > ~/.otaru/password.txt # configure encryption key
 
 ### Setup Google Cloud SDK
 
@@ -47,4 +48,20 @@ Install `gcloud` command per instructions: https://cloud.google.com/sdk/
 #### Authenticate gcloud tool
     $ gcloud auth login
 
-### 
+### Authorize Google Cloud Storage / Datastore access to Otaru
+Complete the step "Build otaru inside Docker container" before executing below.
+
+    $ OTARUDIR=~/.otaru out/otaru-gcloudauthcli
+
+Visit displayed url, and paste response code. Check that ~/.otaru/tokencache.json is correctly generated.
+
+### Setup Google Cloud Datastore index, and verify Google Cloud Storage settings
+
+    $ OTARUDIR=~/.otaru scripts/gcloud_setup.bash
+
+### Mount!
+    
+    $ mkdir -p /otaru/foobar && sudo chown `whoami` /otaru/foobar
+    $ OTARUDIR=~/.otaru out/otaru-mount -mkfs /otaru/foobar # -mkfs option is only for first mount.
+
+Enjoy using /otaru/foobar. Press Ctrl-C to start unmount sequence. Navigate to http://localhost:10246 for webui.
