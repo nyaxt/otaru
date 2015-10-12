@@ -1,0 +1,41 @@
+################################################################################
+# Otaru config file example.
+################################################################################
+
+# GCP settings
+
+# - Google Cloud Platform project name for storing otaru blobs/metadata
+project_name = "example-com"
+
+# - Google Cloud Storage bucket for storing otaru blobs
+bucket_name = "otaru-my-foobar"
+# - If set to true, use [bucket_name]+"-meta" for storing metadata
+use_separate_bucket_for_metadata = true
+
+# Blob cache config
+
+# - Directory for storing cache
+cache_dir = "/var/cache/otaru/anime"
+# - Cache directory high water mark:
+#     cache discard will run if cache dir usage is above this threshold
+cache_high_watermark = "25GB"
+# - Cache directory low water mark:
+#     cache discard will try to keep cache dir usage below this threshold
+cache_low_watermark= "18GB"
+
+# - Enable /api/debug apis. Makes otaru unsecure. Defaults to false.
+# install_debug_api = false
+
+# Logger config
+[logger]
+
+# - Log levels at startup. The log levels can be dynamically configured via webui.
+log_level = {"*" = "Debug", "bfuse" = "Info", "scheduler" = "Info"}
+
+# Fluentd log forwarder config
+[fluent]
+# - Target fluentd hostname. Fluentd log forwarder enabled if this is non-empty
+# fluent_host = "localhost"
+
+# - Target fluentd port (default 24224)
+# fluent_port = 24224

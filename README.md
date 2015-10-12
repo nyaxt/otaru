@@ -1,6 +1,50 @@
 # otaru
 [![Circle CI](https://circleci.com/gh/nyaxt/otaru/tree/master.svg?style=shield&circle-token=99fc14b26125325054679985cf796989fcc1b8be)](https://circleci.com/gh/nyaxt/otaru/tree/master)
 
-Store 10MB-10GB-ish personal files on cloud 
+Otaru is a cloud-backed filesystem for archiving your files. Otaru is optimized for storing personal collection of 10MB-10GB-ish files, such as book scan pdfs and disk image dumps.
 
-[Design Doc](https://docs.google.com/document/d/1j57oi9LrB8Viycwx3a9B5_Bgc9tzRir3RyBr6gwBu5g/edit?usp=sharing)
+For more details, see [Design Doc](https://docs.google.com/document/d/1j57oi9LrB8Viycwx3a9B5_Bgc9tzRir3RyBr6gwBu5g/edit?usp=sharing)
+
+## Quick Start
+
+### Build otaru inside Docker container
+Building otaru takes a bit of time (Approx 6 min with decent internet connection). You may want to start building while doing other setup.
+
+    $ git clone https://github.com/nyaxt/otaru && cd otaru
+    $ docker build -t otaru .
+    $ docker run -ti --rm -v `pwd`/out:/out otaru
+
+### Configure Google Cloud Platform (Part 1)
+- Access [Google Cloud Console](https://console.developers.google.com), and have a project ready (preferrably not the default "API Project") with Cloud Datastore and Cloud Storage enabled.
+- Allow the following API usage from "APIs & auth" -> "APIs":
+  - Google Cloud Datastore API
+  - Google Cloud Storage API
+  - Google Cloud Storage JSON API
+- Create two new buckets to store Otaru blobs/metadata. You can create new bucket from "Storage" -> "Cloud Storage" -> "Browser".
+  - Otaru supports using separate bucket for storing metadata, which is accessed more frequently compared to blobs.
+  - Blob bucket may be any of Standard, Durable Reduced Availability, or Nearline. However, it is recommended to store metadata in Standard class bucket.
+  - Metadata bucket name must be blob bucket name + "-meta" suffix. For example, if your bucket for storing blobs is named "otaru-foobar", metadata bucket must be named "otaru-foobar-meta"
+- Issue OAuth 2.0 client ID. "APIs & auth" -> "Credentials" -> "Add credentials" -> "API key"
+  - Choose "OAuth 2.0 client ID", Application type "Other".
+  - Name the ID "Otaru client" or something distinguishable.
+  - Download the client secret by clicking on the "Download JSON" icon button located on the left of the table.
+
+### Create config file & place OAuth 2.0 credentials
+
+    $ mkdir ~/.otaru # You may change this dir to any dir you want, but a new directory is needed as otaru has multiple config files to keep.
+    $ cp doc/config.toml.example ~/.otaru/config.toml
+    $ $EDITOR ~/.otaru/config.toml # replace placeholders
+    $ cp [downloaded-client-secret-json] ~/.otaru/credentials.json
+
+### Setup Google Cloud SDK
+
+#### Install Google Cloud SDK
+Install `gcloud` command per instructions: https://cloud.google.com/sdk/
+
+#### Enable Alpha/Beta commands
+    $ gcloud components update alpha beta
+
+#### Authenticate gcloud tool
+    $ gcloud auth login
+
+### 
