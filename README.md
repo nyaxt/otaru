@@ -14,7 +14,7 @@ Building otaru takes a bit of time (Approx 6 min with decent internet connection
     $ docker build -t otaru .
     $ docker run -ti --rm -v `pwd`/out:/out otaru
 
-### Configure Google Cloud Platform (Part 1)
+### Configure Google Cloud Platform
 - Access [Google Cloud Console](https://console.developers.google.com), and have a project ready (preferrably not the default "API Project") with Cloud Datastore and Cloud Storage enabled.
 - Allow the following API usage from "APIs & auth" -> "APIs":
   - Google Cloud Datastore API
@@ -53,7 +53,7 @@ Complete the step "Build otaru inside Docker container" before executing below.
 
     $ OTARUDIR=~/.otaru out/otaru-gcloudauthcli
 
-Visit displayed url, and paste response code. Check that ~/.otaru/tokencache.json is correctly generated.
+Visit displayed url, and paste response code. Check that `~/.otaru/tokencache.json` is correctly generated.
 
 ### Setup Google Cloud Datastore index, and verify Google Cloud Storage settings
 
