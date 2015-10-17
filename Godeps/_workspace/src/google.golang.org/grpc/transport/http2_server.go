@@ -42,9 +42,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/bradfitz/http2"
-	"github.com/bradfitz/http2/hpack"
 	"golang.org/x/net/context"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/hpack"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"
@@ -115,15 +115,15 @@ func newHTTP2Server(conn net.Conn, maxStreams uint32, authInfo credentials.AuthI
 	}
 	var buf bytes.Buffer
 	t := &http2Server{
-		conn:            conn,
-		authInfo:        authInfo,
-		framer:          framer,
-		hBuf:            &buf,
-		hEnc:            hpack.NewEncoder(&buf),
-		maxStreams:      maxStreams,
-		controlBuf:      newRecvBuffer(),
-		fc:              &inFlow{limit: initialConnWindowSize},
-		sendQuotaPool:   newQuotaPool(defaultWindowSize),
+		conn:          conn,
+		authInfo:      authInfo,
+		framer:        framer,
+		hBuf:          &buf,
+		hEnc:          hpack.NewEncoder(&buf),
+		maxStreams:    maxStreams,
+		controlBuf:    newRecvBuffer(),
+		fc:            &inFlow{limit: initialConnWindowSize},
+		sendQuotaPool: newQuotaPool(defaultWindowSize),
 		state:           reachable,
 		writableChan:    make(chan int, 1),
 		shutdownChan:    make(chan struct{}),
@@ -138,7 +138,7 @@ func newHTTP2Server(conn net.Conn, maxStreams uint32, authInfo credentials.AuthI
 // operateHeader takes action on the decoded headers. It returns the current
 // stream if there are remaining headers on the wire (in the following
 // Continuation frame).
-func (t *http2Server) operateHeaders(hDec *hpackDecoder, s *Stream, frame headerFrame, endStream bool, handle func(*Stream), wg *sync.WaitGroup) (pendingStream *Stream) {
+func (t *http2Server) operateHeaders(hDec *hpackDecoder, s *Stream, frame headerFrame, endStream bool, handle func(*Stream)) (pendingStream *Stream) {
 	defer func() {
 		if pendingStream == nil {
 			hDec.state = decodeState{}
@@ -202,12 +202,7 @@ func (t *http2Server) operateHeaders(hDec *hpackDecoder, s *Stream, frame header
 		recv: s.buf,
 	}
 	s.method = hDec.state.method
-
-	wg.Add(1)
-	go func() {
-		handle(s)
-		wg.Done()
-	}()
+	handle(s)
 	return nil
 }
 
@@ -243,8 +238,6 @@ func (t *http2Server) HandleStreams(handle func(*Stream)) {
 
 	hDec := newHPACKDecoder()
 	var curStream *Stream
-	var wg sync.WaitGroup
-	defer wg.Wait()
 	for {
 		frame, err := t.framer.readFrame()
 		if err != nil {
@@ -273,9 +266,9 @@ func (t *http2Server) HandleStreams(handle func(*Stream)) {
 				fc:  fc,
 			}
 			endStream := frame.Header().Flags.Has(http2.FlagHeadersEndStream)
-			curStream = t.operateHeaders(hDec, curStream, frame, endStream, handle, &wg)
+			curStream = t.operateHeaders(hDec, curStream, frame, endStream, handle)
 		case *http2.ContinuationFrame:
-			curStream = t.operateHeaders(hDec, curStream, frame, false, handle, &wg)
+			curStream = t.operateHeaders(hDec, curStream, frame, false, handle)
 		case *http2.DataFrame:
 			t.handleData(frame)
 		case *http2.RSTStreamFrame:
@@ -688,4 +681,8 @@ func (t *http2Server) closeStream(s *Stream) {
 	// to call cancel on the stream to interrupt the blocking on
 	// other goroutines.
 	s.cancel()
+}
+
+func (t *http2Server) RemoteAddr() net.Addr {
+	return t.conn.RemoteAddr()
 }

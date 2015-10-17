@@ -15,7 +15,7 @@
 // Package datastore contains a Google Cloud Datastore client.
 //
 // This package is experimental and may make backwards-incompatible changes.
-package datastore // import "google.golang.org/cloud/datastore"
+package datastore
 
 import (
 	"errors"

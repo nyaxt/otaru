@@ -116,7 +116,6 @@ func Invoke(ctx context.Context, method string, args, reply interface{}, cc *Cli
 			o.after(&c)
 		}
 	}()
-
 	if EnableTracing {
 		c.traceInfo.tr = trace.New("grpc.Sent."+methodFamily(method), method)
 		defer c.traceInfo.tr.Finish()
@@ -133,16 +132,11 @@ func Invoke(ctx context.Context, method string, args, reply interface{}, cc *Cli
 			}
 		}()
 	}
-	callHdr := &transport.CallHdr{
-		Host:   cc.authority,
-		Method: method,
-	}
 	topts := &transport.Options{
 		Last:  true,
 		Delay: false,
 	}
 	var (
-		ts      int   // track the transport sequence number
 		lastErr error // record the error that happened
 	)
 	for {
@@ -155,7 +149,11 @@ func Invoke(ctx context.Context, method string, args, reply interface{}, cc *Cli
 		if lastErr != nil && c.failFast {
 			return toRPCErr(lastErr)
 		}
-		t, ts, err = cc.wait(ctx, ts)
+		callHdr := &transport.CallHdr{
+			Host:   cc.authority,
+			Method: method,
+		}
+		t, err = cc.dopts.picker.Pick(ctx)
 		if err != nil {
 			if lastErr != nil {
 				// This was a retry; return the error from the last attempt.

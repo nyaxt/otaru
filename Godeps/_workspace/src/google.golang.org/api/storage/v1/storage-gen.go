@@ -15,7 +15,9 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/net/context"
+	"golang.org/x/net/context/ctxhttp"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/internal"
 	"io"
 	"net/http"
 	"net/url"
@@ -34,7 +36,7 @@ var _ = url.Parse
 var _ = googleapi.Version
 var _ = errors.New
 var _ = strings.Replace
-var _ = context.Background
+var _ = internal.MarshalJSON
 
 const apiId = "storage:v1"
 const apiName = "storage"
@@ -220,6 +222,24 @@ type Bucket struct {
 
 	// Website: The bucket's website configuration.
 	Website *BucketWebsite `json:"website,omitempty"`
+
+	// ServerResponse contains the HTTP response code and headers from the
+	// server.
+	googleapi.ServerResponse `json:"-"`
+
+	// ForceSendFields is a list of field names (e.g. "Acl") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *Bucket) MarshalJSON() ([]byte, error) {
+	type noMethod Bucket
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 type BucketCors struct {
@@ -241,6 +261,20 @@ type BucketCors struct {
 	// response headers to give permission for the user-agent to share
 	// across domains.
 	ResponseHeader []string `json:"responseHeader,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "MaxAgeSeconds") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *BucketCors) MarshalJSON() ([]byte, error) {
+	type noMethod BucketCors
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // BucketLifecycle: The bucket's lifecycle configuration. See lifecycle
@@ -249,6 +283,20 @@ type BucketLifecycle struct {
 	// Rule: A lifecycle management rule, which is made of an action to take
 	// and the condition(s) under which the action will be taken.
 	Rule []*BucketLifecycleRule `json:"rule,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "Rule") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *BucketLifecycle) MarshalJSON() ([]byte, error) {
+	type noMethod BucketLifecycle
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 type BucketLifecycleRule struct {
@@ -257,12 +305,40 @@ type BucketLifecycleRule struct {
 
 	// Condition: The condition(s) under which the action will be taken.
 	Condition *BucketLifecycleRuleCondition `json:"condition,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "Action") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *BucketLifecycleRule) MarshalJSON() ([]byte, error) {
+	type noMethod BucketLifecycleRule
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // BucketLifecycleRuleAction: The action to take.
 type BucketLifecycleRuleAction struct {
 	// Type: Type of the action. Currently, only Delete is supported.
 	Type string `json:"type,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "Type") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *BucketLifecycleRuleAction) MarshalJSON() ([]byte, error) {
+	type noMethod BucketLifecycleRuleAction
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // BucketLifecycleRuleCondition: The condition(s) under which the action
@@ -286,6 +362,20 @@ type BucketLifecycleRuleCondition struct {
 	// is N, this condition is satisfied when there are at least N versions
 	// (including the live version) newer than this version of the object.
 	NumNewerVersions int64 `json:"numNewerVersions,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "Age") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *BucketLifecycleRuleCondition) MarshalJSON() ([]byte, error) {
+	type noMethod BucketLifecycleRuleCondition
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // BucketLogging: The bucket's logging configuration, which defines the
@@ -298,6 +388,20 @@ type BucketLogging struct {
 
 	// LogObjectPrefix: A prefix for log object names.
 	LogObjectPrefix string `json:"logObjectPrefix,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "LogBucket") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *BucketLogging) MarshalJSON() ([]byte, error) {
+	type noMethod BucketLogging
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // BucketOwner: The owner of the bucket. This is always the project
@@ -308,6 +412,20 @@ type BucketOwner struct {
 
 	// EntityId: The ID for the entity.
 	EntityId string `json:"entityId,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "Entity") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *BucketOwner) MarshalJSON() ([]byte, error) {
+	type noMethod BucketOwner
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // BucketVersioning: The bucket's versioning configuration.
@@ -315,6 +433,20 @@ type BucketVersioning struct {
 	// Enabled: While set to true, versioning is fully enabled for this
 	// bucket.
 	Enabled bool `json:"enabled,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "Enabled") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *BucketVersioning) MarshalJSON() ([]byte, error) {
+	type noMethod BucketVersioning
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // BucketWebsite: The bucket's website configuration.
@@ -326,6 +458,20 @@ type BucketWebsite struct {
 	// NotFoundPage: The custom object to return when a requested resource
 	// is not found.
 	NotFoundPage string `json:"notFoundPage,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "MainPageSuffix") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *BucketWebsite) MarshalJSON() ([]byte, error) {
+	type noMethod BucketWebsite
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // BucketAccessControl: An access-control entry.
@@ -378,6 +524,24 @@ type BucketAccessControl struct {
 
 	// SelfLink: The link to this access-control entry.
 	SelfLink string `json:"selfLink,omitempty"`
+
+	// ServerResponse contains the HTTP response code and headers from the
+	// server.
+	googleapi.ServerResponse `json:"-"`
+
+	// ForceSendFields is a list of field names (e.g. "Bucket") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *BucketAccessControl) MarshalJSON() ([]byte, error) {
+	type noMethod BucketAccessControl
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // BucketAccessControlProjectTeam: The project team associated with the
@@ -388,6 +552,20 @@ type BucketAccessControlProjectTeam struct {
 
 	// Team: The team. Can be owners, editors, or viewers.
 	Team string `json:"team,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "ProjectNumber") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *BucketAccessControlProjectTeam) MarshalJSON() ([]byte, error) {
+	type noMethod BucketAccessControlProjectTeam
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // BucketAccessControls: An access-control list.
@@ -398,6 +576,24 @@ type BucketAccessControls struct {
 	// Kind: The kind of item this is. For lists of bucket access control
 	// entries, this is always storage#bucketAccessControls.
 	Kind string `json:"kind,omitempty"`
+
+	// ServerResponse contains the HTTP response code and headers from the
+	// server.
+	googleapi.ServerResponse `json:"-"`
+
+	// ForceSendFields is a list of field names (e.g. "Items") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *BucketAccessControls) MarshalJSON() ([]byte, error) {
+	type noMethod BucketAccessControls
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // Buckets: A list of buckets.
@@ -413,6 +609,24 @@ type Buckets struct {
 	// result sets. Provide this value in a subsequent request to return the
 	// next page of results.
 	NextPageToken string `json:"nextPageToken,omitempty"`
+
+	// ServerResponse contains the HTTP response code and headers from the
+	// server.
+	googleapi.ServerResponse `json:"-"`
+
+	// ForceSendFields is a list of field names (e.g. "Items") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *Buckets) MarshalJSON() ([]byte, error) {
+	type noMethod Buckets
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // Channel: An notification channel used to watch for resource changes.
@@ -453,6 +667,24 @@ type Channel struct {
 
 	// Type: The type of delivery mechanism used for this channel.
 	Type string `json:"type,omitempty"`
+
+	// ServerResponse contains the HTTP response code and headers from the
+	// server.
+	googleapi.ServerResponse `json:"-"`
+
+	// ForceSendFields is a list of field names (e.g. "Address") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *Channel) MarshalJSON() ([]byte, error) {
+	type noMethod Channel
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // ComposeRequest: A Compose request.
@@ -466,6 +698,20 @@ type ComposeRequest struct {
 	// SourceObjects: The list of source objects that will be concatenated
 	// into a single object.
 	SourceObjects []*ComposeRequestSourceObjects `json:"sourceObjects,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "Destination") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *ComposeRequest) MarshalJSON() ([]byte, error) {
+	type noMethod ComposeRequest
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 type ComposeRequestSourceObjects struct {
@@ -479,6 +725,20 @@ type ComposeRequestSourceObjects struct {
 	// ObjectPreconditions: Conditions that must be met for this operation
 	// to execute.
 	ObjectPreconditions *ComposeRequestSourceObjectsObjectPreconditions `json:"objectPreconditions,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "Generation") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *ComposeRequestSourceObjects) MarshalJSON() ([]byte, error) {
+	type noMethod ComposeRequestSourceObjects
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // ComposeRequestSourceObjectsObjectPreconditions: Conditions that must
@@ -489,6 +749,20 @@ type ComposeRequestSourceObjectsObjectPreconditions struct {
 	// value and a generation are both specified, they must be the same
 	// value or the call will fail.
 	IfGenerationMatch int64 `json:"ifGenerationMatch,omitempty,string"`
+
+	// ForceSendFields is a list of field names (e.g. "IfGenerationMatch")
+	// to unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *ComposeRequestSourceObjectsObjectPreconditions) MarshalJSON() ([]byte, error) {
+	type noMethod ComposeRequestSourceObjectsObjectPreconditions
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // Object: An object.
@@ -581,6 +855,24 @@ type Object struct {
 	// format. For buckets with versioning enabled, changing an object's
 	// metadata does not change this property.
 	Updated string `json:"updated,omitempty"`
+
+	// ServerResponse contains the HTTP response code and headers from the
+	// server.
+	googleapi.ServerResponse `json:"-"`
+
+	// ForceSendFields is a list of field names (e.g. "Acl") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *Object) MarshalJSON() ([]byte, error) {
+	type noMethod Object
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // ObjectOwner: The owner of the object. This will always be the
@@ -591,6 +883,20 @@ type ObjectOwner struct {
 
 	// EntityId: The ID for the entity.
 	EntityId string `json:"entityId,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "Entity") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *ObjectOwner) MarshalJSON() ([]byte, error) {
+	type noMethod ObjectOwner
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // ObjectAccessControl: An access-control entry.
@@ -648,6 +954,24 @@ type ObjectAccessControl struct {
 
 	// SelfLink: The link to this access-control entry.
 	SelfLink string `json:"selfLink,omitempty"`
+
+	// ServerResponse contains the HTTP response code and headers from the
+	// server.
+	googleapi.ServerResponse `json:"-"`
+
+	// ForceSendFields is a list of field names (e.g. "Bucket") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *ObjectAccessControl) MarshalJSON() ([]byte, error) {
+	type noMethod ObjectAccessControl
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // ObjectAccessControlProjectTeam: The project team associated with the
@@ -658,6 +982,20 @@ type ObjectAccessControlProjectTeam struct {
 
 	// Team: The team. Can be owners, editors, or viewers.
 	Team string `json:"team,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "ProjectNumber") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *ObjectAccessControlProjectTeam) MarshalJSON() ([]byte, error) {
+	type noMethod ObjectAccessControlProjectTeam
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // ObjectAccessControls: An access-control list.
@@ -668,6 +1006,24 @@ type ObjectAccessControls struct {
 	// Kind: The kind of item this is. For lists of object access control
 	// entries, this is always storage#objectAccessControls.
 	Kind string `json:"kind,omitempty"`
+
+	// ServerResponse contains the HTTP response code and headers from the
+	// server.
+	googleapi.ServerResponse `json:"-"`
+
+	// ForceSendFields is a list of field names (e.g. "Items") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *ObjectAccessControls) MarshalJSON() ([]byte, error) {
+	type noMethod ObjectAccessControls
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // Objects: A list of objects.
@@ -687,6 +1043,24 @@ type Objects struct {
 	// Prefixes: The list of prefixes of objects matching-but-not-listed up
 	// to and including the requested delimiter.
 	Prefixes []string `json:"prefixes,omitempty"`
+
+	// ServerResponse contains the HTTP response code and headers from the
+	// server.
+	googleapi.ServerResponse `json:"-"`
+
+	// ForceSendFields is a list of field names (e.g. "Items") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *Objects) MarshalJSON() ([]byte, error) {
+	type noMethod Objects
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // RewriteResponse: A rewrite response.
@@ -716,6 +1090,24 @@ type RewriteResponse struct {
 	// used to provide a waiting user with a progress indicator. This
 	// property is always present in the response.
 	TotalBytesRewritten uint64 `json:"totalBytesRewritten,omitempty,string"`
+
+	// ServerResponse contains the HTTP response code and headers from the
+	// server.
+	googleapi.ServerResponse `json:"-"`
+
+	// ForceSendFields is a list of field names (e.g. "Done") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+}
+
+func (s *RewriteResponse) MarshalJSON() ([]byte, error) {
+	type noMethod RewriteResponse
+	raw := noMethod(*s)
+	return internal.MarshalJSON(raw, s.ForceSendFields)
 }
 
 // method id "storage.bucketAccessControls.delete":
@@ -725,6 +1117,7 @@ type BucketAccessControlsDeleteCall struct {
 	bucket string
 	entity string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // Delete: Permanently deletes the ACL entry for the specified entity on
@@ -744,6 +1137,14 @@ func (c *BucketAccessControlsDeleteCall) Fields(s ...googleapi.Field) *BucketAcc
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *BucketAccessControlsDeleteCall) Context(ctx context.Context) *BucketAccessControlsDeleteCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *BucketAccessControlsDeleteCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -759,9 +1160,13 @@ func (c *BucketAccessControlsDeleteCall) doRequest(alt string) (*http.Response, 
 		"entity": c.entity,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.bucketAccessControls.delete" call.
 func (c *BucketAccessControlsDeleteCall) Do() error {
 	res, err := c.doRequest("json")
 	if err != nil {
@@ -809,6 +1214,7 @@ type BucketAccessControlsGetCall struct {
 	bucket string
 	entity string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // Get: Returns the ACL entry for the specified entity on the specified
@@ -828,6 +1234,24 @@ func (c *BucketAccessControlsGetCall) Fields(s ...googleapi.Field) *BucketAccess
 	return c
 }
 
+// IfNoneMatch sets the optional parameter which makes the operation
+// fail if the object's ETag matches the given value. This is useful for
+// getting updates only after the object has changed since the last
+// request. Use googleapi.IsNotModified to check whether the response
+// error from Do is the result of In-None-Match.
+func (c *BucketAccessControlsGetCall) IfNoneMatch(entityTag string) *BucketAccessControlsGetCall {
+	c.opt_["ifNoneMatch"] = entityTag
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *BucketAccessControlsGetCall) Context(ctx context.Context) *BucketAccessControlsGetCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *BucketAccessControlsGetCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -843,11 +1267,33 @@ func (c *BucketAccessControlsGetCall) doRequest(alt string) (*http.Response, err
 		"entity": c.entity,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if v, ok := c.opt_["ifNoneMatch"]; ok {
+		req.Header.Set("If-None-Match", fmt.Sprintf("%v", v))
+	}
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.bucketAccessControls.get" call.
+// Exactly one of *BucketAccessControl or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *BucketAccessControl.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *BucketAccessControlsGetCall) Do() (*BucketAccessControl, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -855,7 +1301,12 @@ func (c *BucketAccessControlsGetCall) Do() (*BucketAccessControl, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *BucketAccessControl
+	ret := &BucketAccessControl{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -900,6 +1351,7 @@ type BucketAccessControlsInsertCall struct {
 	bucket              string
 	bucketaccesscontrol *BucketAccessControl
 	opt_                map[string]interface{}
+	ctx_                context.Context
 }
 
 // Insert: Creates a new ACL entry on the specified bucket.
@@ -915,6 +1367,14 @@ func (r *BucketAccessControlsService) Insert(bucket string, bucketaccesscontrol 
 // for more information.
 func (c *BucketAccessControlsInsertCall) Fields(s ...googleapi.Field) *BucketAccessControlsInsertCall {
 	c.opt_["fields"] = googleapi.CombineFields(s)
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *BucketAccessControlsInsertCall) Context(ctx context.Context) *BucketAccessControlsInsertCall {
+	c.ctx_ = ctx
 	return c
 }
 
@@ -938,11 +1398,30 @@ func (c *BucketAccessControlsInsertCall) doRequest(alt string) (*http.Response, 
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.bucketAccessControls.insert" call.
+// Exactly one of *BucketAccessControl or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *BucketAccessControl.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *BucketAccessControlsInsertCall) Do() (*BucketAccessControl, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -950,7 +1429,12 @@ func (c *BucketAccessControlsInsertCall) Do() (*BucketAccessControl, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *BucketAccessControl
+	ret := &BucketAccessControl{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -990,6 +1474,7 @@ type BucketAccessControlsListCall struct {
 	s      *Service
 	bucket string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // List: Retrieves ACL entries on the specified bucket.
@@ -1007,6 +1492,24 @@ func (c *BucketAccessControlsListCall) Fields(s ...googleapi.Field) *BucketAcces
 	return c
 }
 
+// IfNoneMatch sets the optional parameter which makes the operation
+// fail if the object's ETag matches the given value. This is useful for
+// getting updates only after the object has changed since the last
+// request. Use googleapi.IsNotModified to check whether the response
+// error from Do is the result of In-None-Match.
+func (c *BucketAccessControlsListCall) IfNoneMatch(entityTag string) *BucketAccessControlsListCall {
+	c.opt_["ifNoneMatch"] = entityTag
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *BucketAccessControlsListCall) Context(ctx context.Context) *BucketAccessControlsListCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *BucketAccessControlsListCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -1021,11 +1524,33 @@ func (c *BucketAccessControlsListCall) doRequest(alt string) (*http.Response, er
 		"bucket": c.bucket,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if v, ok := c.opt_["ifNoneMatch"]; ok {
+		req.Header.Set("If-None-Match", fmt.Sprintf("%v", v))
+	}
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.bucketAccessControls.list" call.
+// Exactly one of *BucketAccessControls or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *BucketAccessControls.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *BucketAccessControlsListCall) Do() (*BucketAccessControls, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1033,7 +1558,12 @@ func (c *BucketAccessControlsListCall) Do() (*BucketAccessControls, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *BucketAccessControls
+	ret := &BucketAccessControls{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -1072,6 +1602,7 @@ type BucketAccessControlsPatchCall struct {
 	entity              string
 	bucketaccesscontrol *BucketAccessControl
 	opt_                map[string]interface{}
+	ctx_                context.Context
 }
 
 // Patch: Updates an ACL entry on the specified bucket. This method
@@ -1089,6 +1620,14 @@ func (r *BucketAccessControlsService) Patch(bucket string, entity string, bucket
 // for more information.
 func (c *BucketAccessControlsPatchCall) Fields(s ...googleapi.Field) *BucketAccessControlsPatchCall {
 	c.opt_["fields"] = googleapi.CombineFields(s)
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *BucketAccessControlsPatchCall) Context(ctx context.Context) *BucketAccessControlsPatchCall {
+	c.ctx_ = ctx
 	return c
 }
 
@@ -1113,11 +1652,30 @@ func (c *BucketAccessControlsPatchCall) doRequest(alt string) (*http.Response, e
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.bucketAccessControls.patch" call.
+// Exactly one of *BucketAccessControl or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *BucketAccessControl.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *BucketAccessControlsPatchCall) Do() (*BucketAccessControl, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1125,7 +1683,12 @@ func (c *BucketAccessControlsPatchCall) Do() (*BucketAccessControl, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *BucketAccessControl
+	ret := &BucketAccessControl{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -1174,6 +1737,7 @@ type BucketAccessControlsUpdateCall struct {
 	entity              string
 	bucketaccesscontrol *BucketAccessControl
 	opt_                map[string]interface{}
+	ctx_                context.Context
 }
 
 // Update: Updates an ACL entry on the specified bucket.
@@ -1190,6 +1754,14 @@ func (r *BucketAccessControlsService) Update(bucket string, entity string, bucke
 // for more information.
 func (c *BucketAccessControlsUpdateCall) Fields(s ...googleapi.Field) *BucketAccessControlsUpdateCall {
 	c.opt_["fields"] = googleapi.CombineFields(s)
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *BucketAccessControlsUpdateCall) Context(ctx context.Context) *BucketAccessControlsUpdateCall {
+	c.ctx_ = ctx
 	return c
 }
 
@@ -1214,11 +1786,30 @@ func (c *BucketAccessControlsUpdateCall) doRequest(alt string) (*http.Response, 
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.bucketAccessControls.update" call.
+// Exactly one of *BucketAccessControl or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *BucketAccessControl.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *BucketAccessControlsUpdateCall) Do() (*BucketAccessControl, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1226,7 +1817,12 @@ func (c *BucketAccessControlsUpdateCall) Do() (*BucketAccessControl, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *BucketAccessControl
+	ret := &BucketAccessControl{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -1273,6 +1869,7 @@ type BucketsDeleteCall struct {
 	s      *Service
 	bucket string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // Delete: Permanently deletes an empty bucket.
@@ -1306,6 +1903,14 @@ func (c *BucketsDeleteCall) Fields(s ...googleapi.Field) *BucketsDeleteCall {
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *BucketsDeleteCall) Context(ctx context.Context) *BucketsDeleteCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *BucketsDeleteCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -1326,9 +1931,13 @@ func (c *BucketsDeleteCall) doRequest(alt string) (*http.Response, error) {
 		"bucket": c.bucket,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.buckets.delete" call.
 func (c *BucketsDeleteCall) Do() error {
 	res, err := c.doRequest("json")
 	if err != nil {
@@ -1382,6 +1991,7 @@ type BucketsGetCall struct {
 	s      *Service
 	bucket string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // Get: Returns metadata for the specified bucket.
@@ -1428,6 +2038,24 @@ func (c *BucketsGetCall) Fields(s ...googleapi.Field) *BucketsGetCall {
 	return c
 }
 
+// IfNoneMatch sets the optional parameter which makes the operation
+// fail if the object's ETag matches the given value. This is useful for
+// getting updates only after the object has changed since the last
+// request. Use googleapi.IsNotModified to check whether the response
+// error from Do is the result of In-None-Match.
+func (c *BucketsGetCall) IfNoneMatch(entityTag string) *BucketsGetCall {
+	c.opt_["ifNoneMatch"] = entityTag
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *BucketsGetCall) Context(ctx context.Context) *BucketsGetCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *BucketsGetCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -1451,11 +2079,33 @@ func (c *BucketsGetCall) doRequest(alt string) (*http.Response, error) {
 		"bucket": c.bucket,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if v, ok := c.opt_["ifNoneMatch"]; ok {
+		req.Header.Set("If-None-Match", fmt.Sprintf("%v", v))
+	}
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.buckets.get" call.
+// Exactly one of *Bucket or error will be non-nil. Any non-2xx status
+// code is an error. Response headers are in either
+// *Bucket.ServerResponse.Header or (if a response was returned at all)
+// in error.(*googleapi.Error).Header. Use googleapi.IsNotModified to
+// check whether the returned error was because http.StatusNotModified
+// was returned.
 func (c *BucketsGetCall) Do() (*Bucket, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1463,7 +2113,12 @@ func (c *BucketsGetCall) Do() (*Bucket, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *Bucket
+	ret := &Bucket{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -1530,6 +2185,7 @@ type BucketsInsertCall struct {
 	projectid string
 	bucket    *Bucket
 	opt_      map[string]interface{}
+	ctx_      context.Context
 }
 
 // Insert: Creates a new bucket.
@@ -1600,6 +2256,14 @@ func (c *BucketsInsertCall) Fields(s ...googleapi.Field) *BucketsInsertCall {
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *BucketsInsertCall) Context(ctx context.Context) *BucketsInsertCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *BucketsInsertCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.bucket)
@@ -1628,11 +2292,30 @@ func (c *BucketsInsertCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.SetOpaque(req.URL)
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.buckets.insert" call.
+// Exactly one of *Bucket or error will be non-nil. Any non-2xx status
+// code is an error. Response headers are in either
+// *Bucket.ServerResponse.Header or (if a response was returned at all)
+// in error.(*googleapi.Error).Header. Use googleapi.IsNotModified to
+// check whether the returned error was because http.StatusNotModified
+// was returned.
 func (c *BucketsInsertCall) Do() (*Bucket, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1640,7 +2323,12 @@ func (c *BucketsInsertCall) Do() (*Bucket, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *Bucket
+	ret := &Bucket{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -1735,6 +2423,7 @@ type BucketsListCall struct {
 	s         *Service
 	projectid string
 	opt_      map[string]interface{}
+	ctx_      context.Context
 }
 
 // List: Retrieves a list of buckets for a given project.
@@ -1785,6 +2474,24 @@ func (c *BucketsListCall) Fields(s ...googleapi.Field) *BucketsListCall {
 	return c
 }
 
+// IfNoneMatch sets the optional parameter which makes the operation
+// fail if the object's ETag matches the given value. This is useful for
+// getting updates only after the object has changed since the last
+// request. Use googleapi.IsNotModified to check whether the response
+// error from Do is the result of In-None-Match.
+func (c *BucketsListCall) IfNoneMatch(entityTag string) *BucketsListCall {
+	c.opt_["ifNoneMatch"] = entityTag
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *BucketsListCall) Context(ctx context.Context) *BucketsListCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *BucketsListCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -1810,11 +2517,33 @@ func (c *BucketsListCall) doRequest(alt string) (*http.Response, error) {
 	req, _ := http.NewRequest("GET", urls, body)
 	googleapi.SetOpaque(req.URL)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if v, ok := c.opt_["ifNoneMatch"]; ok {
+		req.Header.Set("If-None-Match", fmt.Sprintf("%v", v))
+	}
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.buckets.list" call.
+// Exactly one of *Buckets or error will be non-nil. Any non-2xx status
+// code is an error. Response headers are in either
+// *Buckets.ServerResponse.Header or (if a response was returned at all)
+// in error.(*googleapi.Error).Header. Use googleapi.IsNotModified to
+// check whether the returned error was because http.StatusNotModified
+// was returned.
 func (c *BucketsListCall) Do() (*Buckets, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1822,7 +2551,12 @@ func (c *BucketsListCall) Do() (*Buckets, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *Buckets
+	ret := &Buckets{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -1894,6 +2628,7 @@ type BucketsPatchCall struct {
 	bucket  string
 	bucket2 *Bucket
 	opt_    map[string]interface{}
+	ctx_    context.Context
 }
 
 // Patch: Updates a bucket. This method supports patch semantics.
@@ -1980,6 +2715,14 @@ func (c *BucketsPatchCall) Fields(s ...googleapi.Field) *BucketsPatchCall {
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *BucketsPatchCall) Context(ctx context.Context) *BucketsPatchCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *BucketsPatchCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.bucket2)
@@ -2015,11 +2758,30 @@ func (c *BucketsPatchCall) doRequest(alt string) (*http.Response, error) {
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.buckets.patch" call.
+// Exactly one of *Bucket or error will be non-nil. Any non-2xx status
+// code is an error. Response headers are in either
+// *Bucket.ServerResponse.Header or (if a response was returned at all)
+// in error.(*googleapi.Error).Header. Use googleapi.IsNotModified to
+// check whether the returned error was because http.StatusNotModified
+// was returned.
 func (c *BucketsPatchCall) Do() (*Bucket, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -2027,7 +2789,12 @@ func (c *BucketsPatchCall) Do() (*Bucket, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *Bucket
+	ret := &Bucket{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -2135,6 +2902,7 @@ type BucketsUpdateCall struct {
 	bucket  string
 	bucket2 *Bucket
 	opt_    map[string]interface{}
+	ctx_    context.Context
 }
 
 // Update: Updates a bucket.
@@ -2221,6 +2989,14 @@ func (c *BucketsUpdateCall) Fields(s ...googleapi.Field) *BucketsUpdateCall {
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *BucketsUpdateCall) Context(ctx context.Context) *BucketsUpdateCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *BucketsUpdateCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.bucket2)
@@ -2256,11 +3032,30 @@ func (c *BucketsUpdateCall) doRequest(alt string) (*http.Response, error) {
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.buckets.update" call.
+// Exactly one of *Bucket or error will be non-nil. Any non-2xx status
+// code is an error. Response headers are in either
+// *Bucket.ServerResponse.Header or (if a response was returned at all)
+// in error.(*googleapi.Error).Header. Use googleapi.IsNotModified to
+// check whether the returned error was because http.StatusNotModified
+// was returned.
 func (c *BucketsUpdateCall) Do() (*Bucket, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -2268,7 +3063,12 @@ func (c *BucketsUpdateCall) Do() (*Bucket, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *Bucket
+	ret := &Bucket{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -2375,6 +3175,7 @@ type ChannelsStopCall struct {
 	s       *Service
 	channel *Channel
 	opt_    map[string]interface{}
+	ctx_    context.Context
 }
 
 // Stop: Stop watching resources through this channel
@@ -2389,6 +3190,14 @@ func (r *ChannelsService) Stop(channel *Channel) *ChannelsStopCall {
 // for more information.
 func (c *ChannelsStopCall) Fields(s ...googleapi.Field) *ChannelsStopCall {
 	c.opt_["fields"] = googleapi.CombineFields(s)
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ChannelsStopCall) Context(ctx context.Context) *ChannelsStopCall {
+	c.ctx_ = ctx
 	return c
 }
 
@@ -2410,9 +3219,13 @@ func (c *ChannelsStopCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.SetOpaque(req.URL)
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.channels.stop" call.
 func (c *ChannelsStopCall) Do() error {
 	res, err := c.doRequest("json")
 	if err != nil {
@@ -2450,6 +3263,7 @@ type DefaultObjectAccessControlsDeleteCall struct {
 	bucket string
 	entity string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // Delete: Permanently deletes the default object ACL entry for the
@@ -2469,6 +3283,14 @@ func (c *DefaultObjectAccessControlsDeleteCall) Fields(s ...googleapi.Field) *De
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *DefaultObjectAccessControlsDeleteCall) Context(ctx context.Context) *DefaultObjectAccessControlsDeleteCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *DefaultObjectAccessControlsDeleteCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -2484,9 +3306,13 @@ func (c *DefaultObjectAccessControlsDeleteCall) doRequest(alt string) (*http.Res
 		"entity": c.entity,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.defaultObjectAccessControls.delete" call.
 func (c *DefaultObjectAccessControlsDeleteCall) Do() error {
 	res, err := c.doRequest("json")
 	if err != nil {
@@ -2534,6 +3360,7 @@ type DefaultObjectAccessControlsGetCall struct {
 	bucket string
 	entity string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // Get: Returns the default object ACL entry for the specified entity on
@@ -2553,6 +3380,24 @@ func (c *DefaultObjectAccessControlsGetCall) Fields(s ...googleapi.Field) *Defau
 	return c
 }
 
+// IfNoneMatch sets the optional parameter which makes the operation
+// fail if the object's ETag matches the given value. This is useful for
+// getting updates only after the object has changed since the last
+// request. Use googleapi.IsNotModified to check whether the response
+// error from Do is the result of In-None-Match.
+func (c *DefaultObjectAccessControlsGetCall) IfNoneMatch(entityTag string) *DefaultObjectAccessControlsGetCall {
+	c.opt_["ifNoneMatch"] = entityTag
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *DefaultObjectAccessControlsGetCall) Context(ctx context.Context) *DefaultObjectAccessControlsGetCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *DefaultObjectAccessControlsGetCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -2568,11 +3413,33 @@ func (c *DefaultObjectAccessControlsGetCall) doRequest(alt string) (*http.Respon
 		"entity": c.entity,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if v, ok := c.opt_["ifNoneMatch"]; ok {
+		req.Header.Set("If-None-Match", fmt.Sprintf("%v", v))
+	}
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.defaultObjectAccessControls.get" call.
+// Exactly one of *ObjectAccessControl or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *ObjectAccessControl.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *DefaultObjectAccessControlsGetCall) Do() (*ObjectAccessControl, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -2580,7 +3447,12 @@ func (c *DefaultObjectAccessControlsGetCall) Do() (*ObjectAccessControl, error) 
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *ObjectAccessControl
+	ret := &ObjectAccessControl{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -2625,6 +3497,7 @@ type DefaultObjectAccessControlsInsertCall struct {
 	bucket              string
 	objectaccesscontrol *ObjectAccessControl
 	opt_                map[string]interface{}
+	ctx_                context.Context
 }
 
 // Insert: Creates a new default object ACL entry on the specified
@@ -2641,6 +3514,14 @@ func (r *DefaultObjectAccessControlsService) Insert(bucket string, objectaccessc
 // for more information.
 func (c *DefaultObjectAccessControlsInsertCall) Fields(s ...googleapi.Field) *DefaultObjectAccessControlsInsertCall {
 	c.opt_["fields"] = googleapi.CombineFields(s)
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *DefaultObjectAccessControlsInsertCall) Context(ctx context.Context) *DefaultObjectAccessControlsInsertCall {
+	c.ctx_ = ctx
 	return c
 }
 
@@ -2664,11 +3545,30 @@ func (c *DefaultObjectAccessControlsInsertCall) doRequest(alt string) (*http.Res
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.defaultObjectAccessControls.insert" call.
+// Exactly one of *ObjectAccessControl or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *ObjectAccessControl.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *DefaultObjectAccessControlsInsertCall) Do() (*ObjectAccessControl, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -2676,7 +3576,12 @@ func (c *DefaultObjectAccessControlsInsertCall) Do() (*ObjectAccessControl, erro
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *ObjectAccessControl
+	ret := &ObjectAccessControl{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -2716,6 +3621,7 @@ type DefaultObjectAccessControlsListCall struct {
 	s      *Service
 	bucket string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // List: Retrieves default object ACL entries on the specified bucket.
@@ -2750,6 +3656,24 @@ func (c *DefaultObjectAccessControlsListCall) Fields(s ...googleapi.Field) *Defa
 	return c
 }
 
+// IfNoneMatch sets the optional parameter which makes the operation
+// fail if the object's ETag matches the given value. This is useful for
+// getting updates only after the object has changed since the last
+// request. Use googleapi.IsNotModified to check whether the response
+// error from Do is the result of In-None-Match.
+func (c *DefaultObjectAccessControlsListCall) IfNoneMatch(entityTag string) *DefaultObjectAccessControlsListCall {
+	c.opt_["ifNoneMatch"] = entityTag
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *DefaultObjectAccessControlsListCall) Context(ctx context.Context) *DefaultObjectAccessControlsListCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *DefaultObjectAccessControlsListCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -2770,11 +3694,33 @@ func (c *DefaultObjectAccessControlsListCall) doRequest(alt string) (*http.Respo
 		"bucket": c.bucket,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if v, ok := c.opt_["ifNoneMatch"]; ok {
+		req.Header.Set("If-None-Match", fmt.Sprintf("%v", v))
+	}
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.defaultObjectAccessControls.list" call.
+// Exactly one of *ObjectAccessControls or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *ObjectAccessControls.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *DefaultObjectAccessControlsListCall) Do() (*ObjectAccessControls, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -2782,7 +3728,12 @@ func (c *DefaultObjectAccessControlsListCall) Do() (*ObjectAccessControls, error
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *ObjectAccessControls
+	ret := &ObjectAccessControls{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -2833,6 +3784,7 @@ type DefaultObjectAccessControlsPatchCall struct {
 	entity              string
 	objectaccesscontrol *ObjectAccessControl
 	opt_                map[string]interface{}
+	ctx_                context.Context
 }
 
 // Patch: Updates a default object ACL entry on the specified bucket.
@@ -2850,6 +3802,14 @@ func (r *DefaultObjectAccessControlsService) Patch(bucket string, entity string,
 // for more information.
 func (c *DefaultObjectAccessControlsPatchCall) Fields(s ...googleapi.Field) *DefaultObjectAccessControlsPatchCall {
 	c.opt_["fields"] = googleapi.CombineFields(s)
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *DefaultObjectAccessControlsPatchCall) Context(ctx context.Context) *DefaultObjectAccessControlsPatchCall {
+	c.ctx_ = ctx
 	return c
 }
 
@@ -2874,11 +3834,30 @@ func (c *DefaultObjectAccessControlsPatchCall) doRequest(alt string) (*http.Resp
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.defaultObjectAccessControls.patch" call.
+// Exactly one of *ObjectAccessControl or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *ObjectAccessControl.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *DefaultObjectAccessControlsPatchCall) Do() (*ObjectAccessControl, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -2886,7 +3865,12 @@ func (c *DefaultObjectAccessControlsPatchCall) Do() (*ObjectAccessControl, error
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *ObjectAccessControl
+	ret := &ObjectAccessControl{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -2935,6 +3919,7 @@ type DefaultObjectAccessControlsUpdateCall struct {
 	entity              string
 	objectaccesscontrol *ObjectAccessControl
 	opt_                map[string]interface{}
+	ctx_                context.Context
 }
 
 // Update: Updates a default object ACL entry on the specified bucket.
@@ -2951,6 +3936,14 @@ func (r *DefaultObjectAccessControlsService) Update(bucket string, entity string
 // for more information.
 func (c *DefaultObjectAccessControlsUpdateCall) Fields(s ...googleapi.Field) *DefaultObjectAccessControlsUpdateCall {
 	c.opt_["fields"] = googleapi.CombineFields(s)
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *DefaultObjectAccessControlsUpdateCall) Context(ctx context.Context) *DefaultObjectAccessControlsUpdateCall {
+	c.ctx_ = ctx
 	return c
 }
 
@@ -2975,11 +3968,30 @@ func (c *DefaultObjectAccessControlsUpdateCall) doRequest(alt string) (*http.Res
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.defaultObjectAccessControls.update" call.
+// Exactly one of *ObjectAccessControl or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *ObjectAccessControl.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *DefaultObjectAccessControlsUpdateCall) Do() (*ObjectAccessControl, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -2987,7 +3999,12 @@ func (c *DefaultObjectAccessControlsUpdateCall) Do() (*ObjectAccessControl, erro
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *ObjectAccessControl
+	ret := &ObjectAccessControl{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -3036,6 +4053,7 @@ type ObjectAccessControlsDeleteCall struct {
 	object string
 	entity string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // Delete: Permanently deletes the ACL entry for the specified entity on
@@ -3064,6 +4082,14 @@ func (c *ObjectAccessControlsDeleteCall) Fields(s ...googleapi.Field) *ObjectAcc
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectAccessControlsDeleteCall) Context(ctx context.Context) *ObjectAccessControlsDeleteCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectAccessControlsDeleteCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -3083,9 +4109,13 @@ func (c *ObjectAccessControlsDeleteCall) doRequest(alt string) (*http.Response, 
 		"entity": c.entity,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.objectAccessControls.delete" call.
 func (c *ObjectAccessControlsDeleteCall) Do() error {
 	res, err := c.doRequest("json")
 	if err != nil {
@@ -3147,6 +4177,7 @@ type ObjectAccessControlsGetCall struct {
 	object string
 	entity string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // Get: Returns the ACL entry for the specified entity on the specified
@@ -3175,6 +4206,24 @@ func (c *ObjectAccessControlsGetCall) Fields(s ...googleapi.Field) *ObjectAccess
 	return c
 }
 
+// IfNoneMatch sets the optional parameter which makes the operation
+// fail if the object's ETag matches the given value. This is useful for
+// getting updates only after the object has changed since the last
+// request. Use googleapi.IsNotModified to check whether the response
+// error from Do is the result of In-None-Match.
+func (c *ObjectAccessControlsGetCall) IfNoneMatch(entityTag string) *ObjectAccessControlsGetCall {
+	c.opt_["ifNoneMatch"] = entityTag
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectAccessControlsGetCall) Context(ctx context.Context) *ObjectAccessControlsGetCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectAccessControlsGetCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -3194,11 +4243,33 @@ func (c *ObjectAccessControlsGetCall) doRequest(alt string) (*http.Response, err
 		"entity": c.entity,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if v, ok := c.opt_["ifNoneMatch"]; ok {
+		req.Header.Set("If-None-Match", fmt.Sprintf("%v", v))
+	}
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.objectAccessControls.get" call.
+// Exactly one of *ObjectAccessControl or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *ObjectAccessControl.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *ObjectAccessControlsGetCall) Do() (*ObjectAccessControl, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -3206,7 +4277,12 @@ func (c *ObjectAccessControlsGetCall) Do() (*ObjectAccessControl, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *ObjectAccessControl
+	ret := &ObjectAccessControl{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -3265,6 +4341,7 @@ type ObjectAccessControlsInsertCall struct {
 	object              string
 	objectaccesscontrol *ObjectAccessControl
 	opt_                map[string]interface{}
+	ctx_                context.Context
 }
 
 // Insert: Creates a new ACL entry on the specified object.
@@ -3292,6 +4369,14 @@ func (c *ObjectAccessControlsInsertCall) Fields(s ...googleapi.Field) *ObjectAcc
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectAccessControlsInsertCall) Context(ctx context.Context) *ObjectAccessControlsInsertCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectAccessControlsInsertCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.objectaccesscontrol)
@@ -3316,11 +4401,30 @@ func (c *ObjectAccessControlsInsertCall) doRequest(alt string) (*http.Response, 
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.objectAccessControls.insert" call.
+// Exactly one of *ObjectAccessControl or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *ObjectAccessControl.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *ObjectAccessControlsInsertCall) Do() (*ObjectAccessControl, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -3328,7 +4432,12 @@ func (c *ObjectAccessControlsInsertCall) Do() (*ObjectAccessControl, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *ObjectAccessControl
+	ret := &ObjectAccessControl{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -3382,6 +4491,7 @@ type ObjectAccessControlsListCall struct {
 	bucket string
 	object string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // List: Retrieves ACL entries on the specified object.
@@ -3408,6 +4518,24 @@ func (c *ObjectAccessControlsListCall) Fields(s ...googleapi.Field) *ObjectAcces
 	return c
 }
 
+// IfNoneMatch sets the optional parameter which makes the operation
+// fail if the object's ETag matches the given value. This is useful for
+// getting updates only after the object has changed since the last
+// request. Use googleapi.IsNotModified to check whether the response
+// error from Do is the result of In-None-Match.
+func (c *ObjectAccessControlsListCall) IfNoneMatch(entityTag string) *ObjectAccessControlsListCall {
+	c.opt_["ifNoneMatch"] = entityTag
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectAccessControlsListCall) Context(ctx context.Context) *ObjectAccessControlsListCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectAccessControlsListCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -3426,11 +4554,33 @@ func (c *ObjectAccessControlsListCall) doRequest(alt string) (*http.Response, er
 		"object": c.object,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if v, ok := c.opt_["ifNoneMatch"]; ok {
+		req.Header.Set("If-None-Match", fmt.Sprintf("%v", v))
+	}
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.objectAccessControls.list" call.
+// Exactly one of *ObjectAccessControls or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *ObjectAccessControls.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *ObjectAccessControlsListCall) Do() (*ObjectAccessControls, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -3438,7 +4588,12 @@ func (c *ObjectAccessControlsListCall) Do() (*ObjectAccessControls, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *ObjectAccessControls
+	ret := &ObjectAccessControls{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -3491,6 +4646,7 @@ type ObjectAccessControlsPatchCall struct {
 	entity              string
 	objectaccesscontrol *ObjectAccessControl
 	opt_                map[string]interface{}
+	ctx_                context.Context
 }
 
 // Patch: Updates an ACL entry on the specified object. This method
@@ -3520,6 +4676,14 @@ func (c *ObjectAccessControlsPatchCall) Fields(s ...googleapi.Field) *ObjectAcce
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectAccessControlsPatchCall) Context(ctx context.Context) *ObjectAccessControlsPatchCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectAccessControlsPatchCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.objectaccesscontrol)
@@ -3545,11 +4709,30 @@ func (c *ObjectAccessControlsPatchCall) doRequest(alt string) (*http.Response, e
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.objectAccessControls.patch" call.
+// Exactly one of *ObjectAccessControl or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *ObjectAccessControl.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *ObjectAccessControlsPatchCall) Do() (*ObjectAccessControl, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -3557,7 +4740,12 @@ func (c *ObjectAccessControlsPatchCall) Do() (*ObjectAccessControl, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *ObjectAccessControl
+	ret := &ObjectAccessControl{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -3620,6 +4808,7 @@ type ObjectAccessControlsUpdateCall struct {
 	entity              string
 	objectaccesscontrol *ObjectAccessControl
 	opt_                map[string]interface{}
+	ctx_                context.Context
 }
 
 // Update: Updates an ACL entry on the specified object.
@@ -3648,6 +4837,14 @@ func (c *ObjectAccessControlsUpdateCall) Fields(s ...googleapi.Field) *ObjectAcc
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectAccessControlsUpdateCall) Context(ctx context.Context) *ObjectAccessControlsUpdateCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectAccessControlsUpdateCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.objectaccesscontrol)
@@ -3673,11 +4870,30 @@ func (c *ObjectAccessControlsUpdateCall) doRequest(alt string) (*http.Response, 
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.objectAccessControls.update" call.
+// Exactly one of *ObjectAccessControl or error will be non-nil. Any
+// non-2xx status code is an error. Response headers are in either
+// *ObjectAccessControl.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *ObjectAccessControlsUpdateCall) Do() (*ObjectAccessControl, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -3685,7 +4901,12 @@ func (c *ObjectAccessControlsUpdateCall) Do() (*ObjectAccessControl, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *ObjectAccessControl
+	ret := &ObjectAccessControl{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -3747,6 +4968,7 @@ type ObjectsComposeCall struct {
 	destinationObject string
 	composerequest    *ComposeRequest
 	opt_              map[string]interface{}
+	ctx_              context.Context
 }
 
 // Compose: Concatenates a list of existing objects into a new object in
@@ -3804,6 +5026,14 @@ func (c *ObjectsComposeCall) Fields(s ...googleapi.Field) *ObjectsComposeCall {
 	return c
 }
 
+// Context sets the context to be used in this call's Do and Download methods.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectsComposeCall) Context(ctx context.Context) *ObjectsComposeCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectsComposeCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.composerequest)
@@ -3834,6 +5064,9 @@ func (c *ObjectsComposeCall) doRequest(alt string) (*http.Response, error) {
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
@@ -3852,8 +5085,24 @@ func (c *ObjectsComposeCall) Download() (*http.Response, error) {
 	return res, nil
 }
 
+// Do executes the "storage.objects.compose" call.
+// Exactly one of *Object or error will be non-nil. Any non-2xx status
+// code is an error. Response headers are in either
+// *Object.ServerResponse.Header or (if a response was returned at all)
+// in error.(*googleapi.Error).Header. Use googleapi.IsNotModified to
+// check whether the returned error was because http.StatusNotModified
+// was returned.
 func (c *ObjectsComposeCall) Do() (*Object, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -3861,7 +5110,12 @@ func (c *ObjectsComposeCall) Do() (*Object, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *Object
+	ret := &Object{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -3948,6 +5202,7 @@ type ObjectsCopyCall struct {
 	destinationObject string
 	object            *Object
 	opt_              map[string]interface{}
+	ctx_              context.Context
 }
 
 // Copy: Copies a source object to a destination object. Optionally
@@ -4081,6 +5336,14 @@ func (c *ObjectsCopyCall) Fields(s ...googleapi.Field) *ObjectsCopyCall {
 	return c
 }
 
+// Context sets the context to be used in this call's Do and Download methods.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectsCopyCall) Context(ctx context.Context) *ObjectsCopyCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectsCopyCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.object)
@@ -4137,6 +5400,9 @@ func (c *ObjectsCopyCall) doRequest(alt string) (*http.Response, error) {
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
@@ -4155,8 +5421,24 @@ func (c *ObjectsCopyCall) Download() (*http.Response, error) {
 	return res, nil
 }
 
+// Do executes the "storage.objects.copy" call.
+// Exactly one of *Object or error will be non-nil. Any non-2xx status
+// code is an error. Response headers are in either
+// *Object.ServerResponse.Header or (if a response was returned at all)
+// in error.(*googleapi.Error).Header. Use googleapi.IsNotModified to
+// check whether the returned error was because http.StatusNotModified
+// was returned.
 func (c *ObjectsCopyCall) Do() (*Object, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -4164,7 +5446,12 @@ func (c *ObjectsCopyCall) Do() (*Object, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *Object
+	ret := &Object{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -4317,6 +5604,7 @@ type ObjectsDeleteCall struct {
 	bucket string
 	object string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // Delete: Deletes an object and its metadata. Deletions are permanent
@@ -4378,6 +5666,14 @@ func (c *ObjectsDeleteCall) Fields(s ...googleapi.Field) *ObjectsDeleteCall {
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectsDeleteCall) Context(ctx context.Context) *ObjectsDeleteCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectsDeleteCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -4408,9 +5704,13 @@ func (c *ObjectsDeleteCall) doRequest(alt string) (*http.Response, error) {
 		"object": c.object,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.objects.delete" call.
 func (c *ObjectsDeleteCall) Do() error {
 	res, err := c.doRequest("json")
 	if err != nil {
@@ -4490,6 +5790,7 @@ type ObjectsGetCall struct {
 	bucket string
 	object string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // Get: Retrieves an object or its metadata.
@@ -4560,6 +5861,24 @@ func (c *ObjectsGetCall) Fields(s ...googleapi.Field) *ObjectsGetCall {
 	return c
 }
 
+// IfNoneMatch sets the optional parameter which makes the operation
+// fail if the object's ETag matches the given value. This is useful for
+// getting updates only after the object has changed since the last
+// request. Use googleapi.IsNotModified to check whether the response
+// error from Do is the result of In-None-Match.
+func (c *ObjectsGetCall) IfNoneMatch(entityTag string) *ObjectsGetCall {
+	c.opt_["ifNoneMatch"] = entityTag
+	return c
+}
+
+// Context sets the context to be used in this call's Do and Download methods.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectsGetCall) Context(ctx context.Context) *ObjectsGetCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectsGetCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -4593,6 +5912,12 @@ func (c *ObjectsGetCall) doRequest(alt string) (*http.Response, error) {
 		"object": c.object,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if v, ok := c.opt_["ifNoneMatch"]; ok {
+		req.Header.Set("If-None-Match", fmt.Sprintf("%v", v))
+	}
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
@@ -4611,8 +5936,24 @@ func (c *ObjectsGetCall) Download() (*http.Response, error) {
 	return res, nil
 }
 
+// Do executes the "storage.objects.get" call.
+// Exactly one of *Object or error will be non-nil. Any non-2xx status
+// code is an error. Response headers are in either
+// *Object.ServerResponse.Header or (if a response was returned at all)
+// in error.(*googleapi.Error).Header. Use googleapi.IsNotModified to
+// check whether the returned error was because http.StatusNotModified
+// was returned.
 func (c *ObjectsGetCall) Do() (*Object, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -4620,7 +5961,12 @@ func (c *ObjectsGetCall) Do() (*Object, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *Object
+	ret := &Object{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -4716,8 +6062,8 @@ type ObjectsInsertCall struct {
 	media_     io.Reader
 	resumable_ googleapi.SizeReaderAt
 	mediaType_ string
-	ctx_       context.Context
 	protocol_  string
+	ctx_       context.Context
 }
 
 // Insert: Stores a new object and metadata.
@@ -4821,10 +6167,12 @@ func (c *ObjectsInsertCall) Media(r io.Reader) *ObjectsInsertCall {
 	return c
 }
 
-// ResumableMedia specifies the media to upload in chunks and can be cancelled with ctx.
+// ResumableMedia specifies the media to upload in chunks and can be canceled with ctx.
 // At most one of Media and ResumableMedia may be set.
 // mediaType identifies the MIME media type of the upload, such as "image/png".
 // If mediaType is "", it will be auto-detected.
+// The provided ctx will supersede any context previously provided to
+// the Context method.
 func (c *ObjectsInsertCall) ResumableMedia(ctx context.Context, r io.ReaderAt, size int64, mediaType string) *ObjectsInsertCall {
 	c.ctx_ = ctx
 	c.resumable_ = io.NewSectionReader(r, 0, size)
@@ -4846,6 +6194,16 @@ func (c *ObjectsInsertCall) ProgressUpdater(pu googleapi.ProgressUpdater) *Objec
 // for more information.
 func (c *ObjectsInsertCall) Fields(s ...googleapi.Field) *ObjectsInsertCall {
 	c.opt_["fields"] = googleapi.CombineFields(s)
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+// This context will supersede any context previously provided to
+// the ResumableMedia method.
+func (c *ObjectsInsertCall) Context(ctx context.Context) *ObjectsInsertCall {
+	c.ctx_ = ctx
 	return c
 }
 
@@ -4912,11 +6270,30 @@ func (c *ObjectsInsertCall) doRequest(alt string) (*http.Response, error) {
 		req.Header.Set("Content-Type", ctype)
 	}
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.objects.insert" call.
+// Exactly one of *Object or error will be non-nil. Any non-2xx status
+// code is an error. Response headers are in either
+// *Object.ServerResponse.Header or (if a response was returned at all)
+// in error.(*googleapi.Error).Header. Use googleapi.IsNotModified to
+// check whether the returned error was because http.StatusNotModified
+// was returned.
 func (c *ObjectsInsertCall) Do() (*Object, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -4947,7 +6324,12 @@ func (c *ObjectsInsertCall) Do() (*Object, error) {
 		}
 		defer res.Body.Close()
 	}
-	var ret *Object
+	ret := &Object{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -5074,6 +6456,7 @@ type ObjectsListCall struct {
 	s      *Service
 	bucket string
 	opt_   map[string]interface{}
+	ctx_   context.Context
 }
 
 // List: Retrieves a list of objects matching the criteria.
@@ -5145,6 +6528,24 @@ func (c *ObjectsListCall) Fields(s ...googleapi.Field) *ObjectsListCall {
 	return c
 }
 
+// IfNoneMatch sets the optional parameter which makes the operation
+// fail if the object's ETag matches the given value. This is useful for
+// getting updates only after the object has changed since the last
+// request. Use googleapi.IsNotModified to check whether the response
+// error from Do is the result of In-None-Match.
+func (c *ObjectsListCall) IfNoneMatch(entityTag string) *ObjectsListCall {
+	c.opt_["ifNoneMatch"] = entityTag
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectsListCall) Context(ctx context.Context) *ObjectsListCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectsListCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	params := make(url.Values)
@@ -5177,11 +6578,33 @@ func (c *ObjectsListCall) doRequest(alt string) (*http.Response, error) {
 		"bucket": c.bucket,
 	})
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if v, ok := c.opt_["ifNoneMatch"]; ok {
+		req.Header.Set("If-None-Match", fmt.Sprintf("%v", v))
+	}
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.objects.list" call.
+// Exactly one of *Objects or error will be non-nil. Any non-2xx status
+// code is an error. Response headers are in either
+// *Objects.ServerResponse.Header or (if a response was returned at all)
+// in error.(*googleapi.Error).Header. Use googleapi.IsNotModified to
+// check whether the returned error was because http.StatusNotModified
+// was returned.
 func (c *ObjectsListCall) Do() (*Objects, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -5189,7 +6612,12 @@ func (c *ObjectsListCall) Do() (*Objects, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *Objects
+	ret := &Objects{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -5273,6 +6701,7 @@ type ObjectsPatchCall struct {
 	object  string
 	object2 *Object
 	opt_    map[string]interface{}
+	ctx_    context.Context
 }
 
 // Patch: Updates an object's metadata. This method supports patch
@@ -5365,6 +6794,14 @@ func (c *ObjectsPatchCall) Fields(s ...googleapi.Field) *ObjectsPatchCall {
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectsPatchCall) Context(ctx context.Context) *ObjectsPatchCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectsPatchCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.object2)
@@ -5407,11 +6844,30 @@ func (c *ObjectsPatchCall) doRequest(alt string) (*http.Response, error) {
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.objects.patch" call.
+// Exactly one of *Object or error will be non-nil. Any non-2xx status
+// code is an error. Response headers are in either
+// *Object.ServerResponse.Header or (if a response was returned at all)
+// in error.(*googleapi.Error).Header. Use googleapi.IsNotModified to
+// check whether the returned error was because http.StatusNotModified
+// was returned.
 func (c *ObjectsPatchCall) Do() (*Object, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -5419,7 +6875,12 @@ func (c *ObjectsPatchCall) Do() (*Object, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *Object
+	ret := &Object{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -5536,6 +6997,7 @@ type ObjectsRewriteCall struct {
 	destinationObject string
 	object            *Object
 	opt_              map[string]interface{}
+	ctx_              context.Context
 }
 
 // Rewrite: Rewrites a source object to a destination object. Optionally
@@ -5694,6 +7156,14 @@ func (c *ObjectsRewriteCall) Fields(s ...googleapi.Field) *ObjectsRewriteCall {
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectsRewriteCall) Context(ctx context.Context) *ObjectsRewriteCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectsRewriteCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.object)
@@ -5756,11 +7226,30 @@ func (c *ObjectsRewriteCall) doRequest(alt string) (*http.Response, error) {
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.objects.rewrite" call.
+// Exactly one of *RewriteResponse or error will be non-nil. Any non-2xx
+// status code is an error. Response headers are in either
+// *RewriteResponse.ServerResponse.Header or (if a response was returned
+// at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was
+// because http.StatusNotModified was returned.
 func (c *ObjectsRewriteCall) Do() (*RewriteResponse, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -5768,7 +7257,12 @@ func (c *ObjectsRewriteCall) Do() (*RewriteResponse, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *RewriteResponse
+	ret := &RewriteResponse{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -5932,6 +7426,7 @@ type ObjectsUpdateCall struct {
 	object  string
 	object2 *Object
 	opt_    map[string]interface{}
+	ctx_    context.Context
 }
 
 // Update: Updates an object's metadata.
@@ -6023,6 +7518,14 @@ func (c *ObjectsUpdateCall) Fields(s ...googleapi.Field) *ObjectsUpdateCall {
 	return c
 }
 
+// Context sets the context to be used in this call's Do and Download methods.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectsUpdateCall) Context(ctx context.Context) *ObjectsUpdateCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectsUpdateCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.object2)
@@ -6065,6 +7568,9 @@ func (c *ObjectsUpdateCall) doRequest(alt string) (*http.Response, error) {
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
@@ -6083,8 +7589,24 @@ func (c *ObjectsUpdateCall) Download() (*http.Response, error) {
 	return res, nil
 }
 
+// Do executes the "storage.objects.update" call.
+// Exactly one of *Object or error will be non-nil. Any non-2xx status
+// code is an error. Response headers are in either
+// *Object.ServerResponse.Header or (if a response was returned at all)
+// in error.(*googleapi.Error).Header. Use googleapi.IsNotModified to
+// check whether the returned error was because http.StatusNotModified
+// was returned.
 func (c *ObjectsUpdateCall) Do() (*Object, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -6092,7 +7614,12 @@ func (c *ObjectsUpdateCall) Do() (*Object, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *Object
+	ret := &Object{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}
@@ -6207,6 +7734,7 @@ type ObjectsWatchAllCall struct {
 	bucket  string
 	channel *Channel
 	opt_    map[string]interface{}
+	ctx_    context.Context
 }
 
 // WatchAll: Watch for changes on all objects in a bucket.
@@ -6279,6 +7807,14 @@ func (c *ObjectsWatchAllCall) Fields(s ...googleapi.Field) *ObjectsWatchAllCall 
 	return c
 }
 
+// Context sets the context to be used in this call's Do method.
+// Any pending HTTP request will be aborted if the provided context
+// is canceled.
+func (c *ObjectsWatchAllCall) Context(ctx context.Context) *ObjectsWatchAllCall {
+	c.ctx_ = ctx
+	return c
+}
+
 func (c *ObjectsWatchAllCall) doRequest(alt string) (*http.Response, error) {
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.channel)
@@ -6317,11 +7853,30 @@ func (c *ObjectsWatchAllCall) doRequest(alt string) (*http.Response, error) {
 	})
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
+	if c.ctx_ != nil {
+		return ctxhttp.Do(c.ctx_, c.s.client, req)
+	}
 	return c.s.client.Do(req)
 }
 
+// Do executes the "storage.objects.watchAll" call.
+// Exactly one of *Channel or error will be non-nil. Any non-2xx status
+// code is an error. Response headers are in either
+// *Channel.ServerResponse.Header or (if a response was returned at all)
+// in error.(*googleapi.Error).Header. Use googleapi.IsNotModified to
+// check whether the returned error was because http.StatusNotModified
+// was returned.
 func (c *ObjectsWatchAllCall) Do() (*Channel, error) {
 	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, &googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -6329,7 +7884,12 @@ func (c *ObjectsWatchAllCall) Do() (*Channel, error) {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return nil, err
 	}
-	var ret *Channel
+	ret := &Channel{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-package fuseutil // import "bazil.org/fuse/fuseutil"
+package fuseutil
 
 import (
 	"bazil.org/fuse"

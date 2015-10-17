@@ -1,6 +1,6 @@
 // FUSE service loop, for servers that wish to use it.
 
-package fs // import "bazil.org/fuse/fs"
+package fs
 
 import (
 	"encoding/binary"

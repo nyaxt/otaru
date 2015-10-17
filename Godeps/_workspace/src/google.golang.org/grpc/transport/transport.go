@@ -35,7 +35,7 @@
 Package transport defines and implements message oriented communication channel
 to complete various transactions (e.g., an RPC).
 */
-package transport // import "google.golang.org/grpc/transport"
+package transport
 
 import (
 	"bytes"
@@ -47,6 +47,7 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
+	"golang.org/x/net/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
@@ -232,6 +233,11 @@ func (s *Stream) Context() context.Context {
 	return s.ctx
 }
 
+// TraceContext recreates the context of s with a trace.Trace.
+func (s *Stream) TraceContext(tr trace.Trace) {
+	s.ctx = trace.NewContext(s.ctx, tr)
+}
+
 // Method returns the method for the stream.
 func (s *Stream) Method() string {
 	return s.method
@@ -390,6 +396,8 @@ type ServerTransport interface {
 	// should not be accessed any more. All the pending streams and their
 	// handlers will be terminated asynchronously.
 	Close() error
+	// RemoteAddr returns the remote network address.
+	RemoteAddr() net.Addr
 }
 
 // StreamErrorf creates an StreamError with the specified error code and description.
