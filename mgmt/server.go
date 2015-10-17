@@ -2,6 +2,7 @@ package mgmt
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/nyaxt/otaru/webui"
 
@@ -23,11 +24,18 @@ func NewServer() *Server {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte("OK"))
 	})
+	assetDirWrap := func(path string) ([]string, error) {
+		children, err := webui.AssetDir(path)
+		if err != nil {
+			return nil, os.ErrNotExist
+		}
+		return children, nil
+	}
+	rtr.NotFoundHandler = http.FileServer(
+		&assetfs.AssetFS{Asset: webui.Asset, AssetDir: assetDirWrap, Prefix: "dist"})
 
 	apirtr := rtr.PathPrefix("/api").Subrouter()
-
-	rtr.NotFoundHandler = http.FileServer(
-		&assetfs.AssetFS{Asset: webui.Asset, AssetDir: webui.AssetDir, Prefix: "dist"})
+	apirtr.NotFoundHandler = http.NotFoundHandler()
 
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"http://localhost:9000"}, // gulp devsrv
