@@ -5,6 +5,7 @@ import (
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/mgmt/mblobstore"
 	"github.com/nyaxt/otaru/mgmt/mdebug"
+	"github.com/nyaxt/otaru/mgmt/mfilesystem"
 	"github.com/nyaxt/otaru/mgmt/mgc"
 	"github.com/nyaxt/otaru/mgmt/mgcsblobstore"
 	"github.com/nyaxt/otaru/mgmt/minodedb"
@@ -26,6 +27,7 @@ func (o *Otaru) setupMgmtAPIs(cfg *Config) error {
 	}
 	minodedb.Install(o.MGMT, o.IDBS)
 	mscheduler.Install(o.MGMT, o.S, o.R)
+	mfilesystem.Install(o.MGMT, o.FS)
 	mgc.Install(o.MGMT, o.S, o.CBS, o.IDBS)
 
 	return nil

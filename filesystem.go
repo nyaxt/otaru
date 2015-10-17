@@ -61,6 +61,23 @@ func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c 
 	return fs
 }
 
+type FileSystemStats struct {
+	NumOpenFiles int `json:"num_open_files"`
+	NumOrigPath  int `json:"num_orig_path"`
+}
+
+func (fs *FileSystem) GetStats() (ret FileSystemStats) {
+	fs.muOpenFiles.Lock()
+	ret.NumOpenFiles = len(fs.openFiles)
+	fs.muOpenFiles.Unlock()
+
+	fs.muOrigPath.Lock()
+	ret.NumOrigPath = len(fs.origpath)
+	fs.muOrigPath.Unlock()
+
+	return
+}
+
 func (fs *FileSystem) tryGetOrigPath(id inodedb.ID) string {
 	fs.muOrigPath.Lock()
 	defer fs.muOrigPath.Unlock()
