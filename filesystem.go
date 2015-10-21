@@ -101,6 +101,18 @@ func (fs *FileSystem) setOrigPathForId(id inodedb.ID, origpath string) {
 	fs.origpath[id] = origpath
 }
 
+func (fs *FileSystem) snapshotOpenFiles() []*OpenFile {
+	fs.muOpenFiles.Lock()
+	defer fs.muOpenFiles.Unlock()
+
+	ret := make([]*OpenFile, 0, len(fs.openFiles))
+	for _, of := range fu.openFiles {
+		ret = append(ret, of)
+	}
+
+	return ret
+}
+
 func (fs *FileSystem) Sync() error {
 	es := []error{}
 
@@ -109,7 +121,11 @@ func (fs *FileSystem) Sync() error {
 			es = append(es, fmt.Errorf("Failed to sync INodeDB: %v", err))
 		}
 	}
-	// FIXME: sync active handles
+
+	ofss := fs.snapshotOpenFiles()
+	for _, of := range ofss {
+		of.Sync()
+	}
 
 	return util.ToErrors(es)
 }
