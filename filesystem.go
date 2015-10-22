@@ -106,7 +106,7 @@ func (fs *FileSystem) snapshotOpenFiles() []*OpenFile {
 	defer fs.muOpenFiles.Unlock()
 
 	ret := make([]*OpenFile, 0, len(fs.openFiles))
-	for _, of := range fu.openFiles {
+	for _, of := range fs.openFiles {
 		ret = append(ret, of)
 	}
 
@@ -424,6 +424,13 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	return fh, nil
 }
 
+func (fs *FileSystem) closeOpenFile(id inodedb.ID) {
+	fs.muOpenFiles.Lock()
+	defer fs.muOpenFiles.Unlock()
+
+	delete(fs.openFiles, id)
+}
+
 func (fs *FileSystem) TruncateFile(id inodedb.ID, newsize int64) error {
 	fh, err := fs.OpenFile(id, fl.O_WRONLY)
 	if err != nil {
@@ -456,7 +463,8 @@ func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 	tgt.of = nil
 
 	of.mu.Lock()
-	defer of.mu.Unlock()
+	ul := util.EnsureUnlocker{&of.mu}
+	defer ul.Unlock()
 
 	// remove tgt from of.handles slice
 	newHandles := make([]*FileHandle, 0, len(of.handles)-1)
@@ -471,7 +479,18 @@ func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 	of.handles = newHandles
 
 	if wasWriteHandle && !ofHasOtherWriteHandle {
+		if err := of.wc.Sync(of.cfio); err != nil {
+			logger.Criticalf(fslog, "FileWriteCache sync failed: %v", err)
+		}
+
 		of.downgradeToReadLock()
+	}
+
+	if len(of.handles) == 0 {
+		id := of.nlock.ID
+		ul.Unlock()
+
+		of.fs.closeOpenFile(id)
 	}
 }
 
