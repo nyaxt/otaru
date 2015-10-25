@@ -41,6 +41,9 @@ type Config struct {
 	// Run GC every "GCPeriod" seconds.
 	GCPeriod int64
 
+	// HTTP API listen addr. Defaults to ":10246".
+	HttpApiAddr string
+
 	// Install /api/debug handlers.
 	InstallDebugApi bool
 
@@ -74,6 +77,7 @@ func NewConfig(configdir string) (*Config, error) {
 		CredentialsFilePath:          path.Join(configdir, "credentials.json"),
 		TokenCacheFilePath:           path.Join(configdir, "tokencache.json"),
 		GCPeriod:                     15 * 60,
+		HttpApiAddr:                  ":10246",
 		InstallDebugApi:              false,
 	}
 

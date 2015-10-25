@@ -175,7 +175,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 
 	o.AutoGCJob = o.R.RunEveryPeriod(&gc.GCTask{o.CBS, o.IDBS, false}, time.Duration(cfg.GCPeriod)*time.Second)
 
-	o.MGMT = mgmt.NewServer()
+	o.MGMT = mgmt.NewServer(cfg.HttpApiAddr)
 	if err := o.runMgmtServer(cfg); err != nil {
 		o.Close()
 		return nil, fmt.Errorf("Mgmt server run failed: %v", err)

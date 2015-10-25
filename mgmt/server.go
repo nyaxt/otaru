@@ -17,7 +17,7 @@ type Server struct {
 	httpsrv *http.Server
 }
 
-func NewServer() *Server {
+func NewServer(addr string) *Server {
 	rtr := mux.NewRouter()
 
 	rtr.HandleFunc("/healthz", func(w http.ResponseWriter, req *http.Request) {
@@ -42,7 +42,7 @@ func NewServer() *Server {
 	})
 
 	httpsrv := &http.Server{
-		Addr:    ":10246",
+		Addr:    addr,
 		Handler: c.Handler(rtr),
 	}
 	return &Server{rtr: rtr, apirtr: apirtr, httpsrv: httpsrv}

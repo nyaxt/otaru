@@ -21,7 +21,10 @@ cache_dir = "/var/cache/otaru/anime"
 cache_high_watermark = "25GB"
 # - Cache directory low water mark:
 #     cache discard will try to keep cache dir usage below this threshold
-cache_low_watermark= "18GB"
+cache_low_watermark = "18GB"
+
+# - HTTP API listen addr. Defaults to ":10246"
+# http_api_addr = ":10247"
 
 # - Enable /api/debug apis. Makes otaru unsecure. Defaults to false.
 # install_debug_api = false
