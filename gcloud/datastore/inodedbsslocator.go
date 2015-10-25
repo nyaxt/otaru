@@ -118,39 +118,55 @@ func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
 		return nil, err
 	}
 
-	dstx, err := cli.NewTransaction(context.TODO(), datastore.Serializable)
-	if err != nil {
-		return nil, err
-	}
-
-	keys := make([]*datastore.Key, 0)
 	blobpaths := make([]string, 0)
-	q := datastore.NewQuery(kindINodeDBSS).Ancestor(loc.rootKey).Transaction(dstx)
-	it := cli.Run(context.TODO(), q)
+	ndel := 0
 	for {
-		var e sslocentry
-		k, err := it.Next(&e)
+		needAnotherTx := false
+		txStart := time.Now()
+		dstx, err := cli.NewTransaction(context.TODO(), datastore.Serializable)
 		if err != nil {
-			if err == datastore.Done {
+			return nil, err
+		}
+
+		keys := make([]*datastore.Key, 0)
+		q := datastore.NewQuery(kindINodeDBSS).Ancestor(loc.rootKey).Transaction(dstx)
+		it := cli.Run(context.TODO(), q)
+		for {
+			var e sslocentry
+			k, err := it.Next(&e)
+			if err != nil {
+				if err == datastore.Done {
+					break
+				}
+				dstx.Rollback()
+				return nil, err
+			}
+
+			keys = append(keys, k)
+			blobpaths = append(blobpaths, e.BlobPath)
+			if len(keys) == maxWriteEntriesPerTx {
+				needAnotherTx = true
 				break
 			}
+		}
+
+		if err := dstx.DeleteMulti(keys); err != nil {
 			dstx.Rollback()
 			return nil, err
 		}
 
-		keys = append(keys, k)
-		blobpaths = append(blobpaths, e.BlobPath)
-	}
+		if _, err := dstx.Commit(); err != nil {
+			return nil, err
+		}
+		ndel += len(keys)
 
-	logger.Debugf(sslog, "keys to delete: %v", keys)
-	if err := dstx.DeleteMulti(keys); err != nil {
-		dstx.Rollback()
-		return nil, err
+		if needAnotherTx {
+			logger.Infof(txlog, "DeleteAll(): A tx deleting %d entries took %s. Starting next tx to delete more.", len(keys), time.Since(txStart))
+		} else {
+			logger.Infof(txlog, "DeleteAll(): A tx deleting %d entries took %s.", len(keys), time.Since(txStart))
+			break
+		}
 	}
-
-	if _, err := dstx.Commit(); err != nil {
-		return nil, err
-	}
-	logger.Infof(sslog, "DeleteAll() deleted %d entries. Took %s", len(keys), time.Since(start))
+	logger.Infof(sslog, "DeleteAll() deleted %d entries. Took %s", ndel, time.Since(start))
 	return blobpaths, nil
 }

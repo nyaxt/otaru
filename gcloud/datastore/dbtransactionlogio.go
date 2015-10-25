@@ -340,6 +340,7 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 		if needAnotherTx {
 			logger.Infof(txlog, "DeleteTransactions(%v): A tx deleting %d entries took %s. Starting next tx to delete more.", smallerThanID, len(keys), time.Since(txStart))
 		} else {
+			logger.Infof(txlog, "DeleteTransactions(%v): A tx deleting %d entries took %s.", smallerThanID, len(keys), time.Since(txStart))
 			break
 		}
 	}
