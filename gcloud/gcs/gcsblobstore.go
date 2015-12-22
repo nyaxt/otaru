@@ -22,10 +22,8 @@ type GCSBlobStoreStats struct {
 }
 
 type GCSBlobStore struct {
-	projectName string
-	bucketName  string
-	flags       int
-	tsrc        oauth2.TokenSource
+	flags  int
+	bucket *storage.BucketHandle
 
 	stats GCSBlobStoreStats
 }
@@ -33,20 +31,20 @@ type GCSBlobStore struct {
 var _ = blobstore.BlobStore(&GCSBlobStore{})
 
 func NewGCSBlobStore(projectName string, bucketName string, tsrc oauth2.TokenSource, flags int) (*GCSBlobStore, error) {
+	client, err := storage.NewClient(context.Background(), cloud.WithTokenSource(tsrc))
+	if err != nil {
+		return nil, err
+	}
+	bucket := client.Bucket(bucketName)
+
 	return &GCSBlobStore{
-		projectName: projectName,
-		bucketName:  bucketName,
-		flags:       flags,
-		tsrc:        tsrc,
+		flags:  flags,
+		bucket: bucket,
 	}, nil
 }
 
 type Writer struct {
 	gcsw *storage.Writer
-}
-
-func (bs *GCSBlobStore) newAuthedContext(basectx context.Context) context.Context {
-	return cloud.NewContext(bs.projectName, oauth2.NewClient(basectx, bs.tsrc))
 }
 
 func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
@@ -56,8 +54,8 @@ func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 
 	bs.stats.NumOpenWriter++
 
-	ctx := bs.newAuthedContext(context.TODO())
-	gcsw := storage.NewWriter(ctx, bs.bucketName, blobpath)
+	obj := bs.bucket.Object(blobpath)
+	gcsw := obj.NewWriter(context.Background())
 	gcsw.ContentType = "application/octet-stream"
 	return &Writer{gcsw}, nil
 }
@@ -71,17 +69,14 @@ func (w *Writer) Close() error {
 		return err
 	}
 
-	// obj := w.gcsw.Object()
-	// do something???
-
 	return nil
 }
 
 func (bs *GCSBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
 	bs.stats.NumOpenReader++
 
-	ctx := bs.newAuthedContext(context.TODO())
-	rc, err := storage.NewReader(ctx, bs.bucketName, blobpath)
+	obj := bs.bucket.Object(blobpath)
+	rc, err := obj.NewReader(context.Background())
 	if err != nil {
 		if err == storage.ErrObjectNotExist {
 			return nil, blobstore.ENOENT
@@ -100,20 +95,19 @@ var _ = blobstore.BlobLister(&GCSBlobStore{})
 func (bs *GCSBlobStore) ListBlobs() ([]string, error) {
 	bs.stats.NumListBlobs++
 
-	ctx := bs.newAuthedContext(context.TODO())
 	ret := make([]string, 0)
 
 	q := &storage.Query{}
 	for q != nil {
-		res, err := storage.ListObjects(ctx, bs.bucketName, q)
+		olist, err := bs.bucket.List(context.Background(), q)
 		if err != nil {
 			return nil, err
 		}
-		for _, o := range res.Results {
+		for _, o := range olist.Results {
 			blobpath := o.Name
 			ret = append(ret, blobpath)
 		}
-		q = res.Next
+		q = olist.Next
 	}
 
 	return ret, nil
@@ -124,9 +118,8 @@ var _ = blobstore.BlobSizer(&GCSBlobStore{})
 func (bs *GCSBlobStore) BlobSize(blobpath string) (int64, error) {
 	bs.stats.NumBlobSize++
 
-	ctx := bs.newAuthedContext(context.TODO())
-
-	obj, err := storage.StatObject(ctx, bs.bucketName, blobpath)
+	object := bs.bucket.Object(blobpath)
+	attrs, err := object.Attrs(context.Background())
 	if err != nil {
 		if err == storage.ErrObjectNotExist {
 			return -1, blobstore.ENOENT
@@ -134,7 +127,7 @@ func (bs *GCSBlobStore) BlobSize(blobpath string) (int64, error) {
 		return -1, err
 	}
 
-	return obj.Size, nil
+	return attrs.Size, nil
 }
 
 var _ = blobstore.BlobRemover(&GCSBlobStore{})
@@ -142,8 +135,8 @@ var _ = blobstore.BlobRemover(&GCSBlobStore{})
 func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
 	bs.stats.NumRemoveBlob++
 
-	ctx := bs.newAuthedContext(context.TODO())
-	if err := storage.DeleteObject(ctx, bs.bucketName, blobpath); err != nil {
+	object := bs.bucket.Object(blobpath)
+	if err := object.Delete(context.Background()); err != nil {
 		return err
 	}
 	return nil
