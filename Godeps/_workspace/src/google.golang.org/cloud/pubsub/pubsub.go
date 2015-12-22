@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"google.golang.org/api/googleapi"
-	raw "google.golang.org/api/pubsub/v1beta2"
+	raw "google.golang.org/api/pubsub/v1"
 	"google.golang.org/cloud"
 	"google.golang.org/cloud/internal"
 	"google.golang.org/cloud/internal/transport"
@@ -153,7 +153,7 @@ func ModifyAckDeadline(ctx context.Context, sub string, id string, deadline time
 	}
 	_, err := rawService(ctx).Projects.Subscriptions.ModifyAckDeadline(fullSubName(internal.ProjID(ctx), sub), &raw.ModifyAckDeadlineRequest{
 		AckDeadlineSeconds: int64(deadline / time.Second),
-		AckId:              id,
+		AckIds:             []string{id},
 	}).Do()
 	return err
 }
@@ -212,16 +212,14 @@ func toMessage(resp *raw.ReceivedMessage) (*Message, error) {
 	}, nil
 }
 
-// Pull pulls messages from the subscription. It returns up to n
-// number of messages, and n could not be larger than 100.
+// Pull pulls up to n messages from the subscription. n must not be larger than 100.
 func Pull(ctx context.Context, sub string, n int) ([]*Message, error) {
 	return pull(ctx, sub, n, true)
 }
 
-// PullWait pulls messages from the subscription. If there are not
-// enough messages left in the subscription queue, it will block until
-// at least n number of messages arrive or timeout occurs, and n could
-// not be larger than 100.
+// PullWait pulls up to n messages from the subscription. If there are no
+// messages in the queue, it will wait until at least one message is
+// available or a timeout occurs. n must not be larger than 100.
 func PullWait(ctx context.Context, sub string, n int) ([]*Message, error) {
 	return pull(ctx, sub, n, false)
 }

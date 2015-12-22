@@ -1,4 +1,4 @@
-# stringutil [![Build Status](https://travis-ci.org/naoina/go-stringutil.png?branch=master)](https://travis-ci.org/naoina/go-stringutil)
+# stringutil [![Build Status](https://travis-ci.org/naoina/go-stringutil.svg?branch=master)](https://travis-ci.org/naoina/go-stringutil)
 
 ## Installation
 

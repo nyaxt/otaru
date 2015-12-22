@@ -24,7 +24,7 @@ To use a Server, create it, and then connect to it with no security:
 	conn, err := grpc.Dial(srv.Addr, grpc.WithInsecure())
 	...
 	client, err := bigtable.NewClient(ctx, proj, zone, cluster,
-		bigtable.WithBaseGRPC(conn))
+		cloud.WithBaseGRPC(conn))
 	...
 */
 package bttest
@@ -373,6 +373,14 @@ func includeCell(f *btdpb.RowFilter, fam, col string, cell cell) bool {
 	default:
 		log.Printf("WARNING: don't know how to handle filter of type %T (ignoring it)", f)
 		return true
+	case *btdpb.RowFilter_FamilyNameRegexFilter:
+		pat := string(f.FamilyNameRegexFilter)
+		rx, err := regexp.Compile(pat)
+		if err != nil {
+			log.Printf("Bad family_name_regex_filter pattern %q: %v", pat, err)
+			return false
+		}
+		return rx.MatchString(fam)
 	case *btdpb.RowFilter_ColumnQualifierRegexFilter:
 		pat := string(f.ColumnQualifierRegexFilter)
 		rx, err := regexp.Compile(pat)
@@ -553,6 +561,13 @@ func (s *server) ReadModifyWriteRow(ctx context.Context, req *btspb.ReadModifyWr
 	// Assume all mutations apply to the most recent version of the cell.
 	// TODO(dsymonds): Verify this assumption and document it in the proto.
 	for _, rule := range req.Rules {
+		tbl.mu.RLock()
+		_, famOK := tbl.families[rule.FamilyName]
+		tbl.mu.RUnlock()
+		if !famOK {
+			return nil, fmt.Errorf("unknown family %q", rule.FamilyName)
+		}
+
 		key := fmt.Sprintf("%s:%s", rule.FamilyName, rule.ColumnQualifier)
 
 		newCell := false

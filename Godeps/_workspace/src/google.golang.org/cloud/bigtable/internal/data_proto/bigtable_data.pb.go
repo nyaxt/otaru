@@ -44,9 +44,10 @@ type Row struct {
 	Families []*Family `protobuf:"bytes,2,rep,name=families" json:"families,omitempty"`
 }
 
-func (m *Row) Reset()         { *m = Row{} }
-func (m *Row) String() string { return proto.CompactTextString(m) }
-func (*Row) ProtoMessage()    {}
+func (m *Row) Reset()                    { *m = Row{} }
+func (m *Row) String() string            { return proto.CompactTextString(m) }
+func (*Row) ProtoMessage()               {}
+func (*Row) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
 func (m *Row) GetFamilies() []*Family {
 	if m != nil {
@@ -68,9 +69,10 @@ type Family struct {
 	Columns []*Column `protobuf:"bytes,2,rep,name=columns" json:"columns,omitempty"`
 }
 
-func (m *Family) Reset()         { *m = Family{} }
-func (m *Family) String() string { return proto.CompactTextString(m) }
-func (*Family) ProtoMessage()    {}
+func (m *Family) Reset()                    { *m = Family{} }
+func (m *Family) String() string            { return proto.CompactTextString(m) }
+func (*Family) ProtoMessage()               {}
+func (*Family) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
 func (m *Family) GetColumns() []*Column {
 	if m != nil {
@@ -91,9 +93,10 @@ type Column struct {
 	Cells []*Cell `protobuf:"bytes,2,rep,name=cells" json:"cells,omitempty"`
 }
 
-func (m *Column) Reset()         { *m = Column{} }
-func (m *Column) String() string { return proto.CompactTextString(m) }
-func (*Column) ProtoMessage()    {}
+func (m *Column) Reset()                    { *m = Column{} }
+func (m *Column) String() string            { return proto.CompactTextString(m) }
+func (*Column) ProtoMessage()               {}
+func (*Column) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
 
 func (m *Column) GetCells() []*Cell {
 	if m != nil {
@@ -119,9 +122,10 @@ type Cell struct {
 	Labels []string `protobuf:"bytes,3,rep,name=labels" json:"labels,omitempty"`
 }
 
-func (m *Cell) Reset()         { *m = Cell{} }
-func (m *Cell) String() string { return proto.CompactTextString(m) }
-func (*Cell) ProtoMessage()    {}
+func (m *Cell) Reset()                    { *m = Cell{} }
+func (m *Cell) String() string            { return proto.CompactTextString(m) }
+func (*Cell) ProtoMessage()               {}
+func (*Cell) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
 // Specifies a contiguous range of rows.
 type RowRange struct {
@@ -131,9 +135,10 @@ type RowRange struct {
 	EndKey []byte `protobuf:"bytes,3,opt,name=end_key,proto3" json:"end_key,omitempty"`
 }
 
-func (m *RowRange) Reset()         { *m = RowRange{} }
-func (m *RowRange) String() string { return proto.CompactTextString(m) }
-func (*RowRange) ProtoMessage()    {}
+func (m *RowRange) Reset()                    { *m = RowRange{} }
+func (m *RowRange) String() string            { return proto.CompactTextString(m) }
+func (*RowRange) ProtoMessage()               {}
+func (*RowRange) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
 
 // Specifies a contiguous range of columns within a single column family.
 // The range spans from <column_family>:<start_qualifier> to
@@ -158,9 +163,10 @@ type ColumnRange struct {
 	EndQualifier isColumnRange_EndQualifier `protobuf_oneof:"end_qualifier"`
 }
 
-func (m *ColumnRange) Reset()         { *m = ColumnRange{} }
-func (m *ColumnRange) String() string { return proto.CompactTextString(m) }
-func (*ColumnRange) ProtoMessage()    {}
+func (m *ColumnRange) Reset()                    { *m = ColumnRange{} }
+func (m *ColumnRange) String() string            { return proto.CompactTextString(m) }
+func (*ColumnRange) ProtoMessage()               {}
+func (*ColumnRange) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
 
 type isColumnRange_StartQualifier interface {
 	isColumnRange_StartQualifier()
@@ -229,8 +235,8 @@ func (m *ColumnRange) GetEndQualifierExclusive() []byte {
 }
 
 // XXX_OneofFuncs is for the internal use of the proto package.
-func (*ColumnRange) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), []interface{}) {
-	return _ColumnRange_OneofMarshaler, _ColumnRange_OneofUnmarshaler, []interface{}{
+func (*ColumnRange) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ColumnRange_OneofMarshaler, _ColumnRange_OneofUnmarshaler, _ColumnRange_OneofSizer, []interface{}{
 		(*ColumnRange_StartQualifierInclusive)(nil),
 		(*ColumnRange_StartQualifierExclusive)(nil),
 		(*ColumnRange_EndQualifierInclusive)(nil),
@@ -303,6 +309,39 @@ func _ColumnRange_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Bu
 	}
 }
 
+func _ColumnRange_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ColumnRange)
+	// start_qualifier
+	switch x := m.StartQualifier.(type) {
+	case *ColumnRange_StartQualifierInclusive:
+		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.StartQualifierInclusive)))
+		n += len(x.StartQualifierInclusive)
+	case *ColumnRange_StartQualifierExclusive:
+		n += proto.SizeVarint(3<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.StartQualifierExclusive)))
+		n += len(x.StartQualifierExclusive)
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	// end_qualifier
+	switch x := m.EndQualifier.(type) {
+	case *ColumnRange_EndQualifierInclusive:
+		n += proto.SizeVarint(4<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.EndQualifierInclusive)))
+		n += len(x.EndQualifierInclusive)
+	case *ColumnRange_EndQualifierExclusive:
+		n += proto.SizeVarint(5<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.EndQualifierExclusive)))
+		n += len(x.EndQualifierExclusive)
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
 // Specified a contiguous range of microsecond timestamps.
 type TimestampRange struct {
 	// Inclusive lower bound. If left empty, interpreted as 0.
@@ -311,9 +350,10 @@ type TimestampRange struct {
 	EndTimestampMicros int64 `protobuf:"varint,2,opt,name=end_timestamp_micros" json:"end_timestamp_micros,omitempty"`
 }
 
-func (m *TimestampRange) Reset()         { *m = TimestampRange{} }
-func (m *TimestampRange) String() string { return proto.CompactTextString(m) }
-func (*TimestampRange) ProtoMessage()    {}
+func (m *TimestampRange) Reset()                    { *m = TimestampRange{} }
+func (m *TimestampRange) String() string            { return proto.CompactTextString(m) }
+func (*TimestampRange) ProtoMessage()               {}
+func (*TimestampRange) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
 
 // Specifies a contiguous range of raw byte values.
 type ValueRange struct {
@@ -333,9 +373,10 @@ type ValueRange struct {
 	EndValue isValueRange_EndValue `protobuf_oneof:"end_value"`
 }
 
-func (m *ValueRange) Reset()         { *m = ValueRange{} }
-func (m *ValueRange) String() string { return proto.CompactTextString(m) }
-func (*ValueRange) ProtoMessage()    {}
+func (m *ValueRange) Reset()                    { *m = ValueRange{} }
+func (m *ValueRange) String() string            { return proto.CompactTextString(m) }
+func (*ValueRange) ProtoMessage()               {}
+func (*ValueRange) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
 
 type isValueRange_StartValue interface {
 	isValueRange_StartValue()
@@ -404,8 +445,8 @@ func (m *ValueRange) GetEndValueExclusive() []byte {
 }
 
 // XXX_OneofFuncs is for the internal use of the proto package.
-func (*ValueRange) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), []interface{}) {
-	return _ValueRange_OneofMarshaler, _ValueRange_OneofUnmarshaler, []interface{}{
+func (*ValueRange) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ValueRange_OneofMarshaler, _ValueRange_OneofUnmarshaler, _ValueRange_OneofSizer, []interface{}{
 		(*ValueRange_StartValueInclusive)(nil),
 		(*ValueRange_StartValueExclusive)(nil),
 		(*ValueRange_EndValueInclusive)(nil),
@@ -478,6 +519,39 @@ func _ValueRange_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buf
 	}
 }
 
+func _ValueRange_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ValueRange)
+	// start_value
+	switch x := m.StartValue.(type) {
+	case *ValueRange_StartValueInclusive:
+		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.StartValueInclusive)))
+		n += len(x.StartValueInclusive)
+	case *ValueRange_StartValueExclusive:
+		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.StartValueExclusive)))
+		n += len(x.StartValueExclusive)
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	// end_value
+	switch x := m.EndValue.(type) {
+	case *ValueRange_EndValueInclusive:
+		n += proto.SizeVarint(3<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.EndValueInclusive)))
+		n += len(x.EndValueInclusive)
+	case *ValueRange_EndValueExclusive:
+		n += proto.SizeVarint(4<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.EndValueExclusive)))
+		n += len(x.EndValueExclusive)
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
 // Takes a row as input and produces an alternate view of the row based on
 // specified rules. For example, a RowFilter might trim down a row to include
 // just the cells from columns matching a given regular expression, or might
@@ -538,9 +612,10 @@ type RowFilter struct {
 	Filter isRowFilter_Filter `protobuf_oneof:"filter"`
 }
 
-func (m *RowFilter) Reset()         { *m = RowFilter{} }
-func (m *RowFilter) String() string { return proto.CompactTextString(m) }
-func (*RowFilter) ProtoMessage()    {}
+func (m *RowFilter) Reset()                    { *m = RowFilter{} }
+func (m *RowFilter) String() string            { return proto.CompactTextString(m) }
+func (*RowFilter) ProtoMessage()               {}
+func (*RowFilter) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
 
 type isRowFilter_Filter interface {
 	isRowFilter_Filter()
@@ -765,8 +840,8 @@ func (m *RowFilter) GetApplyLabelTransformer() string {
 }
 
 // XXX_OneofFuncs is for the internal use of the proto package.
-func (*RowFilter) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), []interface{}) {
-	return _RowFilter_OneofMarshaler, _RowFilter_OneofUnmarshaler, []interface{}{
+func (*RowFilter) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _RowFilter_OneofMarshaler, _RowFilter_OneofUnmarshaler, _RowFilter_OneofSizer, []interface{}{
 		(*RowFilter_Chain_)(nil),
 		(*RowFilter_Interleave_)(nil),
 		(*RowFilter_Condition_)(nil),
@@ -1032,6 +1107,91 @@ func _RowFilter_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buff
 	}
 }
 
+func _RowFilter_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*RowFilter)
+	// filter
+	switch x := m.Filter.(type) {
+	case *RowFilter_Chain_:
+		s := proto.Size(x.Chain)
+		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *RowFilter_Interleave_:
+		s := proto.Size(x.Interleave)
+		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *RowFilter_Condition_:
+		s := proto.Size(x.Condition)
+		n += proto.SizeVarint(3<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *RowFilter_Sink:
+		n += proto.SizeVarint(16<<3 | proto.WireVarint)
+		n += 1
+	case *RowFilter_PassAllFilter:
+		n += proto.SizeVarint(17<<3 | proto.WireVarint)
+		n += 1
+	case *RowFilter_BlockAllFilter:
+		n += proto.SizeVarint(18<<3 | proto.WireVarint)
+		n += 1
+	case *RowFilter_RowKeyRegexFilter:
+		n += proto.SizeVarint(4<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.RowKeyRegexFilter)))
+		n += len(x.RowKeyRegexFilter)
+	case *RowFilter_RowSampleFilter:
+		n += proto.SizeVarint(14<<3 | proto.WireFixed64)
+		n += 8
+	case *RowFilter_FamilyNameRegexFilter:
+		n += proto.SizeVarint(5<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.FamilyNameRegexFilter)))
+		n += len(x.FamilyNameRegexFilter)
+	case *RowFilter_ColumnQualifierRegexFilter:
+		n += proto.SizeVarint(6<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.ColumnQualifierRegexFilter)))
+		n += len(x.ColumnQualifierRegexFilter)
+	case *RowFilter_ColumnRangeFilter:
+		s := proto.Size(x.ColumnRangeFilter)
+		n += proto.SizeVarint(7<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *RowFilter_TimestampRangeFilter:
+		s := proto.Size(x.TimestampRangeFilter)
+		n += proto.SizeVarint(8<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *RowFilter_ValueRegexFilter:
+		n += proto.SizeVarint(9<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.ValueRegexFilter)))
+		n += len(x.ValueRegexFilter)
+	case *RowFilter_ValueRangeFilter:
+		s := proto.Size(x.ValueRangeFilter)
+		n += proto.SizeVarint(15<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *RowFilter_CellsPerRowOffsetFilter:
+		n += proto.SizeVarint(10<<3 | proto.WireVarint)
+		n += proto.SizeVarint(uint64(x.CellsPerRowOffsetFilter))
+	case *RowFilter_CellsPerRowLimitFilter:
+		n += proto.SizeVarint(11<<3 | proto.WireVarint)
+		n += proto.SizeVarint(uint64(x.CellsPerRowLimitFilter))
+	case *RowFilter_CellsPerColumnLimitFilter:
+		n += proto.SizeVarint(12<<3 | proto.WireVarint)
+		n += proto.SizeVarint(uint64(x.CellsPerColumnLimitFilter))
+	case *RowFilter_StripValueTransformer:
+		n += proto.SizeVarint(13<<3 | proto.WireVarint)
+		n += 1
+	case *RowFilter_ApplyLabelTransformer:
+		n += proto.SizeVarint(19<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.ApplyLabelTransformer)))
+		n += len(x.ApplyLabelTransformer)
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
 // A RowFilter which sends rows through several RowFilters in sequence.
 type RowFilter_Chain struct {
 	// The elements of "filters" are chained together to process the input row:
@@ -1040,9 +1200,10 @@ type RowFilter_Chain struct {
 	Filters []*RowFilter `protobuf:"bytes,1,rep,name=filters" json:"filters,omitempty"`
 }
 
-func (m *RowFilter_Chain) Reset()         { *m = RowFilter_Chain{} }
-func (m *RowFilter_Chain) String() string { return proto.CompactTextString(m) }
-func (*RowFilter_Chain) ProtoMessage()    {}
+func (m *RowFilter_Chain) Reset()                    { *m = RowFilter_Chain{} }
+func (m *RowFilter_Chain) String() string            { return proto.CompactTextString(m) }
+func (*RowFilter_Chain) ProtoMessage()               {}
+func (*RowFilter_Chain) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8, 0} }
 
 func (m *RowFilter_Chain) GetFilters() []*RowFilter {
 	if m != nil {
@@ -1081,9 +1242,10 @@ type RowFilter_Interleave struct {
 	Filters []*RowFilter `protobuf:"bytes,1,rep,name=filters" json:"filters,omitempty"`
 }
 
-func (m *RowFilter_Interleave) Reset()         { *m = RowFilter_Interleave{} }
-func (m *RowFilter_Interleave) String() string { return proto.CompactTextString(m) }
-func (*RowFilter_Interleave) ProtoMessage()    {}
+func (m *RowFilter_Interleave) Reset()                    { *m = RowFilter_Interleave{} }
+func (m *RowFilter_Interleave) String() string            { return proto.CompactTextString(m) }
+func (*RowFilter_Interleave) ProtoMessage()               {}
+func (*RowFilter_Interleave) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8, 1} }
 
 func (m *RowFilter_Interleave) GetFilters() []*RowFilter {
 	if m != nil {
@@ -1112,9 +1274,10 @@ type RowFilter_Condition struct {
 	FalseFilter *RowFilter `protobuf:"bytes,3,opt,name=false_filter" json:"false_filter,omitempty"`
 }
 
-func (m *RowFilter_Condition) Reset()         { *m = RowFilter_Condition{} }
-func (m *RowFilter_Condition) String() string { return proto.CompactTextString(m) }
-func (*RowFilter_Condition) ProtoMessage()    {}
+func (m *RowFilter_Condition) Reset()                    { *m = RowFilter_Condition{} }
+func (m *RowFilter_Condition) String() string            { return proto.CompactTextString(m) }
+func (*RowFilter_Condition) ProtoMessage()               {}
+func (*RowFilter_Condition) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8, 2} }
 
 func (m *RowFilter_Condition) GetPredicateFilter() *RowFilter {
 	if m != nil {
@@ -1149,9 +1312,10 @@ type Mutation struct {
 	Mutation isMutation_Mutation `protobuf_oneof:"mutation"`
 }
 
-func (m *Mutation) Reset()         { *m = Mutation{} }
-func (m *Mutation) String() string { return proto.CompactTextString(m) }
-func (*Mutation) ProtoMessage()    {}
+func (m *Mutation) Reset()                    { *m = Mutation{} }
+func (m *Mutation) String() string            { return proto.CompactTextString(m) }
+func (*Mutation) ProtoMessage()               {}
+func (*Mutation) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
 
 type isMutation_Mutation interface {
 	isMutation_Mutation()
@@ -1211,8 +1375,8 @@ func (m *Mutation) GetDeleteFromRow() *Mutation_DeleteFromRow {
 }
 
 // XXX_OneofFuncs is for the internal use of the proto package.
-func (*Mutation) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), []interface{}) {
-	return _Mutation_OneofMarshaler, _Mutation_OneofUnmarshaler, []interface{}{
+func (*Mutation) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _Mutation_OneofMarshaler, _Mutation_OneofUnmarshaler, _Mutation_OneofSizer, []interface{}{
 		(*Mutation_SetCell_)(nil),
 		(*Mutation_DeleteFromColumn_)(nil),
 		(*Mutation_DeleteFromFamily_)(nil),
@@ -1291,6 +1455,37 @@ func _Mutation_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffe
 	}
 }
 
+func _Mutation_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*Mutation)
+	// mutation
+	switch x := m.Mutation.(type) {
+	case *Mutation_SetCell_:
+		s := proto.Size(x.SetCell)
+		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *Mutation_DeleteFromColumn_:
+		s := proto.Size(x.DeleteFromColumn)
+		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *Mutation_DeleteFromFamily_:
+		s := proto.Size(x.DeleteFromFamily)
+		n += proto.SizeVarint(3<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *Mutation_DeleteFromRow_:
+		s := proto.Size(x.DeleteFromRow)
+		n += proto.SizeVarint(4<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
 // A Mutation which sets the value of the specified cell.
 type Mutation_SetCell struct {
 	// The name of the family into which new data should be written.
@@ -1309,9 +1504,10 @@ type Mutation_SetCell struct {
 	Value []byte `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
 }
 
-func (m *Mutation_SetCell) Reset()         { *m = Mutation_SetCell{} }
-func (m *Mutation_SetCell) String() string { return proto.CompactTextString(m) }
-func (*Mutation_SetCell) ProtoMessage()    {}
+func (m *Mutation_SetCell) Reset()                    { *m = Mutation_SetCell{} }
+func (m *Mutation_SetCell) String() string            { return proto.CompactTextString(m) }
+func (*Mutation_SetCell) ProtoMessage()               {}
+func (*Mutation_SetCell) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9, 0} }
 
 // A Mutation which deletes cells from the specified column, optionally
 // restricting the deletions to a given timestamp range.
@@ -1326,9 +1522,10 @@ type Mutation_DeleteFromColumn struct {
 	TimeRange *TimestampRange `protobuf:"bytes,3,opt,name=time_range" json:"time_range,omitempty"`
 }
 
-func (m *Mutation_DeleteFromColumn) Reset()         { *m = Mutation_DeleteFromColumn{} }
-func (m *Mutation_DeleteFromColumn) String() string { return proto.CompactTextString(m) }
-func (*Mutation_DeleteFromColumn) ProtoMessage()    {}
+func (m *Mutation_DeleteFromColumn) Reset()                    { *m = Mutation_DeleteFromColumn{} }
+func (m *Mutation_DeleteFromColumn) String() string            { return proto.CompactTextString(m) }
+func (*Mutation_DeleteFromColumn) ProtoMessage()               {}
+func (*Mutation_DeleteFromColumn) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9, 1} }
 
 func (m *Mutation_DeleteFromColumn) GetTimeRange() *TimestampRange {
 	if m != nil {
@@ -1344,17 +1541,19 @@ type Mutation_DeleteFromFamily struct {
 	FamilyName string `protobuf:"bytes,1,opt,name=family_name" json:"family_name,omitempty"`
 }
 
-func (m *Mutation_DeleteFromFamily) Reset()         { *m = Mutation_DeleteFromFamily{} }
-func (m *Mutation_DeleteFromFamily) String() string { return proto.CompactTextString(m) }
-func (*Mutation_DeleteFromFamily) ProtoMessage()    {}
+func (m *Mutation_DeleteFromFamily) Reset()                    { *m = Mutation_DeleteFromFamily{} }
+func (m *Mutation_DeleteFromFamily) String() string            { return proto.CompactTextString(m) }
+func (*Mutation_DeleteFromFamily) ProtoMessage()               {}
+func (*Mutation_DeleteFromFamily) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9, 2} }
 
 // A Mutation which deletes all cells from the containing row.
 type Mutation_DeleteFromRow struct {
 }
 
-func (m *Mutation_DeleteFromRow) Reset()         { *m = Mutation_DeleteFromRow{} }
-func (m *Mutation_DeleteFromRow) String() string { return proto.CompactTextString(m) }
-func (*Mutation_DeleteFromRow) ProtoMessage()    {}
+func (m *Mutation_DeleteFromRow) Reset()                    { *m = Mutation_DeleteFromRow{} }
+func (m *Mutation_DeleteFromRow) String() string            { return proto.CompactTextString(m) }
+func (*Mutation_DeleteFromRow) ProtoMessage()               {}
+func (*Mutation_DeleteFromRow) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9, 3} }
 
 // Specifies an atomic read/modify/write operation on the latest value of the
 // specified column.
@@ -1375,9 +1574,10 @@ type ReadModifyWriteRule struct {
 	Rule isReadModifyWriteRule_Rule `protobuf_oneof:"rule"`
 }
 
-func (m *ReadModifyWriteRule) Reset()         { *m = ReadModifyWriteRule{} }
-func (m *ReadModifyWriteRule) String() string { return proto.CompactTextString(m) }
-func (*ReadModifyWriteRule) ProtoMessage()    {}
+func (m *ReadModifyWriteRule) Reset()                    { *m = ReadModifyWriteRule{} }
+func (m *ReadModifyWriteRule) String() string            { return proto.CompactTextString(m) }
+func (*ReadModifyWriteRule) ProtoMessage()               {}
+func (*ReadModifyWriteRule) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
 
 type isReadModifyWriteRule_Rule interface {
 	isReadModifyWriteRule_Rule()
@@ -1415,8 +1615,8 @@ func (m *ReadModifyWriteRule) GetIncrementAmount() int64 {
 }
 
 // XXX_OneofFuncs is for the internal use of the proto package.
-func (*ReadModifyWriteRule) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), []interface{}) {
-	return _ReadModifyWriteRule_OneofMarshaler, _ReadModifyWriteRule_OneofUnmarshaler, []interface{}{
+func (*ReadModifyWriteRule) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ReadModifyWriteRule_OneofMarshaler, _ReadModifyWriteRule_OneofUnmarshaler, _ReadModifyWriteRule_OneofSizer, []interface{}{
 		(*ReadModifyWriteRule_AppendValue)(nil),
 		(*ReadModifyWriteRule_IncrementAmount)(nil),
 	}
@@ -1459,4 +1659,113 @@ func _ReadModifyWriteRule_OneofUnmarshaler(msg proto.Message, tag, wire int, b *
 	default:
 		return false, nil
 	}
+}
+
+func _ReadModifyWriteRule_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ReadModifyWriteRule)
+	// rule
+	switch x := m.Rule.(type) {
+	case *ReadModifyWriteRule_AppendValue:
+		n += proto.SizeVarint(3<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.AppendValue)))
+		n += len(x.AppendValue)
+	case *ReadModifyWriteRule_IncrementAmount:
+		n += proto.SizeVarint(4<<3 | proto.WireVarint)
+		n += proto.SizeVarint(uint64(x.IncrementAmount))
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+func init() {
+	proto.RegisterType((*Row)(nil), "google.bigtable.v1.Row")
+	proto.RegisterType((*Family)(nil), "google.bigtable.v1.Family")
+	proto.RegisterType((*Column)(nil), "google.bigtable.v1.Column")
+	proto.RegisterType((*Cell)(nil), "google.bigtable.v1.Cell")
+	proto.RegisterType((*RowRange)(nil), "google.bigtable.v1.RowRange")
+	proto.RegisterType((*ColumnRange)(nil), "google.bigtable.v1.ColumnRange")
+	proto.RegisterType((*TimestampRange)(nil), "google.bigtable.v1.TimestampRange")
+	proto.RegisterType((*ValueRange)(nil), "google.bigtable.v1.ValueRange")
+	proto.RegisterType((*RowFilter)(nil), "google.bigtable.v1.RowFilter")
+	proto.RegisterType((*RowFilter_Chain)(nil), "google.bigtable.v1.RowFilter.Chain")
+	proto.RegisterType((*RowFilter_Interleave)(nil), "google.bigtable.v1.RowFilter.Interleave")
+	proto.RegisterType((*RowFilter_Condition)(nil), "google.bigtable.v1.RowFilter.Condition")
+	proto.RegisterType((*Mutation)(nil), "google.bigtable.v1.Mutation")
+	proto.RegisterType((*Mutation_SetCell)(nil), "google.bigtable.v1.Mutation.SetCell")
+	proto.RegisterType((*Mutation_DeleteFromColumn)(nil), "google.bigtable.v1.Mutation.DeleteFromColumn")
+	proto.RegisterType((*Mutation_DeleteFromFamily)(nil), "google.bigtable.v1.Mutation.DeleteFromFamily")
+	proto.RegisterType((*Mutation_DeleteFromRow)(nil), "google.bigtable.v1.Mutation.DeleteFromRow")
+	proto.RegisterType((*ReadModifyWriteRule)(nil), "google.bigtable.v1.ReadModifyWriteRule")
+}
+
+var fileDescriptor0 = []byte{
+	// 1053 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x94, 0x56, 0xdf, 0x72, 0xdb, 0xd4,
+	0x13, 0xae, 0x2a, 0xc7, 0xb1, 0x57, 0x49, 0x9c, 0xc8, 0xfd, 0xe5, 0xe7, 0xba, 0x4d, 0x5a, 0xd4,
+	0x32, 0xc9, 0x00, 0x55, 0x06, 0x97, 0xa1, 0x5c, 0x64, 0x0a, 0xa3, 0x84, 0x4c, 0x18, 0xa6, 0x4c,
+	0x27, 0x30, 0x70, 0xa9, 0x39, 0xb6, 0x8f, 0xcd, 0x99, 0x1c, 0xe9, 0x18, 0x49, 0x4e, 0xeb, 0x3b,
+	0x1e, 0x87, 0x1b, 0x1e, 0x84, 0x17, 0xe0, 0x96, 0x57, 0x61, 0xcf, 0x1f, 0xc9, 0x96, 0xa3, 0x1a,
+	0xe7, 0x2a, 0xb1, 0xf6, 0xdb, 0x6f, 0x77, 0xbf, 0xb3, 0xbb, 0xe7, 0xc0, 0xe5, 0x58, 0x88, 0x31,
+	0xa7, 0xfe, 0x58, 0x70, 0x12, 0x8f, 0x7d, 0x91, 0x8c, 0x4f, 0x06, 0x5c, 0x4c, 0x87, 0x27, 0x7d,
+	0x36, 0xce, 0x48, 0x9f, 0xd3, 0x13, 0x16, 0x67, 0x34, 0x89, 0x09, 0x3f, 0x19, 0x92, 0x8c, 0x84,
+	0x93, 0x44, 0x64, 0xa2, 0x30, 0x86, 0xf2, 0x9b, 0xaf, 0xbe, 0xb9, 0xae, 0x61, 0xca, 0x6d, 0xfe,
+	0xcd, 0xe7, 0xde, 0x37, 0x60, 0x5f, 0x89, 0x77, 0xae, 0x03, 0xf6, 0x35, 0x9d, 0x75, 0xac, 0xa7,
+	0xd6, 0xf1, 0x96, 0xfb, 0x19, 0x34, 0x46, 0x24, 0x62, 0x9c, 0xd1, 0xb4, 0x73, 0xff, 0xa9, 0x7d,
+	0xec, 0xf4, 0xba, 0xfe, 0x6d, 0x57, 0xff, 0x42, 0x62, 0x66, 0xde, 0x19, 0xd4, 0xf5, 0x7f, 0xee,
+	0x16, 0xd4, 0x62, 0x12, 0x51, 0xc5, 0xd2, 0x74, 0x3f, 0x85, 0xcd, 0x81, 0xe0, 0xd3, 0x28, 0x5e,
+	0x49, 0x72, 0xa6, 0x20, 0xde, 0x39, 0xd4, 0xf5, 0x7f, 0xee, 0x1e, 0x34, 0x7f, 0x9b, 0x12, 0xce,
+	0x46, 0x8c, 0x26, 0x26, 0x9f, 0x23, 0xd8, 0x18, 0x50, 0xce, 0x73, 0x9e, 0x4e, 0x25, 0x0f, 0x02,
+	0xbc, 0xaf, 0xa1, 0x26, 0xff, 0xba, 0x1d, 0xd8, 0xcd, 0x58, 0x44, 0xd3, 0x8c, 0x44, 0x93, 0x30,
+	0x62, 0x83, 0x44, 0xa4, 0x8a, 0xca, 0x76, 0xb7, 0x61, 0xe3, 0x86, 0xf0, 0x29, 0x45, 0x2a, 0xc9,
+	0xbc, 0x03, 0x75, 0x4e, 0xfa, 0x14, 0xa9, 0x6d, 0xa4, 0x6e, 0x7a, 0x3e, 0x34, 0x50, 0x8d, 0x2b,
+	0xd4, 0x99, 0xca, 0x44, 0x90, 0x20, 0xc9, 0x42, 0x29, 0x8c, 0x86, 0xb7, 0x60, 0x93, 0xc6, 0x43,
+	0xf5, 0xc1, 0x96, 0x1f, 0xbc, 0xbf, 0x2d, 0x70, 0x74, 0xde, 0xda, 0xa7, 0x0d, 0x8e, 0x52, 0x6e,
+	0x16, 0x2e, 0x08, 0xf1, 0x0c, 0x1e, 0x6a, 0xa2, 0xa2, 0xae, 0x90, 0xc5, 0x03, 0x3e, 0x4d, 0xd9,
+	0x8d, 0xc9, 0xe3, 0xf2, 0x5e, 0x15, 0x88, 0xbe, 0xcf, 0x41, 0xb6, 0x01, 0x7d, 0x04, 0xff, 0x97,
+	0xf1, 0xab, 0x78, 0x6a, 0x0a, 0x62, 0xdd, 0x86, 0xcc, 0x59, 0x36, 0x34, 0x24, 0xd8, 0x83, 0xd6,
+	0x52, 0xa8, 0xa0, 0x05, 0xdb, 0x25, 0x2f, 0xef, 0x07, 0xd8, 0xf9, 0x29, 0x57, 0x50, 0x97, 0x76,
+	0x08, 0xfb, 0xda, 0xeb, 0x03, 0xca, 0x3e, 0x86, 0x07, 0x92, 0xe2, 0x96, 0x55, 0x16, 0x68, 0x7b,
+	0x7f, 0x58, 0x00, 0x3f, 0x4b, 0xe1, 0x35, 0xd9, 0x13, 0xf8, 0x9f, 0x26, 0x53, 0x87, 0xb1, 0x50,
+	0x86, 0x65, 0x2a, 0x5d, 0x02, 0xcc, 0x8b, 0xc8, 0xf5, 0x3a, 0x80, 0xb6, 0x0c, 0xb7, 0xec, 0x6f,
+	0x1b, 0x19, 0x4a, 0xe6, 0xb9, 0xb7, 0x51, 0x29, 0xd8, 0x06, 0x67, 0x81, 0x3e, 0x70, 0xa0, 0x59,
+	0xa0, 0xbd, 0x7f, 0x1a, 0xd0, 0xc4, 0x26, 0xb8, 0x60, 0x1c, 0xa7, 0xca, 0xfd, 0x02, 0x7b, 0xef,
+	0x57, 0xc2, 0x62, 0x95, 0x99, 0xd3, 0x7b, 0x56, 0xd5, 0x7b, 0x05, 0xda, 0x3f, 0x93, 0x50, 0xcc,
+	0xee, 0x35, 0x80, 0x1a, 0x4a, 0x4e, 0x89, 0xc9, 0xd9, 0xe9, 0x1d, 0xaf, 0x76, 0xfd, 0xae, 0xc0,
+	0xa3, 0xff, 0x29, 0x34, 0x07, 0x22, 0x1e, 0xb2, 0x8c, 0x89, 0x58, 0xd5, 0xe4, 0xf4, 0x8e, 0xfe,
+	0x23, 0x72, 0x0e, 0x47, 0xef, 0x1d, 0xa8, 0xa5, 0x2c, 0xbe, 0xee, 0xec, 0xa2, 0x63, 0x03, 0x7f,
+	0x3f, 0x84, 0xd6, 0x84, 0xa4, 0x69, 0x48, 0x38, 0x0f, 0x47, 0x0a, 0xde, 0xd9, 0x33, 0xa6, 0x2e,
+	0xec, 0xf6, 0xb9, 0x18, 0x5c, 0x2f, 0xda, 0x5c, 0x63, 0x3b, 0x84, 0x07, 0x89, 0x78, 0x27, 0xbb,
+	0x3d, 0x4c, 0xe8, 0x98, 0xbe, 0xcf, 0xed, 0x35, 0x73, 0x04, 0x8f, 0x60, 0x4f, 0xda, 0x53, 0x3c,
+	0x6c, 0xdc, 0x33, 0xc6, 0xb8, 0x83, 0x46, 0x0b, 0x8d, 0x1e, 0x74, 0x16, 0x26, 0xa1, 0x4c, 0x20,
+	0x1b, 0xb1, 0x89, 0x98, 0x23, 0x38, 0xd0, 0x1b, 0x62, 0xa1, 0x5d, 0x4b, 0xc0, 0xba, 0x89, 0xf4,
+	0x1a, 0xda, 0x06, 0x98, 0xc8, 0xf6, 0xc9, 0xcd, 0x9b, 0x4a, 0x98, 0x27, 0x1f, 0x5e, 0x2b, 0xaa,
+	0xd9, 0xd0, 0xff, 0x1c, 0xf6, 0xe7, 0x7d, 0x59, 0xa2, 0x68, 0x28, 0x0a, 0xaf, 0x8a, 0xa2, 0xdc,
+	0xff, 0xc8, 0xf2, 0x18, 0x5c, 0xdd, 0x4f, 0xa5, 0x1c, 0x9b, 0x26, 0xc7, 0xd3, 0xc2, 0xba, 0xc8,
+	0xdf, 0x52, 0xfc, 0x87, 0x55, 0xfc, 0xf3, 0x71, 0x40, 0xef, 0x8f, 0xe1, 0x91, 0x5a, 0x71, 0xe1,
+	0x44, 0x6a, 0x80, 0xaa, 0x8a, 0xd1, 0x28, 0xa5, 0x59, 0x4e, 0x03, 0x48, 0xb3, 0x81, 0xb0, 0xe7,
+	0xd0, 0x2d, 0xc3, 0x38, 0x8b, 0x58, 0x81, 0x72, 0x0c, 0x4a, 0xea, 0x5a, 0xa0, 0x8c, 0x70, 0x25,
+	0xe0, 0x96, 0x01, 0xe2, 0xb2, 0x48, 0xb3, 0x84, 0x4d, 0xcc, 0x9c, 0x64, 0x98, 0x7a, 0x3a, 0x12,
+	0x49, 0x84, 0x90, 0x6d, 0xd3, 0x04, 0x08, 0x21, 0x93, 0x09, 0x1e, 0xa3, 0xda, 0x93, 0x25, 0x48,
+	0x5b, 0x1f, 0x63, 0xf7, 0x15, 0x6c, 0xa8, 0xbe, 0x77, 0x7d, 0xd8, 0xd4, 0x01, 0xe4, 0x4e, 0x90,
+	0x9b, 0xfa, 0x60, 0x65, 0xcf, 0x76, 0x4f, 0x01, 0xe6, 0x5d, 0x7f, 0x67, 0xef, 0x3f, 0x2d, 0x68,
+	0x16, 0x5d, 0xef, 0xbe, 0x82, 0xdd, 0x49, 0x42, 0x87, 0x6c, 0x40, 0xb2, 0x42, 0x7c, 0x3d, 0xb2,
+	0xab, 0x69, 0xdc, 0x1e, 0x38, 0x59, 0x32, 0x2d, 0x7c, 0xee, 0xaf, 0xe3, 0xf3, 0x12, 0xb6, 0x46,
+	0x84, 0xa7, 0x85, 0x93, 0xbd, 0x86, 0x53, 0xd0, 0x80, 0xba, 0x86, 0x7b, 0x7f, 0xd5, 0xa0, 0xf1,
+	0x66, 0x9a, 0x11, 0x95, 0xf8, 0x57, 0xd0, 0x90, 0x07, 0x2d, 0x0f, 0xcc, 0x24, 0xfc, 0xbc, 0x8a,
+	0x27, 0xc7, 0xfb, 0x3f, 0xd2, 0x4c, 0xde, 0x71, 0x78, 0x34, 0xdf, 0x83, 0x3b, 0xa4, 0x9c, 0xca,
+	0x7a, 0x13, 0x11, 0x99, 0x83, 0x36, 0x05, 0xbc, 0x58, 0xc9, 0x71, 0xae, 0xdc, 0x2e, 0xd0, 0x4b,
+	0xcf, 0xc9, 0x6d, 0x32, 0x3d, 0xbb, 0xa6, 0xb0, 0x75, 0xc9, 0xf4, 0x33, 0x00, 0xc9, 0xbe, 0x85,
+	0xd6, 0x22, 0x19, 0x36, 0xaa, 0x5a, 0x1a, 0x4e, 0xef, 0x93, 0x35, 0x99, 0x50, 0x35, 0x6c, 0x2c,
+	0x02, 0x9b, 0xa6, 0xda, 0xea, 0x8b, 0x15, 0xaf, 0xf9, 0xe5, 0xfd, 0x61, 0x2e, 0xea, 0xaa, 0x07,
+	0x80, 0x5d, 0x7e, 0x00, 0xa8, 0x2d, 0xd6, 0x9d, 0xc1, 0xee, 0xb2, 0x18, 0x77, 0x8d, 0xf5, 0x25,
+	0x80, 0x8c, 0xa5, 0xe7, 0xde, 0x28, 0xb6, 0xc6, 0x42, 0xe9, 0x1e, 0x2d, 0x86, 0x36, 0x2f, 0xa8,
+	0xaa, 0xd0, 0x5d, 0xbc, 0x9c, 0x4b, 0xca, 0x04, 0x00, 0x8d, 0xc8, 0x68, 0xe6, 0xfd, 0x6e, 0x41,
+	0xfb, 0x8a, 0x92, 0xe1, 0x1b, 0x31, 0x64, 0xa3, 0xd9, 0x2f, 0x09, 0xcb, 0xe8, 0xd5, 0x94, 0xd3,
+	0xbb, 0x16, 0xb1, 0x0f, 0x5b, 0x38, 0xe6, 0xc5, 0x25, 0x58, 0xbc, 0x38, 0xf0, 0x7e, 0xc0, 0xcb,
+	0x35, 0xa1, 0x11, 0x8d, 0xb3, 0x90, 0x44, 0x62, 0x1a, 0x67, 0x4a, 0x39, 0xfb, 0xf2, 0x5e, 0x50,
+	0x87, 0x5a, 0x82, 0xa1, 0x82, 0x17, 0xb0, 0x3f, 0x10, 0x51, 0x45, 0xc5, 0xc1, 0x5e, 0x60, 0x7e,
+	0x9c, 0xe3, 0x23, 0xf4, 0xad, 0x7c, 0x83, 0xbe, 0xb5, 0xfa, 0x75, 0xf5, 0x18, 0x7d, 0xf9, 0x6f,
+	0x00, 0x00, 0x00, 0xff, 0xff, 0x98, 0x49, 0x33, 0xa8, 0xd8, 0x0a, 0x00, 0x00,
 }
