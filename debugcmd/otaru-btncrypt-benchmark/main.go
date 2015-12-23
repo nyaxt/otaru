@@ -45,18 +45,34 @@ func main() {
 	}
 	logger.Infof(mylog, "Preparing target took: %v", time.Since(tstart))
 
-	tstart = time.Now()
-	envelope, err := btncrypt.Encrypt(tu.TestCipher(), buf)
-	elapsed := time.Since(tstart)
+	var envelope []byte
+	{
+		tstart = time.Now()
+		envelope, err = btncrypt.Encrypt(tu.TestCipher(), buf)
+		elapsed := time.Since(tstart)
 
-	if err != nil {
-		logger.Criticalf(mylog, "Failed to encrypt: %v", err)
+		if err != nil {
+			logger.Criticalf(mylog, "Failed to encrypt: %v", err)
+		}
+		logger.Infof(mylog, "Encrypt took %v", elapsed)
+		sizeMB := (float64)(size) / (1000 * 1000)
+		MBps := sizeMB / elapsed.Seconds()
+		Mbps := MBps * 8
+		logger.Infof(mylog, "%v MB/s %v Mbps", MBps, Mbps)
 	}
-	logger.Infof(mylog, "Encrypt took %v", elapsed)
-	sizeMB := (float64)(size) / (1000 * 1000)
-	MBps := sizeMB / elapsed.Seconds()
-	Mbps := MBps * 8
-	logger.Infof(mylog, "%v MB/s %v Mbps", MBps, Mbps)
 
-	_ = envelope
+	{
+		tstart = time.Now()
+		_, err = btncrypt.Decrypt(tu.TestCipher(), envelope, len(buf))
+		elapsed := time.Since(tstart)
+
+		if err != nil {
+			logger.Criticalf(mylog, "Failed to decrypt: %v", err)
+		}
+		logger.Infof(mylog, "Decrypt took %v", elapsed)
+		sizeMB := (float64)(size) / (1000 * 1000)
+		MBps := sizeMB / elapsed.Seconds()
+		Mbps := MBps * 8
+		logger.Infof(mylog, "%v MB/s %v Mbps", MBps, Mbps)
+	}
 }
