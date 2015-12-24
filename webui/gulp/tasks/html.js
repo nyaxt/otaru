@@ -2,22 +2,13 @@
 
 // Scan Your HTML For Assets & Optimize Them
 module.exports = function (gulp, plugins, config) { return function () {
-  var assets = plugins.useref.assets({searchPath: ['.tmp', 'app', 'dist']});
-
-  return gulp.src(['app/**/*.html', '.tmp/*.html', '!app/{elements,test}/**/*.html'])
-    // Replace path for vulcanized assets
-    .pipe(plugins.if('*.html', plugins.replace(
-      'elements/elements.html', 'elements/elements.vulcanized.html')))
-    .pipe(assets)
+  return gulp.src(['app/**/*.html', '.tmp/*.html', 'app/{elements,test}/**/*.html'])
+    .pipe(plugins.useref({searchPath: ['.tmp', 'app', 'dist']}))
     // Concatenate And Minify JavaScript
     .pipe(plugins.if('*.js', plugins.uglify({preserveComments: 'some'})))
     // Concatenate And Minify Styles
     // In case you are still using useref build blocks
     .pipe(plugins.if('*.css', plugins.cssmin()))
-    // Revving files with child references into consideration
-    // when calculating a hashes
-    .pipe(assets.restore())
-    .pipe(plugins.useref())
     // Add shim-shadowdom to link with main.css
     .pipe(plugins.if('*.html', plugins.replace(
       'main.css">', 'main.css" shim-shadowdom>')))

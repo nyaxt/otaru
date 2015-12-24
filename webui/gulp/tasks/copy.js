@@ -32,10 +32,6 @@ module.exports = function (gulp, plugins, config) { return function () {
       .pipe(gulp.dest('dist/scripts')),
 
     gulp.src(rootDir + '/elements/elements.html')
-      .pipe(plugins.rename('elements.vulcanized.html'))
       .pipe(gulp.dest('dist/elements'))
-
-    //gulp.src('app/pages/**/*.md')
-    //  .pipe(gulp.dest('dist/pages'))
   ).pipe(plugins.size({title: 'copy'}));
 };};

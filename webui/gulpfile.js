@@ -71,9 +71,6 @@ gulp.task('copy-build-element', getTask('copy-build-element'));
 // Gzip text files
 gulp.task('gzip', getTask('gzip'));
 
-// Vulcanize imports
-gulp.task('vulcanize', getTask('vulcanize'));
-
 // Babel js
 gulp.task('babel', getTask('babel'));
 
@@ -82,7 +79,6 @@ gulp.task('default', ['clean'], function (cb) {
   require('run-sequence')(
     ['copy'],
     ['images', 'fonts', 'html'],
-    'vulcanize',
     'babel',
     cb);
 });
