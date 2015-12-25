@@ -2,6 +2,8 @@
 .gitignore
 LICENSE
 README.md
+Dockerfile
+out/
 
 webui/node_modules
 webui/dist
