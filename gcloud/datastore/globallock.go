@@ -93,6 +93,7 @@ func (l *GlobalLocker) tryLockOnce() error {
 }
 
 func (l *GlobalLocker) Lock() (err error) {
+	logger.Infof(lklog, "GlobalLocker.Lock() started.")
 	return gcutil.RetryIfNeeded(func() error {
 		return l.tryLockOnce()
 	}, lklog)
@@ -128,11 +129,12 @@ func (l *GlobalLocker) forceUnlockOnce() error {
 		return err
 	}
 
-	logger.Infof(lklog, "GlobalLocker.ForceUnlock() took %s.", time.Since(start))
+	logger.Infof(lklog, "GlobalLocker.forceUnlockOnce() took %s.", time.Since(start))
 	return nil
 }
 
 func (l *GlobalLocker) ForceUnlock() error {
+	logger.Infof(lklog, "GlobalLocker.ForceUnlock() started.")
 	return gcutil.RetryIfNeeded(func() error {
 		return l.forceUnlockOnce()
 	}, lklog)
@@ -153,10 +155,12 @@ const (
 // If the lock was taken by other GlobalLocker, Unlock will fail with ErrLockTaken.
 // If there was no lock, Unlock will fail with ErrNoLock.
 func (l *GlobalLocker) Unlock() error {
+	logger.Infof(lklog, "GlobalLocker.Unlock() started.")
 	return l.unlockInternal(checkCreatedAt)
 }
 
 func (l *GlobalLocker) UnlockIgnoreCreatedAt() error {
+	logger.Infof(lklog, "GlobalLocker.UnlockIgnoreCreatedAt() started.")
 	return l.unlockInternal(ignoreCreatedAt)
 }
 
@@ -204,7 +208,7 @@ func (l *GlobalLocker) unlockInternalOnce(checkCreatedAtFlag bool) error {
 		return err
 	}
 
-	logger.Infof(lklog, "GlobalLocker.Unlock(%+v) took %s.", l.lockEntry, time.Since(start))
+	logger.Infof(lklog, "GlobalLocker.unlockInternalOnce(%+v) took %s.", l.lockEntry, time.Since(start))
 	return nil
 }
 
@@ -236,11 +240,12 @@ func (l *GlobalLocker) tryQueryOnce() (lockEntry, error) {
 		}
 	}
 
-	logger.Infof(lklog, "GlobalLocker.Query() took %s.", time.Since(start))
+	logger.Infof(lklog, "GlobalLocker.tryQueryOnce() took %s.", time.Since(start))
 	return e, nil
 }
 
 func (l *GlobalLocker) Query() (le lockEntry, err error) {
+	logger.Infof(lklog, "GlobalLocker.Query() started.")
 	err = gcutil.RetryIfNeeded(func() error {
 		le, err = l.tryQueryOnce()
 		return err
