@@ -32,7 +32,12 @@ func NewServer(addr string) *Server {
 		return children, nil
 	}
 	rtr.NotFoundHandler = http.FileServer(
-		&assetfs.AssetFS{Asset: webui.Asset, AssetDir: assetDirWrap, Prefix: "dist"})
+		&assetfs.AssetFS{
+			Asset:     webui.Asset,
+			AssetDir:  assetDirWrap,
+			AssetInfo: webui.AssetInfo,
+			Prefix:    "dist",
+		})
 
 	apirtr := rtr.PathPrefix("/api").Subrouter()
 	apirtr.NotFoundHandler = http.NotFoundHandler()
