@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/dustin/go-humanize"
 	gfluent "github.com/fluent/fluent-logger-golang/fluent"
@@ -61,6 +62,11 @@ func DefaultConfigDir() string {
 }
 
 func NewConfig(configdir string) (*Config, error) {
+	if err := util.IsDir(configdir); err != nil {
+		return nil, fmt.Errorf("configdir \"%s\" is not a dir: %v", err)
+	}
+	os.Setenv("OTARUDIR", configdir)
+
 	tomlpath := path.Join(configdir, "config.toml")
 
 	buf, err := ioutil.ReadFile(tomlpath)
@@ -83,6 +89,17 @@ func NewConfig(configdir string) (*Config, error) {
 
 	if err := toml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("Failed to parse config file: %v", err)
+	}
+
+	cfg.CacheDir = os.ExpandEnv(cfg.CacheDir)
+	cfg.CacheDir, err = filepath.Abs(cfg.CacheDir)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to resolve cache dir to absolute path \"%s\": %v", cfg.CacheDir, err)
+	}
+	if err := util.IsDir(cfg.CacheDir); err != nil {
+		return nil, fmt.Errorf("Failed to resolve cache dir \"%s\": %v", cfg.CacheDir, err)
+	} else {
+		logger.Infof(mylog, "Cache dir resolved to: %s", cfg.CacheDir)
 	}
 
 	if cfg.CacheHighWatermark != "" {
