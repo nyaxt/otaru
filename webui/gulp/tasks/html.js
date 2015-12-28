@@ -13,11 +13,13 @@ module.exports = function (gulp, plugins, config) { return function () {
     .pipe(plugins.if('*.html', plugins.replace(
       'main.css">', 'main.css" shim-shadowdom>')))
     // Minify Any HTML
-    .pipe(plugins.if('*.html', plugins.minifyHtml({
-      empty: true,  // KEEP empty attributes
-      loose: true,  // KEEP one whitespace
-      quotes: true, // KEEP arbitrary quotes
-      spare: true   // KEEP redundant attributes
+    .pipe(plugins.if('*.html', plugins.htmlmin({
+      removeEmptyAttributes: false,
+      collapseWhiteSpace: true,
+      conservativeCollapse: true,
+      removeAttributeQuotes: false,
+      removeRedundantAttributes: false,
+      customAttrAssign: [/\?=/, /\$=/],
     })))
     // Output Files
     .pipe(gulp.dest('dist'))
