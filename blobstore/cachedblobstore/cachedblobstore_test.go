@@ -514,3 +514,41 @@ func TestCachedBlobStore_CancelInvalidatingBlobsByClose(t *testing.T) {
 		t.Errorf("invalidate cancelled blob is still cached!")
 	}
 }
+
+func TestCachedBlobStore_CountWriteBacksOnClose(t *testing.T) {
+	backendbs := tu.TestFileBlobStoreOfName("backend")
+	cachebs := tu.TestFileBlobStoreOfName("cache")
+	s := scheduler.NewScheduler()
+	bs, err := cachedblobstore.New(backendbs, cachebs, s, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	if err != nil {
+		t.Errorf("Failed to create CachedBlobStore: %v", err)
+		return
+	}
+
+	if err := tu.WriteVersionedBlob(bs, "hoge", 1); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if bs.GetStats().CachedBlobStoreStats.NumWritebackOnClose != 0 {
+		t.Errorf("#wboc should be 0 before close")
+		return
+	}
+
+	if err := tu.AssertBlobVersion(backendbs, "hoge", 0); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	bs.CloseEntryForTesting("hoge")
+
+	if err := tu.AssertBlobVersion(backendbs, "hoge", 1); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if bs.GetStats().CachedBlobStoreStats.NumWritebackOnClose != 1 {
+		t.Errorf("#wboc should be 1 after forced close")
+		return
+	}
+}

@@ -26,6 +26,10 @@ const (
 	ENFILE = syscall.Errno(syscall.ENFILE)
 )
 
+type CachedBlobStoreStats struct {
+	NumWritebackOnClose int `json:num_writeback_on_close`
+}
+
 type CachedBlobStore struct {
 	backendbs blobstore.BlobStore
 	cachebs   blobstore.RandomAccessBlobStore
@@ -38,6 +42,8 @@ type CachedBlobStore struct {
 
 	entriesmgr CachedBlobEntriesManager
 	usagestats *CacheUsageStats
+
+	stats CachedBlobStoreStats
 }
 
 func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore, s *scheduler.Scheduler, flags int, queryVersion version.QueryFunc) (*CachedBlobStore, error) {
@@ -61,6 +67,7 @@ func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore,
 		bever:        NewCachedBackendVersion(backendbs, queryVersion),
 		entriesmgr:   NewCachedBlobEntriesManager(),
 		usagestats:   NewCacheUsageStats(),
+		stats:        CachedBlobStoreStats{},
 	}
 
 	if _, ok := cachebs.(blobstore.BlobRemover); !ok {
@@ -300,14 +307,16 @@ func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, 
 }
 
 type Stats struct {
-	CacheUsageStatsView `json:"usage_stats"`
-	CbvStats            `json:"cbv_stats"`
+	CacheUsageStatsView  `json:"usage_stats"`
+	CbvStats             `json:"cbv_stats"`
+	CachedBlobStoreStats `json:"stats"`
 }
 
 func (cbs *CachedBlobStore) GetStats() Stats {
 	return Stats{
-		CacheUsageStatsView: cbs.usagestats.View(),
-		CbvStats:            cbs.bever.GetStats(),
+		CacheUsageStatsView:  cbs.usagestats.View(),
+		CbvStats:             cbs.bever.GetStats(),
+		CachedBlobStoreStats: cbs.stats,
 	}
 }
 

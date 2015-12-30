@@ -482,6 +482,7 @@ func (be *CachedBlobEntry) writeBackWithLock() error {
 	}
 
 	logger.Infof(mylog, "writeBack blob \"%s\" cache ver %d overwriting backend ver %d.", be.blobpath, cachever, bever)
+	be.cbs.stats.NumWritebackOnClose++
 
 	// unlock be.mu while writeback
 	be.mu.Unlock()
