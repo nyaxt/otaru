@@ -112,7 +112,7 @@ func (mgr *CachedBlobEntriesManager) ListBlobs() (bpaths []string) {
 
 		bpaths = make([]string, 0, len(mgr.entries))
 		for _, be := range mgr.entries {
-			if !be.AcceptsIO() {
+			if !be.ShouldBeListed() {
 				continue
 			}
 			bpaths = append(bpaths, be.blobpath)
