@@ -20,6 +20,7 @@ import (
 	"github.com/nyaxt/otaru/gcloud/gcs"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/inodedb/blobstoredbstatesnapshotio"
+	"github.com/nyaxt/otaru/inodedb/inodedbsyncer"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/mgmt"

@@ -364,12 +364,19 @@ func (db *DB) TriggerSync() <-chan error {
 	errC := db.snapshotIO.SaveSnapshot(db.state)
 
 	errCwrap := make(chan error, 1)
+	if errC == nil {
+		close(errCwrap)
+		return errCwrap
+	}
+
 	go func() {
 		err := <-errC
 		if err == nil {
 			db.stats.LastSync = time.Now()
 		}
+
 		errCwrap <- err
+		close(errCwrap)
 	}()
 	return errCwrap
 }

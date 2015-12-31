@@ -10,6 +10,8 @@ import (
 	tu "github.com/nyaxt/otaru/testutils"
 )
 
+func init() { tu.EnsureLogger() }
+
 func testRootKey() string { return authtu.TestBucketName() + "-blobstoredbstatesnapshotio_test" }
 
 func TestSS_SaveRestore(t *testing.T) {

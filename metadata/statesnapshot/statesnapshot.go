@@ -16,31 +16,13 @@ import (
 
 var mylog = logger.Registry().Category("statess")
 
-type EncodeCallback func(enc *gob.Encoder) error
-
-func Save(blobpath string, c btncrypt.Cipher, bs blobstore.BlobStore, cb EncodeCallback) error {
-	var buf bytes.Buffer
-	zw := zlib.NewWriter(&buf)
-	enc := gob.NewEncoder(zw)
-
-	es := []error{}
-	if err := cb(enc); err != nil {
-		es = append(es, fmt.Errorf("Failed to encode state: %v", err))
-	}
-	if err := zw.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close zlib Writer: %v", err))
-	}
-
-	if err := util.ToErrors(es); err != nil {
-		return err
-	}
-
+func SaveBytes(blobpath string, c btncrypt.Cipher, bs blobstore.BlobStore, p []byte) error {
 	w, err := bs.OpenWriter(blobpath)
 	if err != nil {
 		return err
 	}
 	cw, err := chunkstore.NewChunkWriter(w, c, chunkstore.ChunkHeader{
-		PayloadLen:     uint32(buf.Len()),
+		PayloadLen:     uint32(len(p)),
 		PayloadVersion: 1,
 		OrigFilename:   blobpath,
 		OrigOffset:     0,
@@ -49,7 +31,8 @@ func Save(blobpath string, c btncrypt.Cipher, bs blobstore.BlobStore, cb EncodeC
 		return err
 	}
 
-	if _, err := cw.Write(buf.Bytes()); err != nil {
+	es := []error{}
+	if _, err := cw.Write(p); err != nil {
 		es = append(es, fmt.Errorf("Failed to write to ChunkWriter: %v", err))
 	}
 
@@ -64,6 +47,36 @@ func Save(blobpath string, c btncrypt.Cipher, bs blobstore.BlobStore, cb EncodeC
 		return err
 	}
 	return nil
+}
+
+type EncodeCallback func(enc *gob.Encoder) error
+
+func EncodeBytes(cb EncodeCallback) ([]byte, error) {
+	var buf bytes.Buffer
+	zw := zlib.NewWriter(&buf)
+	enc := gob.NewEncoder(zw)
+
+	es := []error{}
+	if err := cb(enc); err != nil {
+		es = append(es, fmt.Errorf("Failed to encode state: %v", err))
+	}
+	if err := zw.Close(); err != nil {
+		es = append(es, fmt.Errorf("Failed to close zlib Writer: %v", err))
+	}
+
+	if err := util.ToErrors(es); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func Save(blobpath string, c btncrypt.Cipher, bs blobstore.BlobStore, cb EncodeCallback) error {
+	p, err := EncodeBytes(cb)
+	if err != nil {
+		return err
+	}
+
+	return SaveBytes(blobpath, c, bs, p)
 }
 
 type DecodeCallback func(dec *gob.Decoder) error
