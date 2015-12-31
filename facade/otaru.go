@@ -169,7 +169,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	}
 
 	o.IDBS = inodedb.NewDBService(o.IDBBE)
-	o.IDBSyncJob = o.R.SyncEveryPeriod(o.IDBS, 30*time.Second)
+	o.IDBSyncJob = o.R.RunEveryPeriod(inodedbsyncer.NewSyncTask(o.IDBS), 30*time.Second)
 
 	o.FS = otaru.NewFileSystem(o.IDBS, o.CBS, o.C)
 

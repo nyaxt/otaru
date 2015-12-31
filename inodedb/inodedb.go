@@ -177,7 +177,7 @@ func (dn *DirNode) View() NodeView {
 }
 
 type DBStateSnapshotIO interface {
-	SaveSnapshot(s *DBState) error
+	SaveSnapshot(s *DBState) <-chan error
 	RestoreSnapshot() (*DBState, error)
 }
 
@@ -360,13 +360,22 @@ func (db *DB) UnlockNode(nlock NodeLock) error {
 	return nil
 }
 
-func (db *DB) Sync() error {
-	if err := db.snapshotIO.SaveSnapshot(db.state); err != nil {
-		return err
-	}
+func (db *DB) TriggerSync() <-chan error {
+	errC := db.snapshotIO.SaveSnapshot(db.state)
 
-	db.stats.LastSync = time.Now()
-	return nil
+	errCwrap := make(chan error, 1)
+	go func() {
+		err := <-errC
+		if err == nil {
+			db.stats.LastSync = time.Now()
+		}
+		errCwrap <- err
+	}()
+	return errCwrap
+}
+
+func (db *DB) Sync() error {
+	return <-db.TriggerSync()
 }
 
 func (db *DB) fsckRecursive(id ID, foundblobpaths []string, errs []error) ([]string, []error) {

@@ -17,15 +17,18 @@ func NewSimpleDBStateSnapshotIO() *SimpleDBStateSnapshotIO {
 	return &SimpleDBStateSnapshotIO{}
 }
 
-func (io *SimpleDBStateSnapshotIO) SaveSnapshot(s *DBState) error {
+func (io *SimpleDBStateSnapshotIO) SaveSnapshot(s *DBState) <-chan error {
+	errC := make(chan error, 1)
+
 	io.Buf.Reset()
 
 	enc := gob.NewEncoder(&io.Buf)
 	if err := s.EncodeToGob(enc); err != nil {
-		return fmt.Errorf("Failed to encode DBState: %v", err)
+		errC <- fmt.Errorf("Failed to encode DBState: %v", err)
 	}
 
-	return nil
+	close(errC)
+	return errC
 }
 
 func (io *SimpleDBStateSnapshotIO) RestoreSnapshot() (*DBState, error) {

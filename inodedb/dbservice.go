@@ -17,6 +17,7 @@ type DBService struct {
 
 var _ = DBHandler(&DBService{})
 var _ = util.Syncer(&DBService{})
+var _ = TriggerSyncer(&DBService{})
 
 func NewDBService(h DBHandler) *DBService {
 	s := &DBService{
@@ -94,6 +95,18 @@ func (srv *DBService) Sync() (err error) {
 	srv.reqC <- func() {
 		if s, ok := srv.h.(util.Syncer); ok {
 			err = s.Sync()
+		}
+		close(ch)
+	}
+	<-ch
+	return
+}
+
+func (srv *DBService) TriggerSync() (errC <-chan error) {
+	ch := make(chan struct{})
+	srv.reqC <- func() {
+		if tser, ok := srv.h.(TriggerSyncer); ok {
+			errC = tser.TriggerSync()
 		}
 		close(ch)
 	}

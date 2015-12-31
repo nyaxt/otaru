@@ -99,7 +99,7 @@ type DBHandler interface {
 type DBServiceStats struct {
 	// === Fields that are kept up to date by DBHandler ===
 
-	LastSync time.Time `json:"last_sync"`
+	LastSync time.Time `json:"last_sync"` // NOTE: updated w/o lock
 	LastTx   time.Time `json:"last_tx"`
 
 	// === Fields dynamically filled in on GetStats() ===
@@ -120,4 +120,8 @@ type QueryRecentTransactionsProvider interface {
 
 type DBFscker interface {
 	Fsck() ([]string, []error)
+}
+
+type TriggerSyncer interface {
+	TriggerSync() <-chan error
 }
