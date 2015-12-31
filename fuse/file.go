@@ -115,6 +115,13 @@ func (n FileNode) Open(ctx context.Context, req *bfuse.OpenRequest, resp *bfuse.
 	return FileHandle{fh}, nil
 }
 
+func (n FileNode) Fsync(ctx context.Context, req *bfuse.FsyncRequest) error {
+	if err := n.fs.SyncFile(n.id); err != nil {
+		return err
+	}
+	return nil
+}
+
 type FileHandle struct {
 	h *otaru.FileHandle
 }

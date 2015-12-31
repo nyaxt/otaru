@@ -441,6 +441,21 @@ func (fs *FileSystem) TruncateFile(id inodedb.ID, newsize int64) error {
 	return fh.Truncate(newsize)
 }
 
+func (fs *FileSystem) SyncFile(id inodedb.ID) error {
+	if !fl.IsWriteAllowed(fs.bs.Flags()) {
+		// no need to sync if fs is readonly
+		return nil
+	}
+
+	fh, err := fs.OpenFile(id, fl.O_WRONLY)
+	if err != nil {
+		return fmt.Errorf("Failed to OpenFile: %v", err)
+	}
+	defer fh.Close()
+
+	return fh.Sync()
+}
+
 func (of *OpenFile) OpenHandleWithoutLock(flags int) *FileHandle {
 	fh := &FileHandle{of: of, flags: flags}
 	of.handles = append(of.handles, fh)
