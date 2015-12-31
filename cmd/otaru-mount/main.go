@@ -86,7 +86,7 @@ func main() {
 	}()
 	logger.Registry().AddOutput(logger.HandleCritical(func() {
 		logger.Warningf(mylog, "Starting shutdown due to critical event.")
-		closeOtaruAndExit(1)
+		go closeOtaruAndExit(1)
 	}))
 
 	bfuse.Debug = func(msg interface{}) { logger.Debugf(bfuseLogger, "%v", msg) }

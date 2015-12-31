@@ -160,7 +160,7 @@ func (be *CachedBlobEntry) updateState(newState cacheEntryState) {
 		}
 	case cacheEntryDirty:
 		switch newState {
-		case cacheEntryWriteInProgress, cacheEntryDirtyClosing:
+		case cacheEntryWriteInProgress, cacheEntryWritebackInProgress, cacheEntryDirtyClosing:
 			break
 		default:
 			goto Unexpected
@@ -191,7 +191,8 @@ func (be *CachedBlobEntry) updateState(newState cacheEntryState) {
 	return
 
 Unexpected:
-	logger.Criticalf(mylog, "Unexpected cache state \"%s\": %v -> %v", be.blobpath, be.state, newState)
+	logger.Panicf(mylog, "Unexpected cache state \"%s\": %v -> %v", be.blobpath, be.state, newState)
+
 	be.state = newState
 	return
 }
@@ -373,7 +374,10 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 	be.handles = make(map[*CachedBlobHandle]struct{})
 
 	if cachever > backendver {
-		logger.Warningf(mylog, "FIXME: cache is newer than backend when open")
+		logger.Warningf(mylog, "Cache for blob \"%s\" ver %v is newer than backend %v when open. Previous sync stopped?",
+			be.blobpath, cachever, backendver)
+		be.updateState(cacheEntryClean)
+		be.updateState(cacheEntryWriteInProgress)
 		be.updateState(cacheEntryDirty)
 		be.bloblen = cachebh.Size()
 		be.validlen = be.bloblen
@@ -589,7 +593,10 @@ func (be *CachedBlobEntry) writeBackWithLock(wbc writeBackCaller) error {
 		return fmt.Errorf("Failed to query backend blob ver: %v", err)
 	}
 	if bever == cachever {
-		logger.Debugf(mylog, "writeBackWithLock \"%s\" write operations to the cache didn't increment its version.", be.blobpath, bever)
+		logger.Debugf(mylog, "writeBackWithLock \"%s\" write operations to the cache didn't increment its version: %v", be.blobpath, bever)
+
+		// Note: use intermediate WritebackInProgress to simplify FSM
+		be.updateState(cacheEntryWritebackInProgress)
 		be.updateState(cacheEntryClean)
 		return nil
 	} else if bever > cachever {

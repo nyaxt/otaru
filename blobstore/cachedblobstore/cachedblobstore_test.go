@@ -76,6 +76,34 @@ func TestCachedBlobStore(t *testing.T) {
 	}
 }
 
+func TestCachedBlobStore_WritebackDirty(t *testing.T) {
+	tu.ObservedCriticalLog = false
+
+	backendbs := tu.TestFileBlobStoreOfName("backend")
+	cachebs := tu.TestFileBlobStoreOfName("cache")
+	s := scheduler.NewScheduler()
+
+	bs, err := cachedblobstore.New(backendbs, cachebs, s, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	if err != nil {
+		t.Errorf("Failed to create CachedBlobStore: %v", err)
+		return
+	}
+
+	if err := tu.WriteVersionedBlob(bs, "hoge", 1); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := bs.Sync(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if tu.ObservedCriticalLog {
+		t.Errorf("ObservedCriticalLog should be false")
+		return
+	}
+}
+
 type PausableReader struct {
 	BE      io.ReadCloser
 	OnReadC chan struct{}

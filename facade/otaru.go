@@ -125,6 +125,10 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		}
 	} else {
 		o.BackendBS, err = blobstore.NewFileBlobStore(path.Join(DefaultConfigDir(), "bbs"), oflags.O_RDWRCREATE)
+		if err != nil {
+			o.Close()
+			return nil, fmt.Errorf("Failed to init FileBlobStore (backend for local debugging): %v", err)
+		}
 	}
 
 	queryFn := chunkstore.NewQueryChunkVersion(o.C)

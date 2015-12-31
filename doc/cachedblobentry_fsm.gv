@@ -14,11 +14,11 @@ digraph finite_state_machine {
   WriteInProgress -> Dirty [ label = "write/truncate done" ];
   WriteInProgress -> Errored [ label = "write/truncate errored" ];
   Dirty -> WritebackInProgress [ label = "writeback started" ];
+  Dirty -> WriteInProgress [ label = "write/truncate started" ];
+  Dirty -> DirtyClosing [ label = "closing started" ];
   WritebackInProgress -> Clean [ label = "writeback done" ];
   WritebackInProgress -> StaleWritebackInProgress [ label = "write/truncate started" ];
   StaleWritebackInProgress -> Dirty [ label = "write/truncate done" ];
-  Dirty -> WriteInProgress [ label = "write/truncate started" ];
-  Dirty -> DirtyClosing [ label = "closing started" ];
   DirtyClosing -> Closed [ label = "writeback done+close end" ];
   Closing -> Closed [ label = "close end" ];
   Closed -> Clean [ label = "OpenHandle" ];
