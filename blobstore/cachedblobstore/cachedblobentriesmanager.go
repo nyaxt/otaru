@@ -2,6 +2,7 @@ package cachedblobstore
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/nyaxt/otaru/blobstore"
@@ -47,45 +48,78 @@ func (mgr *CachedBlobEntriesManager) SyncAll() (err error) {
 	return
 }
 
-func (mgr *CachedBlobEntriesManager) ChooseSyncEntry() (cbe *CachedBlobEntry) {
+type syncCandidatesSorter struct {
+	cs             []*CachedBlobEntry
+	writeThreshold time.Time
+	syncThreshold  time.Time
+}
+
+func (s syncCandidatesSorter) Len() int { return len(s.cs) }
+
+func (s syncCandidatesSorter) Swap(i, j int) {
+	s.cs[i], s.cs[j] = s.cs[j], s.cs[i]
+}
+
+const (
+	syncTimeoutDuration  = 300 * time.Second
+	writeTimeoutDuration = 3 * time.Second
+)
+
+func (s syncCandidatesSorter) Less(i, j int) bool {
+	// Sync priorities:
+	//   1. >300 sec since last sync
+	//   2. >3 sec since last write
+
+	if s.cs[i].LastSync().Before(s.syncThreshold) {
+		if s.cs[j].LastSync().Before(s.syncThreshold) {
+			return s.cs[i].LastSync().Before(s.cs[j].LastSync())
+		} else {
+			return true
+		}
+	} else {
+		if s.cs[j].LastSync().Before(s.syncThreshold) {
+			return false
+		} else {
+			return s.cs[i].LastWrite().Before(s.cs[j].LastWrite())
+		}
+	}
+}
+
+func (mgr *CachedBlobEntriesManager) FindSyncCandidates(n int) (cbes []*CachedBlobEntry) {
 	ch := make(chan struct{})
 	mgr.reqC <- func() {
 		defer close(ch)
 
-		// Sync priorities:
-		//   1. >300 sec since last sync
-		//   2. >3 sec since last write
-
 		now := time.Now()
+		writeThreshold := now.Add(-writeTimeoutDuration)
+		syncThreshold := now.Add(-syncTimeoutDuration)
 
-		var oldestSync, oldestWrite *CachedBlobEntry
-		oldestSyncT := now
-		oldestWriteT := now
+		cs := make([]*CachedBlobEntry, 0, len(mgr.entries))
 
 		for _, be := range mgr.entries {
 			if be.state != cacheEntryDirty {
 				continue
 			}
-
-			if oldestSyncT.After(be.LastSync()) {
-				oldestSyncT = be.LastSync()
-				oldestSync = be
+			if be.LastWrite().After(writeThreshold) {
+				continue
 			}
-			if oldestWriteT.After(be.LastWrite()) {
-				oldestWriteT = be.LastWrite()
-				oldestWrite = be
+			if be.LastSync().After(syncThreshold) {
+				continue
 			}
+
+			cs = append(cs, be)
 		}
 
-		if now.Sub(oldestWriteT) > writeTimeoutDuration {
-			cbe = oldestWrite
-			return
+		sort.Sort(syncCandidatesSorter{
+			cs:             cs,
+			writeThreshold: writeThreshold,
+			syncThreshold:  syncThreshold,
+		})
+
+		if len(cs) > n {
+			cs = cs[:n]
 		}
-		if now.Sub(oldestSyncT) > syncTimeoutDuration {
-			cbe = oldestSync
-			return
-		}
-		cbe = nil
+		cbes = cs
 	}
 	<-ch
 	return

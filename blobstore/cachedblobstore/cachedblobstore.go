@@ -109,20 +109,6 @@ func (cbs *CachedBlobStore) Sync() error {
 	return cbs.entriesmgr.SyncAll()
 }
 
-const (
-	syncTimeoutDuration  = 300 * time.Second
-	writeTimeoutDuration = 3 * time.Second
-)
-
-func (cbs *CachedBlobStore) SyncOneEntry() error {
-	be := cbs.entriesmgr.ChooseSyncEntry()
-	if be == nil {
-		return ENOENT
-	}
-
-	return be.Sync()
-}
-
 var _ = blobstore.BlobStore(&CachedBlobStore{})
 
 func (cbs *CachedBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
