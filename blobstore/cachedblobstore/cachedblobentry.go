@@ -124,7 +124,6 @@ func IsInvalidateFailedErr(e error) bool {
 */
 
 func (be *CachedBlobEntry) waitUntilInvalidateAtLeast(requiredLen int64) error {
-	logger.Debugf(mylog, "Waiting for cache to be fulfilled: reqlen: %d, validlen: %d", requiredLen, be.validlen)
 	for {
 		switch be.state {
 		case cacheEntryInvalidating:
@@ -143,6 +142,7 @@ func (be *CachedBlobEntry) waitUntilInvalidateAtLeast(requiredLen int64) error {
 		if be.validlen >= requiredLen {
 			return nil
 		}
+		logger.Debugf(mylog, "Waiting for cache to be fulfilled: reqlen: %d, validlen: %d", requiredLen, be.validlen)
 
 		be.progressCond.Wait()
 	}
@@ -450,7 +450,14 @@ func (be *CachedBlobEntry) Truncate(newsize int64) error {
 	return err
 }
 
-func (be *CachedBlobEntry) writeBackWithLock() error {
+type writeBackCaller int
+
+const (
+	callerSync writeBackCaller = iota
+	callerClose
+)
+
+func (be *CachedBlobEntry) writeBackWithLock(wbc writeBackCaller) error {
 	logger.Debugf(mylog, "writeBackWithLock called for \"%s\" state %v", be.blobpath, be.state)
 	switch be.state {
 	case cacheEntryUninitialized, cacheEntryInvalidating, cacheEntryWriteInProgress, cacheEntryErrored, cacheEntryErroredClosed, cacheEntryClosed:
@@ -482,7 +489,9 @@ func (be *CachedBlobEntry) writeBackWithLock() error {
 	}
 
 	logger.Infof(mylog, "writeBack blob \"%s\" cache ver %d overwriting backend ver %d.", be.blobpath, cachever, bever)
-	be.cbs.stats.NumWritebackOnClose++
+	if wbc == callerClose {
+		be.cbs.stats.NumWritebackOnClose++
+	}
 
 	// unlock be.mu while writeback
 	be.mu.Unlock()
@@ -568,7 +577,7 @@ Loop:
 	errC := make(chan error)
 
 	go func() {
-		if err := be.writeBackWithLock(); err != nil {
+		if err := be.writeBackWithLock(callerSync); err != nil {
 			errC <- fmt.Errorf("Failed to writeback dirty: %v", err)
 		} else {
 			errC <- nil
@@ -658,7 +667,7 @@ func (be *CachedBlobEntry) Close(abandon bool) error {
 	logger.Infof(mylog, "Close entry: %+v", be.infoWithLock())
 
 	if abandon == writebackAndClose {
-		if err := be.writeBackWithLock(); err != nil {
+		if err := be.writeBackWithLock(callerClose); err != nil {
 			return fmt.Errorf("Failed to writeback dirty: %v", err)
 		}
 		be.syncCount++
