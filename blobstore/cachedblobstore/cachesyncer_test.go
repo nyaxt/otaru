@@ -27,7 +27,6 @@ type syncable struct {
 }
 
 func (s *syncable) Sync() error {
-	logger.Debugf(mylog, "Start sync %d", s.id)
 	{
 		muConcurrency.Lock()
 		currConcurrency++
@@ -36,14 +35,15 @@ func (s *syncable) Sync() error {
 		}
 		muConcurrency.Unlock()
 	}
+	logger.Debugf(mylog, "Start sync %d currConcurrency %d", s.id, currConcurrency)
 	time.Sleep(s.syncDelay)
 	s.isSynced = true
+	logger.Debugf(mylog, "End sync %d", s.id)
 	{
 		muConcurrency.Lock()
-		currConcurrency++
+		currConcurrency--
 		muConcurrency.Unlock()
 	}
-	logger.Debugf(mylog, "End sync %d", s.id)
 	return nil
 }
 
@@ -70,7 +70,7 @@ func (tp *testProvider) FindSyncCandidates(n int) []util.Syncer {
 	return ret
 }
 
-func TestCacheSyncer(t *testing.T) {
+func TestCacheSyncer_Quit(t *testing.T) {
 	prov := &testProvider{[]*syncable{}}
 	numWorker := 4
 	cs := cachedblobstore.NewCacheSyncer(prov, numWorker)
