@@ -47,7 +47,6 @@ type Otaru struct {
 
 	CacheTgtBS         *blobstore.FileBlobStore
 	CBS                *cachedblobstore.CachedBlobStore
-	CacheSyncJob       scheduler.ID
 	AutoReduceCacheJob scheduler.ID
 
 	SSLoc blobstoredbstatesnapshotio.SSLocator
@@ -140,7 +139,6 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	if err := o.CBS.RestoreState(o.C); err != nil {
 		logger.Warningf(mylog, "Attempted to restore cachedblobstore state but failed: %v", err)
 	}
-	o.CacheSyncJob = cachedblobstore.SetupCacheSync(o.CBS, o.R)
 	o.AutoReduceCacheJob = cachedblobstore.SetupAutoReduceCache(o.CBS, o.R, cfg.CacheHighWatermarkInBytes, cfg.CacheLowWatermarkInBytes)
 
 	if !cfg.LocalDebug {
