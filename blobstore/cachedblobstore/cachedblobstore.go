@@ -107,7 +107,8 @@ func (cbs *CachedBlobStore) SaveState(c btncrypt.Cipher) error {
 }
 
 func (cbs *CachedBlobStore) Sync() error {
-	return cbs.entriesmgr.SyncAll()
+	ss := cbs.entriesmgr.FindAllSyncable()
+	return cbs.syncer.SyncAll(ss)
 }
 
 func (cbs *CachedBlobStore) Quit() {

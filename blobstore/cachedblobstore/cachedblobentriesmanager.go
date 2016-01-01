@@ -33,18 +33,19 @@ func (mgr *CachedBlobEntriesManager) Run() {
 	}
 }
 
-func (mgr *CachedBlobEntriesManager) SyncAll() (err error) {
+func (mgr *CachedBlobEntriesManager) FindAllSyncable() (scs []util.Syncer) {
 	ch := make(chan struct{})
 	mgr.reqC <- func() {
 		defer close(ch)
 
-		errs := []error{}
-		for blobpath, be := range mgr.entries {
-			if err := be.Sync(); err != nil {
-				errs = append(errs, fmt.Errorf("Failed to sync \"%s\": %v", blobpath, err))
+		scs := make([]util.Syncer, 0, maxEntries)
+		for _, be := range mgr.entries {
+			if !be.state.NeedsSync() {
+				continue
 			}
+
+			scs = append(scs, be)
 		}
-		err = util.ToErrors(errs)
 	}
 	<-ch
 	return
@@ -99,7 +100,7 @@ func (mgr *CachedBlobEntriesManager) FindSyncCandidates(n int) (scs []util.Synce
 		cs := make([]*CachedBlobEntry, 0, len(mgr.entries))
 
 		for _, be := range mgr.entries {
-			if be.state != cacheEntryDirty {
+			if !be.state.NeedsSync() {
 				continue
 			}
 			if be.LastWrite().After(writeThreshold) {

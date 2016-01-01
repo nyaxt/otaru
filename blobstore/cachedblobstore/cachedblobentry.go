@@ -41,6 +41,14 @@ func (s cacheEntryState) ShouldBeListed() bool {
 		s == cacheEntryDirty
 }
 
+func (s cacheEntryState) NeedsSync() bool {
+	return s == cacheEntryDirty ||
+		s == cacheEntryWriteInProgress ||
+		s == cacheEntryWritebackInProgress ||
+		s == cacheEntryStaleWritebackInProgress ||
+		s == cacheEntryDirtyClosing
+}
+
 func (s cacheEntryState) String() string {
 	switch s {
 	case cacheEntryUninitialized:
