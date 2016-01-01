@@ -1,6 +1,7 @@
 package cachedblobstore_test
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -13,9 +14,16 @@ import (
 	"github.com/nyaxt/otaru/util"
 )
 
-func init() { tu.EnsureLogger() }
+func init() {
+	tu.EnsureLogger()
+
+	// set aggressive value for testing
+	cachedblobstore.CacheSyncerGracePeriod = 50 * time.Millisecond
+}
 
 var mylog = logger.Registry().Category("cachedbs_test")
+
+const numWorker = 4
 
 var muConcurrency sync.Mutex
 var currConcurrency, maxConcurrency int
@@ -72,15 +80,11 @@ func (tp *testProvider) FindSyncCandidates(n int) []util.Syncer {
 
 func TestCacheSyncer_Quit(t *testing.T) {
 	prov := &testProvider{[]*syncable{}}
-	numWorker := 4
 	cs := cachedblobstore.NewCacheSyncer(prov, numWorker)
 	cs.Quit()
 }
 
 func TestCacheSyncer_Concurrent(t *testing.T) {
-	// set aggressive value for testing
-	cachedblobstore.CacheSyncerGracePeriod = 50 * time.Millisecond
-
 	// make rand seq. deterministic for tests
 	rand.Seed(1234)
 
@@ -91,7 +95,6 @@ func TestCacheSyncer_Concurrent(t *testing.T) {
 	}
 	prov := &testProvider{ss}
 
-	numWorker := 4
 	maxConcurrency = 0
 	currConcurrency = 0
 	cs := cachedblobstore.NewCacheSyncer(prov, numWorker)
@@ -112,4 +115,26 @@ WaitLoop:
 	if maxConcurrency < 2 {
 		t.Errorf("MaxConcurrency should be >= 2, but got %d", maxConcurrency)
 	}
+}
+
+type syncerr struct{ e error }
+
+func (s syncerr) Sync() error { return s.e }
+
+func TestCacheSyncer_SyncAll(t *testing.T) {
+	testE := errors.New("hogeErr")
+
+	prov := &testProvider{[]*syncable{}}
+	cs := cachedblobstore.NewCacheSyncer(prov, numWorker)
+
+	ss := []util.Syncer{
+		syncerr{testE},
+		syncerr{nil},
+	}
+	err := cs.SyncAll(ss)
+	if err != testE {
+		t.Errorf("unexpected err: %v", err)
+	}
+
+	cs.Quit()
 }
