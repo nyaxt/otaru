@@ -571,15 +571,15 @@ const (
 func (be *CachedBlobEntry) writeBackWithLock(wbc writeBackCaller) error {
 	logger.Debugf(mylog, "writeBackWithLock called for \"%s\" state %v", be.blobpath, be.state)
 	switch be.state {
-	case cacheEntryUninitialized, cacheEntryInvalidating, cacheEntryWriteInProgress, cacheEntryErrored, cacheEntryErroredClosed, cacheEntryClosed:
-		logger.Panicf(mylog, "writeBackWithLock called for \"%s\" in state %v", be.blobpath, be.state)
-
 	case cacheEntryClean, cacheEntryClosing:
 		// no need to writeback
 		return nil
 
 	case cacheEntryDirty, cacheEntryDirtyClosing:
 		break
+
+	default:
+		logger.Panicf(mylog, "writeBackWithLock called for \"%s\" in state %v", be.blobpath, be.state)
 	}
 
 	// queryVersion is issued while holding be.mu, so it is guaranteed that no racing writes to be.cbs are issued after this query.
@@ -603,7 +603,13 @@ func (be *CachedBlobEntry) writeBackWithLock(wbc writeBackCaller) error {
 		return fmt.Errorf("backend version %d is newer than cached version %d when writeBack \"%s\"", bever, cachever, be.blobpath)
 	}
 
-	be.updateState(cacheEntryWritebackInProgress)
+	if be.state == cacheEntryDirty {
+		be.updateState(cacheEntryWritebackInProgress)
+	} else {
+		if be.state != cacheEntryDirtyClosing {
+			logger.Panicf(mylog, "Unexpected state %s", be.state)
+		}
+	}
 	logger.Infof(mylog, "writeBack blob \"%s\" cache ver %d overwriting backend ver %d.", be.blobpath, cachever, bever)
 	if wbc == callerClose {
 		be.cbs.stats.NumWritebackOnClose++
