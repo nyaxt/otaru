@@ -29,6 +29,7 @@ type ChunksArrayIO interface {
 type ChunkedFileIO struct {
 	bs blobstore.RandomAccessBlobStore
 	c  btncrypt.Cipher
+	lm *LockManager
 
 	caio       ChunksArrayIO
 	newChunkIO func(blobstore.BlobHandle, btncrypt.Cipher, int64) blobstore.BlobHandle
@@ -36,10 +37,11 @@ type ChunkedFileIO struct {
 	origFilename string
 }
 
-func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, caio ChunksArrayIO) *ChunkedFileIO {
+func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, lm *LockManager, caio ChunksArrayIO) *ChunkedFileIO {
 	cio := &ChunkedFileIO{
 		bs: bs,
 		c:  c,
+		lm: lm,
 
 		caio: caio,
 
@@ -93,6 +95,10 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 		if isNewChunk {
 			flags |= fl.O_CREATE | fl.O_EXCL
 		}
+
+		cfio.lm.Lock(c.BlobPath)
+		defer cfio.lm.Unlock(c.BlobPath)
+
 		bh, err := cfio.bs.Open(c.BlobPath, flags)
 		if err != nil {
 			return fmt.Errorf("Failed to open path \"%s\" for writing (isNewChunk: %t): %v", c.BlobPath, isNewChunk, err)
@@ -263,6 +269,9 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 			}
 		}
 
+		cfio.lm.Lock(c.BlobPath)
+		defer cfio.lm.Unlock(c.BlobPath)
+
 		bh, err := cfio.bs.Open(c.BlobPath, fl.O_RDONLY)
 		if err != nil {
 			return int(remo - offset), fmt.Errorf("Failed to open path \"%s\" for reading: %v", c.BlobPath, err)
@@ -334,6 +343,9 @@ func (cfio *ChunkedFileIO) Truncate(size int64) error {
 		if c.Right() > size {
 			// trim the chunk
 			chunksize := size - c.Left()
+
+			cfio.lm.Lock(c.BlobPath)
+			defer cfio.lm.Unlock(c.BlobPath)
 
 			bh, err := cfio.bs.Open(c.BlobPath, fl.O_RDWR)
 			if err != nil {

@@ -40,6 +40,8 @@ type FileSystem struct {
 	bs blobstore.RandomAccessBlobStore
 	c  btncrypt.Cipher
 
+	lm *chunkstore.LockManager
+
 	muOpenFiles sync.Mutex
 	openFiles   map[inodedb.ID]*OpenFile
 
@@ -52,6 +54,7 @@ func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c 
 		idb: idb,
 		bs:  bs,
 		c:   c,
+		lm:  chunkstore.NewLockManager(),
 
 		openFiles: make(map[inodedb.ID]*OpenFile),
 		origpath:  make(map[inodedb.ID]string),
@@ -411,7 +414,7 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 
 	of.nlock = nlock
 	caio := NewINodeDBChunksArrayIO(fs.idb, nlock)
-	of.cfio = chunkstore.NewChunkedFileIO(fs.bs, fs.c, caio)
+	of.cfio = chunkstore.NewChunkedFileIO(fs.bs, fs.c, fs.lm, caio)
 	of.cfio.SetOrigFilename(fs.tryGetOrigPath(nlock.ID))
 
 	if fl.IsWriteTruncate(flags) {
@@ -523,7 +526,7 @@ func (of *OpenFile) downgradeToReadLock() {
 	}
 	of.nlock.Ticket = inodedb.NoTicket
 	caio := NewINodeDBChunksArrayIO(of.fs.idb, of.nlock)
-	of.cfio = chunkstore.NewChunkedFileIO(of.fs.bs, of.fs.c, caio)
+	of.cfio = chunkstore.NewChunkedFileIO(of.fs.bs, of.fs.c, of.fs.lm, caio)
 }
 
 func (of *OpenFile) updateModifiedTWithoutLock() error {

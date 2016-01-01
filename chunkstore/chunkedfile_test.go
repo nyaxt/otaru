@@ -18,6 +18,7 @@ type SimpleDBChunksArrayIO struct {
 }
 
 var _ = chunkstore.ChunksArrayIO(&SimpleDBChunksArrayIO{})
+var testLockManager = chunkstore.NewLockManager()
 
 func NewSimpleDBChunksArrayIO() *SimpleDBChunksArrayIO {
 	return &SimpleDBChunksArrayIO{make([]inodedb.FileChunk, 0)}
@@ -37,7 +38,7 @@ func (caio *SimpleDBChunksArrayIO) Close() error { return nil }
 func TestChunkedFileIO_FileBlobStore(t *testing.T) {
 	caio := NewSimpleDBChunksArrayIO()
 	fbs := TestFileBlobStore()
-	cfio := chunkstore.NewChunkedFileIO(fbs, TestCipher(), caio)
+	cfio := chunkstore.NewChunkedFileIO(fbs, TestCipher(), testLockManager, caio)
 
 	if err := cfio.PWrite(HelloWorld, 0); err != nil {
 		t.Errorf("PWrite failed: %v", err)
@@ -64,7 +65,7 @@ func TestChunkedFileIO_FileBlobStore(t *testing.T) {
 func TestChunkedFileIO_SingleChunk(t *testing.T) {
 	caio := NewSimpleDBChunksArrayIO()
 	bs := blobstore.NewMockBlobStore()
-	cfio := chunkstore.NewChunkedFileIO(bs, TestCipher(), caio)
+	cfio := chunkstore.NewChunkedFileIO(bs, TestCipher(), testLockManager, caio)
 
 	// Disable Chunk framing for testing
 	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c btncrypt.Cipher, offset int64) blobstore.BlobHandle { return bh })
@@ -97,7 +98,7 @@ func TestChunkedFileIO_SingleChunk(t *testing.T) {
 func TestChunkedFileIO_MultiChunk(t *testing.T) {
 	caio := NewSimpleDBChunksArrayIO()
 	bs := blobstore.NewMockBlobStore()
-	cfio := chunkstore.NewChunkedFileIO(bs, TestCipher(), caio)
+	cfio := chunkstore.NewChunkedFileIO(bs, TestCipher(), testLockManager, caio)
 
 	// Disable Chunk framing for testing
 	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c btncrypt.Cipher, offset int64) blobstore.BlobHandle { return bh })
