@@ -798,7 +798,7 @@ Loop:
 			if abandon != abandonAndClose {
 				logger.Warningf(mylog, "errored entry \"%s\" should be abandoned", be.blobpath)
 			}
-			be.updateState(cacheEntryClosing)
+			abandon = abandonAndClose
 			break Loop
 
 		case cacheEntryClean:
