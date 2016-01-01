@@ -690,7 +690,7 @@ func (be *CachedBlobEntry) Sync() error {
 Loop:
 	for {
 		switch be.state {
-		case cacheEntryUninitialized, cacheEntryInvalidating, cacheEntryErrored, cacheEntryErroredClosed:
+		default:
 			logger.Panicf(mylog, "Sync shouldn't get into this state: %+v", be.infoWithLock())
 
 		case cacheEntryClean:
@@ -700,18 +700,14 @@ Loop:
 			logger.Debugf(mylog, "Sync for \"%s\" waiting for write to finish.", be.blobpath)
 			be.progressCond.Wait()
 
-		case cacheEntryWritebackInProgress:
-			logger.Debugf(mylog, "Sync for \"%s\" is already running and backend not yet stale.", be.blobpath)
-			return nil
-
-		case cacheEntryStaleWritebackInProgress:
+		case cacheEntryWritebackInProgress, cacheEntryStaleWritebackInProgress:
 			logger.Debugf(mylog, "Sync for \"%s\" waiting for previous writeback to finish.", be.blobpath)
 			be.progressCond.Wait()
 
 		case cacheEntryDirty:
 			break Loop
 
-		case cacheEntryClosing, cacheEntryClosed:
+		case cacheEntryDirtyClosing, cacheEntryClosing, cacheEntryClosed:
 			logger.Warningf(mylog, "Attempted sync on closed entry: %+v", be.infoWithLock())
 			return nil
 		}
