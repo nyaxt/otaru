@@ -38,7 +38,7 @@ func (mgr *CachedBlobEntriesManager) FindAllSyncable() (scs []util.Syncer) {
 	mgr.reqC <- func() {
 		defer close(ch)
 
-		scs := make([]util.Syncer, 0, maxEntries)
+		scs = make([]util.Syncer, 0, maxEntries)
 		for _, be := range mgr.entries {
 			if !be.state.NeedsSync() {
 				continue

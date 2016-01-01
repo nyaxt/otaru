@@ -9,6 +9,7 @@ import (
 )
 
 var CacheSyncerGracePeriod = 1 * time.Second // only modified from test
+var DisableAutoSyncForTesting = false
 
 const defaultNumWorkers = 10
 
@@ -94,7 +95,7 @@ func (cs *CacheSyncer) workerMain(workerId int) {
 			cmd.errC <- err
 		}
 		if err != nil {
-			logger.Warningf(mylog, "Worker[%d] Sync %s failed: %v", workerId, cmd.s, err)
+			logger.Warningf(mylog, "Worker[%d] Sync %v failed: %v", workerId, cmd.s, err)
 		}
 		atomic.StoreInt32(&cs.workerIsStarving[workerId], isStarving)
 	}
@@ -148,9 +149,12 @@ func (cs *CacheSyncer) producerMain() {
 		}
 		pendingSyncCmds = pendingSyncCmds[nPopPending:]
 
-		cbes := cs.provider.FindSyncCandidates(nfree)
-		logger.Debugf(mylog, "Found %d starving workers, found %d pending syncs, found %d sync candidates",
-			starvingWorkerCount, nPopPending, len(cbes))
+		cbes := []util.Syncer{}
+		if !DisableAutoSyncForTesting {
+			cbes = cs.provider.FindSyncCandidates(nfree)
+			logger.Debugf(mylog, "Found %d starving workers, found %d pending syncs, found %d sync candidates",
+				starvingWorkerCount, nPopPending, len(cbes))
+		}
 		for _, be := range cbes {
 			cs.workerC <- syncWorkerCmd{be, nil}
 		}

@@ -19,6 +19,9 @@ import (
 func init() { tu.EnsureLogger() }
 
 func TestCachedBlobStore(t *testing.T) {
+	cachedblobstore.DisableAutoSyncForTesting = true
+	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
+
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")
 	s := scheduler.NewScheduler()
@@ -77,6 +80,9 @@ func TestCachedBlobStore(t *testing.T) {
 }
 
 func TestCachedBlobStore_WritebackDirty(t *testing.T) {
+	cachedblobstore.DisableAutoSyncForTesting = true
+	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
+
 	tu.ObservedCriticalLog = false
 
 	backendbs := tu.TestFileBlobStoreOfName("backend")
@@ -122,6 +128,9 @@ func (r PausableReader) Close() error {
 }
 
 func TestCachedBlobStore_InvalidateCancel(t *testing.T) {
+	cachedblobstore.DisableAutoSyncForTesting = true
+	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
+
 	onReadC := make(chan struct{})
 	waitC := make(chan struct{})
 
@@ -188,6 +197,9 @@ func (r PausableWriter) Close() error {
 }
 
 func TestCachedBlobStore_OpenWhileClosing(t *testing.T) {
+	cachedblobstore.DisableAutoSyncForTesting = true
+	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
+
 	onWriteC := make(chan struct{})
 	waitC := make(chan struct{})
 
@@ -253,6 +265,9 @@ func TestCachedBlobStore_OpenWhileClosing(t *testing.T) {
 }
 
 func TestCachedBlobStore_NewEntry(t *testing.T) {
+	cachedblobstore.DisableAutoSyncForTesting = true
+	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
+
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")
 	s := scheduler.NewScheduler()
@@ -286,6 +301,9 @@ func TestCachedBlobStore_NewEntry(t *testing.T) {
 }
 
 func TestCachedBlobStore_AutoExpandLen(t *testing.T) {
+	cachedblobstore.DisableAutoSyncForTesting = true
+	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
+
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")
 	s := scheduler.NewScheduler()
@@ -316,6 +334,9 @@ func TestCachedBlobStore_AutoExpandLen(t *testing.T) {
 }
 
 func TestCachedBlobStore_ListBlobs(t *testing.T) {
+	cachedblobstore.DisableAutoSyncForTesting = true
+	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
+
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")
 	s := scheduler.NewScheduler()
@@ -359,6 +380,9 @@ func TestCachedBlobStore_ListBlobs(t *testing.T) {
 }
 
 func TestCachedBlobStore_RemoveBlob(t *testing.T) {
+	cachedblobstore.DisableAutoSyncForTesting = true
+	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
+
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")
 	s := scheduler.NewScheduler()
@@ -426,6 +450,9 @@ func TestCachedBlobStore_RemoveBlob(t *testing.T) {
 }
 
 func TestCachedBlobStore_CancelInvalidatingBlobsOnExit(t *testing.T) {
+	cachedblobstore.DisableAutoSyncForTesting = true
+	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
+
 	onReadC := make(chan struct{})
 	waitC := make(chan struct{})
 
@@ -485,6 +512,9 @@ func TestCachedBlobStore_CancelInvalidatingBlobsOnExit(t *testing.T) {
 }
 
 func TestCachedBlobStore_CancelInvalidatingBlobsByClose(t *testing.T) {
+	cachedblobstore.DisableAutoSyncForTesting = true
+	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
+
 	onReadC := make(chan struct{})
 	waitC := make(chan struct{})
 
