@@ -884,3 +884,7 @@ func (be *CachedBlobEntry) Info() *CachedBlobEntryInfo {
 
 	return be.infoWithLock()
 }
+
+func (be *CachedBlobEntry) String() string {
+	return fmt.Sprintf("CachedBlobEntry{\"%s\", %v}", be.blobpath, be.state)
+}

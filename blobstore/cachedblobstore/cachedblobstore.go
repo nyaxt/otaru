@@ -42,8 +42,8 @@ type CachedBlobStore struct {
 
 	entriesmgr CachedBlobEntriesManager
 	usagestats *CacheUsageStats
-
-	stats CachedBlobStoreStats
+	syncer     *CacheSyncer
+	stats      CachedBlobStoreStats
 }
 
 func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore, s *scheduler.Scheduler, flags int, queryVersion version.QueryFunc) (*CachedBlobStore, error) {
@@ -69,6 +69,7 @@ func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore,
 		usagestats:   NewCacheUsageStats(),
 		stats:        CachedBlobStoreStats{},
 	}
+	cbs.syncer = NewCacheSyncer(&cbs.entriesmgr, defaultNumWorkers)
 
 	if _, ok := cachebs.(blobstore.BlobRemover); !ok {
 		return nil, fmt.Errorf("cachebs backend must support blob removals for failed-to-invalidate caches")
@@ -107,6 +108,10 @@ func (cbs *CachedBlobStore) SaveState(c btncrypt.Cipher) error {
 
 func (cbs *CachedBlobStore) Sync() error {
 	return cbs.entriesmgr.SyncAll()
+}
+
+func (cbs *CachedBlobStore) Quit() {
+	cbs.syncer.Quit()
 }
 
 var _ = blobstore.BlobStore(&CachedBlobStore{})

@@ -223,6 +223,7 @@ func (o *Otaru) Close() error {
 		if err := o.CBS.SaveState(o.C); err != nil {
 			errs = append(errs, err)
 		}
+		o.CBS.Quit()
 	}
 
 	if o.GL != nil {

@@ -16,6 +16,8 @@ type CachedBlobEntriesManager struct {
 	entries map[string]*CachedBlobEntry
 }
 
+var _ = SyncCandidatesProvider(&CachedBlobEntriesManager{})
+
 const maxEntries = 128
 
 func NewCachedBlobEntriesManager() CachedBlobEntriesManager {
@@ -85,7 +87,7 @@ func (s syncCandidatesSorter) Less(i, j int) bool {
 	}
 }
 
-func (mgr *CachedBlobEntriesManager) FindSyncCandidates(n int) (cbes []*CachedBlobEntry) {
+func (mgr *CachedBlobEntriesManager) FindSyncCandidates(n int) (scs []util.Syncer) {
 	ch := make(chan struct{})
 	mgr.reqC <- func() {
 		defer close(ch)
@@ -119,7 +121,10 @@ func (mgr *CachedBlobEntriesManager) FindSyncCandidates(n int) (cbes []*CachedBl
 		if len(cs) > n {
 			cs = cs[:n]
 		}
-		cbes = cs
+		scs = make([]util.Syncer, 0, len(cs))
+		for i := 0; i < len(cs); i++ {
+			scs = append(scs, cs[i])
+		}
 	}
 	<-ch
 	return
