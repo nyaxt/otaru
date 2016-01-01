@@ -1,6 +1,7 @@
 package cachedblobstore
 
 import (
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -39,8 +40,9 @@ type CacheSyncer struct {
 
 	workerC chan syncWorkerCmd
 
-	syncAllC chan syncAllCmd
-	quitC    chan chan struct{}
+	syncAllC    chan syncAllCmd
+	quitC       chan chan struct{}
+	joinWorkerG sync.WaitGroup
 }
 
 func NewCacheSyncer(provider SyncCandidatesProvider, numWorkers int) *CacheSyncer {
@@ -54,6 +56,7 @@ func NewCacheSyncer(provider SyncCandidatesProvider, numWorkers int) *CacheSynce
 		quitC:    make(chan chan struct{}, 1),
 	}
 
+	cs.joinWorkerG.Add(cs.numWorkers)
 	for i := 0; i < cs.numWorkers; i++ {
 		cs.workerIsStarving[i] = isBusy
 		go cs.workerMain(i)
@@ -99,6 +102,7 @@ func (cs *CacheSyncer) workerMain(workerId int) {
 		}
 		atomic.StoreInt32(&cs.workerIsStarving[workerId], isStarving)
 	}
+	cs.joinWorkerG.Done()
 }
 
 func (cs *CacheSyncer) StarvingWorkerCount() int {
@@ -162,6 +166,7 @@ func (cs *CacheSyncer) producerMain() {
 		// logger.Debugf(mylog, "CacheSyncer quitJoinC non nil? %t", quitJoinC != nil)
 		if nPopPending == 0 && len(cbes) == 0 && quitJoinC != nil {
 			close(cs.workerC)
+			cs.joinWorkerG.Wait()
 			quitJoinC <- struct{}{}
 			return
 		}
