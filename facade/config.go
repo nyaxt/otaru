@@ -63,7 +63,7 @@ func DefaultConfigDir() string {
 
 func NewConfig(configdir string) (*Config, error) {
 	if err := util.IsDir(configdir); err != nil {
-		return nil, fmt.Errorf("configdir \"%s\" is not a dir: %v", err)
+		return nil, fmt.Errorf("configdir \"%s\" is not a dir: %v", configdir, err)
 	}
 	os.Setenv("OTARUDIR", configdir)
 
