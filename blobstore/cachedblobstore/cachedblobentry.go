@@ -660,14 +660,17 @@ func (be *CachedBlobEntry) writeBackWithLock(wbc writeBackCaller) error {
 		}
 		if cacheverAfterWriteback == cachever {
 			be.updateState(cacheEntryClean)
+			be.progressCond.Broadcast()
 		} else {
 			logger.Criticalf(mylog, "Entry version has changed while cachedEntryWritebackInProgress. was %d -> now %d.", cachever, cacheverAfterWriteback)
 			be.updateState(cacheEntryDirty)
+			be.progressCond.Broadcast()
 		}
 		return nil
 
 	case cacheEntryStaleWritebackInProgress:
 		be.updateState(cacheEntryDirty)
+		be.progressCond.Broadcast()
 		return nil
 
 	default:

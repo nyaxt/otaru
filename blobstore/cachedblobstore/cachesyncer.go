@@ -98,8 +98,9 @@ func (cs *CacheSyncer) workerMain(workerId int) {
 			cmd.errC <- err
 		}
 		if err != nil {
-			logger.Warningf(mylog, "Worker[%d] Sync %v failed: %v", workerId, cmd.s, err)
+			logger.Warningf(mylog, "Worker[%d] Sync failed %v err: %v", workerId, cmd.s, err)
 		}
+		logger.Debugf(mylog, "Worker[%d] Sync done %v", workerId, cmd.s)
 		atomic.StoreInt32(&cs.workerIsStarving[workerId], isStarving)
 	}
 	cs.joinWorkerG.Done()

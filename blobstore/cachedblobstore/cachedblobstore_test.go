@@ -36,6 +36,8 @@ func TestCachedBlobStore(t *testing.T) {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
 	}
+	defer bs.Quit()
+
 	if err := tu.AssertBlobVersion(backendbs, "backendonly", 5); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -94,6 +96,7 @@ func TestCachedBlobStore_WritebackDirty(t *testing.T) {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
 	}
+	defer bs.Quit()
 
 	if err := tu.WriteVersionedBlob(bs, "hoge", 1); err != nil {
 		t.Errorf("%v", err)
@@ -158,6 +161,7 @@ func TestCachedBlobStore_InvalidateCancel(t *testing.T) {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
 	}
+	defer bs.Quit()
 
 	join := make(chan struct{})
 	go func() {
@@ -218,6 +222,7 @@ func TestCachedBlobStore_OpenWhileClosing(t *testing.T) {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
 	}
+	defer bs.Quit()
 
 	if err := tu.WriteVersionedBlob(bs, "hoge", 1); err != nil {
 		t.Errorf("%v", err)
@@ -277,6 +282,7 @@ func TestCachedBlobStore_NewEntry(t *testing.T) {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
 	}
+	defer bs.Quit()
 
 	if err := tu.WriteVersionedBlobRA(bs, "newentry", 1); err != nil {
 		t.Errorf("%v", err)
@@ -313,6 +319,7 @@ func TestCachedBlobStore_AutoExpandLen(t *testing.T) {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
 	}
+	defer bs.Quit()
 
 	bh, err := bs.Open("hoge", flags.O_RDWRCREATE)
 	if err != nil {
@@ -346,6 +353,7 @@ func TestCachedBlobStore_ListBlobs(t *testing.T) {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
 	}
+	defer bs.Quit()
 
 	if err := tu.WriteVersionedBlob(backendbs, "backendonly", 1); err != nil {
 		t.Errorf("%v", err)
@@ -392,6 +400,7 @@ func TestCachedBlobStore_RemoveBlob(t *testing.T) {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
 	}
+	defer bs.Quit()
 
 	if err := tu.WriteVersionedBlob(backendbs, "backendonly", 1); err != nil {
 		t.Errorf("%v", err)
@@ -476,6 +485,7 @@ func TestCachedBlobStore_CancelInvalidatingBlobsOnExit(t *testing.T) {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
 	}
+	defer bs.Quit()
 
 	var wg sync.WaitGroup
 
@@ -538,6 +548,7 @@ func TestCachedBlobStore_CancelInvalidatingBlobsByClose(t *testing.T) {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
 	}
+	defer bs.Quit()
 
 	var wg sync.WaitGroup
 
@@ -582,6 +593,7 @@ func TestCachedBlobStore_CountWriteBacksOnClose(t *testing.T) {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
 	}
+	defer bs.Quit()
 
 	if err := tu.WriteVersionedBlob(bs, "hoge", 1); err != nil {
 		t.Errorf("%v", err)
@@ -609,4 +621,77 @@ func TestCachedBlobStore_CountWriteBacksOnClose(t *testing.T) {
 		t.Errorf("#wboc should be 1 after forced close")
 		return
 	}
+}
+
+type sequenceRecorder struct {
+	events []string
+}
+
+func NewSequenceRecorder() *sequenceRecorder {
+	return &sequenceRecorder{[]string{}}
+}
+
+func (sr *sequenceRecorder) RecordEvent(e string) {
+	sr.events = append(sr.events, e)
+}
+
+func (sr *sequenceRecorder) AssertSequence(t *testing.T, expected []string) {
+	if !reflect.DeepEqual(sr.events, expected) {
+		t.Errorf("Expected seq: %+v, actual: %+v", expected, sr.events)
+	}
+}
+
+func TestCachedBlobStore_WaitForPreviousSync(t *testing.T) {
+	onWriteC := make(chan struct{})
+	waitC := make(chan struct{})
+
+	backendbs := tu.RWInterceptBlobStore{
+		BE: tu.TestFileBlobStoreOfName("backend"),
+		WrapWriter: func(orig io.WriteCloser) (io.WriteCloser, error) {
+			return PausableWriter{orig, onWriteC, waitC}, nil
+		},
+		WrapReader: func(orig io.ReadCloser) (io.ReadCloser, error) { return orig, nil },
+	}
+	cachebs := tu.TestFileBlobStoreOfName("cache")
+	s := scheduler.NewScheduler()
+	bs, err := cachedblobstore.New(backendbs, cachebs, s, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	if err != nil {
+		t.Errorf("Failed to create CachedBlobStore: %v", err)
+		return
+	}
+	defer bs.Quit()
+
+	if err := tu.WriteVersionedBlob(bs, "hoge", 1); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	joinC := make(chan struct{})
+
+	sr := NewSequenceRecorder()
+	go func() {
+		sr.RecordEvent("sync1b")
+		if err := bs.Sync(); err != nil {
+			t.Errorf("Sync err: %v", err)
+		}
+		sr.RecordEvent("sync1e")
+		joinC <- struct{}{}
+	}()
+	time.Sleep(10 * time.Millisecond)
+	go func() {
+		for {
+			<-onWriteC
+			time.Sleep(20 * time.Millisecond)
+			sr.RecordEvent("write")
+			waitC <- struct{}{}
+		}
+	}()
+	sr.RecordEvent("sync2b")
+	if err := bs.Sync(); err != nil {
+		t.Errorf("Sync err: %v", err)
+	}
+	sr.RecordEvent("sync2e")
+
+	<-joinC
+	sr.AssertSequence(t, []string{"sync1b", "sync2b", "write", "sync1e", "sync2e"})
 }
