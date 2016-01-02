@@ -413,7 +413,7 @@ func (db *DB) fsckRecursive(id ID, foundblobpaths []string, errs []error) ([]str
 		}
 
 	default:
-		errs = append(errs, fmt.Errorf("Node ID %d has unknown type %v", n.GetType()))
+		errs = append(errs, fmt.Errorf("Node ID %d has unknown type %v", id, n.GetType()))
 	}
 	return foundblobpaths, errs
 }

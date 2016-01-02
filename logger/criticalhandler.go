@@ -15,7 +15,7 @@ func HandleCritical(cb func()) *criticalHandler {
 	return &criticalHandler{cb: cb}
 }
 
-func (h criticalHandler) Log(lv Level, data map[string]interface{}) {
+func (h *criticalHandler) Log(lv Level, data map[string]interface{}) {
 	if lv != Critical {
 		return
 	}
@@ -23,4 +23,4 @@ func (h criticalHandler) Log(lv Level, data map[string]interface{}) {
 	h.once.Do(h.cb)
 }
 
-func (h criticalHandler) WillAccept(lv Level) bool { return lv == Critical }
+func (h *criticalHandler) WillAccept(lv Level) bool { return lv == Critical }

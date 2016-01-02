@@ -6,7 +6,7 @@ import (
 
 type DBTransaction struct {
 	TxID `json:"txid"`
-	Ops  []DBOperation `json:'ops'`
+	Ops  []DBOperation `json:"ops"`
 }
 
 func (tx DBTransaction) String() string {

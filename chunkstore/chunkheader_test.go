@@ -57,6 +57,6 @@ func TestChunkHeader_Read_BadMagic(t *testing.T) {
 	b := []byte{0xba, 0xad, chunkstore.CurrentFormat, 0x02, 0xcd, 0xab, 0x21, 0x43, 0x01, 0x02, 0x03, 0x04}
 	var h chunkstore.ChunkHeader
 	if err := h.ReadFrom(bytes.NewBuffer(b), TestCipher()); err == nil {
-		t.Errorf("UnmarshalBinary passed on bad magic!", err)
+		t.Errorf("UnmarshalBinary passed on bad magic!: %v", err)
 	}
 }

@@ -14,11 +14,11 @@ import (
 )
 
 type GCSBlobStoreStats struct {
-	NumOpenWriter int `json:num_open_writer`
-	NumOpenReader int `json:num_open_reader`
-	NumListBlobs  int `json:num_list_blobs`
-	NumBlobSize   int `json:num_blob_size`
-	NumRemoveBlob int `json:num_remove_blob`
+	NumOpenWriter int `json:"num_open_writer"`
+	NumOpenReader int `json:"num_open_reader"`
+	NumListBlobs  int `json:"num_list_blobs"`
+	NumBlobSize   int `json:"num_blob_size"`
+	NumRemoveBlob int `json:"num_remove_blob"`
 }
 
 type GCSBlobStore struct {
