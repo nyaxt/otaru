@@ -111,8 +111,11 @@ func (cbs *CachedBlobStore) Sync() error {
 	return cbs.syncer.SyncAll(ss)
 }
 
-func (cbs *CachedBlobStore) Quit() {
+func (cbs *CachedBlobStore) Quit() error {
+	err := cbs.Sync()
 	cbs.syncer.Quit()
+	cbs.entriesmgr.Quit()
+	return err
 }
 
 var _ = blobstore.BlobStore(&CachedBlobStore{})

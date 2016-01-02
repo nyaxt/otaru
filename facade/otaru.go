@@ -215,13 +215,12 @@ func (o *Otaru) Close() error {
 	}
 
 	if o.CBS != nil {
-		if err := o.CBS.Sync(); err != nil {
-			errs = append(errs, err)
-		}
 		if err := o.CBS.SaveState(o.C); err != nil {
 			errs = append(errs, err)
 		}
-		o.CBS.Quit()
+		if err := o.CBS.Quit(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	if o.GL != nil {

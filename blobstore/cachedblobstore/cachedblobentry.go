@@ -754,24 +754,35 @@ Loop:
 	return util.ToErrors(errs)
 }
 
+type CloseMode int
+
 const (
-	abandonAndClose   = true
-	writebackAndClose = false
+	abandonAndClose CloseMode = iota
+	writebackAndClose
+	writebackIfNeededAndClose
 )
 
-func (be *CachedBlobEntry) CloseWithLogErr(abandon bool) {
-	if err := be.Close(abandon); err != nil {
+func (be *CachedBlobEntry) CloseWithLogErr(mode CloseMode) {
+	if err := be.Close(mode); err != nil {
 		logger.Warningf(mylog, "Close blobentry \"%s\" failed with err: %v", be.blobpath, err)
 	}
 }
 
-func (be *CachedBlobEntry) Close(abandon bool) error {
+func (be *CachedBlobEntry) Close(mode CloseMode) error {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
 	if be.state != cacheEntryErrored {
 		if nhandles := len(be.handles); nhandles > 0 {
 			return fmt.Errorf("Entry has %d handles", nhandles)
+		}
+	}
+	if mode == writebackIfNeededAndClose {
+		switch be.state {
+		case cacheEntryErroredClosed:
+			mode = writebackAndClose
+		default:
+			mode = abandonAndClose
 		}
 	}
 
@@ -795,17 +806,17 @@ Loop:
 			return nil
 
 		case cacheEntryInvalidating:
-			if abandon != abandonAndClose {
+			if mode != abandonAndClose {
 				return fmt.Errorf("invalidating entry \"%s\" can be only closed if going to be abandoned", be.blobpath)
 			}
 			be.updateState(cacheEntryClosing)
 			break Loop
 
 		case cacheEntryErrored:
-			if abandon != abandonAndClose {
+			if mode != abandonAndClose {
 				logger.Warningf(mylog, "errored entry \"%s\" should be abandoned", be.blobpath)
 			}
-			abandon = abandonAndClose
+			mode = abandonAndClose
 			break Loop
 
 		case cacheEntryClean:
@@ -823,7 +834,7 @@ Loop:
 
 	logger.Infof(mylog, "Close entry: %+v", be.infoWithLock())
 
-	if abandon == writebackAndClose {
+	if mode == writebackAndClose {
 		if err := be.writeBackWithLock(callerClose); err != nil {
 			return fmt.Errorf("Failed to writeback dirty: %v", err)
 		}

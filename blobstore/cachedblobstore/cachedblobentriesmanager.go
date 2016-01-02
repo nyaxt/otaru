@@ -11,7 +11,8 @@ import (
 )
 
 type CachedBlobEntriesManager struct {
-	reqC chan func()
+	reqC  chan func()
+	joinC chan struct{}
 
 	entries map[string]*CachedBlobEntry
 }
@@ -31,6 +32,14 @@ func (mgr *CachedBlobEntriesManager) Run() {
 	for f := range mgr.reqC {
 		f()
 	}
+
+	for _, be := range mgr.entries {
+		if err := be.Close(writebackIfNeededAndClose); err != nil {
+			logger.Warningf(mylog, "Failed to close entry %v. Err: %v", be, err)
+		}
+	}
+
+	mgr.joinC <- struct{}{}
 }
 
 func (mgr *CachedBlobEntriesManager) FindAllSyncable() (scs []util.Syncer) {
@@ -49,6 +58,12 @@ func (mgr *CachedBlobEntriesManager) FindAllSyncable() (scs []util.Syncer) {
 	}
 	<-ch
 	return
+}
+
+func (mgr *CachedBlobEntriesManager) Quit() {
+	mgr.joinC = make(chan struct{})
+	close(mgr.reqC)
+	<-mgr.joinC
 }
 
 type syncCandidatesSorter struct {

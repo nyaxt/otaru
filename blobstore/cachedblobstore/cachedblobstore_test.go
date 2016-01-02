@@ -222,7 +222,7 @@ func TestCachedBlobStore_OpenWhileClosing(t *testing.T) {
 		t.Errorf("Failed to create CachedBlobStore: %v", err)
 		return
 	}
-	defer bs.Quit()
+	// defer bs.Quit() // Won't play well with RWInterceptBlobStore
 
 	if err := tu.WriteVersionedBlob(bs, "hoge", 1); err != nil {
 		t.Errorf("%v", err)
@@ -517,7 +517,7 @@ func TestCachedBlobStore_CancelInvalidatingBlobsOnExit(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	if _, err := cachebs.OpenReader("backendonly"); !os.IsNotExist(err) {
-		t.Errorf("invalidate failed blob is still cached!")
+		t.Errorf("invalidate failed blob is still cached! Err: %v", err)
 	}
 }
 
