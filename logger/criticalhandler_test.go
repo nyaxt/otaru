@@ -21,7 +21,7 @@ func TestHandleCritical(t *testing.T) {
 
 	called = false
 	logger.Criticalf(h, "critical2")
-	if !called {
+	if called {
 		t.Errorf("Should be triggered only once")
 	}
 }
