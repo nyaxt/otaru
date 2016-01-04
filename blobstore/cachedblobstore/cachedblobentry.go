@@ -15,65 +15,61 @@ import (
 	"github.com/nyaxt/otaru/util/cancellable"
 )
 
-type cacheEntryState int
+type CacheEntryState int
 
 const (
-	cacheEntryUninitialized cacheEntryState = iota
-	cacheEntryInvalidating
-	cacheEntryErrored
-	cacheEntryErroredClosed
-	cacheEntryClean
-	cacheEntryWriteInProgress
-	cacheEntryWritebackInProgress
-	cacheEntryStaleWritebackInProgress
-	cacheEntryDirty
-	cacheEntryDirtyClosing
-	cacheEntryClosing
-	cacheEntryClosed
+	CacheEntryUninitialized CacheEntryState = iota
+	CacheEntryInvalidating
+	CacheEntryErrored
+	CacheEntryErroredClosed
+	CacheEntryClean
+	CacheEntryWriteInProgress
+	CacheEntryWritebackInProgress
+	CacheEntryStaleWritebackInProgress
+	CacheEntryDirty
+	CacheEntryDirtyClosing
+	CacheEntryClosing
+	CacheEntryClosed
 )
 
-func (s cacheEntryState) ShouldBeListed() bool {
-	return s == cacheEntryInvalidating ||
-		s == cacheEntryClean ||
-		s == cacheEntryWriteInProgress ||
-		s == cacheEntryWritebackInProgress ||
-		s == cacheEntryStaleWritebackInProgress ||
-		s == cacheEntryDirty
+func (s CacheEntryState) ShouldBeListed() bool {
+	return s == CacheEntryInvalidating ||
+		s == CacheEntryClean ||
+		s == CacheEntryWriteInProgress ||
+		s == CacheEntryWritebackInProgress ||
+		s == CacheEntryStaleWritebackInProgress ||
+		s == CacheEntryDirty
 }
 
-func (s cacheEntryState) NeedsSync() bool {
-	return s == cacheEntryDirty ||
-		s == cacheEntryWriteInProgress ||
-		s == cacheEntryWritebackInProgress ||
-		s == cacheEntryStaleWritebackInProgress ||
-		s == cacheEntryDirtyClosing
+func (s CacheEntryState) NeedsSync() bool {
+	return s == CacheEntryDirty || s == CacheEntryWriteInProgress
 }
 
-func (s cacheEntryState) String() string {
+func (s CacheEntryState) String() string {
 	switch s {
-	case cacheEntryUninitialized:
+	case CacheEntryUninitialized:
 		return "Uninitialized"
-	case cacheEntryInvalidating:
+	case CacheEntryInvalidating:
 		return "Invalidating"
-	case cacheEntryErrored:
+	case CacheEntryErrored:
 		return "Errored"
-	case cacheEntryErroredClosed:
+	case CacheEntryErroredClosed:
 		return "ErroredClosed"
-	case cacheEntryClean:
+	case CacheEntryClean:
 		return "Clean"
-	case cacheEntryWriteInProgress:
+	case CacheEntryWriteInProgress:
 		return "WriteInProgress"
-	case cacheEntryWritebackInProgress:
+	case CacheEntryWritebackInProgress:
 		return "WritebackInProgress"
-	case cacheEntryStaleWritebackInProgress:
+	case CacheEntryStaleWritebackInProgress:
 		return "StaleWritebackInProgress"
-	case cacheEntryDirty:
+	case CacheEntryDirty:
 		return "Dirty"
-	case cacheEntryDirtyClosing:
+	case CacheEntryDirtyClosing:
 		return "DirtyClosing"
-	case cacheEntryClosing:
+	case CacheEntryClosing:
 		return "Closing"
-	case cacheEntryClosed:
+	case CacheEntryClosed:
 		return "Closed"
 	default:
 		return "<unknown>"
@@ -89,7 +85,7 @@ type CachedBlobEntry struct {
 	blobpath string
 	cachebh  blobstore.BlobHandle
 
-	state cacheEntryState
+	state CacheEntryState
 
 	bloblen  int64
 	validlen int64
@@ -104,7 +100,7 @@ type CachedBlobEntry struct {
 
 func NewCachedBlobEntry(blobpath string) *CachedBlobEntry {
 	be := &CachedBlobEntry{
-		state:    cacheEntryUninitialized,
+		state:    CacheEntryUninitialized,
 		blobpath: blobpath,
 		bloblen:  -1,
 	}
@@ -112,84 +108,84 @@ func NewCachedBlobEntry(blobpath string) *CachedBlobEntry {
 	return be
 }
 
-func (be *CachedBlobEntry) updateState(newState cacheEntryState) {
+func (be *CachedBlobEntry) updateState(newState CacheEntryState) {
 	logger.Debugf(mylog, "Cache state \"%s\": %v -> %v", be.blobpath, be.state, newState)
 	switch be.state {
-	case cacheEntryUninitialized:
+	case CacheEntryUninitialized:
 		switch newState {
-		case cacheEntryInvalidating, cacheEntryClean, cacheEntryErrored:
+		case CacheEntryInvalidating, CacheEntryClean, CacheEntryErrored:
 			break
 		default:
 			goto Unexpected
 		}
-	case cacheEntryInvalidating:
+	case CacheEntryInvalidating:
 		switch newState {
-		case cacheEntryClean, cacheEntryErrored:
+		case CacheEntryClean, CacheEntryErrored:
 			break
 		default:
 			goto Unexpected
 		}
-	case cacheEntryErrored:
+	case CacheEntryErrored:
 		switch newState {
-		case cacheEntryErroredClosed:
+		case CacheEntryErroredClosed:
 			break
 		default:
 			goto Unexpected
 		}
-	case cacheEntryErroredClosed:
+	case CacheEntryErroredClosed:
 		goto Unexpected
-	case cacheEntryClean:
+	case CacheEntryClean:
 		switch newState {
-		case cacheEntryWriteInProgress, cacheEntryClosing:
+		case CacheEntryWriteInProgress, CacheEntryClosing:
 			break
 		default:
 			goto Unexpected
 		}
-	case cacheEntryWriteInProgress:
+	case CacheEntryWriteInProgress:
 		switch newState {
-		case cacheEntryDirty:
+		case CacheEntryDirty:
 			break
 		default:
 			goto Unexpected
 		}
-	case cacheEntryWritebackInProgress:
+	case CacheEntryWritebackInProgress:
 		switch newState {
-		case cacheEntryClean, cacheEntryStaleWritebackInProgress, cacheEntryErrored:
+		case CacheEntryClean, CacheEntryStaleWritebackInProgress, CacheEntryErrored:
 			break
 		default:
 			goto Unexpected
 		}
-	case cacheEntryStaleWritebackInProgress:
+	case CacheEntryStaleWritebackInProgress:
 		switch newState {
-		case cacheEntryDirty:
+		case CacheEntryDirty:
 			break
 		default:
 			goto Unexpected
 		}
-	case cacheEntryDirty:
+	case CacheEntryDirty:
 		switch newState {
-		case cacheEntryWriteInProgress, cacheEntryWritebackInProgress, cacheEntryDirtyClosing:
+		case CacheEntryWriteInProgress, CacheEntryWritebackInProgress, CacheEntryDirtyClosing:
 			break
 		default:
 			goto Unexpected
 		}
-	case cacheEntryDirtyClosing:
+	case CacheEntryDirtyClosing:
 		switch newState {
-		case cacheEntryClosed:
+		case CacheEntryClosed:
 			break
 		default:
 			goto Unexpected
 		}
-	case cacheEntryClosing:
+	case CacheEntryClosing:
 		switch newState {
-		case cacheEntryClosed:
+		case CacheEntryClosed:
 			break
 		default:
 			goto Unexpected
 		}
-	case cacheEntryClosed:
+	case CacheEntryClosed:
 		switch newState {
-		case cacheEntryClean, cacheEntryErrored:
+		case CacheEntryClean, CacheEntryErrored:
 			break
 		default:
 			goto Unexpected
@@ -233,16 +229,16 @@ func IsInvalidateFailedErr(e error) bool {
 func (be *CachedBlobEntry) waitUntilInvalidateAtLeast(requiredLen int64) error {
 	for {
 		switch be.state {
-		case cacheEntryInvalidating:
+		case CacheEntryInvalidating:
 			break
 
-		case cacheEntryErrored, cacheEntryClosing, cacheEntryErroredClosed:
+		case CacheEntryErrored, CacheEntryClosing, CacheEntryErroredClosed:
 			return InvalidateFailedErr{be.blobpath}
 
-		case cacheEntryClean, cacheEntryDirty, cacheEntryWriteInProgress, cacheEntryWritebackInProgress, cacheEntryStaleWritebackInProgress:
+		case CacheEntryClean, CacheEntryDirty, CacheEntryWriteInProgress, CacheEntryWritebackInProgress, CacheEntryStaleWritebackInProgress:
 			return nil
 
-		case cacheEntryUninitialized, cacheEntryDirtyClosing, cacheEntryClosed:
+		case CacheEntryUninitialized, CacheEntryDirtyClosing, CacheEntryClosed:
 			logger.Panicf(mylog, "Invalid state while in waitUntilInvalidateAtLeast! %+v", be)
 		}
 
@@ -267,12 +263,12 @@ func (be *CachedBlobEntry) invalidateInternal(ctx context.Context) error {
 	ul := util.EnsureUnlocker{&be.mu}
 	defer ul.Unlock()
 	blobpath := be.blobpath
-	if be.state != cacheEntryInvalidating {
+	if be.state != CacheEntryInvalidating {
 		return fmt.Errorf("invalidate: blobentry in invalid state: %+v", be)
 	}
 	if be.validlen >= be.bloblen {
 		logger.Warningf(mylog, "tried to invalidate a blobentry already clean: %+v", be)
-		be.updateState(cacheEntryClean)
+		be.updateState(CacheEntryClean)
 		return nil
 	}
 
@@ -313,7 +309,7 @@ func (be *CachedBlobEntry) invalidateInternal(ctx context.Context) error {
 				be.validlen += int64(nw)
 				be.progressCond.Broadcast()
 				if be.validlen == be.bloblen {
-					be.updateState(cacheEntryClean)
+					be.updateState(CacheEntryClean)
 					be.cancelInvalidate = nil
 					done = true
 				} else if be.validlen > be.bloblen {
@@ -345,7 +341,7 @@ func (be *CachedBlobEntry) invalidate(ctx context.Context) error {
 	if err := be.invalidateInternal(ctx); err != nil {
 		be.mu.Lock()
 		be.validlen = 0
-		be.updateState(cacheEntryErrored)
+		be.updateState(CacheEntryErrored)
 		go be.CloseWithLogErr(abandonAndClose)
 		be.progressCond.Broadcast()
 		be.mu.Unlock()
@@ -357,22 +353,31 @@ func (be *CachedBlobEntry) invalidate(ctx context.Context) error {
 	return nil
 }
 
+func (be *CachedBlobEntry) InitializeForTesting(state CacheEntryState, lastWrite, lastSync time.Time) {
+	be.mu.Lock()
+	defer be.mu.Unlock()
+
+	be.state = state
+	be.lastWrite = lastWrite
+	be.lastSync = lastSync
+}
+
 func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 	cachebh, err := cbs.cachebs.Open(be.blobpath, fl.O_RDWRCREATE)
 	if err != nil {
-		be.updateState(cacheEntryErrored)
+		be.updateState(CacheEntryErrored)
 		go be.CloseWithLogErr(abandonAndClose)
 		return fmt.Errorf("Failed to open cache blob: %v", err)
 	}
 	cachever, err := cbs.queryVersion(&blobstore.OffsetReader{cachebh, 0})
 	if err != nil {
-		be.updateState(cacheEntryErrored)
+		be.updateState(CacheEntryErrored)
 		go be.CloseWithLogErr(abandonAndClose)
 		return fmt.Errorf("Failed to query cached blob ver: %v", err)
 	}
 	backendver, err := cbs.bever.Query(be.blobpath)
 	if err != nil {
-		be.updateState(cacheEntryErrored)
+		be.updateState(CacheEntryErrored)
 		go be.CloseWithLogErr(abandonAndClose)
 		return err
 	}
@@ -384,32 +389,32 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 	if cachever > backendver {
 		logger.Warningf(mylog, "Cache for blob \"%s\" ver %v is newer than backend %v when open. Previous sync stopped?",
 			be.blobpath, cachever, backendver)
-		be.updateState(cacheEntryClean)
-		be.updateState(cacheEntryWriteInProgress)
-		be.updateState(cacheEntryDirty)
+		be.updateState(CacheEntryClean)
+		be.updateState(CacheEntryWriteInProgress)
+		be.updateState(CacheEntryDirty)
 		be.bloblen = cachebh.Size()
 		be.validlen = be.bloblen
 	} else if cachever == backendver {
-		be.updateState(cacheEntryClean)
+		be.updateState(CacheEntryClean)
 		be.bloblen = cachebh.Size()
 		be.validlen = be.bloblen
 	} else {
 		blobsizer := cbs.backendbs.(blobstore.BlobSizer)
 		be.bloblen, err = blobsizer.BlobSize(be.blobpath)
 		if err != nil {
-			be.updateState(cacheEntryErrored)
+			be.updateState(CacheEntryErrored)
 			go be.CloseWithLogErr(abandonAndClose)
 			return fmt.Errorf("Failed to query backend blobsize: %v", err)
 		}
 		if be.bloblen == 0 {
-			be.updateState(cacheEntryClean)
+			be.updateState(CacheEntryClean)
 		} else {
-			be.updateState(cacheEntryInvalidating)
+			be.updateState(CacheEntryInvalidating)
 			be.validlen = 0
 			cbs.s.RunImmediately(&InvalidateCacheTask{be}, nil)
 		}
 	}
-	if be.state == cacheEntryUninitialized {
+	if be.state == CacheEntryUninitialized {
 		panic("be.state should be set above")
 	}
 
@@ -423,21 +428,21 @@ func (be *CachedBlobEntry) OpenHandle(cbs *CachedBlobStore, flags int) (*CachedB
 Loop:
 	for {
 		switch be.state {
-		case cacheEntryClosed, cacheEntryUninitialized:
+		case CacheEntryClosed, CacheEntryUninitialized:
 			if err := be.initializeWithLock(cbs); err != nil {
 				return nil, err
 			}
 
-		case cacheEntryErrored:
+		case CacheEntryErrored:
 			return nil, fmt.Errorf("Cache entry is in errored state.")
 
-		case cacheEntryErroredClosed:
+		case CacheEntryErroredClosed:
 			return nil, fmt.Errorf("Previous attempt to open the entry has failed. Declining to OpenHandle.")
 
-		case cacheEntryInvalidating, cacheEntryClean, cacheEntryWriteInProgress, cacheEntryWritebackInProgress, cacheEntryStaleWritebackInProgress, cacheEntryDirty:
+		case CacheEntryInvalidating, CacheEntryClean, CacheEntryWriteInProgress, CacheEntryWritebackInProgress, CacheEntryStaleWritebackInProgress, CacheEntryDirty:
 			break Loop
 
-		case cacheEntryClosing:
+		case CacheEntryClosing:
 			be.progressCond.Wait()
 		}
 	}
@@ -479,10 +484,10 @@ func (be *CachedBlobEntry) markWriteInProgressWithLock() {
 	be.lastWrite = now
 
 	switch be.state {
-	case cacheEntryClean, cacheEntryDirty:
-		be.updateState(cacheEntryWriteInProgress)
-	case cacheEntryWritebackInProgress, cacheEntryStaleWritebackInProgress:
-		be.updateState(cacheEntryStaleWritebackInProgress)
+	case CacheEntryClean, CacheEntryDirty:
+		be.updateState(CacheEntryWriteInProgress)
+	case CacheEntryWritebackInProgress, CacheEntryStaleWritebackInProgress:
+		be.updateState(CacheEntryStaleWritebackInProgress)
 	default:
 		logger.Panicf(mylog, "markWriteInProgressWithLock called from unexpected state: %+v", be.infoWithLock())
 	}
@@ -495,9 +500,9 @@ func (be *CachedBlobEntry) markWriteInProgressWithLock() {
 
 func (be *CachedBlobEntry) markWriteEndWithLock() {
 	switch be.state {
-	case cacheEntryWriteInProgress:
-		be.updateState(cacheEntryDirty)
-	case cacheEntryStaleWritebackInProgress:
+	case CacheEntryWriteInProgress:
+		be.updateState(CacheEntryDirty)
+	case CacheEntryStaleWritebackInProgress:
 		break
 	default:
 		logger.Panicf(mylog, "markWriteEndWithLock called from unexpected state: %+v", be.infoWithLock())
@@ -579,11 +584,11 @@ const (
 func (be *CachedBlobEntry) writeBackWithLock(wbc writeBackCaller) error {
 	logger.Debugf(mylog, "writeBackWithLock called for \"%s\" state %v", be.blobpath, be.state)
 	switch be.state {
-	case cacheEntryClean, cacheEntryClosing:
+	case CacheEntryClean, CacheEntryClosing:
 		// no need to writeback
 		return nil
 
-	case cacheEntryDirty, cacheEntryDirtyClosing:
+	case CacheEntryDirty, CacheEntryDirtyClosing:
 		break
 
 	default:
@@ -604,17 +609,17 @@ func (be *CachedBlobEntry) writeBackWithLock(wbc writeBackCaller) error {
 		logger.Debugf(mylog, "writeBackWithLock \"%s\" write operations to the cache didn't increment its version: %v", be.blobpath, bever)
 
 		// Note: use intermediate WritebackInProgress to simplify FSM
-		be.updateState(cacheEntryWritebackInProgress)
-		be.updateState(cacheEntryClean)
+		be.updateState(CacheEntryWritebackInProgress)
+		be.updateState(CacheEntryClean)
 		return nil
 	} else if bever > cachever {
 		return fmt.Errorf("backend version %d is newer than cached version %d when writeBack \"%s\"", bever, cachever, be.blobpath)
 	}
 
-	if be.state == cacheEntryDirty {
-		be.updateState(cacheEntryWritebackInProgress)
+	if be.state == CacheEntryDirty {
+		be.updateState(CacheEntryWritebackInProgress)
 	} else {
-		if be.state != cacheEntryDirtyClosing {
+		if be.state != CacheEntryDirtyClosing {
 			logger.Panicf(mylog, "Unexpected state %s", be.state)
 		}
 	}
@@ -629,7 +634,7 @@ func (be *CachedBlobEntry) writeBackWithLock(wbc writeBackCaller) error {
 	w, err := be.cbs.backendbs.OpenWriter(be.blobpath)
 	if err != nil {
 		be.mu.Lock()
-		be.updateState(cacheEntryErrored)
+		be.updateState(CacheEntryErrored)
 		return fmt.Errorf("Failed to open backend blob writer: %v", err)
 	}
 	defer func() {
@@ -640,7 +645,7 @@ func (be *CachedBlobEntry) writeBackWithLock(wbc writeBackCaller) error {
 	r := io.LimitReader(&blobstore.OffsetReader{be.cachebh, 0}, be.cachebh.Size())
 	if _, err := io.Copy(w, r); err != nil {
 		be.mu.Lock()
-		be.updateState(cacheEntryErrored)
+		be.updateState(CacheEntryErrored)
 		return fmt.Errorf("Failed to copy dirty data to backend blob writer: %v", err)
 	}
 
@@ -648,28 +653,28 @@ func (be *CachedBlobEntry) writeBackWithLock(wbc writeBackCaller) error {
 	be.cbs.bever.Set(be.blobpath, cachever)
 
 	switch be.state {
-	case cacheEntryDirtyClosing:
+	case CacheEntryDirtyClosing:
 		return nil
 
-	case cacheEntryWritebackInProgress:
+	case CacheEntryWritebackInProgress:
 		cacheverAfterWriteback, err := be.cbs.queryVersion(&blobstore.OffsetReader{be.cachebh, 0})
 		if err != nil {
 			logger.Criticalf(mylog, "Failed to query cached blob ver: %v", err)
-			be.updateState(cacheEntryErrored)
+			be.updateState(CacheEntryErrored)
 			return fmt.Errorf("Failed to query cached blob ver: %v", err)
 		}
 		if cacheverAfterWriteback == cachever {
-			be.updateState(cacheEntryClean)
+			be.updateState(CacheEntryClean)
 			be.progressCond.Broadcast()
 		} else {
 			logger.Criticalf(mylog, "Entry version has changed while cachedEntryWritebackInProgress. was %d -> now %d.", cachever, cacheverAfterWriteback)
-			be.updateState(cacheEntryDirty)
+			be.updateState(CacheEntryDirty)
 			be.progressCond.Broadcast()
 		}
 		return nil
 
-	case cacheEntryStaleWritebackInProgress:
-		be.updateState(cacheEntryDirty)
+	case CacheEntryStaleWritebackInProgress:
+		be.updateState(CacheEntryDirty)
 		be.progressCond.Broadcast()
 		return nil
 
@@ -696,21 +701,21 @@ Loop:
 		default:
 			logger.Panicf(mylog, "Sync shouldn't get into this state: %+v", be.infoWithLock())
 
-		case cacheEntryClean:
+		case CacheEntryClean:
 			return nil
 
-		case cacheEntryWriteInProgress:
+		case CacheEntryWriteInProgress:
 			logger.Debugf(mylog, "Sync for \"%s\" waiting for write to finish.", be.blobpath)
 			be.progressCond.Wait()
 
-		case cacheEntryWritebackInProgress, cacheEntryStaleWritebackInProgress:
+		case CacheEntryWritebackInProgress, CacheEntryStaleWritebackInProgress:
 			logger.Debugf(mylog, "Sync for \"%s\" waiting for previous writeback to finish.", be.blobpath)
 			be.progressCond.Wait()
 
-		case cacheEntryDirty:
+		case CacheEntryDirty:
 			break Loop
 
-		case cacheEntryDirtyClosing, cacheEntryClosing, cacheEntryClosed:
+		case CacheEntryDirtyClosing, CacheEntryClosing, CacheEntryClosed:
 			logger.Warningf(mylog, "Attempted sync on closed entry: %+v", be.infoWithLock())
 			return nil
 		}
@@ -772,14 +777,14 @@ func (be *CachedBlobEntry) Close(mode CloseMode) error {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
-	if be.state != cacheEntryErrored {
+	if be.state != CacheEntryErrored {
 		if nhandles := len(be.handles); nhandles > 0 {
 			return fmt.Errorf("Entry has %d handles", nhandles)
 		}
 	}
 	if mode == writebackIfNeededAndClose {
 		switch be.state {
-		case cacheEntryErroredClosed:
+		case CacheEntryErroredClosed:
 			mode = writebackAndClose
 		default:
 			mode = abandonAndClose
@@ -795,39 +800,39 @@ func (be *CachedBlobEntry) Close(mode CloseMode) error {
 	var wasErrored bool
 Loop:
 	for {
-		wasErrored = be.state == cacheEntryErrored
+		wasErrored = be.state == CacheEntryErrored
 
 		switch be.state {
-		case cacheEntryUninitialized, cacheEntryWriteInProgress:
+		case CacheEntryUninitialized, CacheEntryWriteInProgress:
 			return fmt.Errorf("logicerr: cacheBlobEntry \"%s\" of state %v shouldn't be Close()-d", be.blobpath, be.state)
 
-		case cacheEntryErroredClosed, cacheEntryClosed:
+		case CacheEntryErroredClosed, CacheEntryClosed:
 			logger.Debugf(mylog, "blob cache \"%s\" already closed: %v", be.blobpath, be.state)
 			return nil
 
-		case cacheEntryInvalidating:
+		case CacheEntryInvalidating:
 			if mode != abandonAndClose {
 				return fmt.Errorf("invalidating entry \"%s\" can be only closed if going to be abandoned", be.blobpath)
 			}
-			be.updateState(cacheEntryClosing)
+			be.updateState(CacheEntryClosing)
 			break Loop
 
-		case cacheEntryErrored:
+		case CacheEntryErrored:
 			if mode != abandonAndClose {
 				logger.Warningf(mylog, "errored entry \"%s\" should be abandoned", be.blobpath)
 			}
 			mode = abandonAndClose
 			break Loop
 
-		case cacheEntryClean:
-			be.updateState(cacheEntryClosing)
+		case CacheEntryClean:
+			be.updateState(CacheEntryClosing)
 			break Loop
 
-		case cacheEntryDirty:
-			be.updateState(cacheEntryDirtyClosing)
+		case CacheEntryDirty:
+			be.updateState(CacheEntryDirtyClosing)
 			break Loop
 
-		case cacheEntryWritebackInProgress, cacheEntryStaleWritebackInProgress, cacheEntryDirtyClosing, cacheEntryClosing:
+		case CacheEntryWritebackInProgress, CacheEntryStaleWritebackInProgress, CacheEntryDirtyClosing, CacheEntryClosing:
 			be.progressCond.Wait()
 		}
 	}
@@ -853,9 +858,9 @@ Loop:
 		if err := br.RemoveBlob(be.blobpath); err != nil {
 			logger.Criticalf(mylog, "Failed to remove errored blob cache \"%v\"", be.blobpath)
 		}
-		be.updateState(cacheEntryErroredClosed)
+		be.updateState(CacheEntryErroredClosed)
 	} else {
-		be.updateState(cacheEntryClosed)
+		be.updateState(CacheEntryClosed)
 	}
 	be.progressCond.Broadcast()
 	return nil
@@ -906,3 +911,5 @@ func (be *CachedBlobEntry) Info() *CachedBlobEntryInfo {
 func (be *CachedBlobEntry) String() string {
 	return fmt.Sprintf("CachedBlobEntry{\"%s\", %v}", be.blobpath, be.state)
 }
+
+func (be *CachedBlobEntry) BlobPath() string { return be.blobpath }
