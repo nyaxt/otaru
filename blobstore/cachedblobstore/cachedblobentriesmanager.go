@@ -118,10 +118,7 @@ func (mgr *CachedBlobEntriesManager) FindSyncCandidates(n int) (scs []util.Synce
 			if !be.state.NeedsSync() {
 				continue
 			}
-			if be.LastWrite().After(writeThreshold) {
-				continue
-			}
-			if be.LastSync().After(syncThreshold) {
+			if be.LastWrite().After(writeThreshold) && be.LastSync().After(syncThreshold) {
 				continue
 			}
 
