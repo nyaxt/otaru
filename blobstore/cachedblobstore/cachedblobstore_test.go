@@ -14,6 +14,7 @@ import (
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/scheduler"
 	tu "github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/util"
 )
 
 func init() { tu.EnsureLogger() }
@@ -642,6 +643,9 @@ func (sr *sequenceRecorder) AssertSequence(t *testing.T, expected []string) {
 }
 
 func TestCachedBlobStore_WaitForPreviousSync(t *testing.T) {
+	cachedblobstore.DisableAutoSyncForTesting = true
+	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
+
 	onWriteC := make(chan struct{})
 	waitC := make(chan struct{})
 
@@ -665,13 +669,20 @@ func TestCachedBlobStore_WaitForPreviousSync(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
+	bh, err := bs.Open("hoge", flags.O_WRONLY)
+	if err != nil {
+		t.Errorf("Open err: %v", err)
+		return
+	}
+	bhs := bh.(util.Syncer)
+	defer bh.Close()
 
 	joinC := make(chan struct{})
 
 	sr := NewSequenceRecorder()
 	go func() {
 		sr.RecordEvent("sync1b")
-		if err := bs.Sync(); err != nil {
+		if err := bhs.Sync(); err != nil {
 			t.Errorf("Sync err: %v", err)
 		}
 		sr.RecordEvent("sync1e")
@@ -687,7 +698,7 @@ func TestCachedBlobStore_WaitForPreviousSync(t *testing.T) {
 		}
 	}()
 	sr.RecordEvent("sync2b")
-	if err := bs.Sync(); err != nil {
+	if err := bhs.Sync(); err != nil {
 		t.Errorf("Sync err: %v", err)
 	}
 	sr.RecordEvent("sync2e")
