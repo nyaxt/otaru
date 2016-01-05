@@ -80,7 +80,7 @@ func TestCachedBlobEntriesManager_FindAllSyncable(t *testing.T) {
 		bp := s.(*cachedblobstore.CachedBlobEntry).BlobPath()
 		bps = append(bps, bp)
 	}
-	expected := []string{}
+	expected := []string{"dirtySuperOld", "writeInProgressOldSync", "dirtyWrite5"}
 	if !reflect.DeepEqual(expected, bps) {
 		t.Errorf("Expected: %+v, Actual: %+v", expected, bps)
 	}
