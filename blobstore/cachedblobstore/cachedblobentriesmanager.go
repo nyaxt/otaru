@@ -294,7 +294,6 @@ func (mgr *CachedBlobEntriesManager) DropCacheEntry(blobpath string, blobremover
 
 		be, ok := mgr.entries[blobpath]
 		if ok {
-			// FIXME: shouldn't this be abandonAndClose
 			if err := be.Close(writebackAndClose); err != nil {
 				err = fmt.Errorf("Failed to writeback cache entry to be removed \"%s\": %v", blobpath, err)
 				return
