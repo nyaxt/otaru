@@ -14,7 +14,7 @@ import (
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
 	oflags "github.com/nyaxt/otaru/flags"
-	"github.com/nyaxt/otaru/gc"
+	"github.com/nyaxt/otaru/gc/blobstoregc"
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/gcloud/gcs"
@@ -176,7 +176,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 
 	o.FS = otaru.NewFileSystem(o.IDBS, o.CBS, o.C)
 
-	o.AutoGCJob = o.R.RunEveryPeriod(&gc.GCTask{o.CBS, o.IDBS, false}, time.Duration(cfg.GCPeriod)*time.Second)
+	o.AutoGCJob = o.R.RunEveryPeriod(&blobstoregc.GCTask{o.CBS, o.IDBS, false}, time.Duration(cfg.GCPeriod)*time.Second)
 
 	o.MGMT = mgmt.NewServer(cfg.HttpApiAddr)
 	if err := o.runMgmtServer(cfg); err != nil {

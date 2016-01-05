@@ -1,10 +1,10 @@
-package gc_test
+package blobstoregc_test
 
 import (
 	"reflect"
 	"testing"
 
-	"github.com/nyaxt/otaru/gc"
+	"github.com/nyaxt/otaru/gc/blobstoregc"
 
 	"golang.org/x/net/context"
 )
@@ -14,7 +14,7 @@ type MockGCBlobStore struct {
 	removedbs []string
 }
 
-var _ = gc.GCableBlobStore(&MockGCBlobStore{})
+var _ = blobstoregc.GCableBlobStore(&MockGCBlobStore{})
 
 func (bs *MockGCBlobStore) ListBlobs() ([]string, error) { return bs.bs, nil }
 func (bs *MockGCBlobStore) RemoveBlob(b string) error {
@@ -37,7 +37,7 @@ func TestGC_Basic(t *testing.T) {
 		usedbs: []string{"x", "y", "z"},
 	}
 
-	if err := gc.GC(context.TODO(), bs, idb, false); err != nil {
+	if err := blobstoregc.GC(context.TODO(), bs, idb, false); err != nil {
 		t.Errorf("GC err: %v", err)
 	}
 
@@ -56,7 +56,7 @@ func TestGC_EmptyRun(t *testing.T) {
 	}
 
 	// vvv should not panic.
-	if err := gc.GC(context.TODO(), bs, idb, false); err != nil {
+	if err := blobstoregc.GC(context.TODO(), bs, idb, false); err != nil {
 		t.Errorf("GC err: %v", err)
 	}
 	if len(bs.removedbs) > 0 {

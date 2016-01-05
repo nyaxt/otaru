@@ -1,4 +1,4 @@
-package gc
+package blobstoregc
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 	"github.com/nyaxt/otaru/util"
 )
 
-var mylog = logger.Registry().Category("gc")
+var mylog = logger.Registry().Category("blobstoregc")
 
 type GCableBlobStore interface {
 	blobstore.BlobLister
