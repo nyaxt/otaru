@@ -96,7 +96,7 @@ func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
 	}
 
 	// destroy latest snapshot (corrupt data)
-	ssbp, err := loc.Locate(0)
+	ssbp, _, err := loc.Locate(0)
 	if err != nil {
 		t.Errorf("Failed to locate latest ssbp: %v", err)
 		return

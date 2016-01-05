@@ -17,7 +17,7 @@ func TestINodeDBSSLocator_PutLocate(t *testing.T) {
 		return
 	}
 
-	bp, err := loc.Locate(0)
+	bp, _, err := loc.Locate(0)
 	if err != datastore.EEMPTY {
 		t.Errorf("Locate() when no entry should fail, but succeeded.")
 	}
@@ -31,9 +31,13 @@ func TestINodeDBSSLocator_PutLocate(t *testing.T) {
 		return
 	}
 
-	bp, err = loc.Locate(0)
+	bp, txid, err := loc.Locate(0)
 	if err != nil {
 		t.Errorf("Locate failed unexpectedly: %v", err)
+		return
+	}
+	if txid != 231 {
+		t.Errorf("Locate returned unexpected txid: %v", txid)
 		return
 	}
 	if bp != "META-snapshot231" {
@@ -41,9 +45,13 @@ func TestINodeDBSSLocator_PutLocate(t *testing.T) {
 		return
 	}
 
-	bp, err = loc.Locate(1)
+	bp, txid, err = loc.Locate(1)
 	if err != nil {
 		t.Errorf("Locate failed unexpectedly: %v", err)
+		return
+	}
+	if txid != 123 {
+		t.Errorf("Locate returned unexpected txid: %v", txid)
 		return
 	}
 	if bp != "META-snapshot123" {
@@ -56,9 +64,13 @@ func TestINodeDBSSLocator_PutLocate(t *testing.T) {
 		return
 	}
 
-	bp, err = loc.Locate(0)
+	bp, txid, err = loc.Locate(0)
 	if err != nil {
 		t.Errorf("Locate failed unexpectedly: %v", err)
+		return
+	}
+	if txid != 345 {
+		t.Errorf("Locate returned unexpected txid: %v", txid)
 		return
 	}
 	if bp != "META-snapshot345" {

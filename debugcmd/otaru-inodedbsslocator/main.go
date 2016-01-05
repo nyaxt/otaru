@@ -12,6 +12,7 @@ import (
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
+	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
 )
 
@@ -89,7 +90,7 @@ func main() {
 		history := 0
 	histloop:
 		for {
-			bp, err := ssloc.Locate(history)
+			bp, txid, err := ssloc.Locate(history)
 			if err != nil {
 				if err == datastore.EEMPTY {
 					logger.Infof(mylog, "Locate(%d): no entry", history)
@@ -98,7 +99,7 @@ func main() {
 				}
 				break histloop
 			}
-			logger.Infof(mylog, "Locate(%d): %v", history, bp)
+			logger.Infof(mylog, "Locate(%d) txid %v blobpath %v", history, inodedb.TxID(txid), bp)
 
 			history++
 		}

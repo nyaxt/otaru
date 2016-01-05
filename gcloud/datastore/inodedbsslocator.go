@@ -36,15 +36,15 @@ type sslocentry struct {
 	CreatedAt time.Time
 }
 
-func (loc *INodeDBSSLocator) tryLocateOnce(history int) (string, error) {
+func (loc *INodeDBSSLocator) tryLocateOnce(history int) (string, int64, error) {
 	start := time.Now()
 	cli, err := loc.cfg.getClient(context.TODO())
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	dstx, err := cli.NewTransaction(context.TODO(), datastore.Serializable)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	q := datastore.NewQuery(kindINodeDBSS).Ancestor(loc.rootKey).Order("-TxID").Offset(history).Limit(1).Transaction(dstx)
@@ -53,22 +53,22 @@ func (loc *INodeDBSSLocator) tryLocateOnce(history int) (string, error) {
 	if _, err := it.Next(&e); err != nil {
 		dstx.Rollback()
 		if err == datastore.Done {
-			return "", EEMPTY
+			return "", 0, EEMPTY
 		}
-		return "", err
+		return "", 0, err
 	}
 
 	if _, err := dstx.Commit(); err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	logger.Infof(sslog, "LocateSnapshot(%d) took %s. Found entry: %+v", history, time.Since(start), e)
-	return e.BlobPath, nil
+	return e.BlobPath, e.TxID, nil
 }
 
-func (loc *INodeDBSSLocator) Locate(history int) (bp string, err error) {
+func (loc *INodeDBSSLocator) Locate(history int) (bp string, txid int64, err error) {
 	err = gcutil.RetryIfNeeded(func() error {
-		bp, err = loc.tryLocateOnce(history)
+		bp, txid, err = loc.tryLocateOnce(history)
 		return err
 	}, sslog)
 	return

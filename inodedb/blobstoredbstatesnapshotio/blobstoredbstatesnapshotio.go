@@ -14,7 +14,7 @@ import (
 var mylog = logger.Registry().Category("bsdbssio")
 
 type SSLocator interface {
-	Locate(history int) (string, error)
+	Locate(history int) (string, int64, error)
 	GenerateBlobpath() string
 	Put(blobpath string, txid int64) error
 }
@@ -72,35 +72,47 @@ func (sio *DBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) <-chan error {
 	return errC
 }
 
+func (sio *DBStateSnapshotIO) restoreNthSnapshot(i int) (*inodedb.DBState, error) {
+	ssbp, txid, err := sio.loc.Locate(i)
+	if err != nil {
+		return nil, err
+	}
+
+	if i == 0 {
+		logger.Debugf(mylog, "Attempting to restore latest state snapshot \"%s\"", ssbp)
+	} else {
+		logger.Infof(mylog, "Retrying state snapshot restore with an older state snapshot \"%s\"", ssbp)
+	}
+
+	var state *inodedb.DBState
+	err = statesnapshot.Restore(
+		ssbp, sio.c, sio.bs,
+		func(dec *gob.Decoder) error {
+			var err error
+			state, err = inodedb.DecodeDBStateFromGob(dec)
+			return err
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	if inodedb.TxID(txid) != state.Version() {
+		logger.Warningf(mylog, "SSLocator TxID mismatch. SSLocator %v != Actual SS %v", inodedb.TxID(txid), state.Version())
+	}
+	sio.snapshotVer = state.Version()
+	return state, nil
+}
+
 const maxhist = 3
 
 func (sio *DBStateSnapshotIO) RestoreSnapshot() (*inodedb.DBState, error) {
-	var state *inodedb.DBState
-
 	for i := 0; i < maxhist; i++ {
-		ssbp, err := sio.loc.Locate(i)
-		if err != nil {
-			return nil, err
-		}
-		if i == 0 {
-			logger.Debugf(mylog, "Attempting to restore latest state snapshot \"%s\"", ssbp)
+		state, err := sio.restoreNthSnapshot(i)
+		if err == nil {
+			return state, nil
 		} else {
-			logger.Infof(mylog, "Retrying state snapshot restore with an older state snapshot \"%s\"", ssbp)
+			logger.Warningf(mylog, "Failed to recover state snapshot: %v", err)
 		}
-
-		if err := statesnapshot.Restore(
-			ssbp, sio.c, sio.bs,
-			func(dec *gob.Decoder) error {
-				var err error
-				state, err = inodedb.DecodeDBStateFromGob(dec)
-				return err
-			},
-		); err != nil {
-			logger.Warningf(mylog, "Failed to recover state snapshot \"%s\": %v", ssbp, err)
-			continue
-		}
-		sio.snapshotVer = state.Version()
-		return state, nil
 	}
 	return nil, fmt.Errorf("Failed to restore %d snapshots. Aborted.", maxhist)
 }
