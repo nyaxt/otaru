@@ -2,6 +2,7 @@ package inodedbtxloggc
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/context"
@@ -20,8 +21,15 @@ type TransactionLogDeleter interface {
 
 var mylog = logger.Registry().Category("inodedbtxloggc")
 
+var gcRunning uint32
+
 func GC(ctx context.Context, thresfinder UnneededTxIDThresholdFinder, logdeleter TransactionLogDeleter, dryrun bool) error {
 	start := time.Now()
+
+	if !atomic.CompareAndSwapUint32(&gcRunning, 0, 1) {
+		return fmt.Errorf("Another inodedbtxloggc is already running.")
+	}
+	defer atomic.StoreUint32(&gcRunning, 0)
 
 	logger.Infof(mylog, "GC start. Dryrun: %t. Trying to find UnneededTxIDThreshold.", dryrun)
 

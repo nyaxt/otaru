@@ -5,4 +5,4 @@ import (
 	"github.com/nyaxt/otaru/scheduler"
 )
 
-var _ = scheduler.Task(&blobstoregc.GCTask{})
+var _ = scheduler.Task(&blobstoregc.Task{})

@@ -14,7 +14,7 @@ func init() { tu.EnsureLogger() }
 
 type MockUnneededTxIDThresholdFinder inodedb.TxID
 
-func (n MockUnneededTxIDThresholdFinder) FindUnneededTxIDThreshold() (int64, error) {
+func (n MockUnneededTxIDThresholdFinder) FindUnneededTxIDThreshold() (inodedb.TxID, error) {
 	return inodedb.TxID(n), nil
 }
 
