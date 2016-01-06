@@ -31,7 +31,8 @@ func GC(ctx context.Context, thresfinder UnneededTxIDThresholdFinder, logdeleter
 	}
 	txid := inodedb.TxID(ntxid)
 	if txid == inodedb.AnyVersion {
-		return fmt.Errorf("UnneededTxIDThreshold was AnyVersion. No TxID log to be deleted")
+		logger.Infof(mylog, "UnneededTxIDThreshold was AnyVersion. No TxID log to be deleted")
+		return nil
 	}
 	logger.Infof(mylog, "Found UnneededTxIDThreshold: %v", txid)
 
