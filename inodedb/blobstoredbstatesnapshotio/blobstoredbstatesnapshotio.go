@@ -116,3 +116,12 @@ func (sio *DBStateSnapshotIO) RestoreSnapshot() (*inodedb.DBState, error) {
 	}
 	return nil, fmt.Errorf("Failed to restore %d snapshots. Aborted.", maxhist)
 }
+
+func (sio *DBStateSnapshotIO) FindUnneededTxIDThreshold() (inodedb.TxID, error) {
+	state, err := sio.restoreNthSnapshot(maxhist - 1)
+	if err != nil {
+		return inodedb.AnyVersion, err
+	}
+
+	return state.Version(), nil
+}

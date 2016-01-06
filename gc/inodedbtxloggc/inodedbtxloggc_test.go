@@ -12,10 +12,10 @@ import (
 
 func init() { tu.EnsureLogger() }
 
-type MockUnneededTxIDThresholdFinder int64
+type MockUnneededTxIDThresholdFinder inodedb.TxID
 
 func (n MockUnneededTxIDThresholdFinder) FindUnneededTxIDThreshold() (int64, error) {
-	return int64(n), nil
+	return inodedb.TxID(n), nil
 }
 
 type MockTransactionLogDeleter struct {
@@ -30,7 +30,7 @@ func (logdeleter *MockTransactionLogDeleter) DeleteTransactions(id inodedb.TxID)
 }
 
 func TestINodeDBTxLogGC_DryRun(t *testing.T) {
-	thresfinder := MockUnneededTxIDThresholdFinder(345)
+	thresfinder := MockUnneededTxIDThresholdFinder(inodedb.TxID(345))
 	logdeleter := &MockTransactionLogDeleter{called: false, id: inodedb.AnyVersion}
 
 	if err := inodedbtxloggc.GC(context.TODO(), thresfinder, logdeleter, true); err != nil {
@@ -43,7 +43,7 @@ func TestINodeDBTxLogGC_DryRun(t *testing.T) {
 }
 
 func TestINodeDBTxLogGC_RealRun(t *testing.T) {
-	thresfinder := MockUnneededTxIDThresholdFinder(345)
+	thresfinder := MockUnneededTxIDThresholdFinder(inodedb.TxID(345))
 	logdeleter := &MockTransactionLogDeleter{called: false, id: inodedb.AnyVersion}
 
 	if err := inodedbtxloggc.GC(context.TODO(), thresfinder, logdeleter, false); err != nil {

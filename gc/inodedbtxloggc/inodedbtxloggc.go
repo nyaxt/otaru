@@ -11,7 +11,7 @@ import (
 )
 
 type UnneededTxIDThresholdFinder interface {
-	FindUnneededTxIDThreshold() (int64, error)
+	FindUnneededTxIDThreshold() (inodedb.TxID, error)
 }
 
 type TransactionLogDeleter interface {
@@ -25,11 +25,10 @@ func GC(ctx context.Context, thresfinder UnneededTxIDThresholdFinder, logdeleter
 
 	logger.Infof(mylog, "GC start. Dryrun: %t. Trying to find UnneededTxIDThreshold.", dryrun)
 
-	ntxid, err := thresfinder.FindUnneededTxIDThreshold()
+	txid, err := thresfinder.FindUnneededTxIDThreshold()
 	if err != nil {
 		return fmt.Errorf("Failed to find UnneededTxIDThreshold: %v", err)
 	}
-	txid := inodedb.TxID(ntxid)
 	if txid == inodedb.AnyVersion {
 		logger.Infof(mylog, "UnneededTxIDThreshold was AnyVersion. No TxID log to be deleted")
 		return nil

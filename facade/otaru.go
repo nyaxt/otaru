@@ -15,6 +15,7 @@ import (
 	"github.com/nyaxt/otaru/chunkstore"
 	oflags "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/gc/blobstoregc"
+	"github.com/nyaxt/otaru/gc/inodedbtxloggc"
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/gcloud/gcs"
@@ -62,7 +63,8 @@ type Otaru struct {
 
 	FS *otaru.FileSystem
 
-	AutoGCJob scheduler.ID
+	AutoBlobstoreGCJob    scheduler.ID
+	AutoINodeDBTxLogGCJob scheduler.ID
 
 	MGMT *mgmt.Server
 }
@@ -176,7 +178,16 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 
 	o.FS = otaru.NewFileSystem(o.IDBS, o.CBS, o.C)
 
-	o.AutoGCJob = o.R.RunEveryPeriod(&blobstoregc.GCTask{o.CBS, o.IDBS, false}, time.Duration(cfg.GCPeriod)*time.Second)
+	if cfg.GCPeriod <= 0 {
+		logger.Infof(mylog, "GCPeriod %d <= 0. No GC tasks are scheduled automatically.", cfg.GCPeriod)
+	} else {
+		if t := o.GetBlobstoreGCTask(false); t != nil {
+			o.AutoBlobstoreGCJob = o.R.RunEveryPeriod(t, time.Duration(cfg.GCPeriod)*time.Second)
+		}
+		if t := o.GetINodeDBTxLogGCTask(true); t != nil {
+			o.AutoINodeDBTxLogGCJob = o.R.RunEveryPeriod(t, time.Duration(cfg.GCPeriod)*time.Second)
+		}
+	}
 
 	o.MGMT = mgmt.NewServer(cfg.HttpApiAddr)
 	if err := o.runMgmtServer(cfg); err != nil {
@@ -230,4 +241,18 @@ func (o *Otaru) Close() error {
 	}
 
 	return util.ToErrors(errs)
+}
+
+func (o *Otaru) GetBlobstoreGCTask(dryrun bool) scheduler.Task {
+	return &blobstoregc.Task{o.CBS, o.IDBS, dryrun}
+}
+
+func (o *Otaru) GetINodeDBTxLogGCTask(dryrun bool) scheduler.Task {
+	logdeleter, ok := o.TxIO.(inodedbtxloggc.TransactionLogDeleter)
+	if ok {
+		return &inodedbtxloggc.Task{o.SIO, logdeleter, dryrun}
+	} else {
+		logger.Infof(mylog, "DBTransactionLogIO backend %s doesn't support log deletion. Not scheduling txlog GC task.", util.TryGetImplName(o.TxIO))
+		return nil
+	}
 }

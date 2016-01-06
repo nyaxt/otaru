@@ -28,7 +28,7 @@ func (o *Otaru) setupMgmtAPIs(cfg *Config) error {
 	minodedb.Install(o.MGMT, o.IDBS)
 	mscheduler.Install(o.MGMT, o.S, o.R)
 	mfilesystem.Install(o.MGMT, o.FS)
-	mgc.Install(o.MGMT, o.S, o.CBS, o.IDBS)
+	mgc.Install(o.MGMT, o.S, o)
 
 	return nil
 }
