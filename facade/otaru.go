@@ -181,10 +181,11 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	if cfg.GCPeriod <= 0 {
 		logger.Infof(mylog, "GCPeriod %d <= 0. No GC tasks are scheduled automatically.", cfg.GCPeriod)
 	} else {
-		if t := o.GetBlobstoreGCTask(false); t != nil {
+		const NoDryRun = false
+		if t := o.GetBlobstoreGCTask(NoDryRun); t != nil {
 			o.AutoBlobstoreGCJob = o.R.RunEveryPeriod(t, time.Duration(cfg.GCPeriod)*time.Second)
 		}
-		if t := o.GetINodeDBTxLogGCTask(true); t != nil {
+		if t := o.GetINodeDBTxLogGCTask(NoDryRun); t != nil {
 			o.AutoINodeDBTxLogGCJob = o.R.RunEveryPeriod(t, time.Duration(cfg.GCPeriod)*time.Second)
 		}
 	}
