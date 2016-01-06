@@ -170,3 +170,5 @@ func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
 	logger.Infof(sslog, "DeleteAll() deleted %d entries. Took %s", ndel, time.Since(start))
 	return blobpaths, nil
 }
+
+func (*INodeDBSSLocator) ImplName() string { return "gcloud/datastore.INodeDBSSLocator" }

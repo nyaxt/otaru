@@ -35,3 +35,5 @@ func (io *SimpleDBStateSnapshotIO) RestoreSnapshot() (*DBState, error) {
 	dec := gob.NewDecoder(&io.Buf)
 	return DecodeDBStateFromGob(dec)
 }
+
+func (*SimpleDBStateSnapshotIO) ImplName() string { return "SimpleDBStateSnapshotIO" }

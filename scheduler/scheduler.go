@@ -42,16 +42,6 @@ type Task interface {
 	Run(ctx context.Context) Result
 }
 
-func describeTask(t Task) string {
-	type stringifier interface {
-		String() string
-	}
-	if sf, ok := t.(stringifier); ok {
-		return sf.String()
-	}
-	return util.TryGetImplName(t)
-}
-
 type State int32
 
 const (
@@ -101,7 +91,7 @@ func (j *job) String() string {
 	return fmt.Sprintf("job{ID: %d, CreatedAt: %v, Task: %s, State: %v}",
 		j.ID,
 		j.CreatedAt,
-		describeTask(j.Task),
+		util.Describe(j.Task),
 		j.State,
 	)
 }
@@ -127,7 +117,7 @@ func (j *job) ViewWithLock() *JobView {
 	return &JobView{
 		ID:          j.ID,
 		State:       j.State,
-		TaskDesc:    describeTask(j.Task),
+		TaskDesc:    util.Describe(j.Task),
 		CreatedAt:   j.CreatedAt,
 		ScheduledAt: j.ScheduledAt,
 		StartedAt:   j.StartedAt,

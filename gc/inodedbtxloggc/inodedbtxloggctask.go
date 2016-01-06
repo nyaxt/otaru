@@ -21,5 +21,5 @@ func (t *Task) Run(ctx context.Context) scheduler.Result {
 }
 
 func (t *Task) String() string {
-	return fmt.Sprintf("inodedbtxloggc.Task{%s, %s}", util.TryGetImplName(t.ThresFinder), util.TryGetImplName(t.LogDeleter))
+	return fmt.Sprintf("inodedbtxloggc.Task{%s, %s}", util.Describe(t.ThresFinder), util.Describe(t.LogDeleter))
 }

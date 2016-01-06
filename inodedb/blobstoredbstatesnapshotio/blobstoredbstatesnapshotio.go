@@ -9,6 +9,7 @@ import (
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/metadata/statesnapshot"
+	"github.com/nyaxt/otaru/util"
 )
 
 var mylog = logger.Registry().Category("bsdbssio")
@@ -124,4 +125,8 @@ func (sio *DBStateSnapshotIO) FindUnneededTxIDThreshold() (inodedb.TxID, error) 
 	}
 
 	return state.Version(), nil
+}
+
+func (sio *DBStateSnapshotIO) String() string {
+	return fmt.Sprintf("DBStateSnapshotIO{%v}", util.TryGetImplName(sio.loc))
 }

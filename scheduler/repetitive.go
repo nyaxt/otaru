@@ -27,7 +27,7 @@ type repetitiveJob struct {
 
 func (j *repetitiveJob) String() string {
 	return fmt.Sprintf("repetitiveJob{id: %d, period: %v, task: %s}",
-		j.id, j.period, describeTask(j.task),
+		j.id, j.period, util.Describe(j.task),
 	)
 }
 
@@ -113,7 +113,7 @@ func (j *repetitiveJob) View() *RepetitiveJobView {
 
 	return &RepetitiveJobView{
 		ID:              j.id,
-		TaskDesc:        describeTask(j.task),
+		TaskDesc:        util.Describe(j.task),
 		CreatedAt:       j.createdAt,
 		LastScheduledAt: j.lastScheduledAt,
 		Period:          j.period,
