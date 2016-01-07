@@ -2,6 +2,9 @@ package blobstoredbstatesnapshotio
 
 import (
 	"fmt"
+
+	"golang.org/x/net/context"
+
 	"github.com/nyaxt/otaru/metadata"
 )
 
@@ -24,4 +27,8 @@ func (SimpleSSLocator) GenerateBlobpath() string {
 func (SimpleSSLocator) Put(blobpath string, txid int64) error {
 	simplesslocatorTxID = txid
 	return nil
+}
+
+func (SimpleSSLocator) DeleteOld(ctx context.Context, threshold int, dryRun bool) ([]string, error) {
+	return []string{}, nil
 }

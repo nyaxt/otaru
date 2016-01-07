@@ -20,6 +20,7 @@ var mylog = logger.Registry().Category("otaru-globallock")
 
 var (
 	flagConfigDir = flag.String("configDir", facade.DefaultConfigDir(), "Config dirpath")
+	flagDryRun    = flag.Bool("dryRun", false, "Don't actually make a change if set true")
 )
 
 func Usage() {
@@ -79,7 +80,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		es, err := ssloc.DeleteAll()
+		es, err := ssloc.DeleteAll(context.Background(), *flagDryRun)
 		if err != nil {
 			logger.Infof(mylog, "DeleteAll failed: %v", err)
 		}

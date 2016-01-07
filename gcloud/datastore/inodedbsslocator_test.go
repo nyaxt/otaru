@@ -5,6 +5,8 @@ import (
 	"sort"
 	"testing"
 
+	"golang.org/x/net/context"
+
 	authtu "github.com/nyaxt/otaru/gcloud/auth/testutils"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 )
@@ -12,7 +14,7 @@ import (
 func TestINodeDBSSLocator_PutLocate(t *testing.T) {
 	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(authtu.TestBucketName()))
 
-	if _, err := loc.DeleteAll(); err != nil {
+	if _, err := loc.DeleteAll(context.Background(), false); err != nil {
 		t.Errorf("DeleteAll failed unexpectedly: %v", err)
 		return
 	}
@@ -78,7 +80,7 @@ func TestINodeDBSSLocator_PutLocate(t *testing.T) {
 		return
 	}
 
-	bps, err := loc.DeleteAll()
+	bps, err := loc.DeleteAll(context.Background(), false)
 	if err != nil {
 		t.Errorf("DeleteAll failed unexpectedly: %v", err)
 		return

@@ -110,7 +110,7 @@ func (loc *INodeDBSSLocator) Put(blobpath string, txid int64) error {
 	}, sslog)
 }
 
-func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
+func (loc *INodeDBSSLocator) DeleteOld(ctx context.Context, threshold int, dryRun bool) ([]string, error) {
 	start := time.Now()
 
 	cli, err := loc.cfg.getClient(context.TODO())
@@ -129,8 +129,8 @@ func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
 		}
 
 		keys := make([]*datastore.Key, 0)
-		q := datastore.NewQuery(kindINodeDBSS).Ancestor(loc.rootKey).Transaction(dstx)
-		it := cli.Run(context.TODO(), q)
+		q := datastore.NewQuery(kindINodeDBSS).Ancestor(loc.rootKey).Order("-TxID").Offset(threshold).Transaction(dstx)
+		it := cli.Run(ctx, q)
 		for {
 			var e sslocentry
 			k, err := it.Next(&e)
@@ -150,9 +150,11 @@ func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
 			}
 		}
 
-		if err := dstx.DeleteMulti(keys); err != nil {
-			dstx.Rollback()
-			return nil, err
+		if !dryRun {
+			if err := dstx.DeleteMulti(keys); err != nil {
+				dstx.Rollback()
+				return nil, err
+			}
 		}
 
 		if _, err := dstx.Commit(); err != nil {
@@ -161,14 +163,18 @@ func (loc *INodeDBSSLocator) DeleteAll() ([]string, error) {
 		ndel += len(keys)
 
 		if needAnotherTx {
-			logger.Infof(txlog, "DeleteAll(): A tx deleting %d entries took %s. Starting next tx to delete more.", len(keys), time.Since(txStart))
+			logger.Infof(txlog, "DeleteOld(): A tx deleting %d entries took %s. Starting next tx to delete more.", len(keys), time.Since(txStart))
 		} else {
-			logger.Infof(txlog, "DeleteAll(): A tx deleting %d entries took %s.", len(keys), time.Since(txStart))
+			logger.Infof(txlog, "DeleteOld(): A tx deleting %d entries took %s.", len(keys), time.Since(txStart))
 			break
 		}
 	}
-	logger.Infof(sslog, "DeleteAll() deleted %d entries. Took %s", ndel, time.Since(start))
+	logger.Infof(sslog, "DeleteOld() deleted %d entries. Took %s", ndel, time.Since(start))
 	return blobpaths, nil
+}
+
+func (loc *INodeDBSSLocator) DeleteAll(ctx context.Context, dryRun bool) ([]string, error) {
+	return loc.DeleteOld(ctx, 0, dryRun)
 }
 
 func (*INodeDBSSLocator) ImplName() string { return "gcloud/datastore.INodeDBSSLocator" }

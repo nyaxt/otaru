@@ -3,6 +3,9 @@ package blobstoredbstatesnapshotio
 import (
 	"encoding/gob"
 	"fmt"
+	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
@@ -18,6 +21,7 @@ type SSLocator interface {
 	Locate(history int) (string, int64, error)
 	GenerateBlobpath() string
 	Put(blobpath string, txid int64) error
+	DeleteOld(ctx context.Context, threshold int, dryRun bool) ([]string, error)
 }
 
 type DBStateSnapshotIO struct {
@@ -125,6 +129,45 @@ func (sio *DBStateSnapshotIO) FindUnneededTxIDThreshold() (inodedb.TxID, error) 
 	}
 
 	return state.Version(), nil
+}
+
+func (sio *DBStateSnapshotIO) DeleteOldSnapshots(ctx context.Context, dryRun bool) error {
+	logger.Infof(mylog, "DeleteOldSnapshots(dryRun: %t) start", dryRun)
+	start := time.Now()
+
+	bdeleter, ok := sio.bs.(blobstore.BlobRemover)
+	if !ok {
+		return fmt.Errorf("Backend blobstore \"%v\" doesn't support blob deletion.", util.Describe(sio.bs))
+	}
+
+	if _, err := sio.RestoreSnapshot(); err != nil {
+		return fmt.Errorf("DeleteOldSnapshots. RestoreSnapshot() sanity check failed: %v", err)
+	}
+	logger.Infof(mylog, "Asserted that RestoreSnapshot() works.")
+
+	bps, err := sio.loc.DeleteOld(ctx, maxhist, dryRun)
+	if err != nil {
+		return fmt.Errorf("SSLocator.DeleteOld failed: %v", err)
+	}
+
+	errs := []error{}
+
+	if dryRun {
+		for _, bp := range bps {
+			logger.Infof(mylog, "Not actually deleting snapshot blob \"%s\" in dry run.", bp)
+		}
+	} else {
+		for _, bp := range bps {
+			logger.Infof(mylog, "Deleting snapshot blob \"%s\".", bp)
+			if err := bdeleter.RemoveBlob(bp); err != nil {
+				logger.Warningf(mylog, "Error removing blob \"%s\": %v", bp, err)
+				errs = append(errs, err)
+			}
+		}
+	}
+
+	logger.Infof(mylog, "DeleteOldSnapshots(dryRun: %t) took %v", dryRun, time.Since(start))
+	return util.Errors(errs)
 }
 
 func (sio *DBStateSnapshotIO) String() string {

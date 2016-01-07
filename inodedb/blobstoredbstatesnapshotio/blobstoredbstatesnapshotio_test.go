@@ -3,6 +3,8 @@ package blobstoredbstatesnapshotio_test
 import (
 	"testing"
 
+	"golang.org/x/net/context"
+
 	authtu "github.com/nyaxt/otaru/gcloud/auth/testutils"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/inodedb"
@@ -16,7 +18,7 @@ func testRootKey() string { return authtu.TestBucketName() + "-blobstoredbstates
 
 func TestSS_SaveRestore(t *testing.T) {
 	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(testRootKey()))
-	if _, err := loc.DeleteAll(); err != nil {
+	if _, err := loc.DeleteAll(context.Background(), false); err != nil {
 		t.Errorf("Failed to loc.DeleteAll: %v", err)
 	}
 
@@ -41,7 +43,7 @@ func TestSS_SaveRestore(t *testing.T) {
 
 func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
 	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(testRootKey()))
-	if _, err := loc.DeleteAll(); err != nil {
+	if _, err := loc.DeleteAll(context.Background(), false); err != nil {
 		t.Errorf("Failed to loc.DeleteAll: %v", err)
 	}
 
