@@ -41,6 +41,29 @@ func TestSS_SaveRestore(t *testing.T) {
 	}
 }
 
+func mockFileOp(t *testing.T, db inodedb.DBHandler, filename string) bool {
+	nlock, err := db.LockNode(inodedb.AllocateNewNodeID)
+	if err != nil {
+		t.Errorf("Failed to LockNode: %v", err)
+		return false
+	}
+
+	tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
+		&inodedb.CreateNodeOp{NodeLock: nlock, OrigPath: "/" + filename, Type: inodedb.FileNodeT},
+		&inodedb.HardLinkOp{NodeLock: inodedb.NodeLock{inodedb.RootDirID, inodedb.NoTicket}, Name: filename, TargetID: nlock.ID},
+	}}
+	if _, err := db.ApplyTransaction(tx); err != nil {
+		t.Errorf("Failed to apply tx: %v", err)
+		return false
+	}
+
+	if err := db.UnlockNode(nlock); err != nil {
+		t.Errorf("Failed to UnlockNode: %v", err)
+		return false
+	}
+	return true
+}
+
 func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
 	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(testRootKey()))
 	if _, err := loc.DeleteAll(context.Background(), false); err != nil {
@@ -65,23 +88,7 @@ func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
 		}
 
 		// apply some mod to inodedb
-		nlock, err := db.LockNode(inodedb.AllocateNewNodeID)
-		if err != nil {
-			t.Errorf("Failed to LockNode: %v", err)
-			return
-		}
-
-		tx := inodedb.DBTransaction{Ops: []inodedb.DBOperation{
-			&inodedb.CreateNodeOp{NodeLock: nlock, OrigPath: "/hoge.txt", Type: inodedb.FileNodeT},
-			&inodedb.HardLinkOp{NodeLock: inodedb.NodeLock{1, inodedb.NoTicket}, Name: "hoge.txt", TargetID: nlock.ID},
-		}}
-		if _, err := db.ApplyTransaction(tx); err != nil {
-			t.Errorf("Failed to apply tx: %v", err)
-			return
-		}
-
-		if err := db.UnlockNode(nlock); err != nil {
-			t.Errorf("Failed to UnlockNode: %v", err)
+		if !mockFileOp(t, db, "hoge.txt") {
 			return
 		}
 
@@ -133,6 +140,68 @@ func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to NewDB (ss blob removed): %v", err)
 			return
+		}
+	}
+}
+
+func TestSS_DeleteOldSnapshots(t *testing.T) {
+	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(testRootKey()))
+	if _, err := loc.DeleteAll(context.Background(), false); err != nil {
+		t.Errorf("Failed to loc.DeleteAll: %v", err)
+	}
+
+	bs := tu.TestFileBlobStore()
+	sio := blobstoredbstatesnapshotio.New(bs, tu.TestCipher(), loc)
+
+	{
+		db, err := inodedb.NewEmptyDB(sio, inodedb.NewSimpleDBTransactionLogIO())
+		if err != nil {
+			t.Errorf("Failed to NewEmptyDB: %v", err)
+			return
+		}
+		if err := db.Sync(); err != nil {
+			t.Errorf("Failed to Sync DB: %v", err)
+			return
+		}
+		if !mockFileOp(t, db, "1.txt") {
+			return
+		}
+		if err := db.Sync(); err != nil {
+			t.Errorf("Failed to Sync DB: %v", err)
+			return
+		}
+		if !mockFileOp(t, db, "2.txt") {
+			return
+		}
+		if err := db.Sync(); err != nil {
+			t.Errorf("Failed to Sync DB: %v", err)
+			return
+		}
+		if !mockFileOp(t, db, "3.txt") {
+			return
+		}
+		if err := db.Sync(); err != nil {
+			t.Errorf("Failed to Sync DB: %v", err)
+			return
+		}
+	}
+
+	if err := sio.DeleteOldSnapshots(context.Background(), false); err != nil {
+		t.Errorf("DeleteOldSnapshots. err: %v", err)
+		return
+	}
+
+	{
+		db, err := inodedb.NewDB(sio, inodedb.NewSimpleDBTransactionLogIO())
+		if err != nil {
+			t.Errorf("Failed to NewDB: %v", err)
+			return
+		}
+
+		v, _, err := db.QueryNode(inodedb.RootDirID, false)
+		dv := v.(*inodedb.DirNodeView)
+		if _, ok := dv.Entries["3.txt"]; !ok {
+			t.Errorf("Failed to find 3.txt")
 		}
 	}
 }

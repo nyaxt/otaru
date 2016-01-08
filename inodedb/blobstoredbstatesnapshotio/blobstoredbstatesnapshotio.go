@@ -167,7 +167,7 @@ func (sio *DBStateSnapshotIO) DeleteOldSnapshots(ctx context.Context, dryRun boo
 	}
 
 	logger.Infof(mylog, "DeleteOldSnapshots(dryRun: %t) took %v", dryRun, time.Since(start))
-	return util.Errors(errs)
+	return util.ToErrors(errs)
 }
 
 func (sio *DBStateSnapshotIO) String() string {
