@@ -15,6 +15,7 @@ import (
 	"github.com/nyaxt/otaru/chunkstore"
 	oflags "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/gc/blobstoregc"
+	"github.com/nyaxt/otaru/gc/inodedbssgc"
 	"github.com/nyaxt/otaru/gc/inodedbtxloggc"
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
@@ -65,6 +66,7 @@ type Otaru struct {
 
 	AutoBlobstoreGCJob    scheduler.ID
 	AutoINodeDBTxLogGCJob scheduler.ID
+	AutoINodeDBSSGCJob    scheduler.ID
 
 	MGMT *mgmt.Server
 }
@@ -188,6 +190,9 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		if t := o.GetINodeDBTxLogGCTask(NoDryRun); t != nil {
 			o.AutoINodeDBTxLogGCJob = o.R.RunEveryPeriod(t, time.Duration(cfg.GCPeriod)*time.Second)
 		}
+		if t := o.GetINodeDBSSGCTask(NoDryRun); t != nil {
+			o.AutoINodeDBSSGCJob = o.R.RunEveryPeriod(t, time.Duration(cfg.GCPeriod)*time.Second)
+		}
 	}
 
 	o.MGMT = mgmt.NewServer(cfg.HttpApiAddr)
@@ -256,4 +261,8 @@ func (o *Otaru) GetINodeDBTxLogGCTask(dryrun bool) scheduler.Task {
 		logger.Infof(mylog, "DBTransactionLogIO backend %s doesn't support log deletion. Not scheduling txlog GC task.", util.TryGetImplName(o.TxIO))
 		return nil
 	}
+}
+
+func (o *Otaru) GetINodeDBSSGCTask(dryrun bool) scheduler.Task {
+	return &inodedbssgc.Task{o.SIO, dryrun}
 }

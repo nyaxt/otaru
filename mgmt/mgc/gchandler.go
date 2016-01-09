@@ -10,6 +10,7 @@ import (
 type GCTaskFactory interface {
 	GetBlobstoreGCTask(dryrun bool) scheduler.Task
 	GetINodeDBTxLogGCTask(dryrun bool) scheduler.Task
+	GetINodeDBSSGCTask(dryrun bool) scheduler.Task
 }
 
 func Install(srv *mgmt.Server, s *scheduler.Scheduler, factory GCTaskFactory) {
@@ -47,5 +48,8 @@ func Install(srv *mgmt.Server, s *scheduler.Scheduler, factory GCTaskFactory) {
 	}))
 	rtr.HandleFunc("/inodedbtxlog/trigger", triggerHandler(func(dryrun bool) scheduler.Task {
 		return factory.GetINodeDBTxLogGCTask(dryrun)
+	}))
+	rtr.HandleFunc("/inodedbss/trigger", triggerHandler(func(dryrun bool) scheduler.Task {
+		return factory.GetINodeDBSSGCTask(dryrun)
 	}))
 }
