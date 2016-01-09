@@ -157,7 +157,7 @@ func (be *CachedBlobEntry) updateState(newState CacheEntryState) {
 		}
 	case CacheEntryStaleWritebackInProgress:
 		switch newState {
-		case CacheEntryDirty:
+		case CacheEntryDirty, CacheEntryStaleWritebackInProgress:
 			break
 		default:
 			goto Unexpected
