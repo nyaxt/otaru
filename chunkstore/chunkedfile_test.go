@@ -13,30 +13,10 @@ import (
 	"testing"
 )
 
-type SimpleDBChunksArrayIO struct {
-	cs []inodedb.FileChunk
-}
-
-var _ = chunkstore.ChunksArrayIO(&SimpleDBChunksArrayIO{})
 var testLockManager = chunkstore.NewLockManager()
 
-func NewSimpleDBChunksArrayIO() *SimpleDBChunksArrayIO {
-	return &SimpleDBChunksArrayIO{make([]inodedb.FileChunk, 0)}
-}
-
-func (caio *SimpleDBChunksArrayIO) Read() ([]inodedb.FileChunk, error) {
-	return caio.cs, nil
-}
-
-func (caio *SimpleDBChunksArrayIO) Write(cs []inodedb.FileChunk) error {
-	caio.cs = cs
-	return nil
-}
-
-func (caio *SimpleDBChunksArrayIO) Close() error { return nil }
-
 func TestChunkedFileIO_FileBlobStore(t *testing.T) {
-	caio := NewSimpleDBChunksArrayIO()
+	caio := chunkstore.NewSimpleDBChunksArrayIO()
 	fbs := TestFileBlobStore()
 	cfio := chunkstore.NewChunkedFileIO(fbs, TestCipher(), testLockManager, caio)
 
@@ -63,7 +43,7 @@ func TestChunkedFileIO_FileBlobStore(t *testing.T) {
 }
 
 func TestChunkedFileIO_SingleChunk(t *testing.T) {
-	caio := NewSimpleDBChunksArrayIO()
+	caio := chunkstore.NewSimpleDBChunksArrayIO()
 	bs := blobstore.NewMockBlobStore()
 	cfio := chunkstore.NewChunkedFileIO(bs, TestCipher(), testLockManager, caio)
 
@@ -96,7 +76,7 @@ func TestChunkedFileIO_SingleChunk(t *testing.T) {
 }
 
 func TestChunkedFileIO_MultiChunk(t *testing.T) {
-	caio := NewSimpleDBChunksArrayIO()
+	caio := chunkstore.NewSimpleDBChunksArrayIO()
 	bs := blobstore.NewMockBlobStore()
 	cfio := chunkstore.NewChunkedFileIO(bs, TestCipher(), testLockManager, caio)
 

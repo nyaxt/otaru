@@ -14,7 +14,7 @@ import (
 
 const EPERM = syscall.Errno(syscall.EPERM)
 
-const ChunkSplitSize = 256 * 1024 * 1024 // 256MB
+var ChunkSplitSize int64 = 256 * 1024 * 1024 // 256MB
 
 const (
 	NewChunk      = true
@@ -25,6 +25,27 @@ type ChunksArrayIO interface {
 	Read() ([]inodedb.FileChunk, error)
 	Write(cs []inodedb.FileChunk) error
 }
+
+type SimpleDBChunksArrayIO struct {
+	cs []inodedb.FileChunk
+}
+
+var _ = ChunksArrayIO(&SimpleDBChunksArrayIO{})
+
+func NewSimpleDBChunksArrayIO() *SimpleDBChunksArrayIO {
+	return &SimpleDBChunksArrayIO{make([]inodedb.FileChunk, 0)}
+}
+
+func (caio *SimpleDBChunksArrayIO) Read() ([]inodedb.FileChunk, error) {
+	return caio.cs, nil
+}
+
+func (caio *SimpleDBChunksArrayIO) Write(cs []inodedb.FileChunk) error {
+	caio.cs = cs
+	return nil
+}
+
+func (caio *SimpleDBChunksArrayIO) Close() error { return nil }
 
 type ChunkedFileIO struct {
 	bs blobstore.RandomAccessBlobStore
