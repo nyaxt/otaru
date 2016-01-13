@@ -4,7 +4,6 @@ import (
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
-	"github.com/nyaxt/otaru/inodedb"
 	. "github.com/nyaxt/otaru/testutils"
 
 	"bytes"
@@ -59,14 +58,14 @@ func TestChunkedFileIO_SingleChunk(t *testing.T) {
 		return
 	}
 
-	if len(caio.cs) != 1 {
-		t.Errorf("len(caio.cs) %d", len(caio.cs))
+	if len(caio.Cs) != 1 {
+		t.Errorf("len(caio.Cs) %d", len(caio.Cs))
 		return
 	}
-	if caio.cs[0].Offset != 0 {
-		t.Errorf("Chunk at invalid offset: %d", caio.cs[1].Offset)
+	if caio.Cs[0].Offset != 0 {
+		t.Errorf("Chunk at invalid offset: %d", caio.Cs[1].Offset)
 	}
-	bh := bs.Paths[caio.cs[0].BlobPath]
+	bh := bs.Paths[caio.Cs[0].BlobPath]
 	if bh.Log[0].Offset != 123 {
 		t.Errorf("Chunk write at invalid offset: %d", bh.Log[0].Offset)
 	}
@@ -92,21 +91,21 @@ func TestChunkedFileIO_MultiChunk(t *testing.T) {
 		return
 	}
 
-	if len(caio.cs) != 2 {
-		t.Errorf("len(caio.cs) %d", len(caio.cs))
+	if len(caio.Cs) != 2 {
+		t.Errorf("len(caio.Cs) %d", len(caio.Cs))
 		return
 	}
-	if caio.cs[0].Offset != 0 {
-		t.Errorf("Chunk at invalid offset: %d", caio.cs[1].Offset)
+	if caio.Cs[0].Offset != 0 {
+		t.Errorf("Chunk at invalid offset: %d", caio.Cs[1].Offset)
 	}
-	bh := bs.Paths[caio.cs[0].BlobPath]
+	bh := bs.Paths[caio.Cs[0].BlobPath]
 	if bh.Log[0].Offset != 123 {
 		t.Errorf("Chunk write at invalid offset: %d", bh.Log[0].Offset)
 	}
-	if caio.cs[1].Offset != chunkstore.ChunkSplitSize {
-		t.Errorf("Split chunk at invalid offset: %d", caio.cs[1].Offset)
+	if caio.Cs[1].Offset != chunkstore.ChunkSplitSize {
+		t.Errorf("Split chunk at invalid offset: %d", caio.Cs[1].Offset)
 	}
-	bh = bs.Paths[caio.cs[1].BlobPath]
+	bh = bs.Paths[caio.Cs[1].BlobPath]
 	if bh.Log[0].Offset != 12345 {
 		t.Errorf("Split chunk write at invalid offset: %d", bh.Log[0].Offset)
 	}
@@ -115,7 +114,7 @@ func TestChunkedFileIO_MultiChunk(t *testing.T) {
 		t.Errorf("PWrite failed: %v", err)
 		return
 	}
-	bh = bs.Paths[caio.cs[1].BlobPath]
+	bh = bs.Paths[caio.Cs[1].BlobPath]
 	if !reflect.DeepEqual(bh.Log[1], blobstore.MockBlobStoreOperation{'W', 0, 7, HelloWorld[5]}) {
 		fmt.Printf("? %+v\n", bh.Log[1])
 	}

@@ -27,7 +27,7 @@ type ChunksArrayIO interface {
 }
 
 type SimpleDBChunksArrayIO struct {
-	cs []inodedb.FileChunk
+	Cs []inodedb.FileChunk
 }
 
 var _ = ChunksArrayIO(&SimpleDBChunksArrayIO{})
@@ -37,11 +37,11 @@ func NewSimpleDBChunksArrayIO() *SimpleDBChunksArrayIO {
 }
 
 func (caio *SimpleDBChunksArrayIO) Read() ([]inodedb.FileChunk, error) {
-	return caio.cs, nil
+	return caio.Cs, nil
 }
 
 func (caio *SimpleDBChunksArrayIO) Write(cs []inodedb.FileChunk) error {
-	caio.cs = cs
+	caio.Cs = cs
 	return nil
 }
 
