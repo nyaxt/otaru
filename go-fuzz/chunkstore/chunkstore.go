@@ -1,9 +1,12 @@
+// +build gofuzz
 package chunkstore
 
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 
+	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/chunkstore"
 	tu "github.com/nyaxt/otaru/testutils"
 )
@@ -26,11 +29,11 @@ type cmdpack struct {
 
 func Fuzz(data []byte) int {
 	chunkstore.ChunkSplitSize = 1 * 1024 * 1024
-	const AbsoluteMaxLen uint32 = 1 * 1024 * 1024
+	const AbsoluteMaxLen uint32 = 4 * 1024 * 1024
 
 	caio := chunkstore.NewSimpleDBChunksArrayIO()
-	fbs := tu.TestFileBlobStore()
-	cfio := chunkstore.NewChunkedFileIO(fbs, tu.TestCipher(), testLockManager, caio)
+	bs := blobstore.NewMemBlobStore()
+	cfio := chunkstore.NewChunkedFileIO(bs, tu.TestCipher(), testLockManager, caio)
 
 	currLen := uint32(0)
 
@@ -39,8 +42,13 @@ func Fuzz(data []byte) int {
 	iobuf := make([]byte, AbsoluteMaxLen)
 	for n := byte(0); true; n++ {
 		if err := binary.Read(reader, binary.BigEndian, &cmdp); err != nil {
-			return InvalidInput
+			if n < 4 {
+				return InvalidInput
+			} else {
+				return NeutralInput
+			}
 		}
+		fmt.Printf("===================== Cmd %d\n", n)
 
 		isWrite := (cmdp.IsWrite & 1) == 1
 		offset := uint32(0)

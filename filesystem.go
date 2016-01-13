@@ -29,10 +29,8 @@ const (
 	EPERM     = syscall.Errno(syscall.EPERM)
 )
 
-const (
-	FileWriteCacheMaxPatches         = 32
-	FileWriteCacheMaxPatchContentLen = 256 * 1024
-)
+var FileWriteCacheMaxPatches = 32
+var FileWriteCacheMaxPatchContentLen int64 = 256 * 1024
 
 type FileSystem struct {
 	idb inodedb.DBHandler

@@ -310,11 +310,13 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 			}
 		}()
 
-		n := util.Int64Min(int64(len(p)), c.Length-coff)
+		n := util.Int64Min(int64(len(remp)), c.Length-coff)
+		//logger.Debugf(mylog, "len(remp) = %d, c.Length-coff = %d", len(remp), c.Length-coff)
 		if err := cio.PRead(remp[:n], coff); err != nil {
 			return int(remo - offset), fmt.Errorf("cio PRead failed: %v. offset %d chunk offset %d len %d cs +%v", err, remo, coff, n, cs)
 		}
 
+		//logger.Debugf(mylog, "remo = %d, len(remp) = %d, n = %d", remo, len(remp), n)
 		remo += n
 		remp = remp[n:]
 
