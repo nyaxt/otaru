@@ -31,10 +31,10 @@ func (wc *FileWriteCache) PWrite(p []byte, offset int64) error {
 	copy(pcopy, p)
 
 	newp := Patch{Offset: offset, P: pcopy}
-	logger.Debugf(mylog, "PWrite: %v", newp)
+	// logger.Debugf(mylog, "PWrite: %v", newp)
 
 	wc.ps = wc.ps.Merge(newp)
-	logger.Debugf(mylog, "Merged patches: %+v", wc.ps)
+	// logger.Debugf(mylog, "Merged patches: %+v", wc.ps)
 	return nil
 }
 
@@ -138,7 +138,7 @@ func (wc *FileWriteCache) Sync(bh blobstore.PWriter) error {
 	offset := int64(-1)
 
 	for _, p := range wc.ps {
-		if p.IsSentinel() || contP == nil || p.Offset != offset+int64(len(p.P)) {
+		if p.IsSentinel() || contP == nil || p.Offset != offset+int64(len(contP)) {
 			if len(contP) != 0 {
 				logger.Debugf(mylog, "PWrite offset: %d len(p): %d", offset, len(contP))
 				if err := bh.PWrite(contP, offset); err != nil {
