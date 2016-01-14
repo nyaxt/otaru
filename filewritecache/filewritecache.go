@@ -130,17 +130,27 @@ func (wc *FileWriteCache) NeedsSync() bool {
 }
 
 func (wc *FileWriteCache) Sync(bh blobstore.PWriter) error {
+	var contP []byte
+	offset := int64(-1)
+
 	for _, p := range wc.ps {
-		if p.IsSentinel() {
+		if p.IsSentinel() || contP == nil || p.Offset != offset+int64(len(p.P)) {
+			if len(contP) != 0 {
+				logger.Debugf(wclog, "PWrite offset: %d len(p): %d", offset, len(contP))
+				if err := bh.PWrite(contP, offset); err != nil {
+					return err
+				}
+			}
+
+			contP = p.P
+			offset = p.Offset
 			continue
 		}
 
-		logger.Debugf(wclog, "Sync: %v", p)
-		// logger.Debugf(wclog, "Sync: p=%v", p.P)
-		if err := bh.PWrite(p.P, p.Offset); err != nil {
-			return err
-		}
+		logger.Debugf(wclog, "Squash {offset: %d len(p): %d} <- %v", offset, len(contP), p)
+		contP = append(contP, p.P...)
 	}
+
 	wc.ps = wc.ps.Reset()
 
 	return nil
