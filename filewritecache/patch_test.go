@@ -95,7 +95,7 @@ func TestReplace(t *testing.T) {
 		filewritecache.PatchSentinel,
 	}
 
-	ps = ps.Replace(1, 2, CreateTestPatch(18, 14))
+	ps = ps.Replace(1, 2, []filewritecache.Patch{CreateTestPatch(18, 14)})
 	if len(ps) != 4 {
 		t.Errorf("Invalid len: %d, expected: 4", len(ps))
 	}
@@ -121,7 +121,7 @@ func TestReplace_SingleElem(t *testing.T) {
 		filewritecache.PatchSentinel,
 	}
 
-	ps = ps.Replace(1, 1, CreateTestPatch(18, 9))
+	ps = ps.Replace(1, 1, []filewritecache.Patch{CreateTestPatch(18, 9)})
 	if len(ps) != 4 {
 		t.Errorf("Invalid len: %d, expected: 4", len(ps))
 	}

@@ -5,7 +5,10 @@ import (
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/filewritecache"
+	tu "github.com/nyaxt/otaru/testutils"
 )
+
+func init() { tu.EnsureLogger() }
 
 func TestRegression_PWriteAfterSync(t *testing.T) {
 	bh := blobstore.NewMockBlobHandle()

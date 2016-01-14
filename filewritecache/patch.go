@@ -3,10 +3,10 @@ package filewritecache
 import (
 	"fmt"
 	"math"
-)
 
-// var Printf = log.Printf
-var Printf = func(...interface{}) {}
+	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/util"
+)
 
 type Patch struct {
 	Offset int64
@@ -34,7 +34,7 @@ func (p Patch) IsSentinel() bool {
 }
 
 func NewPatches() Patches {
-	return Patches{PatchSentinel}
+	return Patches{PatchSentinel} // FIXME: should allocate cap == MaxPatches
 }
 
 func (ps Patches) FindLRIndex(newp Patch) (int, int) {
@@ -68,60 +68,77 @@ func (ps Patches) FindLRIndex(newp Patch) (int, int) {
 	return lefti, righti
 }
 
-func (ps Patches) Replace(lefti, righti int, newp Patch) Patches {
-	ps[lefti] = newp
-	ndel := righti - lefti
-	copy(ps[lefti+1:len(ps)-ndel], ps[righti+1:])
-	return ps[:len(ps)-ndel]
+func (ps Patches) Replace(lefti, righti int, newps Patches) Patches {
+	logger.Debugf(mylog, "before: %v", ps)
+	logger.Debugf(mylog, "(%d, %d) newps: %v", lefti, righti, newps)
+	/*
+		result := append(append(ps[:lefti], newps...), ps[righti+1:]...)
+		logger.Debugf(mylog, "replaced: %v", result)
+		return result
+	*/
+
+	ndel := util.IntMax(righti-lefti+1, 0)
+	nexp := util.IntMax(0, len(newps)-ndel)
+	for i := 0; i < nexp; i++ {
+		ps = append(ps, PatchSentinel)
+	}
+	logger.Debugf(mylog, "ndel: %d, nexp: %d", ndel, nexp)
+
+	newr := len(ps) - nexp + len(newps) - ndel
+	logger.Debugf(mylog, "[%d:%d], [%d:]",
+		lefti+len(newps), newr, righti+1)
+	copy(ps[lefti+len(newps):newr], ps[righti+1:])
+	copy(ps[lefti:lefti+len(newps)], newps)
+	ps = ps[:newr]
+	logger.Debugf(mylog, "after : %v", ps)
+	return ps
 }
 
 func (ps Patches) Merge(newp Patch) Patches {
 	lefti, righti := ps.FindLRIndex(newp)
-	Printf("newp: %v li, ri (%d, %d)\n", newp, lefti, righti)
+	logger.Debugf(mylog, "ps: %v", ps)
+	logger.Debugf(mylog, "newp: %v li, ri (%d, %d)", newp, lefti, righti)
+
+	newps := []Patch{newp}
 
 	if lefti < len(ps)-1 {
-		psl := &ps[lefti]
-		if newp.Left() > ps[lefti].Left() {
-			Printf("Trim L !!!\n")
-			//    [lefti] ...
-			//       [<------newp---...
+		psl := ps[lefti]
+		if newp.Left() > psl.Left() {
+			//    [<---lefti--->] ...
+			//               [<------newp---...
+			logger.Debugf(mylog, "Trim L !!!")
 
-			// Trim ps[lefti]
+			// Trim L: ps[lefti]
 			psl.P = psl.P[:newp.Left()-psl.Left()]
-			if len(psl.P) != 0 {
-				lefti++
+			if len(psl.P) > 0 {
+				newps = []Patch{psl, newp}
 			}
 		}
 	}
 
 	if righti >= 0 {
-		psr := &ps[righti]
+		psr := ps[righti]
 		if psr.Right() > newp.Right() {
-			Printf("Trim R !!!\n")
+			logger.Debugf(mylog, "Trim R !!!")
 			//            ... [righti]
 			//         ---newp--->]
 
-			// Trim ps[righti]
+			// Trim R: ps[righti]
 			psr.P = psr.P[newp.Right()-psr.Left():]
 			psr.Offset = newp.Right()
 			if len(psr.P) != 0 {
-				righti--
+				newps = append(newps, psr)
 			}
 		}
 	}
 
+	// FIXME: move below to Replace()
 	if lefti > righti {
-		Printf("Insert!!!\n")
-
-		// Insert newp @ index lefti
-		newps := append(ps, PatchSentinel)
-		copy(newps[lefti+1:], newps[lefti:])
-		newps[lefti] = newp
-		return newps
+		logger.Debugf(mylog, "Insert!!!")
 	}
 
 	// Insert newp replacing ps[lefti:righti]
-	return ps.Replace(lefti, righti, newp)
+	return ps.Replace(lefti, righti, newps)
 }
 
 func (ps Patches) Truncate(size int64) Patches {

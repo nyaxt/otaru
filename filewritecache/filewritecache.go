@@ -12,7 +12,7 @@ import (
 var MaxPatches = 32
 var MaxPatchContentLen int64 = 256 * 1024
 
-var wclog = logger.Registry().Category("filewritecache")
+var mylog = logger.Registry().Category("filewritecache")
 
 type FileWriteCache struct {
 	ps Patches
@@ -23,14 +23,18 @@ func New() *FileWriteCache {
 }
 
 func (wc *FileWriteCache) PWrite(p []byte, offset int64) error {
-	pcopy := make([]byte, len(p))
+	if len(p) == 0 {
+		return nil
+	}
+
+	pcopy := make([]byte, len(p)) // FIXME: use sync.Pool
 	copy(pcopy, p)
 
 	newp := Patch{Offset: offset, P: pcopy}
-	logger.Debugf(wclog, "PWrite: %v", newp)
-	// logger.Debugf(wclog, "PWrite: p=%v", pcopy)
+	logger.Debugf(mylog, "PWrite: %v", newp)
 
 	wc.ps = wc.ps.Merge(newp)
+	logger.Debugf(mylog, "Merged patches: %+v", wc.ps)
 	return nil
 }
 
@@ -70,7 +74,7 @@ func (wc *FileWriteCache) ReadAtThrough(p []byte, offset int64, r ReadAter) (int
 			fallbackLen := int(fallbackLen64)
 
 			n, err := r.ReadAt(remp[:fallbackLen], remo)
-			logger.Debugf(wclog, "BeforePatch: ReadAt issued offset %d, len %d bytes, read %d bytes", remo, fallbackLen, n)
+			logger.Debugf(mylog, "BeforePatch: ReadAt issued offset %d, len %d bytes, read %d bytes", remo, fallbackLen, n)
 			if err != nil {
 				return nr + n, err
 			}
@@ -101,7 +105,7 @@ func (wc *FileWriteCache) ReadAtThrough(p []byte, offset int64, r ReadAter) (int
 	}
 
 	n, err := r.ReadAt(remp, remo)
-	logger.Debugf(wclog, "Last: ReadAt read %d bytes", n)
+	logger.Debugf(mylog, "Last: ReadAt read %d bytes", n)
 	if err != nil {
 		return nr, err
 	}
@@ -135,8 +139,8 @@ func (wc *FileWriteCache) Sync(bh blobstore.PWriter) error {
 			continue
 		}
 
-		logger.Debugf(wclog, "Sync: %v", p)
-		// logger.Debugf(wclog, "Sync: p=%v", p.P)
+		logger.Debugf(mylog, "Sync: %v", p)
+		// logger.Debugf(mylog, "Sync: p=%v", p.P)
 		if err := bh.PWrite(p.P, p.Offset); err != nil {
 			return err
 		}
