@@ -4,6 +4,7 @@ package filewritecache
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/filewritecache"
@@ -84,7 +85,7 @@ func Fuzz(data []byte) int {
 				return NeutralInput
 			}
 		}
-		logger.Infof(mylog, "Cmd %d", n)
+		logger.Infof(mylog, "Cmd %d %+v", n, cmdp)
 
 		isWrite := (cmdp.IsWrite & 1) == 1
 		if isWrite {
@@ -95,10 +96,12 @@ func Fuzz(data []byte) int {
 			for i, _ := range w {
 				w[i] = n
 			}
+			logger.Debugf(mylog, "PWrite offset %d opLen %d currLen %d", offset, opLen, currLen)
 			if err := wc.PWrite(w[:opLen], int64(offset)); err != nil {
 				panic(err)
 			}
 			if wc.NeedsSync() {
+				logger.Debugf(mylog, "NeedsSync!")
 				if err := wc.Sync(bh); err != nil {
 					panic(err)
 				}
@@ -121,6 +124,7 @@ func Fuzz(data []byte) int {
 
 			r := rbuf[:opLen]
 			adaptor := ReadAtAdaptor{bh}
+			logger.Debugf(mylog, "ReadAtThrough offset %d opLen %d currLen %d", offset, opLen, currLen)
 			if _, err := wc.ReadAtThrough(r, int64(offset), adaptor); err != nil {
 				panic(err)
 			}
@@ -128,7 +132,7 @@ func Fuzz(data []byte) int {
 			if !bytes.Equal(r, r2) {
 				logger.Warningf(mylog, "mismatch!!! | wc     := %+v", r)
 				logger.Warningf(mylog, "mismatch!!! | mirror := %+v", r2)
-				return InterestingInput
+				panic(errors.New("mismatch"))
 			}
 		}
 	}
@@ -142,7 +146,7 @@ func Fuzz(data []byte) int {
 		if !bytes.Equal(r, r2) {
 			logger.Warningf(mylog, "mismatch!!! | wc     := %+v", r)
 			logger.Warningf(mylog, "mismatch!!! | mirror := %+v", r2)
-			return InterestingInput
+			panic(errors.New("mismatch"))
 		}
 	}
 	return NeutralInput
