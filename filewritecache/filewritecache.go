@@ -8,6 +8,7 @@ import (
 	"github.com/nyaxt/otaru/util"
 )
 
+// Below may overwritten from tests
 var MaxPatches = 32
 var MaxPatchContentLen int64 = 256 * 1024
 
