@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"sync"
 )
 
@@ -171,6 +172,12 @@ func (h FrameHeader) Header() FrameHeader { return h }
 func (h FrameHeader) String() string {
 	var buf bytes.Buffer
 	buf.WriteString("[FrameHeader ")
+	h.writeDebug(&buf)
+	buf.WriteByte(']')
+	return buf.String()
+}
+
+func (h FrameHeader) writeDebug(buf *bytes.Buffer) {
 	buf.WriteString(h.Type.String())
 	if h.Flags != 0 {
 		buf.WriteString(" flags=")
@@ -187,15 +194,14 @@ func (h FrameHeader) String() string {
 			if name != "" {
 				buf.WriteString(name)
 			} else {
-				fmt.Fprintf(&buf, "0x%x", 1<<i)
+				fmt.Fprintf(buf, "0x%x", 1<<i)
 			}
 		}
 	}
 	if h.StreamID != 0 {
-		fmt.Fprintf(&buf, " stream=%d", h.StreamID)
+		fmt.Fprintf(buf, " stream=%d", h.StreamID)
 	}
-	fmt.Fprintf(&buf, " len=%d]", h.Length)
-	return buf.String()
+	fmt.Fprintf(buf, " len=%d", h.Length)
 }
 
 func (h *FrameHeader) checkValid() {
@@ -294,6 +300,11 @@ type Framer struct {
 	// we're in the middle of a header block and a
 	// non-Continuation or Continuation on a different stream is
 	// attempted to be written.
+
+	logReads bool
+
+	debugFramer    *Framer // only use for logging written writes
+	debugFramerBuf *bytes.Buffer
 }
 
 func (f *Framer) startWrite(ftype FrameType, flags Flags, streamID uint32) {
@@ -321,11 +332,33 @@ func (f *Framer) endWrite() error {
 		byte(length>>16),
 		byte(length>>8),
 		byte(length))
+	if logFrameWrites {
+		f.logWrite()
+	}
+
 	n, err := f.w.Write(f.wbuf)
 	if err == nil && n != len(f.wbuf) {
 		err = io.ErrShortWrite
 	}
 	return err
+}
+
+func (f *Framer) logWrite() {
+	if f.debugFramer == nil {
+		f.debugFramerBuf = new(bytes.Buffer)
+		f.debugFramer = NewFramer(nil, f.debugFramerBuf)
+		f.debugFramer.logReads = false // we log it ourselves, saying "wrote" below
+		// Let us read anything, even if we accidentally wrote it
+		// in the wrong order:
+		f.debugFramer.AllowIllegalReads = true
+	}
+	f.debugFramerBuf.Write(f.wbuf)
+	fr, err := f.debugFramer.ReadFrame()
+	if err != nil {
+		log.Printf("http2: Framer %p: failed to decode just-written frame", f)
+		return
+	}
+	log.Printf("http2: Framer %p: wrote %v", f, summarizeFrame(fr))
 }
 
 func (f *Framer) writeByte(v byte)     { f.wbuf = append(f.wbuf, v) }
@@ -343,8 +376,9 @@ const (
 // NewFramer returns a Framer that writes frames to w and reads them from r.
 func NewFramer(w io.Writer, r io.Reader) *Framer {
 	fr := &Framer{
-		w: w,
-		r: r,
+		w:        w,
+		r:        r,
+		logReads: logFrameReads,
 	}
 	fr.getReadBuf = func(size uint32) []byte {
 		if cap(fr.readBuf) >= int(size) {
@@ -412,6 +446,9 @@ func (fr *Framer) ReadFrame() (Frame, error) {
 	}
 	if err := fr.checkFrameOrder(f); err != nil {
 		return nil, err
+	}
+	if fr.logReads {
+		log.Printf("http2: Framer %p: read %v", fr, summarizeFrame(f))
 	}
 	return f, nil
 }
@@ -1026,10 +1063,6 @@ func parseContinuationFrame(fh FrameHeader, p []byte) (Frame, error) {
 	return &ContinuationFrame{fh, p}, nil
 }
 
-func (f *ContinuationFrame) StreamEnded() bool {
-	return f.FrameHeader.Flags.Has(FlagDataEndStream)
-}
-
 func (f *ContinuationFrame) HeaderBlockFragment() []byte {
 	f.checkValid()
 	return f.headerFragBuf
@@ -1190,4 +1223,47 @@ type streamEnder interface {
 
 type headersEnder interface {
 	HeadersEnded() bool
+}
+
+func summarizeFrame(f Frame) string {
+	var buf bytes.Buffer
+	f.Header().writeDebug(&buf)
+	switch f := f.(type) {
+	case *SettingsFrame:
+		n := 0
+		f.ForeachSetting(func(s Setting) error {
+			n++
+			if n == 1 {
+				buf.WriteString(", settings:")
+			}
+			fmt.Fprintf(&buf, " %v=%v,", s.ID, s.Val)
+			return nil
+		})
+		if n > 0 {
+			buf.Truncate(buf.Len() - 1) // remove trailing comma
+		}
+	case *DataFrame:
+		data := f.Data()
+		const max = 256
+		if len(data) > max {
+			data = data[:max]
+		}
+		fmt.Fprintf(&buf, " data=%q", data)
+		if len(f.Data()) > max {
+			fmt.Fprintf(&buf, " (%d bytes omitted)", len(f.Data())-max)
+		}
+	case *WindowUpdateFrame:
+		if f.StreamID == 0 {
+			buf.WriteString(" (conn)")
+		}
+		fmt.Fprintf(&buf, " incr=%v", f.Increment)
+	case *PingFrame:
+		fmt.Fprintf(&buf, " ping=%q", f.Data[:])
+	case *GoAwayFrame:
+		fmt.Fprintf(&buf, " LastStreamID=%v ErrCode=%v Debug=%q",
+			f.LastStreamID, f.ErrCode, f.debugData)
+	case *RSTStreamFrame:
+		fmt.Fprintf(&buf, " ErrCode=%v", f.ErrCode)
+	}
+	return buf.String()
 }

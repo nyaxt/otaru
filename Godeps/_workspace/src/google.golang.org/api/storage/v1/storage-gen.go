@@ -1249,6 +1249,7 @@ func (c *BucketAccessControlsDeleteCall) Do() error {
 	//   },
 	//   "path": "b/{bucket}/acl/{entity}",
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -1400,6 +1401,7 @@ func (c *BucketAccessControlsGetCall) Do() (*BucketAccessControl, error) {
 	//     "$ref": "BucketAccessControl"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -1537,6 +1539,7 @@ func (c *BucketAccessControlsInsertCall) Do() (*BucketAccessControl, error) {
 	//     "$ref": "BucketAccessControl"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -1677,6 +1680,7 @@ func (c *BucketAccessControlsListCall) Do() (*BucketAccessControls, error) {
 	//     "$ref": "BucketAccessControls"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -1825,6 +1829,7 @@ func (c *BucketAccessControlsPatchCall) Do() (*BucketAccessControl, error) {
 	//     "$ref": "BucketAccessControl"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -1972,6 +1977,7 @@ func (c *BucketAccessControlsUpdateCall) Do() (*BucketAccessControl, error) {
 	//     "$ref": "BucketAccessControl"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -3498,6 +3504,7 @@ func (c *DefaultObjectAccessControlsDeleteCall) Do() error {
 	//   },
 	//   "path": "b/{bucket}/defaultObjectAcl/{entity}",
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -3649,6 +3656,7 @@ func (c *DefaultObjectAccessControlsGetCall) Do() (*ObjectAccessControl, error) 
 	//     "$ref": "ObjectAccessControl"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -3787,6 +3795,7 @@ func (c *DefaultObjectAccessControlsInsertCall) Do() (*ObjectAccessControl, erro
 	//     "$ref": "ObjectAccessControl"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -3956,6 +3965,7 @@ func (c *DefaultObjectAccessControlsListCall) Do() (*ObjectAccessControls, error
 	//     "$ref": "ObjectAccessControls"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -4104,6 +4114,7 @@ func (c *DefaultObjectAccessControlsPatchCall) Do() (*ObjectAccessControl, error
 	//     "$ref": "ObjectAccessControl"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -4251,6 +4262,7 @@ func (c *DefaultObjectAccessControlsUpdateCall) Do() (*ObjectAccessControl, erro
 	//     "$ref": "ObjectAccessControl"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -4385,6 +4397,7 @@ func (c *ObjectAccessControlsDeleteCall) Do() error {
 	//   },
 	//   "path": "b/{bucket}/o/{object}/acl/{entity}",
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -4560,6 +4573,7 @@ func (c *ObjectAccessControlsGetCall) Do() (*ObjectAccessControl, error) {
 	//     "$ref": "ObjectAccessControl"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -4721,6 +4735,7 @@ func (c *ObjectAccessControlsInsertCall) Do() (*ObjectAccessControl, error) {
 	//     "$ref": "ObjectAccessControl"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -4885,6 +4900,7 @@ func (c *ObjectAccessControlsListCall) Do() (*ObjectAccessControls, error) {
 	//     "$ref": "ObjectAccessControls"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -5057,6 +5073,7 @@ func (c *ObjectAccessControlsPatchCall) Do() (*ObjectAccessControl, error) {
 	//     "$ref": "ObjectAccessControl"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -5228,6 +5245,7 @@ func (c *ObjectAccessControlsUpdateCall) Do() (*ObjectAccessControl, error) {
 	//     "$ref": "ObjectAccessControl"
 	//   },
 	//   "scopes": [
+	//     "https://www.googleapis.com/auth/cloud-platform",
 	//     "https://www.googleapis.com/auth/devstorage.full_control"
 	//   ]
 	// }
@@ -5465,7 +5483,8 @@ func (c *ObjectsComposeCall) Do() (*Object, error) {
 	//     "https://www.googleapis.com/auth/devstorage.full_control",
 	//     "https://www.googleapis.com/auth/devstorage.read_write"
 	//   ],
-	//   "supportsMediaDownload": true
+	//   "supportsMediaDownload": true,
+	//   "useMediaDownloadService": true
 	// }
 
 }
@@ -5850,7 +5869,8 @@ func (c *ObjectsCopyCall) Do() (*Object, error) {
 	//     "https://www.googleapis.com/auth/devstorage.full_control",
 	//     "https://www.googleapis.com/auth/devstorage.read_write"
 	//   ],
-	//   "supportsMediaDownload": true
+	//   "supportsMediaDownload": true,
+	//   "useMediaDownloadService": true
 	// }
 
 }
@@ -6299,7 +6319,8 @@ func (c *ObjectsGetCall) Do() (*Object, error) {
 	//     "https://www.googleapis.com/auth/devstorage.read_only",
 	//     "https://www.googleapis.com/auth/devstorage.read_write"
 	//   ],
-	//   "supportsMediaDownload": true
+	//   "supportsMediaDownload": true,
+	//   "useMediaDownloadService": true
 	// }
 
 }
@@ -6307,16 +6328,17 @@ func (c *ObjectsGetCall) Do() (*Object, error) {
 // method id "storage.objects.insert":
 
 type ObjectsInsertCall struct {
-	s                *Service
-	bucket           string
-	object           *Object
-	urlParams_       gensupport.URLParams
-	media_           io.Reader
-	resumable_       googleapi.SizeReaderAt
-	mediaType_       string
-	protocol_        string
-	progressUpdater_ googleapi.ProgressUpdater
-	ctx_             context.Context
+	s                   *Service
+	bucket              string
+	object              *Object
+	urlParams_          gensupport.URLParams
+	media_              io.Reader
+	mediaType_          string
+	resumable_          googleapi.SizeReaderAt
+	resumableMediaType_ string
+	protocol_           string
+	progressUpdater_    googleapi.ProgressUpdater
+	ctx_                context.Context
 }
 
 // Insert: Stores a new object and metadata.
@@ -6431,8 +6453,9 @@ func (c *ObjectsInsertCall) UserIP(userIP string) *ObjectsInsertCall {
 
 // Media specifies the media to upload in a single chunk. At most one of
 // Media and ResumableMedia may be set.
-func (c *ObjectsInsertCall) Media(r io.Reader) *ObjectsInsertCall {
-	c.media_ = r
+func (c *ObjectsInsertCall) Media(r io.Reader, options ...googleapi.MediaOption) *ObjectsInsertCall {
+	opts := googleapi.ProcessMediaOptions(options)
+	c.media_, c.mediaType_ = gensupport.DetermineContentType(r, opts.ContentType)
 	c.protocol_ = "multipart"
 	return c
 }
@@ -6446,7 +6469,7 @@ func (c *ObjectsInsertCall) Media(r io.Reader) *ObjectsInsertCall {
 func (c *ObjectsInsertCall) ResumableMedia(ctx context.Context, r io.ReaderAt, size int64, mediaType string) *ObjectsInsertCall {
 	c.ctx_ = ctx
 	c.resumable_ = io.NewSectionReader(r, 0, size)
-	c.mediaType_ = mediaType
+	c.resumableMediaType_ = mediaType
 	c.protocol_ = "resumable"
 	return c
 }
@@ -6492,22 +6515,21 @@ func (c *ObjectsInsertCall) doRequest(alt string) (*http.Response, error) {
 		c.urlParams_.Set("uploadType", c.protocol_)
 	}
 	urls += "?" + c.urlParams_.Encode()
-	if c.protocol_ != "resumable" {
-		var cancel func()
-		cancel, _ = googleapi.ConditionallyIncludeMedia(c.media_, &body, &ctype)
-		if cancel != nil {
-			defer cancel()
-		}
+	if c.protocol_ != "resumable" && c.media_ != nil {
+		var combined io.ReadCloser
+		combined, ctype = gensupport.CombineBodyMedia(body, ctype, c.media_, c.mediaType_)
+		defer combined.Close()
+		body = combined
 	}
 	req, _ := http.NewRequest("POST", urls, body)
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
 	if c.protocol_ == "resumable" {
-		if c.mediaType_ == "" {
-			c.mediaType_ = googleapi.DetectMediaType(c.resumable_)
+		if c.resumableMediaType_ == "" {
+			c.resumableMediaType_ = gensupport.DetectMediaType(c.resumable_)
 		}
-		req.Header.Set("X-Upload-Content-Type", c.mediaType_)
+		req.Header.Set("X-Upload-Content-Type", c.resumableMediaType_)
 	}
 	req.Header.Set("Content-Type", ctype)
 	req.Header.Set("User-Agent", c.s.userAgent())
@@ -6549,7 +6571,7 @@ func (c *ObjectsInsertCall) Do() (*Object, error) {
 			UserAgent:     c.s.userAgent(),
 			URI:           loc,
 			Media:         c.resumable_,
-			MediaType:     c.mediaType_,
+			MediaType:     c.resumableMediaType_,
 			ContentLength: c.resumable_.Size(),
 			Callback: func(curr int64) {
 				if c.progressUpdater_ != nil {
@@ -6684,7 +6706,8 @@ func (c *ObjectsInsertCall) Do() (*Object, error) {
 	//     "https://www.googleapis.com/auth/devstorage.read_write"
 	//   ],
 	//   "supportsMediaDownload": true,
-	//   "supportsMediaUpload": true
+	//   "supportsMediaUpload": true,
+	//   "useMediaDownloadService": true
 	// }
 
 }
@@ -7915,7 +7938,8 @@ func (c *ObjectsUpdateCall) Do() (*Object, error) {
 	//     "https://www.googleapis.com/auth/devstorage.full_control",
 	//     "https://www.googleapis.com/auth/devstorage.read_write"
 	//   ],
-	//   "supportsMediaDownload": true
+	//   "supportsMediaDownload": true,
+	//   "useMediaDownloadService": true
 	// }
 
 }

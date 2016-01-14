@@ -1,7 +1,3 @@
-// Copyright 2015 Google Inc. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
-
 // Program aedeploy assists with deploying Go Managed VM apps to production.
 // A temporary directory is created; the app, its subdirectories, and all its
 // dependencies from $GOPATH are copied into the directory; then the app
@@ -11,6 +7,11 @@
 //
 // This command must be issued from within the root directory of the app
 // (where the app.yaml file is located).
+//
+// A sample Dockerfile to be used with this tool could look like this:
+//     FROM gcr.io/google_appengine/go-compat
+//     ADD . /app
+//     RUN GOPATH=/app/_gopath go build -tags appenginevm -o /app/_ah/exe
 package main
 
 import (
@@ -121,7 +122,7 @@ func buildContext(tags []string) *build.Context {
 
 // bundle bundles the app into a temporary directory.
 func (s *app) bundle() (tmpdir string, err error) {
-	workDir, err := ioutil.TempDir("", "aedeploy")
+	workDir, err := ioutil.TempDir("", os.Args[0])
 	if err != nil {
 		return "", fmt.Errorf("unable to create tmpdir: %v", err)
 	}
@@ -190,12 +191,12 @@ func findInGopath(dir string, gopath []string) (string, error) {
 func copyTree(dstRoot, dstDir, srcDir string) error {
 	d := filepath.Join(dstRoot, dstDir)
 	if err := os.MkdirAll(d, 0755); err != nil {
-		return fmt.Errorf("unable to create directory %q: %v", d, err)
+		return fmt.Errorf("unable to create directory %v: %v", d, err)
 	}
 
 	entries, err := ioutil.ReadDir(srcDir)
 	if err != nil {
-		return fmt.Errorf("unable to read dir %q: %v", srcDir, err)
+		return fmt.Errorf("unable to read dir %v: %v", srcDir, err)
 	}
 	for _, entry := range entries {
 		n := entry.Name()
@@ -203,20 +204,15 @@ func copyTree(dstRoot, dstDir, srcDir string) error {
 			continue
 		}
 		s := filepath.Join(srcDir, n)
-		if entry.Mode()&os.ModeSymlink == os.ModeSymlink {
-			if entry, err = os.Stat(s); err != nil {
-				return fmt.Errorf("unable to stat %v: %v", s, err)
-			}
-		}
 		d := filepath.Join(dstDir, n)
 		if entry.IsDir() {
 			if err := copyTree(dstRoot, d, s); err != nil {
-				return fmt.Errorf("unable to copy dir %q to %q: %v", s, d, err)
+				return fmt.Errorf("unable to copy dir %v to %v: %v", s, d, err)
 			}
 			continue
 		}
 		if err := copyFile(dstRoot, d, s); err != nil {
-			return fmt.Errorf("unable to copy dir %q to %q: %v", s, d, err)
+			return fmt.Errorf("unable to copy dir %v to %v: %v", s, d, err)
 		}
 	}
 	return nil
@@ -226,22 +222,22 @@ func copyTree(dstRoot, dstDir, srcDir string) error {
 func copyFile(dstRoot, dst, src string) error {
 	s, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("unable to open %q: %v", src, err)
+		return fmt.Errorf("unable to open %v: %v", src, err)
 	}
 	defer s.Close()
 
 	dst = filepath.Join(dstRoot, dst)
 	d, err := os.Create(dst)
 	if err != nil {
-		return fmt.Errorf("unable to create %q: %v", dst, err)
+		return fmt.Errorf("unable to create %v: %v", dst)
 	}
 	_, err = io.Copy(d, s)
 	if err != nil {
 		d.Close() // ignore error, copy already failed.
-		return fmt.Errorf("unable to copy %q to %q: %v", src, dst, err)
+		return fmt.Errorf("unable to copy %v to %v: %v", src, dst, err)
 	}
 	if err := d.Close(); err != nil {
-		return fmt.Errorf("unable to close %q: %v", dst, err)
+		return fmt.Errorf("unable to close %v: %v", dst, err)
 	}
 	return nil
 }
