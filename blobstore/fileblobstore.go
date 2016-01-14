@@ -26,11 +26,16 @@ type FileBlobHandle struct {
 }
 
 func (h FileBlobHandle) PRead(p []byte, offset int64) error {
-	if _, err := h.Fp.Seek(offset, os.SEEK_SET); err != nil {
-		return err
-	}
-	if _, err := io.ReadFull(h.Fp, p); err != nil {
-		return err
+	for len(p) > 0 {
+		n, err := h.Fp.ReadAt(p, offset)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			logger.Warningf(mylog, "*os.File ReadAt returned len 0!: %v", h.Fp)
+			return io.EOF
+		}
+		p = p[n:]
 	}
 	return nil
 }
