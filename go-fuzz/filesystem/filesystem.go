@@ -9,6 +9,7 @@ import (
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/chunkstore"
+	"github.com/nyaxt/otaru/filewritecache"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
@@ -43,8 +44,8 @@ const (
 
 func Fuzz(data []byte) int {
 	chunkstore.ChunkSplitSize = 1 * 1024 * 1024
-	otaru.FileWriteCacheMaxPatches = 2
-	otaru.FileWriteCacheMaxPatchContentLen = 16 * 1024
+	filewritecache.MaxPatches = 2
+	filewritecache.MaxPatchContentLen = 16 * 1024
 	const AbsoluteMaxLen uint32 = 4 * 1024 * 1024
 
 	snapshotio := inodedb.NewSimpleDBStateSnapshotIO()

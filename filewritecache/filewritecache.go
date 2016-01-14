@@ -1,29 +1,31 @@
-package otaru
+package filewritecache
 
 import (
 	"math"
 
 	"github.com/nyaxt/otaru/blobstore"
-	"github.com/nyaxt/otaru/intn"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
 
+var MaxPatches = 32
+var MaxPatchContentLen int64 = 256 * 1024
+
 var wclog = logger.Registry().Category("filewritecache")
 
 type FileWriteCache struct {
-	ps intn.Patches
+	ps Patches
 }
 
-func NewFileWriteCache() *FileWriteCache {
-	return &FileWriteCache{ps: intn.NewPatches()}
+func New() *FileWriteCache {
+	return &FileWriteCache{ps: NewPatches()}
 }
 
 func (wc *FileWriteCache) PWrite(p []byte, offset int64) error {
 	pcopy := make([]byte, len(p))
 	copy(pcopy, p)
 
-	newp := intn.Patch{Offset: offset, P: pcopy}
+	newp := Patch{Offset: offset, P: pcopy}
 	logger.Debugf(wclog, "PWrite: %v", newp)
 	// logger.Debugf(wclog, "PWrite: p=%v", pcopy)
 
@@ -116,10 +118,10 @@ func (wc *FileWriteCache) ContentLen() int64 {
 }
 
 func (wc *FileWriteCache) NeedsSync() bool {
-	if len(wc.ps) > FileWriteCacheMaxPatches {
+	if len(wc.ps) > MaxPatches {
 		return true
 	}
-	if wc.ContentLen() > FileWriteCacheMaxPatchContentLen {
+	if wc.ContentLen() > MaxPatchContentLen {
 		return true
 	}
 

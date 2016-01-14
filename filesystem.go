@@ -10,6 +10,7 @@ import (
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
+	"github.com/nyaxt/otaru/filewritecache"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
@@ -28,9 +29,6 @@ const (
 	ENOTEMPTY = syscall.Errno(syscall.ENOTEMPTY)
 	EPERM     = syscall.Errno(syscall.EPERM)
 )
-
-var FileWriteCacheMaxPatches = 32
-var FileWriteCacheMaxPatchContentLen int64 = 256 * 1024
 
 type FileSystem struct {
 	idb inodedb.DBHandler
@@ -346,7 +344,7 @@ type FileHandle struct {
 type OpenFile struct {
 	fs    *FileSystem
 	nlock inodedb.NodeLock
-	wc    *FileWriteCache
+	wc    *filewritecache.FileWriteCache
 	cfio  *chunkstore.ChunkedFileIO
 
 	origFilename string
@@ -366,7 +364,7 @@ func (fs *FileSystem) getOrCreateOpenFile(id inodedb.ID) *OpenFile {
 	}
 	of = &OpenFile{
 		fs: fs,
-		wc: NewFileWriteCache(),
+		wc: filewritecache.New(),
 
 		handles: make([]*FileHandle, 0, 1),
 	}

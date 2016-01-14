@@ -1,16 +1,16 @@
-package otaru_test
+package filewritecache_test
 
 import (
 	"testing"
 
-	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/filewritecache"
 )
 
 func TestRegression_PWriteAfterSync(t *testing.T) {
 	bh := blobstore.NewMockBlobHandle()
 
-	wc := otaru.NewFileWriteCache()
+	wc := filewritecache.New()
 	if err := wc.PWrite([]byte{1, 2, 3}, 0); err != nil {
 		t.Errorf("PWrite failed: %v", err)
 		return
