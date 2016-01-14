@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/nyaxt/otaru/logger"
+	//"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -69,35 +69,29 @@ func (ps Patches) FindLRIndex(newp Patch) (int, int) {
 }
 
 func (ps Patches) Replace(lefti, righti int, newps Patches) Patches {
-	logger.Debugf(mylog, "before: %v", ps)
-	logger.Debugf(mylog, "(%d, %d) newps: %v", lefti, righti, newps)
-	/*
-		result := append(append(ps[:lefti], newps...), ps[righti+1:]...)
-		logger.Debugf(mylog, "replaced: %v", result)
-		return result
-	*/
+	// logger.Debugf(mylog, "before: %v", ps)
+	// logger.Debugf(mylog, "(%d, %d) newps: %v", lefti, righti, newps)
 
 	ndel := util.IntMax(righti-lefti+1, 0)
 	nexp := util.IntMax(0, len(newps)-ndel)
 	for i := 0; i < nexp; i++ {
 		ps = append(ps, PatchSentinel)
 	}
-	logger.Debugf(mylog, "ndel: %d, nexp: %d", ndel, nexp)
+	// logger.Debugf(mylog, "ndel: %d, nexp: %d", ndel, nexp)
 
 	newr := len(ps) - nexp + len(newps) - ndel
-	logger.Debugf(mylog, "[%d:%d], [%d:]",
-		lefti+len(newps), newr, righti+1)
+	// logger.Debugf(mylog, "[%d:%d], [%d:]", lefti+len(newps), newr, righti+1)
 	copy(ps[lefti+len(newps):newr], ps[righti+1:])
 	copy(ps[lefti:lefti+len(newps)], newps)
 	ps = ps[:newr]
-	logger.Debugf(mylog, "after : %v", ps)
+	// logger.Debugf(mylog, "after : %v", ps)
 	return ps
 }
 
 func (ps Patches) Merge(newp Patch) Patches {
 	lefti, righti := ps.FindLRIndex(newp)
-	logger.Debugf(mylog, "ps: %v", ps)
-	logger.Debugf(mylog, "newp: %v li, ri (%d, %d)", newp, lefti, righti)
+	// logger.Debugf(mylog, "ps: %v", ps)
+	// logger.Debugf(mylog, "newp: %v li, ri (%d, %d)", newp, lefti, righti)
 
 	newps := []Patch{newp}
 
@@ -106,7 +100,7 @@ func (ps Patches) Merge(newp Patch) Patches {
 		if newp.Left() > psl.Left() {
 			//    [<---lefti--->] ...
 			//               [<------newp---...
-			logger.Debugf(mylog, "Trim L !!!")
+			// logger.Debugf(mylog, "Trim L !!!")
 
 			// Trim L: ps[lefti]
 			psl.P = psl.P[:newp.Left()-psl.Left()]
@@ -119,7 +113,7 @@ func (ps Patches) Merge(newp Patch) Patches {
 	if righti >= 0 {
 		psr := ps[righti]
 		if psr.Right() > newp.Right() {
-			logger.Debugf(mylog, "Trim R !!!")
+			// logger.Debugf(mylog, "Trim R !!!")
 			//            ... [righti]
 			//         ---newp--->]
 
@@ -130,11 +124,6 @@ func (ps Patches) Merge(newp Patch) Patches {
 				newps = append(newps, psr)
 			}
 		}
-	}
-
-	// FIXME: move below to Replace()
-	if lefti > righti {
-		logger.Debugf(mylog, "Insert!!!")
 	}
 
 	// Insert newp replacing ps[lefti:righti]
