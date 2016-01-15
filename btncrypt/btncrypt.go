@@ -43,6 +43,7 @@ type Cipher struct {
 	poolDecryptedFrameBuf sync.Pool
 
 	poolWriteCloser sync.Pool
+	poolReader      sync.Pool
 }
 
 func NewCipher(key []byte) (*Cipher, error) {
@@ -66,6 +67,13 @@ func NewCipher(key []byte) (*Cipher, error) {
 			c:      c,
 			encBuf: c.GetEncryptedFrameBuf(),
 			remBuf: c.GetDecryptedFrameBuf(),
+		}
+	}}
+	c.poolReader = sync.Pool{New: func() interface{} {
+		return &Reader{
+			c:         c,
+			decrypted: c.GetDecryptedFrameBuf(),
+			encrypted: c.GetEncryptedFrameBuf(),
 		}
 	}}
 	return c, nil
@@ -205,6 +213,8 @@ func (bew *WriteCloser) Close() error {
 		}
 		bew.remBuf = bew.remBuf[:0]
 	}
+
+	bew.dst = nil
 	bew.c.poolWriteCloser.Put(bew)
 
 	return nil
@@ -226,24 +236,27 @@ func Encrypt(c *Cipher, plain []byte) ([]byte, error) {
 }
 
 type Reader struct {
-	src       io.Reader
-	c         *Cipher
-	lenTotal  int
-	lenRead   int
+	c *Cipher
+
+	src      io.Reader
+	lenTotal int
+	lenRead  int
+
 	decrypted []byte
 	unread    []byte
 	encrypted []byte
 }
 
 func (c *Cipher) NewReader(src io.Reader, lenTotal int) (*Reader, error) {
-	bdr := &Reader{
-		src:       src,
-		c:         c,
-		lenTotal:  lenTotal,
-		lenRead:   0,
-		decrypted: make([]byte, 0, BtnFrameMaxPayload),
-		encrypted: make([]byte, 0, c.EncryptedFrameSize(BtnFrameMaxPayload)),
-	}
+	bdr := c.poolReader.Get().(*Reader)
+
+	bdr.src = src
+	bdr.lenTotal = lenTotal
+	bdr.lenRead = 0
+
+	bdr.decrypted = bdr.decrypted[:0]
+	bdr.encrypted = bdr.encrypted[:0]
+
 	return bdr, nil
 }
 
@@ -300,6 +313,8 @@ func (bdr *Reader) HasReadAll() bool {
 }
 
 func (bdr *Reader) Close() error {
+	bdr.src = nil
+	bdr.c.poolReader.Put(bdr)
 	return nil
 }
 
