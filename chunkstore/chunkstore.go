@@ -22,7 +22,7 @@ var (
 	ZeroContent = make([]byte, ContentFramePayloadLength)
 )
 
-func NewQueryChunkVersion(c btncrypt.Cipher) version.QueryFunc {
+func NewQueryChunkVersion(c *btncrypt.Cipher) version.QueryFunc {
 	return func(r io.Reader) (version.Version, error) {
 		var h ChunkHeader
 		if err := h.ReadFrom(r, c); err != nil {
@@ -36,7 +36,7 @@ func NewQueryChunkVersion(c btncrypt.Cipher) version.QueryFunc {
 	}
 }
 
-func NewChunkWriter(w io.Writer, c btncrypt.Cipher, h ChunkHeader) (io.WriteCloser, error) {
+func NewChunkWriter(w io.Writer, c *btncrypt.Cipher, h ChunkHeader) (io.WriteCloser, error) {
 	if err := h.WriteTo(w, c); err != nil {
 		return nil, fmt.Errorf("Failed to write header: %v", err)
 	}
@@ -46,14 +46,14 @@ func NewChunkWriter(w io.Writer, c btncrypt.Cipher, h ChunkHeader) (io.WriteClos
 
 type ChunkReader struct {
 	r io.Reader
-	c btncrypt.Cipher
+	c *btncrypt.Cipher
 
 	header ChunkHeader
 
 	bdr *btncrypt.Reader
 }
 
-func NewChunkReader(r io.Reader, c btncrypt.Cipher) (*ChunkReader, error) {
+func NewChunkReader(r io.Reader, c *btncrypt.Cipher) (*ChunkReader, error) {
 	cr := &ChunkReader{r: r, c: c}
 
 	if err := cr.header.ReadFrom(r, c); err != nil {
@@ -85,7 +85,7 @@ func (cr *ChunkReader) Read(p []byte) (int, error) {
 // ChunkIO provides RandomAccessIO for blobchunk
 type ChunkIO struct {
 	bh blobstore.BlobHandle
-	c  btncrypt.Cipher
+	c  *btncrypt.Cipher
 
 	didReadHeader bool
 	header        ChunkHeader
@@ -93,7 +93,7 @@ type ChunkIO struct {
 	needsHeaderUpdate bool
 }
 
-func NewChunkIO(bh blobstore.BlobHandle, c btncrypt.Cipher) *ChunkIO {
+func NewChunkIO(bh blobstore.BlobHandle, c *btncrypt.Cipher) *ChunkIO {
 	return &ChunkIO{
 		bh:            bh,
 		c:             c,
@@ -107,7 +107,7 @@ func NewChunkIO(bh blobstore.BlobHandle, c btncrypt.Cipher) *ChunkIO {
 	}
 }
 
-func NewChunkIOWithMetadata(bh blobstore.BlobHandle, c btncrypt.Cipher, h ChunkHeader) *ChunkIO {
+func NewChunkIOWithMetadata(bh blobstore.BlobHandle, c *btncrypt.Cipher, h ChunkHeader) *ChunkIO {
 	ch := NewChunkIO(bh, c)
 	ch.header = h
 	ch.header.PayloadVersion = 1

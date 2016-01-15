@@ -35,7 +35,7 @@ type ChunkHeader struct {
 	OrigOffset         int64
 }
 
-func (h ChunkHeader) WriteTo(w io.Writer, c btncrypt.Cipher) error {
+func (h ChunkHeader) WriteTo(w io.Writer, c *btncrypt.Cipher) error {
 	h.FrameEncapsulation = CurrentFrameEncapsulation
 
 	if h.PayloadLen > MaxChunkPayloadLen {
@@ -84,7 +84,7 @@ func (h ChunkHeader) WriteTo(w io.Writer, c btncrypt.Cipher) error {
 	return nil
 }
 
-func (h *ChunkHeader) ReadFrom(r io.Reader, c btncrypt.Cipher) error {
+func (h *ChunkHeader) ReadFrom(r io.Reader, c *btncrypt.Cipher) error {
 	magic := make([]byte, SignatureLength+1)
 	if _, err := r.Read(magic); err != nil {
 		if err == io.EOF {

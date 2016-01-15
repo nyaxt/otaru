@@ -57,7 +57,7 @@ func main() {
 	if err != nil {
 		logger.Criticalf(mylog, "Failed to init GCloudClientSource: %v", err)
 	}
-	c := btncrypt.Cipher{} // Null cipher is fine, as we GlobalLocker doesn't make use of it.
+	c := &btncrypt.Cipher{} // Null cipher is fine, as we GlobalLocker doesn't make use of it.
 	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, tsrc)
 	info := *flagInfoStr
 	if info == "" {

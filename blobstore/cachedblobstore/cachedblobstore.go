@@ -86,7 +86,7 @@ func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore,
 	return cbs, nil
 }
 
-func (cbs *CachedBlobStore) RestoreState(c btncrypt.Cipher) error {
+func (cbs *CachedBlobStore) RestoreState(c *btncrypt.Cipher) error {
 	errs := []error{}
 
 	if err := cbs.bever.RestoreStateFromBlobstore(c, cbs.backendbs); err != nil {
@@ -96,7 +96,7 @@ func (cbs *CachedBlobStore) RestoreState(c btncrypt.Cipher) error {
 	return util.ToErrors(errs)
 }
 
-func (cbs *CachedBlobStore) SaveState(c btncrypt.Cipher) error {
+func (cbs *CachedBlobStore) SaveState(c *btncrypt.Cipher) error {
 	errs := []error{}
 
 	if err := cbs.bever.SaveStateToBlobstore(c, cbs.backendbs); err != nil {

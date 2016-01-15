@@ -14,11 +14,11 @@ var ctxNoNamespace = context.Background()
 type Config struct {
 	projectName string
 	rootKeyStr  string
-	c           btncrypt.Cipher
+	c           *btncrypt.Cipher
 	tsrc        oauth2.TokenSource
 }
 
-func NewConfig(projectName, rootKeyStr string, c btncrypt.Cipher, tsrc oauth2.TokenSource) *Config {
+func NewConfig(projectName, rootKeyStr string, c *btncrypt.Cipher, tsrc oauth2.TokenSource) *Config {
 	if len(projectName) == 0 {
 		panic("empty projectName")
 	}

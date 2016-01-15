@@ -83,7 +83,7 @@ func (txio *DBTransactionLogIO) encodeBatch(txs []inodedb.DBTransaction) (*datas
 	return key, &storedbtx{TxsJSON: env}, nil
 }
 
-func decodeBatch(c btncrypt.Cipher, key *datastore.Key, stx *storedbtx) ([]inodedb.DBTransaction, error) {
+func decodeBatch(c *btncrypt.Cipher, key *datastore.Key, stx *storedbtx) ([]inodedb.DBTransaction, error) {
 	gzjsontxs, err := btncrypt.Decrypt(c, stx.TxsJSON, len(stx.TxsJSON)-c.FrameOverhead())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to decrypt TxsJSON: %v", err)

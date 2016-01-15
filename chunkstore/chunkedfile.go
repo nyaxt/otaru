@@ -49,16 +49,16 @@ func (caio *SimpleDBChunksArrayIO) Close() error { return nil }
 
 type ChunkedFileIO struct {
 	bs blobstore.RandomAccessBlobStore
-	c  btncrypt.Cipher
+	c  *btncrypt.Cipher
 	lm *LockManager
 
 	caio       ChunksArrayIO
-	newChunkIO func(blobstore.BlobHandle, btncrypt.Cipher, int64) blobstore.BlobHandle
+	newChunkIO func(blobstore.BlobHandle, *btncrypt.Cipher, int64) blobstore.BlobHandle
 
 	origFilename string
 }
 
-func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, lm *LockManager, caio ChunksArrayIO) *ChunkedFileIO {
+func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c *btncrypt.Cipher, lm *LockManager, caio ChunksArrayIO) *ChunkedFileIO {
 	cio := &ChunkedFileIO{
 		bs: bs,
 		c:  c,
@@ -68,7 +68,7 @@ func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, lm 
 
 		origFilename: "<unknown>",
 	}
-	cio.newChunkIO = func(bh blobstore.BlobHandle, c btncrypt.Cipher, offset int64) blobstore.BlobHandle {
+	cio.newChunkIO = func(bh blobstore.BlobHandle, c *btncrypt.Cipher, offset int64) blobstore.BlobHandle {
 		return NewChunkIOWithMetadata(
 			bh, c,
 			ChunkHeader{OrigFilename: cio.origFilename, OrigOffset: offset},
@@ -77,7 +77,7 @@ func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher, lm 
 	return cio
 }
 
-func (cfio *ChunkedFileIO) OverrideNewChunkIOForTesting(newChunkIO func(blobstore.BlobHandle, btncrypt.Cipher, int64) blobstore.BlobHandle) {
+func (cfio *ChunkedFileIO) OverrideNewChunkIOForTesting(newChunkIO func(blobstore.BlobHandle, *btncrypt.Cipher, int64) blobstore.BlobHandle) {
 	cfio.newChunkIO = newChunkIO
 }
 

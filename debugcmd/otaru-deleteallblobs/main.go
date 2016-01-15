@@ -95,7 +95,7 @@ func main() {
 	key := btncrypt.KeyFromPassword(cfg.Password)
 	c, err := btncrypt.NewCipher(key)
 	if err != nil {
-		logger.Criticalf(mylog, "Failed to init btncrypt.Cipher: %v", err)
+		logger.Criticalf(mylog, "Failed to init *btncrypt.Cipher: %v", err)
 	}
 
 	fmt.Printf("Do you really want to proceed with deleting all blobs in gs://%s{,-meta} and its cache in %s?\n", cfg.BucketName, cfg.CacheDir)

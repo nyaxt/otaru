@@ -33,7 +33,7 @@ import (
 var mylog = logger.Registry().Category("facade")
 
 type Otaru struct {
-	C btncrypt.Cipher
+	C *btncrypt.Cipher
 
 	S *scheduler.Scheduler
 	R *scheduler.RepetitiveJobRunner

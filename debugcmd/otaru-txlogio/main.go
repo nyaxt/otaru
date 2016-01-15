@@ -81,7 +81,7 @@ func main() {
 	key := btncrypt.KeyFromPassword(cfg.Password)
 	c, err := btncrypt.NewCipher(key)
 	if err != nil {
-		logger.Criticalf(mylog, "Failed to init btncrypt.Cipher: %v", err)
+		logger.Criticalf(mylog, "Failed to init *btncrypt.Cipher: %v", err)
 	}
 	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, tsrc)
 

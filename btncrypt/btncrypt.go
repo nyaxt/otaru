@@ -38,13 +38,13 @@ type Cipher struct {
 	gcm cipher.AEAD
 }
 
-func NewCipher(key []byte) (Cipher, error) {
+func NewCipher(key []byte) (*Cipher, error) {
 	gcm, err := gcmFromKey(key)
 	if err != nil {
-		return Cipher{}, err
+		return nil, err
 	}
 
-	return Cipher{gcm: gcm}, nil
+	return &Cipher{gcm: gcm}, nil
 }
 
 func (c Cipher) FrameOverhead() int {

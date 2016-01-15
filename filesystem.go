@@ -34,7 +34,7 @@ type FileSystem struct {
 	idb inodedb.DBHandler
 
 	bs blobstore.RandomAccessBlobStore
-	c  btncrypt.Cipher
+	c  *btncrypt.Cipher
 
 	lm *chunkstore.LockManager
 
@@ -45,7 +45,7 @@ type FileSystem struct {
 	origpath   map[inodedb.ID]string
 }
 
-func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c btncrypt.Cipher) *FileSystem {
+func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c *btncrypt.Cipher) *FileSystem {
 	fs := &FileSystem{
 		idb: idb,
 		bs:  bs,

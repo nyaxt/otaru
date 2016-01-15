@@ -47,7 +47,7 @@ func TestChunkedFileIO_SingleChunk(t *testing.T) {
 	cfio := chunkstore.NewChunkedFileIO(bs, TestCipher(), testLockManager, caio)
 
 	// Disable Chunk framing for testing
-	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c btncrypt.Cipher, offset int64) blobstore.BlobHandle { return bh })
+	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c *btncrypt.Cipher, offset int64) blobstore.BlobHandle { return bh })
 
 	if err := cfio.PWrite(HelloWorld, 123); err != nil {
 		t.Errorf("PWrite failed: %v", err)
@@ -80,7 +80,7 @@ func TestChunkedFileIO_MultiChunk(t *testing.T) {
 	cfio := chunkstore.NewChunkedFileIO(bs, TestCipher(), testLockManager, caio)
 
 	// Disable Chunk framing for testing
-	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c btncrypt.Cipher, offset int64) blobstore.BlobHandle { return bh })
+	cfio.OverrideNewChunkIOForTesting(func(bh blobstore.BlobHandle, c *btncrypt.Cipher, offset int64) blobstore.BlobHandle { return bh })
 
 	if err := cfio.PWrite(HelloWorld, chunkstore.ChunkSplitSize+12345); err != nil {
 		t.Errorf("PWrite failed: %v", err)

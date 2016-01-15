@@ -16,7 +16,7 @@ import (
 
 var mylog = logger.Registry().Category("statess")
 
-func SaveBytes(blobpath string, c btncrypt.Cipher, bs blobstore.BlobStore, p []byte) error {
+func SaveBytes(blobpath string, c *btncrypt.Cipher, bs blobstore.BlobStore, p []byte) error {
 	w, err := bs.OpenWriter(blobpath)
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func EncodeBytes(cb EncodeCallback) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func Save(blobpath string, c btncrypt.Cipher, bs blobstore.BlobStore, cb EncodeCallback) error {
+func Save(blobpath string, c *btncrypt.Cipher, bs blobstore.BlobStore, cb EncodeCallback) error {
 	p, err := EncodeBytes(cb)
 	if err != nil {
 		return err
@@ -81,7 +81,7 @@ func Save(blobpath string, c btncrypt.Cipher, bs blobstore.BlobStore, cb EncodeC
 
 type DecodeCallback func(dec *gob.Decoder) error
 
-func Restore(blobpath string, c btncrypt.Cipher, bs blobstore.BlobStore, cb DecodeCallback) error {
+func Restore(blobpath string, c *btncrypt.Cipher, bs blobstore.BlobStore, cb DecodeCallback) error {
 	r, err := bs.OpenReader(blobpath)
 	if err != nil {
 		return err

@@ -87,7 +87,7 @@ func (cbv *CachedBackendVersion) decodeCacheFromGob(dec *gob.Decoder) error {
 	return nil
 }
 
-func (cbv *CachedBackendVersion) RestoreStateFromBlobstore(c btncrypt.Cipher, bs blobstore.BlobStore) error {
+func (cbv *CachedBackendVersion) RestoreStateFromBlobstore(c *btncrypt.Cipher, bs blobstore.BlobStore) error {
 	return statesnapshot.Restore(
 		metadata.VersionCacheBlobpath, c, bs,
 		func(dec *gob.Decoder) error { return cbv.decodeCacheFromGob(dec) },
@@ -104,7 +104,7 @@ func (cbv *CachedBackendVersion) encodeCacheToGob(enc *gob.Encoder) error {
 	return nil
 }
 
-func (cbv *CachedBackendVersion) SaveStateToBlobstore(c btncrypt.Cipher, bs blobstore.BlobStore) error {
+func (cbv *CachedBackendVersion) SaveStateToBlobstore(c *btncrypt.Cipher, bs blobstore.BlobStore) error {
 	return statesnapshot.Save(
 		metadata.VersionCacheBlobpath, c, bs,
 		func(enc *gob.Encoder) error { return cbv.encodeCacheToGob(enc) },
