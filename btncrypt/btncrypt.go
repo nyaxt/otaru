@@ -9,6 +9,7 @@ import (
 	"crypto/cipher"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
@@ -37,6 +38,11 @@ func gcmFromKey(key []byte) (cipher.AEAD, error) {
 type Cipher struct {
 	gcm           cipher.AEAD
 	frameOverhead int
+
+	poolEncryptedFrameBuf sync.Pool
+	poolDecryptedFrameBuf sync.Pool
+
+	poolWriteCloser sync.Pool
 }
 
 func NewCipher(key []byte) (*Cipher, error) {
@@ -45,10 +51,24 @@ func NewCipher(key []byte) (*Cipher, error) {
 		return nil, err
 	}
 
-	return &Cipher{
+	c := &Cipher{
 		gcm:           gcm,
 		frameOverhead: gcm.NonceSize() + gcm.Overhead(),
-	}, nil
+	}
+	c.poolEncryptedFrameBuf = sync.Pool{New: func() interface{} {
+		return make([]byte, 0, c.EncryptedFrameSize(BtnFrameMaxPayload))
+	}}
+	c.poolDecryptedFrameBuf = sync.Pool{New: func() interface{} {
+		return make([]byte, 0, BtnFrameMaxPayload)
+	}}
+	c.poolWriteCloser = sync.Pool{New: func() interface{} {
+		return &WriteCloser{
+			c:      c,
+			encBuf: c.GetEncryptedFrameBuf(),
+			remBuf: c.GetDecryptedFrameBuf(),
+		}
+	}}
+	return c, nil
 }
 
 func (c *Cipher) FrameOverhead() int {
@@ -94,28 +114,40 @@ func (c *Cipher) DecryptFrame(dst []byte, p []byte) ([]byte, error) {
 	return dst, nil
 }
 
+func (c *Cipher) GetEncryptedFrameBuf() []byte {
+	return c.poolEncryptedFrameBuf.Get().([]byte)
+}
+
+func (c *Cipher) PutEncryptedFrameBuf(p []byte) {
+	c.poolEncryptedFrameBuf.Put(p)
+}
+
+func (c *Cipher) GetDecryptedFrameBuf() []byte {
+	return c.poolDecryptedFrameBuf.Get().([]byte)
+}
+
+func (c *Cipher) PutDecryptedFrameBuf(p []byte) {
+	c.poolDecryptedFrameBuf.Put(p)
+}
+
 type WriteCloser struct {
+	c *Cipher
+
 	dst        io.Writer
 	lenTotal   int
 	lenWritten int
-
-	c *Cipher
-	b bytes.Buffer
 
 	encBuf []byte
 	remBuf []byte
 }
 
 func (c *Cipher) NewWriteCloser(dst io.Writer, lenTotal int) (*WriteCloser, error) {
-	bew := &WriteCloser{
-		dst:        dst,
-		lenTotal:   lenTotal,
-		lenWritten: 0,
-		c:          c,
+	bew := c.poolWriteCloser.Get().(*WriteCloser)
+	bew.dst = dst
+	bew.lenTotal = lenTotal
+	bew.lenWritten = 0
+	bew.remBuf = bew.remBuf[:0]
 
-		encBuf: make([]byte, c.EncryptedFrameSize(BtnFrameMaxPayload)), // FIXME: sync.Pool
-		remBuf: make([]byte, 0, BtnFrameMaxPayload),                    // FIXME: sync.Pool
-	}
 	return bew, nil
 }
 
@@ -173,6 +205,7 @@ func (bew *WriteCloser) Close() error {
 		}
 		bew.remBuf = bew.remBuf[:0]
 	}
+	bew.c.poolWriteCloser.Put(bew)
 
 	return nil
 }
