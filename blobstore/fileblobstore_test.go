@@ -10,6 +10,74 @@ import (
 	tu "github.com/nyaxt/otaru/testutils"
 )
 
+func TestFileBlobStore_MultiPRead(t *testing.T) {
+	bs := tu.TestFileBlobStoreOfName("filebstest_multipread")
+
+	w, err := bs.OpenWriter("hoge")
+	if err != nil {
+		t.Errorf("Failed to open writer: %v", err)
+		return
+	}
+	for i := byte(0); i < 128; i++ {
+		if _, err := w.Write([]byte{i}); err != nil {
+			t.Errorf("Failed to write: %v", err)
+			return
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Errorf("Failed to close: %v", err)
+		return
+	}
+
+	r, err := bs.OpenReader("hoge")
+	if err != nil {
+		t.Errorf("Failed to open reader: %v", err)
+		return
+	}
+	r2, err := bs.OpenReader("hoge")
+	if err != nil {
+		t.Errorf("Failed to open reader: %v", err)
+		return
+	}
+	buf := make([]byte, 1)
+	for i := byte(0); i < 64; i++ {
+		if _, err := r.Read(buf); err != nil {
+			t.Errorf("Failed to read: %v", err)
+			return
+		}
+		if buf[0] != i {
+			t.Errorf("mismatch! read %d, expected %d", buf[0], i)
+		}
+	}
+	for i := byte(0); i < 64; i++ {
+		if _, err := r2.Read(buf); err != nil {
+			t.Errorf("Failed to read: %v", err)
+			return
+		}
+		if buf[0] != i {
+			t.Errorf("mismatch! read %d, expected %d", buf[0], i)
+		}
+	}
+	for i := byte(64); i < 128; i++ {
+		if _, err := r.Read(buf); err != nil {
+			t.Errorf("Failed to read: %v", err)
+			return
+		}
+		if buf[0] != i {
+			t.Errorf("mismatch! read %d, expected %d", buf[0], i)
+		}
+	}
+
+	if err := r.Close(); err != nil {
+		t.Errorf("Failed to close: %v", err)
+		return
+	}
+	if err := r2.Close(); err != nil {
+		t.Errorf("Failed to close: %v", err)
+		return
+	}
+}
+
 func TestFileBlobStore_TotalSize(t *testing.T) {
 	bs := tu.TestFileBlobStoreOfName("filebstest_totalsize")
 
