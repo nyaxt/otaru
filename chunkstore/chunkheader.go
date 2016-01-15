@@ -67,7 +67,7 @@ func (h ChunkHeader) WriteTo(w io.Writer, c *btncrypt.Cipher) error {
 		logger.Panicf(mylog, "SHOULD NOT BE REACHED: Marshaled ChunkHeader size too large")
 	}
 
-	bew, err := btncrypt.NewWriteCloser(w, c, framelen)
+	bew, err := c.NewWriteCloser(w, framelen)
 	if _, err := b.WriteTo(bew); err != nil {
 		return fmt.Errorf("Failed to initialize frame encryptor: %v", err)
 	}
@@ -101,7 +101,7 @@ func (h *ChunkHeader) ReadFrom(r io.Reader, c *btncrypt.Cipher) error {
 	}
 
 	framelen := ChunkHeaderLength - c.FrameOverhead() - SignatureLength - 1
-	bdr, err := btncrypt.NewReader(r, c, framelen)
+	bdr, err := c.NewReader(r, framelen)
 	if err != nil {
 		return err
 	}

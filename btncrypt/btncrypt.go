@@ -87,7 +87,7 @@ type WriteCloser struct {
 	remBuf []byte
 }
 
-func NewWriteCloser(dst io.Writer, c *Cipher, lenTotal int) (*WriteCloser, error) {
+func (c *Cipher) NewWriteCloser(dst io.Writer, lenTotal int) (*WriteCloser, error) {
 	bew := &WriteCloser{
 		dst:        dst,
 		lenTotal:   lenTotal,
@@ -160,7 +160,7 @@ func (bew *WriteCloser) Close() error {
 
 func Encrypt(c *Cipher, plain []byte) ([]byte, error) {
 	var b bytes.Buffer
-	bew, err := NewWriteCloser(&b, c, len(plain))
+	bew, err := c.NewWriteCloser(&b, len(plain))
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,7 @@ type Reader struct {
 	encrypted []byte
 }
 
-func NewReader(src io.Reader, c *Cipher, lenTotal int) (*Reader, error) {
+func (c *Cipher) NewReader(src io.Reader, lenTotal int) (*Reader, error) {
 	bdr := &Reader{
 		src:       src,
 		c:         c,
@@ -254,7 +254,7 @@ func (bdr *Reader) HasReadAll() bool {
 }
 
 func Decrypt(c *Cipher, envelope []byte, lenTotal int) ([]byte, error) {
-	bdr, err := NewReader(bytes.NewReader(envelope), c, lenTotal)
+	bdr, err := c.NewReader(bytes.NewReader(envelope), lenTotal)
 	if err != nil {
 		return nil, err
 	}

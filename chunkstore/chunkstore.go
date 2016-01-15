@@ -41,7 +41,7 @@ func NewChunkWriter(w io.Writer, c *btncrypt.Cipher, h ChunkHeader) (io.WriteClo
 		return nil, fmt.Errorf("Failed to write header: %v", err)
 	}
 
-	return btncrypt.NewWriteCloser(w, c, int(h.PayloadLen))
+	return c.NewWriteCloser(w, int(h.PayloadLen))
 }
 
 type ChunkReader struct {
@@ -61,7 +61,7 @@ func NewChunkReader(r io.Reader, c *btncrypt.Cipher) (*ChunkReader, error) {
 	}
 
 	var err error
-	cr.bdr, err = btncrypt.NewReader(cr.r, cr.c, cr.Length())
+	cr.bdr, err = cr.c.NewReader(cr.r, cr.Length())
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +206,7 @@ func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 	blobOffset := ch.encryptedFrameOffset(i)
 
 	rd := &blobstore.OffsetReader{ch.bh, int64(blobOffset)}
-	bdr, err := btncrypt.NewReader(rd, ch.c, framePayloadLen)
+	bdr, err := ch.c.NewReader(rd, framePayloadLen)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create BtnDecryptReader: %v", err)
 	}
@@ -231,7 +231,7 @@ func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
 	blobOffset := ch.encryptedFrameOffset(i)
 
 	wr := &blobstore.OffsetWriter{ch.bh, int64(blobOffset)}
-	bew, err := btncrypt.NewWriteCloser(wr, ch.c, len(f.P))
+	bew, err := ch.c.NewWriteCloser(wr, len(f.P))
 	if err != nil {
 		return fmt.Errorf("Failed to create BtnEncryptWriteCloser: %v", err)
 	}
