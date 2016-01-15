@@ -210,24 +210,20 @@ func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 	// the offset of the start of the frame in blob
 	blobOffset := ch.encryptedFrameOffset(i)
 
-	rd := &blobstore.OffsetReader{ch.bh, int64(blobOffset)}
-	bdr, err := ch.c.NewReader(rd, framePayloadLen)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create BtnDecryptReader: %v", err)
+	enc := ch.c.GetEncryptedFrameBuf()[:ch.c.EncryptedFrameSize(framePayloadLen)]
+	if err := ch.bh.PRead(enc, int64(blobOffset)); err != nil {
+		return nil, fmt.Errorf("Failed to read encrypted frame: %v", err)
 	}
 
-	p := make([]byte, framePayloadLen, ContentFramePayloadLength)
-	if _, err := io.ReadFull(bdr, p); err != nil {
+	dec := ch.c.GetDecryptedFrameBuf()
+	dec, err := ch.c.DecryptFrame(dec, enc)
+	if err != nil {
 		return nil, fmt.Errorf("Failed to decrypt frame idx: %d, err: %v", i, err)
 	}
-	if !bdr.HasReadAll() {
-		panic("Incomplete frame read")
-	}
-	bdr.Close()
 
 	logger.Debugf(mylog, "ChunkIO: Read content frame idx: %d", i)
 	return &decryptedContentFrame{
-		P: p, Offset: offset,
+		P: dec, Offset: offset,
 		IsLastFrame: isLastFrame,
 	}, nil
 }
