@@ -56,12 +56,12 @@ func (c Cipher) EncryptedFrameSize(payloadLen int) int {
 }
 
 type frameEncryptor struct {
-	c         Cipher
+	c         *Cipher
 	b         bytes.Buffer
 	encrypted []byte
 }
 
-func newFrameEncryptor(c Cipher) *frameEncryptor {
+func newFrameEncryptor(c *Cipher) *frameEncryptor {
 	lenEncrypted := c.EncryptedFrameSize(BtnFrameMaxPayload)
 	return &frameEncryptor{
 		c:         c,
@@ -110,7 +110,7 @@ type WriteCloser struct {
 	*frameEncryptor
 }
 
-func NewWriteCloser(dst io.Writer, c Cipher, lenTotal int) (*WriteCloser, error) {
+func NewWriteCloser(dst io.Writer, c *Cipher, lenTotal int) (*WriteCloser, error) {
 	bew := &WriteCloser{
 		dst:            dst,
 		lenTotal:       lenTotal,
@@ -177,7 +177,7 @@ func (bew *WriteCloser) Close() error {
 	return nil
 }
 
-func Encrypt(c Cipher, plain []byte) ([]byte, error) {
+func Encrypt(c *Cipher, plain []byte) ([]byte, error) {
 	var b bytes.Buffer
 	bew, err := NewWriteCloser(&b, c, len(plain))
 	if err != nil {
@@ -194,7 +194,7 @@ func Encrypt(c Cipher, plain []byte) ([]byte, error) {
 
 type Reader struct {
 	src       io.Reader
-	c         Cipher
+	c         *Cipher
 	lenTotal  int
 	lenRead   int
 	decrypted []byte
@@ -202,7 +202,7 @@ type Reader struct {
 	encrypted []byte
 }
 
-func NewReader(src io.Reader, c Cipher, lenTotal int) (*Reader, error) {
+func NewReader(src io.Reader, c *Cipher, lenTotal int) (*Reader, error) {
 	bdr := &Reader{
 		src:       src,
 		c:         c,
@@ -272,7 +272,7 @@ func (bdr *Reader) HasReadAll() bool {
 	return bdr.lenRead == bdr.lenTotal
 }
 
-func Decrypt(c Cipher, envelope []byte, lenTotal int) ([]byte, error) {
+func Decrypt(c *Cipher, envelope []byte, lenTotal int) ([]byte, error) {
 	bdr, err := NewReader(bytes.NewReader(envelope), c, lenTotal)
 	if err != nil {
 		return nil, err
