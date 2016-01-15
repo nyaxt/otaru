@@ -211,6 +211,7 @@ func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 	blobOffset := ch.encryptedFrameOffset(i)
 
 	enc := ch.c.GetEncryptedFrameBuf()[:ch.c.EncryptedFrameSize(framePayloadLen)]
+	defer ch.c.PutEncryptedFrameBuf(enc)
 	if err := ch.bh.PRead(enc, int64(blobOffset)); err != nil {
 		return nil, fmt.Errorf("Failed to read encrypted frame: %v", err)
 	}
@@ -232,19 +233,14 @@ func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
 	// the offset of the start of the frame in blob
 	blobOffset := ch.encryptedFrameOffset(i)
 
-	wr := &blobstore.OffsetWriter{ch.bh, int64(blobOffset)}
-	bew, err := ch.c.NewWriteCloser(wr, len(f.P))
-	if err != nil {
-		return fmt.Errorf("Failed to create BtnEncryptWriteCloser: %v", err)
+	enc := ch.c.GetEncryptedFrameBuf()
+	defer ch.c.PutEncryptedFrameBuf(enc)
+	enc = ch.c.EncryptFrame(enc, f.P)
+
+	if err := ch.bh.PWrite(enc, int64(blobOffset)); err != nil {
+		return fmt.Errorf("Failed to write encrypted frame: %v", err)
 	}
-	defer func() {
-		if err := bew.Close(); err != nil {
-			logger.Criticalf(mylog, "Failed to Close BtnEncryptWriteCloser: %v", err)
-		}
-	}()
-	if _, err := bew.Write(f.P); err != nil {
-		return fmt.Errorf("Failed to encrypt frame: %v", err)
-	}
+
 	ch.header.PayloadVersion++
 	ch.needsHeaderUpdate = true
 
@@ -326,8 +322,6 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 			i := zfoff / ContentFramePayloadLength
 			fOffset := i * ContentFramePayloadLength
 
-			var f *decryptedContentFrame
-
 			inframeOffset := zfoff - fOffset
 			if zfoff == ch.PayloadLen() && inframeOffset == 0 {
 				logger.Debugf(mylog, "PWrite: write new zero fill frame")
@@ -337,7 +331,7 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 
 				n := util.IntMin(zflen, ContentFramePayloadLength)
 
-				f = &decryptedContentFrame{
+				f := &decryptedContentFrame{
 					P:           ZeroContent[:n],
 					Offset:      fOffset,
 					IsLastFrame: false,
@@ -347,13 +341,16 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 				zflen -= n
 				ch.expandLengthBy(n)
 				logger.Debugf(mylog, " len: %d", n)
+
+				if err := ch.writeContentFrame(i, f); err != nil {
+					return fmt.Errorf("failed to write zero fill frame: %v", err)
+				}
 			} else {
 				n := util.IntMin(zflen, ContentFramePayloadLength-inframeOffset)
 				logger.Debugf(mylog, "PWrite: zero fill last of existing content frame. len: %d f.P[%d:%d] = 0", n, inframeOffset, inframeOffset+n)
 
 				// read the frame
-				var err error
-				f, err = ch.readContentFrame(i)
+				f, err := ch.readContentFrame(i)
 				if err != nil {
 					return err
 				}
@@ -362,21 +359,17 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 				}
 
 				// expand & zero fill
-				f.P = f.P[:inframeOffset+n]
-				j := 0
-				for j < n {
-					f.P[inframeOffset+j] = 0
-					j++
-				}
+				f.P = append(f.P[:inframeOffset], ZeroContent[:n]...)
 
 				zfoff += n
 				zflen -= n
 				ch.expandLengthBy(n)
-			}
 
-			// writeback the frame
-			if err := ch.writeContentFrame(i, f); err != nil {
-				return fmt.Errorf("failed to write back the encrypted frame: %v", err)
+				// writeback the frame
+				if err := ch.writeContentFrame(i, f); err != nil {
+					return fmt.Errorf("failed to write back the encrypted frame: %v", err)
+				}
+				ch.c.PutDecryptedFrameBuf(f.P)
 			}
 		}
 	}
@@ -389,7 +382,7 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 		if remo == ch.PayloadLen() && fOffset == remo {
 			logger.Debugf(mylog, "PWrite: Preparing new frame to append")
 			f = &decryptedContentFrame{
-				P:           make([]byte, 0, ContentFramePayloadLength),
+				P:           ch.c.GetDecryptedFrameBuf()[:0],
 				Offset:      fOffset,
 				IsLastFrame: true,
 			}
@@ -443,6 +436,8 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 			return fmt.Errorf("failed to write back the encrypted frame: %v", err)
 		}
 		logger.Debugf(mylog, "PWrite: wrote %d bytes for off %d len %d", n, offset, len(remp))
+
+		ch.c.PutDecryptedFrameBuf(f.P)
 
 		remo += n
 		remp = remp[n:]
