@@ -75,6 +75,25 @@ func (c *Cipher) EncryptFrame(dst []byte, p []byte) []byte {
 	return dst
 }
 
+func (c *Cipher) DecryptFrame(dst []byte, p []byte) ([]byte, error) {
+	expectedLen := len(p) - c.FrameOverhead()
+	if cap(dst) < expectedLen {
+		logger.Panicf(mylog, "dst should be large enough to hold decyrpted frame! cap(dst) = %d, expectedLen = %d", cap(dst), expectedLen)
+	}
+
+	nonceSize := c.gcm.NonceSize()
+	nonce := p[:nonceSize]
+	ciphertext := p[nonceSize:]
+
+	dst = dst[:0]
+	dst, err := c.gcm.Open(dst, nonce, ciphertext, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return dst, nil
+}
+
 type WriteCloser struct {
 	dst        io.Writer
 	lenTotal   int
@@ -198,23 +217,17 @@ func (c *Cipher) NewReader(src io.Reader, lenTotal int) (*Reader, error) {
 func (bdr *Reader) decryptNextFrame() error {
 	frameLen := util.IntMin(bdr.lenTotal-bdr.lenRead, BtnFrameMaxPayload)
 	encryptedFrameLen := bdr.c.EncryptedFrameSize(frameLen)
-	// fmt.Printf("frameLen: %d, encryptedFrameLen: %d\n", frameLen, encryptedFrameLen)
 
 	bdr.encrypted = bdr.encrypted[:encryptedFrameLen]
 	if _, err := io.ReadFull(bdr.src, bdr.encrypted); err != nil {
 		return err
 	}
 
-	nonceSize := bdr.c.gcm.NonceSize()
-	nonce := bdr.encrypted[:nonceSize]
-	ciphertext := bdr.encrypted[nonceSize:]
-
-	var err error
-	bdr.decrypted = bdr.decrypted[:0]
-	if bdr.decrypted, err = bdr.c.gcm.Open(bdr.decrypted, nonce, ciphertext, nil); err != nil {
+	dec, err := bdr.c.DecryptFrame(bdr.decrypted[:0], bdr.encrypted)
+	if err != nil {
 		return err
 	}
-	bdr.unread = bdr.decrypted
+	bdr.unread = dec
 
 	return nil
 }
