@@ -32,3 +32,4 @@ fuse/cli/cli
 dep.png
 out/*
 otaru-mount
+*-fuzz.zip
