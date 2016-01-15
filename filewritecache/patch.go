@@ -3,6 +3,7 @@ package filewritecache
 import (
 	"fmt"
 	"math"
+	"sync"
 
 	//"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
@@ -11,6 +12,20 @@ import (
 type Patch struct {
 	Offset int64
 	P      []byte
+}
+
+var poolPatchP = sync.Pool{New: func() interface{} { return make([]byte, 0, MaxPatchContentLen) }}
+
+func NewPatch(offset int64, p []byte) Patch {
+	var pcopy []byte
+	if len(p) <= MaxPatchContentLen {
+		pcopy = poolPatchP.Get().([]byte)[:len(p)]
+	} else {
+		pcopy = make([]byte, len(p))
+	}
+	copy(pcopy, p)
+
+	return Patch{Offset: offset, P: pcopy}
 }
 
 func (p Patch) Left() int64 {
@@ -69,6 +84,8 @@ func (ps Patches) FindLRIndex(newp Patch) (int, int) {
 }
 
 func (ps Patches) Replace(lefti, righti int, newps Patches) Patches {
+	// Do NOT return deleted patches to poolPatchP as they may be partially reused
+
 	// logger.Debugf(mylog, "before: %v", ps)
 	// logger.Debugf(mylog, "(%d, %d) newps: %v", lefti, righti, newps)
 
@@ -136,6 +153,7 @@ func (ps Patches) Truncate(size int64) Patches {
 
 		if p.Left() >= size {
 			// drop the patch
+			poolPatchP.Put(p.P)
 			continue
 		}
 
@@ -149,5 +167,10 @@ func (ps Patches) Truncate(size int64) Patches {
 }
 
 func (ps Patches) Reset() Patches {
+	for _, p := range ps {
+		if p.P != nil {
+			poolPatchP.Put(p.P)
+		}
+	}
 	return append(ps[:0], PatchSentinel)
 }

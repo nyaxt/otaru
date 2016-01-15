@@ -10,7 +10,7 @@ import (
 
 // Below may overwritten from tests
 var MaxPatches = 32
-var MaxPatchContentLen int64 = 256 * 1024
+var MaxPatchContentLen = 256 * 1024
 
 var mylog = logger.Registry().Category("filewritecache")
 
@@ -27,14 +27,8 @@ func (wc *FileWriteCache) PWrite(p []byte, offset int64) error {
 		return nil
 	}
 
-	pcopy := make([]byte, len(p)) // FIXME: use sync.Pool
-	copy(pcopy, p)
-
-	newp := Patch{Offset: offset, P: pcopy}
-	// logger.Debugf(mylog, "PWrite: %v", newp)
-
+	newp := NewPatch(offset, p)
 	wc.ps = wc.ps.Merge(newp)
-	// logger.Debugf(mylog, "Merged patches: %+v", wc.ps)
 	return nil
 }
 
@@ -126,7 +120,7 @@ func (wc *FileWriteCache) NeedsSync() bool {
 	if len(wc.ps) > MaxPatches {
 		return true
 	}
-	if wc.ContentLen() > MaxPatchContentLen {
+	if wc.ContentLen() > int64(MaxPatchContentLen) {
 		return true
 	}
 
