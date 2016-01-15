@@ -38,11 +38,15 @@ func IntMax(a, b int) int {
 }
 
 func RandomBytes(size int) []byte {
-	nonce := make([]byte, size)
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+	p := make([]byte, size)
+	ReadRandomBytes(p)
+	return p
+}
+
+func ReadRandomBytes(p []byte) {
+	if _, err := io.ReadFull(rand.Reader, p); err != nil {
 		panic(err)
 	}
-	return nonce
 }
 
 func StringFromFile(filename string) (string, error) {

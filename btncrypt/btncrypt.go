@@ -59,114 +59,88 @@ func (c *Cipher) EncryptedFrameSize(payloadLen int) int {
 	return payloadLen + c.frameOverhead
 }
 
-type frameEncryptor struct {
-	c         *Cipher
-	b         bytes.Buffer
-	encrypted []byte
-}
-
-func (c *Cipher) NewFrameEncryptor() *frameEncryptor {
-	lenEncrypted := c.EncryptedFrameSize(BtnFrameMaxPayload)
-	return &frameEncryptor{
-		c:         c,
-		encrypted: make([]byte, 0, lenEncrypted),
-	}
-}
-
-func (f *frameEncryptor) Write(p []byte) (int, error) {
-	if _, err := f.b.Write(p); err != nil {
-		panic(err)
+func (c *Cipher) EncryptFrame(dst []byte, p []byte) []byte {
+	expectedLen := c.EncryptedFrameSize(len(p))
+	if cap(dst) < expectedLen {
+		logger.Panicf(mylog, "dst should be large enough to hold encyrpted frame! cap(dst) = %d, expectedLen = %d", cap(dst), expectedLen)
 	}
 
-	return len(p), nil
-}
+	dst = dst[:c.gcm.NonceSize()]
+	util.ReadRandomBytes(dst)
 
-func (f *frameEncryptor) Written() int {
-	return f.b.Len()
-}
-
-func (f *frameEncryptor) CapacityLeft() int {
-	return BtnFrameMaxPayload - f.b.Len()
-}
-
-func (f *frameEncryptor) Sync() ([]byte, error) {
-	if f.Written() > BtnFrameMaxPayload {
-		return nil, fmt.Errorf("frame payload size exceeding max len: %d > %d", f.Written(), BtnFrameMaxPayload)
+	dst = c.gcm.Seal(dst, dst, p, nil)
+	if len(dst) != expectedLen {
+		logger.Panicf(mylog, "EncryptedFrameSize mismatch. expected: %d, actual: %v", expectedLen, len(dst))
 	}
-
-	nonce := util.RandomBytes(f.c.gcm.NonceSize())
-
-	f.encrypted = f.encrypted[:len(nonce)]
-	copy(f.encrypted, nonce)
-
-	f.encrypted = f.c.gcm.Seal(f.encrypted, nonce, f.b.Bytes(), nil)
-	if len(f.encrypted) != f.c.EncryptedFrameSize(f.Written()) {
-		logger.Panicf(mylog, "EncryptedFrameSize mismatch. expected: %d, actual: %v", f.c.EncryptedFrameSize(f.Written()), len(f.encrypted))
-	}
-	f.b.Reset()
-	return f.encrypted, nil
+	return dst
 }
 
 type WriteCloser struct {
 	dst        io.Writer
 	lenTotal   int
 	lenWritten int
-	*frameEncryptor
+
+	c *Cipher
+	b bytes.Buffer
+
+	encBuf []byte
+	remBuf []byte
 }
 
 func NewWriteCloser(dst io.Writer, c *Cipher, lenTotal int) (*WriteCloser, error) {
 	bew := &WriteCloser{
-		dst:            dst,
-		lenTotal:       lenTotal,
-		lenWritten:     0,
-		frameEncryptor: c.NewFrameEncryptor(),
+		dst:        dst,
+		lenTotal:   lenTotal,
+		lenWritten: 0,
+		c:          c,
+
+		encBuf: make([]byte, c.EncryptedFrameSize(BtnFrameMaxPayload)), // FIXME: sync.Pool
+		remBuf: make([]byte, 0, BtnFrameMaxPayload),                    // FIXME: sync.Pool
 	}
 	return bew, nil
 }
 
-func (bew *WriteCloser) flushFrame() error {
-	if bew.frameEncryptor.Written() == 0 {
-		// Don't emit a frame with empty payload
-		return nil
-	}
-
-	frame, err := bew.frameEncryptor.Sync()
-	if err != nil {
-		return err
-	}
-	// fmt.Printf("emit frame %d\n", len(frame))
-	if _, err := bew.dst.Write(frame); err != nil {
+func (bew *WriteCloser) emitFrame(p []byte) error {
+	enc := bew.c.EncryptFrame(bew.encBuf[:0], p)
+	if _, err := bew.dst.Write(enc); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (bew *WriteCloser) Write(p []byte) (int, error) {
-	if len(p) == 0 {
+	totalLen := len(p)
+	if totalLen == 0 {
 		return 0, nil
 	}
 
-	left := p
-	for len(left) > 0 {
-		framePayloadLen := util.IntMin(bew.frameEncryptor.CapacityLeft(), len(left))
-		framePayload := left[:framePayloadLen]
-		if _, err := bew.frameEncryptor.Write(framePayload); err != nil {
-			panic(err)
-		}
-		left = left[framePayloadLen:]
-		bew.lenWritten += framePayloadLen
-
-		if bew.frameEncryptor.CapacityLeft() == 0 {
-			if err := bew.flushFrame(); err != nil {
+	if len(bew.remBuf) > 0 {
+		if len(bew.remBuf)+len(p) < BtnFrameMaxPayload {
+			bew.remBuf = append(bew.remBuf, p...)
+			bew.lenWritten += totalLen
+			return totalLen, nil
+		} else {
+			consume := BtnFrameMaxPayload - len(bew.remBuf)
+			bew.remBuf = append(bew.remBuf, p[:consume]...)
+			if err := bew.emitFrame(bew.remBuf); err != nil {
 				return 0, err
 			}
-		}
-		if bew.frameEncryptor.CapacityLeft() == 0 {
-			panic("flushFrame should have brought back capacity")
+			p = p[consume:]
+			bew.remBuf = bew.remBuf[:0]
 		}
 	}
+	for len(p) >= BtnFrameMaxPayload {
+		if err := bew.emitFrame(p[:BtnFrameMaxPayload]); err != nil {
+			return 0, err
+		}
+		p = p[BtnFrameMaxPayload:]
+	}
+	if len(p) > 0 {
+		bew.remBuf = append(bew.remBuf, p...)
+	}
 
-	return len(p), nil
+	bew.lenWritten += totalLen
+	return totalLen, nil
 }
 
 func (bew *WriteCloser) Close() error {
@@ -174,8 +148,11 @@ func (bew *WriteCloser) Close() error {
 		return fmt.Errorf("Frame len different from declared. %d / %d bytes", bew.lenWritten, bew.lenTotal)
 	}
 
-	if err := bew.flushFrame(); err != nil {
-		return err
+	if len(bew.remBuf) > 0 {
+		if err := bew.emitFrame(bew.remBuf); err != nil {
+			return err
+		}
+		bew.remBuf = bew.remBuf[:0]
 	}
 
 	return nil
