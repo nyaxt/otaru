@@ -35,7 +35,8 @@ func gcmFromKey(key []byte) (cipher.AEAD, error) {
 }
 
 type Cipher struct {
-	gcm cipher.AEAD
+	gcm           cipher.AEAD
+	frameOverhead int
 }
 
 func NewCipher(key []byte) (*Cipher, error) {
@@ -44,15 +45,18 @@ func NewCipher(key []byte) (*Cipher, error) {
 		return nil, err
 	}
 
-	return &Cipher{gcm: gcm}, nil
+	return &Cipher{
+		gcm:           gcm,
+		frameOverhead: gcm.NonceSize() + gcm.Overhead(),
+	}, nil
 }
 
-func (c Cipher) FrameOverhead() int {
-	return c.gcm.NonceSize() + c.gcm.Overhead()
+func (c *Cipher) FrameOverhead() int {
+	return c.frameOverhead
 }
 
-func (c Cipher) EncryptedFrameSize(payloadLen int) int {
-	return payloadLen + c.FrameOverhead()
+func (c *Cipher) EncryptedFrameSize(payloadLen int) int {
+	return payloadLen + c.frameOverhead
 }
 
 type frameEncryptor struct {
@@ -61,7 +65,7 @@ type frameEncryptor struct {
 	encrypted []byte
 }
 
-func newFrameEncryptor(c *Cipher) *frameEncryptor {
+func (c *Cipher) NewFrameEncryptor() *frameEncryptor {
 	lenEncrypted := c.EncryptedFrameSize(BtnFrameMaxPayload)
 	return &frameEncryptor{
 		c:         c,
@@ -115,7 +119,7 @@ func NewWriteCloser(dst io.Writer, c *Cipher, lenTotal int) (*WriteCloser, error
 		dst:            dst,
 		lenTotal:       lenTotal,
 		lenWritten:     0,
-		frameEncryptor: newFrameEncryptor(c),
+		frameEncryptor: c.NewFrameEncryptor(),
 	}
 	return bew, nil
 }
