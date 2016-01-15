@@ -82,6 +82,11 @@ func (cr *ChunkReader) Read(p []byte) (int, error) {
 	return cr.bdr.Read(p)
 }
 
+func (cr *ChunkReader) Close() error {
+	cr.bdr.Close()
+	return nil
+}
+
 // ChunkIO provides RandomAccessIO for blobchunk
 type ChunkIO struct {
 	bh blobstore.BlobHandle
@@ -218,6 +223,7 @@ func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 	if !bdr.HasReadAll() {
 		panic("Incomplete frame read")
 	}
+	bdr.Close()
 
 	logger.Debugf(mylog, "ChunkIO: Read content frame idx: %d", i)
 	return &decryptedContentFrame{

@@ -105,6 +105,7 @@ func (h *ChunkHeader) ReadFrom(r io.Reader, c *btncrypt.Cipher) error {
 	if err != nil {
 		return err
 	}
+	defer bdr.Close()
 
 	encoded := make([]byte, framelen)
 	if _, err := io.ReadFull(bdr, encoded); err != nil {

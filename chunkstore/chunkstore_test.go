@@ -257,6 +257,8 @@ func Test_ChunkIOWrite_NewHello_ChunkReaderRead(t *testing.T) {
 		t.Errorf("failed to create chunk reader: %v", err)
 		return
 	}
+	defer cr.Close()
+
 	if cr.Length() != len(HelloWorld) {
 		t.Errorf("failed to recover payload len")
 	}
@@ -360,6 +362,8 @@ func Test_ChunkIOWrite_OverflowUpdate(t *testing.T) {
 		t.Errorf("failed to create chunk reader: %v", err)
 		return
 	}
+	defer cr.Close()
+
 	exp := []byte("Hello, hogefugapiyo")
 	if cr.Length() != len(exp) {
 		t.Errorf("failed to recover payload len")

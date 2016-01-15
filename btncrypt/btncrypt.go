@@ -299,11 +299,16 @@ func (bdr *Reader) HasReadAll() bool {
 	return bdr.lenRead == bdr.lenTotal
 }
 
+func (bdr *Reader) Close() error {
+	return nil
+}
+
 func Decrypt(c *Cipher, envelope []byte, lenTotal int) ([]byte, error) {
 	bdr, err := c.NewReader(bytes.NewReader(envelope), lenTotal)
 	if err != nil {
 		return nil, err
 	}
+	defer bdr.Close()
 
 	ret := make([]byte, lenTotal)
 	if _, err := io.ReadFull(bdr, ret); err != nil {

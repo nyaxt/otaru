@@ -91,6 +91,8 @@ func Restore(blobpath string, c *btncrypt.Cipher, bs blobstore.BlobStore, cb Dec
 	if err != nil {
 		return err
 	}
+	defer cr.Close()
+
 	logger.Debugf(mylog, "serialized blob size: %d", cr.Length())
 	zr, err := zlib.NewReader(&io.LimitedReader{cr, int64(cr.Length())})
 	if err != nil {

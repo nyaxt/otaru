@@ -59,6 +59,7 @@ func main() {
 		logger.Infof(mylog, "Failed to init ChunkReader: %v", err)
 		return
 	}
+	defer cr.Close()
 
 	if *flagHeader {
 		logger.Infof(mylog, "Header: %+v", cr.Header())
