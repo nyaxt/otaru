@@ -4,8 +4,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"bazil.org/fuse"
-	"bazil.org/fuse/fs"
+	"github.com/nyaxt/fuse"
+	"github.com/nyaxt/fuse/fs"
 	"golang.org/x/net/context"
 )
 

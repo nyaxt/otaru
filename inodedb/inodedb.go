@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	bfuse "bazil.org/fuse"
+	bfuse "github.com/nyaxt/fuse"
 
 	"github.com/nyaxt/otaru/logger"
 )

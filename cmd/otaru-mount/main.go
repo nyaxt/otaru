@@ -8,7 +8,7 @@ import (
 	"sync"
 	"syscall"
 
-	bfuse "bazil.org/fuse"
+	bfuse "github.com/nyaxt/fuse"
 
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/fuse"

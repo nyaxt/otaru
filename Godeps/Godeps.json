@@ -6,10 +6,6 @@
 	],
 	"Deps": [
 		{
-			"ImportPath": "bazil.org/fuse",
-			"Rev": "2345f52f9d579e93916093ea4f19e29a79dd5050"
-		},
-		{
 			"ImportPath": "github.com/dustin/go-humanize",
 			"Rev": "8929fe90cee4b2cb9deb468b51fb34eba64d1bf0"
 		},
@@ -41,6 +37,10 @@
 		{
 			"ImportPath": "github.com/naoina/toml",
 			"Rev": "751171607256bb66e64c9f0220c00662420c38e9"
+		},
+		{
+			"ImportPath": "github.com/nyaxt/fuse",
+			"Rev": "732b398ec264516f7398a64bafedb7290eb6dc01"
 		},
 		{
 			"ImportPath": "github.com/philhofer/fwd",

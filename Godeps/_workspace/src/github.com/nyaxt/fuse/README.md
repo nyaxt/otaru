@@ -1,3 +1,5 @@
+This is fork of `bazil.org/fuse` just to be used for `https://github.com/nyaxt/otaru`
+
 bazil.org/fuse -- Filesystems in Go
 ===================================
 

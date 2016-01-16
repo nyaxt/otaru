@@ -20,8 +20,8 @@ import (
 import (
 	"bytes"
 
-	"bazil.org/fuse"
-	"bazil.org/fuse/fuseutil"
+	"github.com/nyaxt/fuse"
+	"github.com/nyaxt/fuse/fuseutil"
 )
 
 const (

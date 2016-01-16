@@ -6,7 +6,7 @@ import (
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/inodedb"
 
-	bfuse "bazil.org/fuse"
+	bfuse "github.com/nyaxt/fuse"
 )
 
 func otaruSetattr(fs *otaru.FileSystem, id inodedb.ID, req *bfuse.SetattrRequest) error {

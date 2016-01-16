@@ -12,8 +12,8 @@ import (
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
 
-	bfuse "bazil.org/fuse"
-	bfs "bazil.org/fuse/fs"
+	bfuse "github.com/nyaxt/fuse"
+	bfs "github.com/nyaxt/fuse/fs"
 	"golang.org/x/net/context"
 )
 
