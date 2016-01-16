@@ -10,7 +10,7 @@ import (
 
 // Below may overwritten from tests
 var MaxPatches = 32
-var MaxPatchContentLen = 256 * 1024
+var MaxPatchContentLen = 8 * 1024 * 1024
 
 var mylog = logger.Registry().Category("filewritecache")
 
