@@ -19,8 +19,6 @@ const (
 	InterestingInput = 1
 )
 
-var testLockManager = chunkstore.NewLockManager()
-
 type cmdpack struct {
 	IsWrite uint8
 	Offset  uint32
@@ -33,7 +31,7 @@ func Fuzz(data []byte) int {
 
 	caio := chunkstore.NewSimpleDBChunksArrayIO()
 	bs := blobstore.NewMemBlobStore()
-	cfio := chunkstore.NewChunkedFileIO(bs, tu.TestCipher(), testLockManager, caio)
+	cfio := chunkstore.NewChunkedFileIO(bs, tu.TestCipher(), caio)
 
 	currLen := uint32(0)
 
