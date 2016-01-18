@@ -115,14 +115,14 @@ func (cfio *ChunkedFileIO) writeToChunk(c *inodedb.FileChunk, isNewChunk bool, m
 		}
 	}()
 
-	cio := cfio.newChunkIO(bh, cfio.c, c.Offset)
+	cio := cfio.newChunkIO(bh, cfio.c, c.Left())
 	defer func() {
 		if err := cio.Close(); err != nil {
 			logger.Criticalf(mylog, "cio Close failed: %v", err)
 		}
 	}()
 
-	coff := offset - c.Offset
+	coff := offset - c.Left()
 	n := util.IntMin(len(p), int(maxChunkLen-coff))
 	if n < 0 {
 		logger.Panicf(mylog, "Attempt to write negative len = %d. len(p) = %d, maxChunkLen = %d, offset = %d", n, len(p), maxChunkLen, offset)
@@ -153,10 +153,11 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 	if err != nil {
 		return fmt.Errorf("Failed to read cs array: %v", err)
 	}
+	//logger.Debugf(mylog, "cs: %v", cs)
 
 	needCSUpdate := false
 
-	for i := 0; i < len(cs); i++ {
+	for i := 0; i < len(cs) && len(remp) > 0; i++ {
 		c := &cs[i]
 		if c.Left() > remo {
 			// Insert a new chunk @ i
@@ -188,16 +189,9 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 			cs[i] = newc
 			needCSUpdate = true
 
-			n, updated := cfio.writeToChunk(&newc, NewChunk, maxlen, remp, remo)
-			if updated == ChunkLenUpdated {
-				needCSUpdate = true
-			}
+			n, _ := cfio.writeToChunk(&newc, NewChunk, maxlen, remp, remo)
 			remo += int64(n)
 			remp = remp[n:]
-			if len(remp) == 0 {
-				break
-			}
-
 			continue
 		}
 
@@ -210,15 +204,17 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 			}
 		}
 
+		cRight := c.Left() + maxlen
+		if cRight < remo {
+			continue
+		}
+
 		n, updated := cfio.writeToChunk(c, ExistingChunk, maxlen, remp, remo)
 		if updated == ChunkLenUpdated {
 			needCSUpdate = true
 		}
 		remo += int64(n)
 		remp = remp[n:]
-		if len(remp) == 0 {
-			break
-		}
 	}
 
 	for len(remp) > 0 {
@@ -240,17 +236,12 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 			return err
 		}
 
-		n, updated := cfio.writeToChunk(&newc, NewChunk, maxlen, remp, remo)
-		if updated == ChunkLenUpdated {
-			needCSUpdate = true
-		}
+		n, _ := cfio.writeToChunk(&newc, NewChunk, maxlen, remp, remo)
 		remo += int64(n)
 		remp = remp[n:]
 
 		cs = append(cs, newc)
-		if err := cfio.caio.Write(cs); err != nil {
-			return fmt.Errorf("Failed to write updated cs array: %v", err)
-		}
+		needCSUpdate = true
 	}
 
 	if needCSUpdate {
@@ -312,7 +303,7 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 			}
 		}()
 
-		cio := cfio.newChunkIO(bh, cfio.c, c.Offset)
+		cio := cfio.newChunkIO(bh, cfio.c, c.Left())
 		defer func() {
 			if err := cio.Close(); err != nil {
 				logger.Criticalf(mylog, "cio Close failed: %v", err)
@@ -380,7 +371,7 @@ func (cfio *ChunkedFileIO) Truncate(size int64) error {
 			if err != nil {
 				return err
 			}
-			cio := cfio.newChunkIO(bh, cfio.c, c.Offset)
+			cio := cfio.newChunkIO(bh, cfio.c, c.Left())
 			if err := cio.Truncate(chunksize); err != nil {
 				return err
 			}
