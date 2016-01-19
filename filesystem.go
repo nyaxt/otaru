@@ -494,10 +494,16 @@ func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 			logger.Criticalf(fslog, "FileWriteCache sync failed: %v", err)
 		}
 
-		of.downgradeToReadLock()
+		if len(of.handles) > 0 {
+			of.downgradeToReadLock()
+		}
 	}
 
 	if len(of.handles) == 0 {
+		if err := of.cfio.Close(); err != nil {
+			logger.Warningf(fslog, "Closing ChunkedFileIO when all handles closed failed: %v", err)
+		}
+
 		id := of.nlock.ID
 		ul.Unlock()
 
