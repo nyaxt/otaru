@@ -87,6 +87,13 @@ func (cr *ChunkReader) Close() error {
 	return nil
 }
 
+type decryptedContentFrame struct {
+	Index       int
+	P           []byte
+	Offset      int
+	IsLastFrame bool
+}
+
 // ChunkIO provides RandomAccessIO for blobchunk
 type ChunkIO struct {
 	bh blobstore.BlobHandle
@@ -96,6 +103,8 @@ type ChunkIO struct {
 	header        ChunkHeader
 
 	needsHeaderUpdate bool
+
+	cachedFrame *decryptedContentFrame
 }
 
 func NewChunkIO(bh blobstore.BlobHandle, c *btncrypt.Cipher) *ChunkIO {
@@ -109,6 +118,7 @@ func NewChunkIO(bh blobstore.BlobHandle, c *btncrypt.Cipher) *ChunkIO {
 			PayloadVersion: 1,
 		},
 		needsHeaderUpdate: false,
+		cachedFrame:       nil,
 	}
 }
 
@@ -187,13 +197,6 @@ func (ch *ChunkIO) encryptedFrameOffset(i int) int {
 	return ChunkHeaderLength + encryptedFrameSize*i
 }
 
-type decryptedContentFrame struct {
-	P      []byte
-	Offset int
-
-	IsLastFrame bool
-}
-
 func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 	// the frame carries a part of the content at offset
 	offset := i * ContentFramePayloadLength
@@ -223,13 +226,25 @@ func (ch *ChunkIO) readContentFrame(i int) (*decryptedContentFrame, error) {
 	}
 
 	logger.Debugf(mylog, "ChunkIO: Read content frame idx: %d", i)
-	return &decryptedContentFrame{
-		P: dec, Offset: offset,
+	ch.cachedFrame = &decryptedContentFrame{
+		Index: i,
+		P:     dec, Offset: offset,
 		IsLastFrame: isLastFrame,
-	}, nil
+	}
+	return ch.cachedFrame, nil
+}
+
+func (ch *ChunkIO) readCachedContentFrame(i int) (*decryptedContentFrame, error) {
+	if ch.cachedFrame != nil && ch.cachedFrame.Index == i {
+		return ch.cachedFrame, nil
+	}
+
+	return ch.readContentFrame(i)
 }
 
 func (ch *ChunkIO) writeContentFrame(i int, f *decryptedContentFrame) error {
+	ch.cachedFrame = nil // FIXME: may not need invalidate
+
 	// the offset of the start of the frame in blob
 	blobOffset := ch.encryptedFrameOffset(i)
 
@@ -263,7 +278,7 @@ func (ch *ChunkIO) PRead(p []byte, offset int64) error {
 	remp := p
 	for len(remp) > 0 {
 		i := remo / ContentFramePayloadLength
-		f, err := ch.readContentFrame(i)
+		f, err := ch.readCachedContentFrame(i)
 		if err != nil {
 			return err
 		}
@@ -348,7 +363,7 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 				logger.Debugf(mylog, "PWrite: zero fill last of existing content frame. len: %d f.P[%d:%d] = 0", n, inframeOffset, inframeOffset+n)
 
 				// read the frame
-				f, err := ch.readContentFrame(i)
+				f, err := ch.readCachedContentFrame(i)
 				if err != nil {
 					return err
 				}
@@ -387,7 +402,7 @@ func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 		} else {
 			logger.Debugf(mylog, "PWrite: Read existing frame %d to append/update", i)
 			var err error
-			f, err = ch.readContentFrame(i)
+			f, err = ch.readCachedContentFrame(i)
 			if err != nil {
 				return err
 			}
