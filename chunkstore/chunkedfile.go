@@ -56,13 +56,15 @@ type ChunkedFileIO struct {
 
 	origFilename string
 
+	cs []inodedb.FileChunk
+
 	cachedBh          blobstore.BlobHandle
 	cachedCio         blobstore.BlobHandle
 	cachedCioBlobpath string
 }
 
 func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c *btncrypt.Cipher, caio ChunksArrayIO) *ChunkedFileIO {
-	cio := &ChunkedFileIO{
+	cfio := &ChunkedFileIO{
 		bs: bs,
 		c:  c,
 
@@ -70,17 +72,28 @@ func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c *btncrypt.Cipher, ca
 
 		origFilename: "<unknown>",
 
+		cs: nil,
+
 		cachedBh:          nil,
 		cachedCio:         nil,
 		cachedCioBlobpath: "",
 	}
-	cio.newChunkIO = func(bh blobstore.BlobHandle, c *btncrypt.Cipher, offset int64) blobstore.BlobHandle {
+	cfio.newChunkIO = func(bh blobstore.BlobHandle, c *btncrypt.Cipher, offset int64) blobstore.BlobHandle {
 		return NewChunkIOWithMetadata(
 			bh, c,
-			ChunkHeader{OrigFilename: cio.origFilename, OrigOffset: offset},
+			ChunkHeader{OrigFilename: cfio.origFilename, OrigOffset: offset},
 		)
 	}
-	return cio
+
+	cs, err := cfio.caio.Read()
+	if err != nil {
+		// FIXME!
+		logger.Criticalf(mylog, "Failed to read cs array: %v", err)
+		return nil
+	}
+	cfio.cs = cs
+
+	return cfio
 }
 
 func (cfio *ChunkedFileIO) OverrideNewChunkIOForTesting(newChunkIO func(blobstore.BlobHandle, *btncrypt.Cipher, int64) blobstore.BlobHandle) {
@@ -192,16 +205,10 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 		return nil
 	}
 
-	cs, err := cfio.caio.Read()
-	if err != nil {
-		return fmt.Errorf("Failed to read cs array: %v", err)
-	}
-	//logger.Debugf(mylog, "cs: %v", cs)
-
 	needCSUpdate := false
 
-	for i := 0; i < len(cs) && len(remp) > 0; i++ {
-		c := &cs[i]
+	for i := 0; i < len(cfio.cs) && len(remp) > 0; i++ {
+		c := &cfio.cs[i]
 		if c.Left() > remo {
 			// Insert a new chunk @ i
 
@@ -209,15 +216,15 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 			newo := remo / ChunkSplitSize * ChunkSplitSize
 			maxlen := int64(ChunkSplitSize)
 			if i > 0 {
-				prev := cs[i-1]
+				prev := cfio.cs[i-1]
 				pright := prev.Right()
 				if newo < pright {
 					maxlen -= pright - newo
 					newo = pright
 				}
 			}
-			if i < len(cs)-1 {
-				next := cs[i+1]
+			if i < len(cfio.cs)-1 {
+				next := cfio.cs[i+1]
 				if newo+maxlen > next.Left() {
 					maxlen = next.Left() - newo
 				}
@@ -227,9 +234,9 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 			if err != nil {
 				return err
 			}
-			cs = append(cs, inodedb.FileChunk{})
-			copy(cs[i+1:], cs[i:])
-			cs[i] = newc
+			cfio.cs = append(cfio.cs, inodedb.FileChunk{})
+			copy(cfio.cs[i+1:], cfio.cs[i:])
+			cfio.cs[i] = newc
 			needCSUpdate = true
 
 			n, _ := cfio.writeToChunk(&newc, NewChunk, maxlen, remp, remo)
@@ -240,8 +247,8 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 
 		// Write to the chunk
 		maxlen := int64(ChunkSplitSize)
-		if i < len(cs)-1 {
-			next := cs[i+1]
+		if i < len(cfio.cs)-1 {
+			next := cfio.cs[i+1]
 			if c.Left()+maxlen > next.Left() {
 				maxlen = next.Left() - c.Left()
 			}
@@ -265,8 +272,8 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 		newo := remo / ChunkSplitSize * ChunkSplitSize
 		maxlen := int64(ChunkSplitSize)
 
-		if len(cs) > 0 {
-			last := cs[len(cs)-1]
+		if len(cfio.cs) > 0 {
+			last := cfio.cs[len(cfio.cs)-1]
 			lastRight := last.Right()
 			if newo < lastRight {
 				maxlen -= lastRight - newo
@@ -283,12 +290,12 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 		remo += int64(n)
 		remp = remp[n:]
 
-		cs = append(cs, newc)
+		cfio.cs = append(cfio.cs, newc)
 		needCSUpdate = true
 	}
 
 	if needCSUpdate {
-		if err := cfio.caio.Write(cs); err != nil {
+		if err := cfio.caio.Write(cfio.cs); err != nil {
 			logger.Criticalf(mylog, "Failed to write updated cs array: %v", err)
 		}
 	}
@@ -317,18 +324,13 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 		return 0, fmt.Errorf("negative offset %d given", offset)
 	}
 
-	cs, err := cfio.caio.Read()
-	if err != nil {
-		return 0, fmt.Errorf("Failed to read cs array: %v", err)
-	}
-
 	if !fl.IsReadAllowed(cfio.bs.Flags()) {
 		return 0, EPERM
 	}
 
 	// logger.Debugf(mylog, "cs: %v\n", cs)
-	for i := 0; i < len(cs) && len(remp) > 0; i++ {
-		c := cs[i]
+	for i := 0; i < len(cfio.cs) && len(remp) > 0; i++ {
+		c := cfio.cs[i]
 		if c.Left() > remo+int64(len(remp)) {
 			break
 		}
@@ -352,27 +354,22 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 
 		n, err := cfio.readFromChunk(c, remp, coff)
 		if err != nil {
-			return int(remo - offset), fmt.Errorf("readFromChunk failed. offset %d chunk offset %d len %d cs +%v. err: %v", remo, coff, n, cs, err)
+			return int(remo - offset), fmt.Errorf("readFromChunk failed. offset %d chunk offset %d len %d cfio.cs +%v. err: %v", remo, coff, n, cfio.cs, err)
 		}
 
 		remo += n
 		remp = remp[n:]
 	}
 
-	// logger.Debugf(mylog, "cs: %+v", cs)
+	// logger.Debugf(mylog, "cfio.cs: %+v", cfio.cs)
 	return int(remo - offset), nil
 }
 
 func (cfio *ChunkedFileIO) Size() int64 {
-	cs, err := cfio.caio.Read()
-	if err != nil {
-		logger.Criticalf(mylog, "Failed to read cs array: %v", err)
+	if len(cfio.cs) == 0 {
 		return 0
 	}
-	if len(cs) == 0 {
-		return 0
-	}
-	return cs[len(cs)-1].Right()
+	return cfio.cs[len(cfio.cs)-1].Right()
 }
 
 func (cfio *ChunkedFileIO) Close() error {
@@ -384,13 +381,8 @@ func (cfio *ChunkedFileIO) Truncate(size int64) error {
 		return EPERM
 	}
 
-	cs, err := cfio.caio.Read()
-	if err != nil {
-		return fmt.Errorf("Failed to read cs array: %v", err)
-	}
-
-	for i := len(cs) - 1; i >= 0; i-- {
-		c := &cs[i]
+	for i := len(cfio.cs) - 1; i >= 0; i-- {
+		c := &cfio.cs[i]
 
 		if c.Left() >= size {
 			// drop the chunk
@@ -411,14 +403,14 @@ func (cfio *ChunkedFileIO) Truncate(size int64) error {
 			c.Length = int64(cio.Size())
 		}
 
-		cs = cs[:i+1]
-		if err := cfio.caio.Write(cs); err != nil {
-			return fmt.Errorf("Failed to write updated cs array: %v", err)
-		}
-		return nil
+		cfio.cs = cfio.cs[:i+1]
+		goto updateAndExit
 	}
-	if err := cfio.caio.Write([]inodedb.FileChunk{}); err != nil {
-		return fmt.Errorf("Failed to write updated cs array (empty): %v", err)
+	cfio.cs = []inodedb.FileChunk{}
+
+updateAndExit:
+	if err := cfio.caio.Write(cfio.cs); err != nil {
+		return fmt.Errorf("Failed to write updated cfio.cs array (empty): %v", err)
 	}
 	return nil
 }
