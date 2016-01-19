@@ -518,6 +518,11 @@ func (of *OpenFile) downgradeToReadLock() {
 		logger.Warningf(fslog, "Unlocking node to downgrade to read lock failed: %v", err)
 	}
 	of.nlock.Ticket = inodedb.NoTicket
+
+	if err := of.cfio.Close(); err != nil {
+		logger.Warningf(fslog, "Closing ChunkedFileIO when downgrading to read lock failed: %v", err)
+	}
+
 	caio := NewINodeDBChunksArrayIO(of.fs.idb, of.nlock)
 	of.cfio = chunkstore.NewChunkedFileIO(of.fs.bs, of.fs.c, caio)
 }
