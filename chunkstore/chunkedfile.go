@@ -252,6 +252,27 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 	return nil
 }
 
+func (cfio *ChunkedFileIO) readFromChunk(c inodedb.FileChunk, p []byte, coff int64) (int64, error) {
+	bh, err := cfio.bs.Open(c.BlobPath, fl.O_RDONLY)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to open path \"%s\" for reading: %v", c.BlobPath, err)
+	}
+	cio := cfio.newChunkIO(bh, cfio.c, c.Left())
+
+	n := util.Int64Min(int64(len(p)), c.Length-coff)
+	if err := cio.PRead(p[:n], coff); err != nil {
+		return 0, fmt.Errorf("cio PRead failed: %v", err)
+	}
+
+	if err := cio.Close(); err != nil {
+		logger.Criticalf(mylog, "cio Close failed: %v", err)
+	}
+	if err := bh.Close(); err != nil {
+		logger.Criticalf(mylog, "blobhandle Close failed: %v", err)
+	}
+	return n, nil
+}
+
 func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 	remo := offset
 	remp := p
@@ -269,7 +290,7 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 		return 0, EPERM
 	}
 
-	// fmt.Printf("cs: %v\n", cs)
+	// logger.Debugf(mylog, "cs: %v\n", cs)
 	for i := 0; i < len(cs) && len(remp) > 0; i++ {
 		c := cs[i]
 		if c.Left() > remo+int64(len(remp)) {
@@ -293,36 +314,13 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 			}
 		}
 
-		bh, err := cfio.bs.Open(c.BlobPath, fl.O_RDONLY)
+		n, err := cfio.readFromChunk(c, remp, coff)
 		if err != nil {
-			return int(remo - offset), fmt.Errorf("Failed to open path \"%s\" for reading: %v", c.BlobPath, err)
-		}
-		defer func() {
-			if err := bh.Close(); err != nil {
-				logger.Criticalf(mylog, "blobhandle Close failed: %v", err)
-			}
-		}()
-
-		cio := cfio.newChunkIO(bh, cfio.c, c.Left())
-		defer func() {
-			if err := cio.Close(); err != nil {
-				logger.Criticalf(mylog, "cio Close failed: %v", err)
-			}
-		}()
-
-		n := util.Int64Min(int64(len(remp)), c.Length-coff)
-		//logger.Debugf(mylog, "len(remp) = %d, c.Length-coff = %d", len(remp), c.Length-coff)
-		if err := cio.PRead(remp[:n], coff); err != nil {
-			return int(remo - offset), fmt.Errorf("cio PRead failed: %v. offset %d chunk offset %d len %d cs +%v", err, remo, coff, n, cs)
+			return int(remo - offset), fmt.Errorf("readFromChunk failed. offset %d chunk offset %d len %d cs +%v. err: %v", remo, coff, n, cs, err)
 		}
 
-		//logger.Debugf(mylog, "remo = %d, len(remp) = %d, n = %d", remo, len(remp), n)
 		remo += n
 		remp = remp[n:]
-
-		if len(remp) == 0 {
-			return int(remo - offset), nil
-		}
 	}
 
 	// logger.Debugf(mylog, "cs: %+v", cs)
