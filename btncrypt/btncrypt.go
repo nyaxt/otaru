@@ -9,7 +9,6 @@ import (
 	"crypto/cipher"
 	"fmt"
 	"io"
-	"sync"
 
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
@@ -39,11 +38,11 @@ type Cipher struct {
 	gcm           cipher.AEAD
 	frameOverhead int
 
-	poolEncryptedFrameBuf sync.Pool
-	poolDecryptedFrameBuf sync.Pool
+	poolEncryptedFrameBuf *util.GuaranteedPool
+	poolDecryptedFrameBuf *util.GuaranteedPool
 
-	poolWriteCloser sync.Pool
-	poolReader      sync.Pool
+	poolWriteCloser *util.GuaranteedPool
+	poolReader      *util.GuaranteedPool
 }
 
 func NewCipher(key []byte) (*Cipher, error) {
@@ -56,26 +55,26 @@ func NewCipher(key []byte) (*Cipher, error) {
 		gcm:           gcm,
 		frameOverhead: gcm.NonceSize() + gcm.Overhead(),
 	}
-	c.poolEncryptedFrameBuf = sync.Pool{New: func() interface{} {
+	c.poolEncryptedFrameBuf = util.NewGuaranteedPool(func() interface{} {
 		return make([]byte, 0, c.EncryptedFrameSize(BtnFrameMaxPayload))
-	}}
-	c.poolDecryptedFrameBuf = sync.Pool{New: func() interface{} {
+	}, 4)
+	c.poolDecryptedFrameBuf = util.NewGuaranteedPool(func() interface{} {
 		return make([]byte, 0, BtnFrameMaxPayload)
-	}}
-	c.poolWriteCloser = sync.Pool{New: func() interface{} {
+	}, 4)
+	c.poolWriteCloser = util.NewGuaranteedPool(func() interface{} {
 		return &WriteCloser{
 			c:      c,
 			encBuf: c.GetEncryptedFrameBuf(),
 			remBuf: c.GetDecryptedFrameBuf(),
 		}
-	}}
-	c.poolReader = sync.Pool{New: func() interface{} {
+	}, 1)
+	c.poolReader = util.NewGuaranteedPool(func() interface{} {
 		return &Reader{
 			c:         c,
 			decrypted: c.GetDecryptedFrameBuf(),
 			encrypted: c.GetEncryptedFrameBuf(),
 		}
-	}}
+	}, 1)
 	return c, nil
 }
 
