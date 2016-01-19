@@ -271,7 +271,6 @@ func (ch *ChunkIO) PRead(p []byte, offset int64) error {
 		if inframeOffset < 0 {
 			panic("ASSERT: inframeOffset must be non-negative here")
 		}
-		// logger.Debugf(mylog, "ChunkIO: PRead: Decoded content frame. %+v", f)
 
 		n := len(remp)
 		valid := len(f.P) - inframeOffset // valid payload after offset
@@ -295,7 +294,6 @@ func (ch *ChunkIO) PRead(p []byte, offset int64) error {
 
 func (ch *ChunkIO) PWrite(p []byte, offset int64) error {
 	logger.Debugf(mylog, "PWrite: offset %d, len %d", offset, len(p))
-	// logger.Debugf(mylog, "PWrite: p=%v", p)
 
 	if err := ch.ensureHeader(); err != nil {
 		return err

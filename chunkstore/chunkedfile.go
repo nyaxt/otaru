@@ -55,6 +55,9 @@ type ChunkedFileIO struct {
 	newChunkIO func(blobstore.BlobHandle, *btncrypt.Cipher, int64) blobstore.BlobHandle
 
 	origFilename string
+
+	cachedCio         blobstore.BlobHandle
+	cachedCioBlobpath string
 }
 
 func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c *btncrypt.Cipher, caio ChunksArrayIO) *ChunkedFileIO {
@@ -109,18 +112,8 @@ func (cfio *ChunkedFileIO) writeToChunk(c *inodedb.FileChunk, isNewChunk bool, m
 		logger.Criticalf(mylog, "Failed to open path \"%s\" for writing (isNewChunk: %t): %v", c.BlobPath, isNewChunk, err)
 		return 0, ChunkLenNotUpdated
 	}
-	defer func() {
-		if err := bh.Close(); err != nil {
-			logger.Criticalf(mylog, "blobhandle Close failed: %v", err)
-		}
-	}()
 
 	cio := cfio.newChunkIO(bh, cfio.c, c.Left())
-	defer func() {
-		if err := cio.Close(); err != nil {
-			logger.Criticalf(mylog, "cio Close failed: %v", err)
-		}
-	}()
 
 	coff := offset - c.Left()
 	n := util.IntMin(len(p), int(maxChunkLen-coff))
@@ -132,6 +125,14 @@ func (cfio *ChunkedFileIO) writeToChunk(c *inodedb.FileChunk, isNewChunk bool, m
 	}
 	oldLength := c.Length
 	c.Length = int64(cio.Size())
+
+	if err := cio.Close(); err != nil {
+		logger.Criticalf(mylog, "cio Close failed: %v", err)
+	}
+
+	if err := bh.Close(); err != nil {
+		logger.Criticalf(mylog, "blobhandle Close failed: %v", err)
+	}
 
 	return n, oldLength != c.Length
 }
