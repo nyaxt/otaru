@@ -49,6 +49,7 @@ func ServeFUSE(bucketName string, mountpoint string, ofs *otaru.FileSystem, read
 		bfuse.FSName(fsName),
 		bfuse.Subtype("otarufs"),
 		bfuse.VolumeName(volName),
+		bfuse.MaxReadahead(math.MaxUint32),
 	)
 	if err != nil {
 		return fmt.Errorf("bfuse.Mount failed: %v", err)
