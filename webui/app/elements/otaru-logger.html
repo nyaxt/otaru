@@ -136,7 +136,7 @@ Polymer({
     this.categories = data;
   },
   _categoryChanged: function(changeRecord) {
-    let match = changeRecord.path.match(/categories\.(\d+)\.level/);
+    let match = changeRecord.path.match(/categories\.#(\d+)\.level/);
     if (match) {
       var e = changeRecord.base[+match[1]];
       new OtaruQuery({
