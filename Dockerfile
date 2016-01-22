@@ -5,7 +5,7 @@ ENV GOARCH amd64
 RUN echo "deb http://http.debian.net/debian wheezy-backports main" >/etc/apt/sources.list.d/wheezy-backports.list \
     && apt-get update -qq \
     && apt-get -t wheezy-backports install -y -qq git \
-    && apt-get install -y g++ fuse --no-install-recommends \
+    && apt-get install -y g++ --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN go get github.com/tools/godep && go get github.com/jteeuwen/go-bindata/...
