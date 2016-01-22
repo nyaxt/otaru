@@ -8,6 +8,7 @@ import (
 
 	"github.com/nyaxt/otaru/mgmt"
 	"github.com/nyaxt/otaru/util/countfds"
+	"github.com/nyaxt/otaru/version"
 )
 
 type SystemInfo struct {
@@ -70,5 +71,8 @@ func Install(srv *mgmt.Server) {
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
 		return m
+	}))
+	rtr.HandleFunc("/version", mgmt.JSONHandler(func(req *http.Request) interface{} {
+		return version.BuildInfo
 	}))
 }

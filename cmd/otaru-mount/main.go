@@ -13,6 +13,7 @@ import (
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/fuse"
 	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/version"
 )
 
 var mylog = logger.Registry().Category("otaru-mount")
@@ -24,6 +25,7 @@ var Usage = func() {
 }
 
 var (
+	flagVersion   = flag.Bool("version", false, "Show version info")
 	flagMkfs      = flag.Bool("mkfs", false, "Reset metadata if no existing metadata exists")
 	flagConfigDir = flag.String("configDir", facade.DefaultConfigDir(), "Config dirpath")
 )
@@ -34,6 +36,11 @@ func main() {
 	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
 	flag.Usage = Usage
 	flag.Parse()
+
+	if *flagVersion {
+		fmt.Print(version.DumpBuildInfo())
+		os.Exit(1)
+	}
 
 	cfg, err := facade.NewConfig(*flagConfigDir)
 	if err != nil {

@@ -33,3 +33,5 @@ dep.png
 out/*
 otaru-mount
 *-fuzz.zip
+
+version/consts.go

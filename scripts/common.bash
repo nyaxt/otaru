@@ -99,3 +99,7 @@ function otaru::gcloud_setup() {
   echo "- Google Datastore API: https://console.developers.google.com/project/$PROJECT_NAME/apiui/apiview/datastore/overview"
   echo "- Google Cloud Storage API : https://console.developers.google.com/project/$PROJECT_NAME/apiui/apiview/storage_component/overview"
 }
+
+function otaru::update_version() {
+
+}
