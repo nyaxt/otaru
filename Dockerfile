@@ -1,4 +1,4 @@
-FROM golang:1.5
+FROM golang:1.6beta2-wheezy
 ENV GOOS linux
 ENV GOARCH amd64
 RUN go get github.com/tools/godep && go get github.com/jteeuwen/go-bindata/...
@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Below copied from nodejs/docker-node/4.1
+# Below copied from nodejs/docker-node/5.5
 #
 # LICENSE:
 #  The MIT License (MIT)
@@ -42,12 +42,14 @@ RUN set -ex \
     FD3A5288F042B6850C66B31F09FE44734EB7990E \
     71DCFD284A79C3B38668286BC97EC7A07EDE3FC1 \
     DD8F2338BAE7501E3DD5AC78C273792F7D83545D \
+    B9AE9905FFD7803F25714661B63B535A4C206CA9 \
+    C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8 \
   ; do \
     gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
   done
 
 ENV NPM_CONFIG_LOGLEVEL info
-ENV NODE_VERSION 5.3.0
+ENV NODE_VERSION 5.5.0
 
 RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" \
   && curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt.asc" \
