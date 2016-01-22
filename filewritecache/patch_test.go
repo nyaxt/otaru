@@ -11,6 +11,21 @@ func CreateTestPatch(o int64, l int) filewritecache.Patch {
 	return filewritecache.Patch{Offset: o, P: bytes.Repeat([]byte{byte(o)}, l)}
 }
 
+func AssertPatch(t *testing.T, p filewritecache.Patch, o int64, l int, b byte) {
+	if p.Offset != o {
+		t.Errorf("Expected Offset %d Actual %d", o, p.Offset)
+	}
+	if len(p.P) != l {
+		t.Errorf("Expected len(p.P) %d Actual %d", l, len(p.P))
+	}
+	for i, bb := range p.P {
+		if bb != b {
+			t.Errorf("Expected p.P[%d] == %d, Actual %d", i, b, bb)
+			return
+		}
+	}
+}
+
 func Test_FindLRIndex(t *testing.T) {
 	ps := filewritecache.Patches{
 		CreateTestPatch(10, 10),
@@ -321,6 +336,25 @@ func TestMerge_FillHole(t *testing.T) {
 	if len(ps[2].P) != 10 {
 		t.Errorf("Fail")
 	}
+	if ps[3].Offset != filewritecache.PatchSentinel.Offset {
+		t.Errorf("Fail")
+	}
+}
+
+func TestMerge_PunchHole(t *testing.T) {
+	ps := filewritecache.Patches{
+		CreateTestPatch(10, 30),
+		filewritecache.PatchSentinel,
+	}
+
+	ps = ps.Merge(CreateTestPatch(20, 10))
+	if len(ps) != 4 {
+		t.Errorf("Invalid len: %d, expected: 4", len(ps))
+		return
+	}
+	AssertPatch(t, ps[0], 10, 10, 10)
+	AssertPatch(t, ps[1], 20, 10, 20)
+	AssertPatch(t, ps[2], 30, 10, 10)
 	if ps[3].Offset != filewritecache.PatchSentinel.Offset {
 		t.Errorf("Fail")
 	}
