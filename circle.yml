@@ -6,9 +6,9 @@ dependencies:
   override:
     - docker info
     - docker build -t otaru .
+    - if [[ ! -d ./otaru-testconf ]]; then echo $TESTCONFTGZ | base64 -d | tar xzf - ; fi
+    - OTARUDIR=/otaru-testconf scripts/update_version.bash
 
 test:
   override:
-    - if [[ ! -d ./otaru-testconf ]]; then echo $TESTCONFTGZ | base64 -d | tar xzf - ; fi
-    - OTARUDIR=/otaru-testconf scripts/update_version.bash
     - docker run -e "OTARUDIR=/otaru-testconf" -e "SKIP_FUSE_TEST=1" -v `pwd`/otaru-testconf:/otaru-testconf otaru godep go test ./...
