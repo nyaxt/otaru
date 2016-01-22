@@ -101,5 +101,17 @@ function otaru::gcloud_setup() {
 }
 
 function otaru::update_version() {
-
+	(
+		gitcommit=`git rev-parse HEAD`
+		buildhost=`hostname -f`
+		echo "package version"
+		echo
+		echo "const GIT_COMMIT = \"$gitcommit\""
+		echo "const BUILD_HOST = \"$buildhost\""
+		echo "const BUILD_TIME = 1453465836"
+	)>/tmp/consts.go || {
+		echo "Failed to generate version/consts/go"
+		exit 1
+	}
+	cp /tmp/consts.go $BASEDIR/../version/consts.go
 }
