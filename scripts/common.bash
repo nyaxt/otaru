@@ -95,9 +95,9 @@ function otaru::gcloud_setup() {
 	otaru::gcloud_verify_storage
 	otaru::gcloud_verify_credentials_json
 
-  echo "Please manually make sure that the below APIs are enabled:"
-  echo "- Google Datastore API: https://console.developers.google.com/project/$PROJECT_NAME/apiui/apiview/datastore/overview"
-  echo "- Google Cloud Storage API : https://console.developers.google.com/project/$PROJECT_NAME/apiui/apiview/storage_component/overview"
+	echo "Please manually make sure that the below APIs are enabled:"
+	echo "- Google Datastore API: https://console.developers.google.com/project/$PROJECT_NAME/apiui/apiview/datastore/overview"
+	echo "- Google Cloud Storage API : https://console.developers.google.com/project/$PROJECT_NAME/apiui/apiview/storage_component/overview"
 }
 
 function otaru::update_version() {
