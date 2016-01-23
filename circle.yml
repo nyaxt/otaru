@@ -12,3 +12,15 @@ dependencies:
 test:
   override:
     - docker run -e "OTARUDIR=/otaru-testconf" -e "SKIP_FUSE_TEST=1" -v `pwd`/otaru-testconf:/otaru-testconf otaru godep go test ./...
+
+deployment:
+  binary-release:
+    branch: master
+    commands:
+      - echo $SVCACCJSON > svcacc.json
+      - gcloud auth activate-service-account --key-file=svcacc.json
+      - docker run -ti -v ./otaru/out:/out otaru
+      - ./otaru/out/otaru-mount -version
+      - (cd otaru/out; tar zxvf ~/otaru.tar.gz)
+      - cp otaru.tar.gz $CIRCLE_ARTIFACTS/
+      - gsutil cp otaru.tar.gz gs://otaru-release/
