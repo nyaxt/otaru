@@ -690,16 +690,21 @@ func (be *CachedBlobEntry) Sync() error {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
-	// Wait for invalidation to complete
-	if err := be.waitUntilInvalidateDone(); err != nil {
-		return err
-	}
-
 Loop:
 	for {
 		switch be.state {
 		default:
 			logger.Panicf(mylog, "Sync shouldn't get into this state: %+v", be.infoWithLock())
+
+		case CacheEntryInvalidating:
+			// Wait for invalidation to complete
+			if err := be.waitUntilInvalidateDone(); err != nil {
+				return err
+			}
+
+		case CacheEntryErrored, cacheEntryErroredClosed:
+			logger.Warningf(mylog, "Attempted sync on errored entry: %+v", be.infoWithLock())
+			return nil
 
 		case CacheEntryClean:
 			return nil
@@ -716,7 +721,7 @@ Loop:
 			break Loop
 
 		case CacheEntryDirtyClosing, CacheEntryClosing, CacheEntryClosed:
-			logger.Warningf(mylog, "Attempted sync on closed entry: %+v", be.infoWithLock())
+			logger.Warningf(mylog, "Attempted sync on closing/closed entry: %+v", be.infoWithLock())
 			return nil
 		}
 	}
