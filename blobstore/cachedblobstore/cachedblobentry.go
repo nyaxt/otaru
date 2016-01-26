@@ -702,7 +702,7 @@ Loop:
 				return err
 			}
 
-		case CacheEntryErrored, cacheEntryErroredClosed:
+		case CacheEntryErrored, CacheEntryErroredClosed:
 			logger.Warningf(mylog, "Attempted sync on errored entry: %+v", be.infoWithLock())
 			return nil
 
