@@ -19,8 +19,8 @@ deployment:
     commands:
       - echo $SVCACCJSON > svcacc.json
       - gcloud auth activate-service-account --key-file=svcacc.json
-      - docker run -ti -v `pwd`/otaru/out:/out otaru
+      - mkdir $CIRCLE_ARTIFACTS/otaru-bin
+      - docker run -ti -v $CIRCLE_ARTIFACTS/otaru-bin:/out otaru
       - ./otaru/out/otaru-mount -version || true
-      - (cd otaru && mv out otaru-bin && tar zcvf ~/otaru-bin.tar.gz otaru-bin)
-      - cp otaru-bin.tar.gz $CIRCLE_ARTIFACTS/
-      - gsutil cp otaru-bin.tar.gz gs://otaru-release/
+      - (cd $CIRCLE_ARTIFACTS && tar zcvf otaru-bin.tar.gz otaru-bin)
+      - gsutil cp $CIRCLE_ARTIFACTS/otaru-bin.tar.gz gs://otaru-release/
