@@ -134,10 +134,6 @@ func (fh FileHandle) Read(ctx context.Context, req *bfuse.ReadRequest, resp *bfu
 	}
 
 	resp.Data = resp.Data[:req.Size]
-	//for _, i := range resp.Data {
-	//	resp.Data[i] = 0
-	//}
-	//return nil
 	n, err := fh.h.ReadAt(resp.Data, req.Offset)
 	if err != nil {
 		return err

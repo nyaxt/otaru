@@ -489,14 +489,15 @@ func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 	}
 	of.handles = newHandles
 
-	if wasWriteHandle && !ofHasOtherWriteHandle {
+	wasLastWriteHandle := wasWriteHandle && !ofHasOtherWriteHandle
+	if wasLastWriteHandle {
 		if err := of.wc.Sync(of.cfio); err != nil {
 			logger.Criticalf(fslog, "FileWriteCache sync failed: %v", err)
 		}
 
-		if len(of.handles) > 0 {
-			of.downgradeToReadLock()
-		}
+		// Note: if len(of.handles) == 0, below will create cfio just to be closed immediately below
+		// This should be ok, as instantiate -> Close() unused cfio is lightweight.
+		of.downgradeToReadLock()
 	}
 
 	if len(of.handles) == 0 {

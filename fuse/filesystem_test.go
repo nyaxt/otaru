@@ -132,6 +132,7 @@ func TestServeFUSE_WriteAppend(t *testing.T) {
 		f, err := os.OpenFile(path.Join(mountpoint, "foobar.log"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 		if err != nil {
 			t.Errorf("failed to open file: %v", err)
+			return
 		}
 		defer f.Close()
 
