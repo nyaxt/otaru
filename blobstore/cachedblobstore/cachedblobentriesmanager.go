@@ -193,7 +193,7 @@ func (mgr *CachedBlobEntriesManager) RemoveBlob(blobpath string) (err error) {
 	return
 }
 
-func (mgr *CachedBlobEntriesManager) OpenEntry(blobpath string) (be *CachedBlobEntry, err error) {
+func (mgr *CachedBlobEntriesManager) OpenEntry(blobpath string, cbs *CachedBlobStore) (be *CachedBlobEntry, err error) {
 	ch := make(chan struct{})
 	mgr.reqC <- func() {
 		defer close(ch)
@@ -208,7 +208,7 @@ func (mgr *CachedBlobEntriesManager) OpenEntry(blobpath string) (be *CachedBlobE
 			return
 		}
 
-		be = NewCachedBlobEntry(blobpath)
+		be = NewCachedBlobEntry(blobpath, cbs)
 		mgr.entries[blobpath] = be
 	}
 	<-ch
@@ -287,17 +287,18 @@ func (mgr *CachedBlobEntriesManager) closeOldCacheEntriesIfNeeded() error {
 	return nil
 }
 
-func (mgr *CachedBlobEntriesManager) DropCacheEntry(blobpath string, blobremover blobstore.BlobRemover) (err error) {
+func (mgr *CachedBlobEntriesManager) DropCacheEntry(blobpath string, cbs *CachedBlobStore, blobremover blobstore.BlobRemover) (err error) {
 	ch := make(chan struct{})
 	mgr.reqC <- func() {
 		defer close(ch)
 
 		be, ok := mgr.entries[blobpath]
-		if ok {
-			if err := be.Close(writebackAndClose); err != nil {
-				err = fmt.Errorf("Failed to writeback cache entry to be removed \"%s\": %v", blobpath, err)
-				return
-			}
+		if !ok {
+			be = NewCachedBlobEntry(blobpath, cbs)
+		}
+		if err := be.Close(writebackAndClose); err != nil {
+			err = fmt.Errorf("Failed to writeback cache entry to be removed \"%s\": %v", blobpath, err)
+			return
 		}
 		if err := blobremover.RemoveBlob(blobpath); err != nil {
 			err = fmt.Errorf("Failed to remove cache blob entry from blobstore \"%s\": %v", blobpath, err)

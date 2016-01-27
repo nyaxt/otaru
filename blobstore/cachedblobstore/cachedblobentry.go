@@ -98,9 +98,10 @@ type CachedBlobEntry struct {
 	handles map[*CachedBlobHandle]struct{}
 }
 
-func NewCachedBlobEntry(blobpath string) *CachedBlobEntry {
+func NewCachedBlobEntry(blobpath string, cbs *CachedBlobStore) *CachedBlobEntry {
 	be := &CachedBlobEntry{
 		state:    CacheEntryUninitialized,
+		cbs:      cbs,
 		blobpath: blobpath,
 		bloblen:  -1,
 	}
@@ -362,7 +363,16 @@ func (be *CachedBlobEntry) InitializeForTesting(state CacheEntryState, lastWrite
 	be.lastSync = lastSync
 }
 
-func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
+func (be *CachedBlobEntry) initializeWithLock() error {
+	switch be.state {
+	case CacheEntryUninitialized, CacheEntryClosed:
+		break
+	default:
+		logger.Panicf(mylog, "initializeWithLock called from unexpected state: %+v", be.infoWithLock())
+	}
+
+	cbs := be.cbs
+
 	cachebh, err := cbs.cachebs.Open(be.blobpath, fl.O_RDWRCREATE)
 	if err != nil {
 		be.updateState(CacheEntryErrored)
@@ -382,7 +392,6 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 		return err
 	}
 
-	be.cbs = cbs
 	be.cachebh = cachebh
 	be.handles = make(map[*CachedBlobHandle]struct{})
 
@@ -421,7 +430,7 @@ func (be *CachedBlobEntry) initializeWithLock(cbs *CachedBlobStore) error {
 	return nil
 }
 
-func (be *CachedBlobEntry) OpenHandle(cbs *CachedBlobStore, flags int) (*CachedBlobHandle, error) {
+func (be *CachedBlobEntry) OpenHandle(flags int) (*CachedBlobHandle, error) {
 	be.mu.Lock()
 	defer be.mu.Unlock()
 
@@ -429,7 +438,7 @@ Loop:
 	for {
 		switch be.state {
 		case CacheEntryClosed, CacheEntryUninitialized:
-			if err := be.initializeWithLock(cbs); err != nil {
+			if err := be.initializeWithLock(); err != nil {
 				return nil, err
 			}
 
@@ -797,18 +806,22 @@ func (be *CachedBlobEntry) Close(mode CloseMode) error {
 	}
 
 	if fn := be.cancelInvalidate; fn != nil {
-		logger.Debugf(mylog, "cancelInvalidate triggered for blob cache \"%s\"", be.blobpath)
 		fn()
+		logger.Debugf(mylog, "cancelInvalidate triggered for blob cache \"%s\"", be.blobpath)
 	}
 
-	be.waitUntilInvalidateDone()
 	var wasErrored bool
 Loop:
 	for {
 		wasErrored = be.state == CacheEntryErrored
 
 		switch be.state {
-		case CacheEntryUninitialized, CacheEntryWriteInProgress:
+		case CacheEntryUninitialized:
+			if err := be.initializeWithLock(); err != nil {
+				return err
+			}
+
+		case CacheEntryWriteInProgress:
 			return fmt.Errorf("logicerr: cacheBlobEntry \"%s\" of state %v shouldn't be Close()-d", be.blobpath, be.state)
 
 		case CacheEntryErroredClosed, CacheEntryClosed:
@@ -817,6 +830,7 @@ Loop:
 
 		case CacheEntryInvalidating:
 			if mode != abandonAndClose {
+				be.waitUntilInvalidateDone()
 				return fmt.Errorf("invalidating entry \"%s\" can be only closed if going to be abandoned", be.blobpath)
 			}
 			be.updateState(CacheEntryClosing)

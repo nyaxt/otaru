@@ -163,11 +163,11 @@ func (cbs *CachedBlobStore) Open(blobpath string, flags int) (blobstore.BlobHand
 	}
 
 	cbs.usagestats.ObserveOpen(blobpath, flags)
-	be, err := cbs.entriesmgr.OpenEntry(blobpath)
+	be, err := cbs.entriesmgr.OpenEntry(blobpath, cbs)
 	if err != nil {
 		return nil, err
 	}
-	return be.OpenHandle(cbs, flags)
+	return be.OpenHandle(flags)
 }
 
 func (cbs *CachedBlobStore) DumpEntriesInfo() []*CachedBlobEntryInfo {
@@ -279,7 +279,7 @@ func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, 
 		logger.Infof(mylog, "ReduceCache: Drop entry \"%s\" to release %s", bp, humanize.IBytes(uint64(size)))
 
 		if !dryrun {
-			if err := cbs.entriesmgr.DropCacheEntry(bp, blobremover); err != nil {
+			if err := cbs.entriesmgr.DropCacheEntry(bp, cbs, blobremover); err != nil {
 				return fmt.Errorf("Failed to remove cache blob \"%s\": %v", bp, err)
 			}
 		}

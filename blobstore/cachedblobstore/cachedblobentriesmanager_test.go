@@ -37,7 +37,7 @@ func TestCachedBlobEntriesManager_FindSync(t *testing.T) {
 	var tzero time.Time
 
 	{
-		be, err := mgr.OpenEntry("dirtyRecentWrite")
+		be, err := mgr.OpenEntry("dirtyRecentWrite", nil)
 		if err != nil {
 			t.Errorf("OpenEntry err: %v", err)
 			return
@@ -45,7 +45,7 @@ func TestCachedBlobEntriesManager_FindSync(t *testing.T) {
 		be.InitializeForTesting(cachedblobstore.CacheEntryDirty, now, now)
 	}
 	{
-		be, err := mgr.OpenEntry("dirtyRecentSync")
+		be, err := mgr.OpenEntry("dirtyRecentSync", nil)
 		if err != nil {
 			t.Errorf("OpenEntry err: %v", err)
 			return
@@ -53,7 +53,7 @@ func TestCachedBlobEntriesManager_FindSync(t *testing.T) {
 		be.InitializeForTesting(cachedblobstore.CacheEntryDirty, now, now.Add(-180*time.Second))
 	}
 	{
-		be, err := mgr.OpenEntry("dirtySuperOld")
+		be, err := mgr.OpenEntry("dirtySuperOld", nil)
 		if err != nil {
 			t.Errorf("OpenEntry err: %v", err)
 			return
@@ -61,7 +61,7 @@ func TestCachedBlobEntriesManager_FindSync(t *testing.T) {
 		be.InitializeForTesting(cachedblobstore.CacheEntryDirty, tzero, tzero)
 	}
 	{
-		be, err := mgr.OpenEntry("writeInProgressOldSync")
+		be, err := mgr.OpenEntry("writeInProgressOldSync", nil)
 		if err != nil {
 			t.Errorf("OpenEntry err: %v", err)
 			return
@@ -69,7 +69,7 @@ func TestCachedBlobEntriesManager_FindSync(t *testing.T) {
 		be.InitializeForTesting(cachedblobstore.CacheEntryDirty, now, now.Add(-330*time.Second))
 	}
 	{
-		be, err := mgr.OpenEntry("dirtyWrite5")
+		be, err := mgr.OpenEntry("dirtyWrite5", nil)
 		if err != nil {
 			t.Errorf("OpenEntry err: %v", err)
 			return
@@ -77,7 +77,7 @@ func TestCachedBlobEntriesManager_FindSync(t *testing.T) {
 		be.InitializeForTesting(cachedblobstore.CacheEntryDirty, now.Add(-5*time.Second), now.Add(-5*time.Second))
 	}
 	{
-		be, err := mgr.OpenEntry("writebackInProgress")
+		be, err := mgr.OpenEntry("writebackInProgress", nil)
 		if err != nil {
 			t.Errorf("OpenEntry err: %v", err)
 			return
