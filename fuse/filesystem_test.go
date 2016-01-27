@@ -21,6 +21,8 @@ import (
 	. "github.com/nyaxt/otaru/testutils"
 )
 
+func init() { EnsureLogger() }
+
 func maybeSkipTest(t *testing.T) {
 	if os.Getenv("SKIP_FUSE_TEST") == "1" {
 		t.Skip("Skipping FUSE test")

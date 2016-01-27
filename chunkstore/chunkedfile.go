@@ -120,21 +120,25 @@ const (
 )
 
 func (cfio *ChunkedFileIO) closeCachedChunkIO() error {
+	var errs []error
+
 	if cfio.cachedCio != nil {
 		if err := cfio.cachedCio.Close(); err != nil {
-			return fmt.Errorf("Failed to close previously cached cio (blobpath: \"%s\"): %v", cfio.cachedCioBlobpath, err)
+			errs = append(errs, fmt.Errorf("Failed to close previously cached cio (blobpath: \"%s\"): %v", cfio.cachedCioBlobpath, err))
 		}
 
 		cfio.cachedCio = nil
 	}
 	if cfio.cachedBh != nil {
 		if err := cfio.cachedBh.Close(); err != nil {
-			return fmt.Errorf("Failed to close previously cached bh (blobpath: \"%s\"): %v", cfio.cachedCioBlobpath, err)
+			errs = append(errs, fmt.Errorf("Failed to close previously cached bh (blobpath: \"%s\"): %v", cfio.cachedCioBlobpath, err))
 		}
 
 		cfio.cachedBh = nil
 	}
-	return nil
+	cfio.cachedCioBlobpath = ""
+
+	return util.ToErrors(errs)
 }
 
 func (cfio *ChunkedFileIO) openChunkIO(blobpath string, isNewChunk bool, offset int64) (blobstore.BlobHandle, error) {
@@ -143,6 +147,9 @@ func (cfio *ChunkedFileIO) openChunkIO(blobpath string, isNewChunk bool, offset 
 			logger.Panicf(mylog, "isNewChunk specified, but cache hit! blobpath: %v", blobpath)
 		}
 
+		if cfio.cachedCio == nil {
+			logger.Panicf(mylog, "blobpath match, but cachedCio nil! blobpath: %v", blobpath)
+		}
 		return cfio.cachedCio, nil
 	}
 
@@ -167,6 +174,9 @@ func (cfio *ChunkedFileIO) openChunkIO(blobpath string, isNewChunk bool, offset 
 	cfio.cachedCio = cfio.newChunkIO(bh, cfio.c, offset)
 	cfio.cachedCioBlobpath = blobpath
 
+	if cfio.cachedCio == nil {
+		logger.Panicf(mylog, "newChunkIO result nil! blobpath: %v", blobpath)
+	}
 	return cfio.cachedCio, nil
 }
 
@@ -308,6 +318,7 @@ func (cfio *ChunkedFileIO) readFromChunk(c inodedb.FileChunk, p []byte, coff int
 		return 0, err
 	}
 
+	//logger.Debugf(mylog, "cio: %p, len(p) = %d, c.Length = %d, coff = %d", cio, len(p), c.Length, coff)
 	n := util.Int64Min(int64(len(p)), c.Length-coff)
 	if err := cio.PRead(p[:n], coff); err != nil {
 		return 0, fmt.Errorf("cio PRead failed: %v", err)
