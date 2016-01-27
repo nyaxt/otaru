@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/scheduler"
@@ -705,4 +707,67 @@ func TestCachedBlobStore_WaitForPreviousSync(t *testing.T) {
 
 	<-joinC
 	sr.AssertSequence(t, []string{"sync1b", "sync2b", "write", "sync1e", "sync2e"})
+}
+
+func TestCachedBlobStore_ReduceCache(t *testing.T) {
+	cachedblobstore.DisableAutoSyncForTesting = true
+	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
+
+	backendbs := tu.TestFileBlobStoreOfName("backend")
+	cachebs := tu.TestFileBlobStoreOfName("cache")
+
+	if err := tu.WriteVersionedBlob(cachebs, "cacheonly", 2); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := tu.WriteVersionedBlob(cachebs, "cacheonlyunopened", 2); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	s := scheduler.NewScheduler()
+
+	bs, err := cachedblobstore.New(backendbs, cachebs, s, flags.O_RDWRCREATE, tu.TestQueryVersion)
+	if err != nil {
+		t.Errorf("Failed to create CachedBlobStore: %v", err)
+		return
+	}
+
+	rc, err := bs.OpenReader("cacheonly")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	rc.Close()
+
+	if err := tu.WriteVersionedBlob(bs, "both", 2); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := bs.ReduceCache(context.TODO(), 0, false); err != nil {
+		t.Errorf("ReduceCache err: %v", err)
+	}
+
+	bs.Quit()
+
+	if err := tu.AssertBlobVersion(cachebs, "cacheonly", 0); err != nil {
+		t.Errorf("%v", err)
+	}
+	if err := tu.AssertBlobVersion(cachebs, "cacheonlyunopened", 0); err != nil {
+		t.Errorf("%v", err)
+	}
+	if err := tu.AssertBlobVersion(cachebs, "both", 0); err != nil {
+		t.Errorf("%v", err)
+	}
+
+	if err := tu.AssertBlobVersion(backendbs, "cacheonly", 2); err != nil {
+		t.Errorf("backend sync failed: %v", err)
+	}
+	if err := tu.AssertBlobVersion(backendbs, "cacheonlyunopened", 2); err != nil {
+		t.Errorf("backend sync failed: %v", err)
+	}
+	if err := tu.AssertBlobVersion(backendbs, "both", 2); err != nil {
+		t.Errorf("backend sync failed: %v", err)
+	}
 }
