@@ -96,6 +96,20 @@ func (cbs *CachedBlobStore) RestoreState(c *btncrypt.Cipher) error {
 	return util.ToErrors(errs)
 }
 
+type SaveStateTask struct {
+	CBS *CachedBlobStore
+	C   *btncrypt.Cipher
+}
+
+func (t SaveStateTask) Run(ctx context.Context) scheduler.Result {
+	err := t.CBS.SaveState(t.C)
+	return scheduler.ErrorResult{err}
+}
+
+func (t SaveStateTask) String() string {
+	return "SaveStateTask"
+}
+
 func (cbs *CachedBlobStore) SaveState(c *btncrypt.Cipher) error {
 	errs := []error{}
 
