@@ -11,7 +11,11 @@ import (
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
 	oflags "github.com/nyaxt/otaru/flags"
+	gcutil "github.com/nyaxt/otaru/gcloud/util"
+	"github.com/nyaxt/otaru/logger"
 )
+
+var mylog = logger.Registry().Category("gcsblobstore")
 
 type GCSBlobStoreStats struct {
 	NumOpenWriter int `json:"num_open_writer"`
@@ -72,7 +76,7 @@ func (w *Writer) Close() error {
 	return nil
 }
 
-func (bs *GCSBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
+func (bs *GCSBlobStore) tryOpenReaderOnce(blobpath string) (io.ReadCloser, error) {
 	bs.stats.NumOpenReader++
 
 	obj := bs.bucket.Object(blobpath)
@@ -84,6 +88,14 @@ func (bs *GCSBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	return rc, nil
+}
+
+func (bs *GCSBlobStore) OpenReader(blobpath string) (rc io.ReadCloser, err error) {
+	gcutil.RetryIfNeeded(func() error {
+		rc, err = bs.tryOpenReaderOnce(blobpath)
+		return err
+	}, mylog)
+	return
 }
 
 func (bs *GCSBlobStore) Flags() int {

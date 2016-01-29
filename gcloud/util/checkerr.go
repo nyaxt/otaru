@@ -36,7 +36,8 @@ func RetryIfNeeded(f func() error, mylog logger.Logger) (err error) {
 			return
 		}
 		if i < numRetries {
-			logger.Debugf(mylog, "A Google Cloud Datastore operation has failed after %s. Retrying %d / %d...", time.Since(start), i+1, numRetries)
+			logger.Infof(mylog, "A Google Cloud API operation has failed after %s. Retrying %d / %d...", time.Since(start), i+1, numRetries)
+			time.Sleep(time.Duration(i) * time.Second)
 		}
 	}
 	return
