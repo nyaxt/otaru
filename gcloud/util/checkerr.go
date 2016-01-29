@@ -9,7 +9,7 @@ import (
 	"github.com/nyaxt/otaru/logger"
 )
 
-var shouldRetryErrorRegexp = regexp.MustCompile("http status code: 5\\d\\d")
+var shouldRetryErrorRegexp = regexp.MustCompile(`status code: (429|5\d\d)`)
 
 func IsShouldRetryError(e error) bool {
 	if e == nil {

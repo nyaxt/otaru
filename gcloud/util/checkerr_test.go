@@ -17,6 +17,11 @@ func TestIsShouldRetryError(t *testing.T) {
 		t.Errorf("IsShouldRetryError should have returned true on: %v", eShouldRetry)
 	}
 
+	eTooManyRequests := errors.New("status code: 429")
+	if !util.IsShouldRetryError(eTooManyRequests) {
+		t.Errorf("IsShouldRetryError should have returned true on: %v", eTooManyRequests)
+	}
+
 	eShouldNotRetry := errors.New("error during call, http status code: 400")
 	if util.IsShouldRetryError(eShouldNotRetry) {
 		t.Errorf("IsShouldRetryError should have returned false on: %v", eShouldNotRetry)
