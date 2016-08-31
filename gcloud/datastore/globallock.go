@@ -64,7 +64,7 @@ func (l *GlobalLocker) tryLockOnce() error {
 	if err != nil {
 		return err
 	}
-	dstx, err := cli.NewTransaction(context.Background(), datastore.Serializable)
+	dstx, err := cli.NewTransaction(context.Background())
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (l *GlobalLocker) forceUnlockOnce() error {
 	if err != nil {
 		return err
 	}
-	dstx, err := cli.NewTransaction(context.Background(), datastore.Serializable)
+	dstx, err := cli.NewTransaction(context.Background())
 	if err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func (l *GlobalLocker) unlockInternalOnce(checkCreatedAtFlag bool) error {
 	if err != nil {
 		return err
 	}
-	dstx, err := cli.NewTransaction(context.Background(), datastore.Serializable)
+	dstx, err := cli.NewTransaction(context.Background())
 	if err != nil {
 		return err
 	}
@@ -226,7 +226,7 @@ func (l *GlobalLocker) tryQueryOnce() (lockEntry, error) {
 	if err != nil {
 		return e, err
 	}
-	dstx, err := cli.NewTransaction(context.Background(), datastore.Serializable)
+	dstx, err := cli.NewTransaction(context.Background())
 	if err != nil {
 		return e, err
 	}

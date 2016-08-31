@@ -42,7 +42,7 @@ func (loc *INodeDBSSLocator) tryLocateOnce(history int) (string, int64, error) {
 	if err != nil {
 		return "", 0, err
 	}
-	dstx, err := cli.NewTransaction(context.TODO(), datastore.Serializable)
+	dstx, err := cli.NewTransaction(context.TODO())
 	if err != nil {
 		return "", 0, err
 	}
@@ -82,7 +82,7 @@ func (loc *INodeDBSSLocator) tryPutOnce(blobpath string, txid int64) error {
 	if err != nil {
 		return err
 	}
-	dstx, err := cli.NewTransaction(context.TODO(), datastore.Serializable)
+	dstx, err := cli.NewTransaction(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func (loc *INodeDBSSLocator) DeleteOld(ctx context.Context, threshold int, dryRu
 	for {
 		needAnotherTx := false
 		txStart := time.Now()
-		dstx, err := cli.NewTransaction(context.TODO(), datastore.Serializable)
+		dstx, err := cli.NewTransaction(context.TODO())
 		if err != nil {
 			return nil, err
 		}

@@ -156,7 +156,7 @@ func (txio *DBTransactionLogIO) Sync() error {
 		return err
 	}
 
-	dstx, err := cli.NewTransaction(context.Background(), datastore.Serializable)
+	dstx, err := cli.NewTransaction(context.Background())
 	if err != nil {
 		rollback()
 		return err
@@ -219,7 +219,7 @@ func (txio *DBTransactionLogIO) queryTransactionsOnce(minID inodedb.TxID) ([]ino
 		return nil, err
 	}
 
-	dstx, err := cli.NewTransaction(context.Background(), datastore.Serializable)
+	dstx, err := cli.NewTransaction(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +301,7 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 	for {
 		needAnotherTx := false
 		txStart := time.Now()
-		dstx, err := cli.NewTransaction(context.Background(), datastore.Serializable)
+		dstx, err := cli.NewTransaction(context.Background())
 		if err != nil {
 			return err
 		}
