@@ -3,10 +3,10 @@ package gcs
 import (
 	"io"
 
+	"cloud.google.com/go/storage"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
-	"google.golang.org/cloud"
-	"google.golang.org/cloud/storage"
+	"google.golang.org/api/option"
 
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
@@ -35,7 +35,7 @@ type GCSBlobStore struct {
 var _ = blobstore.BlobStore(&GCSBlobStore{})
 
 func NewGCSBlobStore(projectName string, bucketName string, tsrc oauth2.TokenSource, flags int) (*GCSBlobStore, error) {
-	client, err := storage.NewClient(context.Background(), cloud.WithTokenSource(tsrc))
+	client, err := storage.NewClient(context.Background(), option.WithTokenSource(tsrc))
 	if err != nil {
 		return nil, err
 	}

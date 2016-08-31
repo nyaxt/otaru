@@ -3,10 +3,10 @@ package datastore
 import (
 	"github.com/nyaxt/otaru/btncrypt"
 
+	"cloud.google.com/go/datastore"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
-	"google.golang.org/cloud"
-	"google.golang.org/cloud/datastore"
+	"google.golang.org/api/option"
 )
 
 var ctxNoNamespace = context.Background()
@@ -38,5 +38,5 @@ func NewConfig(projectName, rootKeyStr string, c *btncrypt.Cipher, tsrc oauth2.T
 }
 
 func (cfg *Config) getClient(ctx context.Context) (*datastore.Client, error) {
-	return datastore.NewClient(ctx, cfg.projectName, cloud.WithTokenSource(cfg.tsrc))
+	return datastore.NewClient(ctx, cfg.projectName, option.WithTokenSource(cfg.tsrc))
 }

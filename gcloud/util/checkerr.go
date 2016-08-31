@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"time"
 
-	"google.golang.org/cloud/datastore"
+	"cloud.google.com/go/datastore"
 
 	"github.com/nyaxt/otaru/logger"
 )

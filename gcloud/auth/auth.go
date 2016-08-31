@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"cloud.google.com/go/datastore"
+	"cloud.google.com/go/storage"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/cloud/datastore"
-	"google.golang.org/cloud/storage"
 )
 
 func GetGCloudTokenViaWebUI(ctx context.Context, conf *oauth2.Config) (*oauth2.Token, error) {
@@ -66,7 +66,6 @@ func GetGCloudTokenSource(ctx context.Context, credentialsFilePath string, token
 		credentialsJson,
 		storage.ScopeFullControl,
 		datastore.ScopeDatastore,
-		datastore.ScopeUserEmail,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("invalid google cloud key json: %v", err)

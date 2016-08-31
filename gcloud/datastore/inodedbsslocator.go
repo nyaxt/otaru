@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-	"google.golang.org/cloud/datastore"
+	"cloud.google.com/go/datastore"
 
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/logger"
