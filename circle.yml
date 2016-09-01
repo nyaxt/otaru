@@ -11,7 +11,7 @@ dependencies:
 
 test:
   override:
-    - docker run -e "OTARUDIR=/otaru-testconf" -e "SKIP_FUSE_TEST=1" -v `pwd`/otaru-testconf:/otaru-testconf otaru godep go test ./...
+    - docker run -e "OTARUDIR=/otaru-testconf" -e "SKIP_FUSE_TEST=1" -v `pwd`/otaru-testconf:/otaru-testconf otaru go test ./...
 
 deployment:
   binary-release:
