@@ -104,11 +104,12 @@ function otaru::update_version() {
 	(
 		gitcommit=`git rev-parse HEAD`
 		buildhost=`hostname -f`
+		unixtime=`date +%s`
 		echo "package version"
 		echo
 		echo "const GIT_COMMIT = \"$gitcommit\""
 		echo "const BUILD_HOST = \"$buildhost\""
-		echo "const BUILD_TIME = 1453465836"
+		echo "const BUILD_TIME = $unixtime"
 	)>/tmp/consts.go || {
 		echo "Failed to generate version/consts/go"
 		exit 1
