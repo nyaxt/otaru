@@ -1,4 +1,4 @@
-FROM golang:1.6beta2-wheezy
+FROM golang:1.7-wheezy
 ENV GOOS linux
 ENV GOARCH amd64
 
@@ -8,9 +8,9 @@ RUN echo "deb http://http.debian.net/debian wheezy-backports main" >/etc/apt/sou
     && apt-get install -y g++ --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-RUN go get github.com/tools/godep && go get github.com/jteeuwen/go-bindata/...
+RUN go get github.com/jteeuwen/go-bindata/...
 
-# Below copied from nodejs/docker-node/5.5
+# Below copied from nodejs/docker-node/6.5/wheezy
 #
 # LICENSE:
 #  The MIT License (MIT)
@@ -51,15 +51,17 @@ RUN set -ex \
   done
 
 ENV NPM_CONFIG_LOGLEVEL info
-ENV NODE_VERSION 5.5.0
+ENV NODE_VERSION 6.5.0
 
-RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" \
+RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.xz" \
   && curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt.asc" \
-  && gpg --verify SHASUMS256.txt.asc \
-  && grep " node-v$NODE_VERSION-linux-x64.tar.gz\$" SHASUMS256.txt.asc | sha256sum -c - \
-  && tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 \
-  && rm "node-v$NODE_VERSION-linux-x64.tar.gz" SHASUMS256.txt.asc
+  && gpg --batch --decrypt --output SHASUMS256.txt SHASUMS256.txt.asc \
+  && grep " node-v$NODE_VERSION-linux-x64.tar.xz\$" SHASUMS256.txt | sha256sum -c - \
+  && tar -xJf "node-v$NODE_VERSION-linux-x64.tar.xz" -C /usr/local --strip-components=1 \
+  && rm "node-v$NODE_VERSION-linux-x64.tar.xz" SHASUMS256.txt.asc SHASUMS256.txt \
+  && ln -s /usr/local/bin/node /usr/local/bin/nodejs
 # === end docker-node
+
 RUN npm install -g gulp bower
 
 VOLUME ["/out", "/otaru-testconf"]
