@@ -27,6 +27,7 @@ var Usage = func() {
 var (
 	flagVersion   = flag.Bool("version", false, "Show version info")
 	flagMkfs      = flag.Bool("mkfs", false, "Reset metadata if no existing metadata exists")
+	flagReadOnly  = flag.Bool("readonly", false, "Mount as read-only mode. No changes to the filesystem is allowed.")
 	flagConfigDir = flag.String("configDir", facade.DefaultConfigDir(), "Config dirpath")
 )
 
@@ -47,6 +48,9 @@ func main() {
 		logger.Criticalf(mylog, "%v", err)
 		Usage()
 		os.Exit(2)
+	}
+	if *flagReadOnly {
+		cfg.ReadOnly = true
 	}
 	if flag.NArg() != 1 {
 		Usage()

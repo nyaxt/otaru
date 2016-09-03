@@ -33,6 +33,8 @@ import (
 var mylog = logger.Registry().Category("facade")
 
 type Otaru struct {
+	ReadOnly bool
+
 	C *btncrypt.Cipher
 
 	S *scheduler.Scheduler
@@ -74,6 +76,8 @@ type Otaru struct {
 
 func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	o := &Otaru{}
+
+	o.ReadOnly = cfg.ReadOnly
 
 	var err error
 
