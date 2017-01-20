@@ -6,6 +6,7 @@ import (
 	"cloud.google.com/go/storage"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
 	"github.com/nyaxt/otaru"
@@ -109,17 +110,16 @@ func (bs *GCSBlobStore) ListBlobs() ([]string, error) {
 
 	ret := make([]string, 0)
 
-	q := &storage.Query{}
-	for q != nil {
-		olist, err := bs.bucket.List(context.Background(), q)
+	it := bs.bucket.Objects(context.Background(), &storage.Query{})
+	for {
+		oattr, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
 		if err != nil {
 			return nil, err
 		}
-		for _, o := range olist.Results {
-			blobpath := o.Name
-			ret = append(ret, blobpath)
-		}
-		q = olist.Next
+		ret = append(ret, oattr.Name)
 	}
 
 	return ret, nil

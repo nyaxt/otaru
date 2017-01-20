@@ -9,6 +9,7 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"golang.org/x/net/context"
+	"google.golang.org/api/iterator"
 
 	"github.com/nyaxt/otaru/btncrypt"
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
@@ -37,7 +38,7 @@ var _ = inodedb.DBTransactionLogIO(&DBTransactionLogIO{})
 func NewDBTransactionLogIO(cfg *Config) *DBTransactionLogIO {
 	return &DBTransactionLogIO{
 		cfg:       cfg,
-		rootKey:   datastore.NewKey(ctxNoNamespace, kindTransaction, cfg.rootKeyStr, 0, nil),
+		rootKey:   datastore.NameKey(kindTransaction, cfg.rootKeyStr, nil),
 		nextbatch: make([]inodedb.DBTransaction, 0),
 	}
 }
@@ -49,7 +50,7 @@ type storedbtx struct {
 }
 
 func (txio *DBTransactionLogIO) encodeKey(id inodedb.TxID) *datastore.Key {
-	return datastore.NewKey(ctxNoNamespace, kindTransaction, "", int64(id), txio.rootKey)
+	return datastore.IDKey(kindTransaction, int64(id), txio.rootKey)
 }
 
 func (txio *DBTransactionLogIO) encodeBatch(txs []inodedb.DBTransaction) (*datastore.Key, *storedbtx, error) {
@@ -235,7 +236,7 @@ func (txio *DBTransactionLogIO) queryTransactionsOnce(minID inodedb.TxID) ([]ino
 		var stx storedbtx
 		key, err := it.Next(&stx)
 		if err != nil {
-			if err == datastore.Done {
+			if err == iterator.Done {
 				break
 			}
 			dstx.Commit()
@@ -313,7 +314,7 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 		for {
 			k, err := it.Next(nil)
 			if err != nil {
-				if err == datastore.Done {
+				if err == iterator.Done {
 					break
 				}
 				dstx.Rollback()

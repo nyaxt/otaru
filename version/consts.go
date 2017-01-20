@@ -1,5 +1,5 @@
 package version
 
-const GIT_COMMIT = "<not available>"
-const BUILD_HOST = "<not available>"
-const BUILD_TIME = 1453465836
+const GIT_COMMIT = "e5913edcc394f608c45e8ed4a6f922497c945162"
+const BUILD_HOST = "lion.home.nyaxtstep.com"
+const BUILD_TIME = 1484926079

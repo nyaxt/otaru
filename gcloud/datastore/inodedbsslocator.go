@@ -4,8 +4,9 @@ import (
 	"errors"
 	"time"
 
-	"golang.org/x/net/context"
 	"cloud.google.com/go/datastore"
+	"golang.org/x/net/context"
+	"google.golang.org/api/iterator"
 
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/logger"
@@ -26,7 +27,7 @@ type INodeDBSSLocator struct {
 func NewINodeDBSSLocator(cfg *Config) *INodeDBSSLocator {
 	return &INodeDBSSLocator{
 		cfg:     cfg,
-		rootKey: datastore.NewKey(ctxNoNamespace, kindINodeDBSS, cfg.rootKeyStr, 0, nil),
+		rootKey: datastore.NameKey(kindINodeDBSS, cfg.rootKeyStr, nil),
 	}
 }
 
@@ -52,7 +53,7 @@ func (loc *INodeDBSSLocator) tryLocateOnce(history int) (string, int64, error) {
 	var e sslocentry
 	if _, err := it.Next(&e); err != nil {
 		dstx.Rollback()
-		if err == datastore.Done {
+		if err == iterator.Done {
 			return "", 0, EEMPTY
 		}
 		return "", 0, err
@@ -87,7 +88,7 @@ func (loc *INodeDBSSLocator) tryPutOnce(blobpath string, txid int64) error {
 		return err
 	}
 
-	key := datastore.NewKey(ctxNoNamespace, kindINodeDBSS, "", int64(e.TxID), loc.rootKey)
+	key := datastore.IDKey(kindINodeDBSS, int64(e.TxID), loc.rootKey)
 	if _, err := dstx.Put(key, &e); err != nil {
 		dstx.Rollback()
 		return err
@@ -135,7 +136,7 @@ func (loc *INodeDBSSLocator) DeleteOld(ctx context.Context, threshold int, dryRu
 			var e sslocentry
 			k, err := it.Next(&e)
 			if err != nil {
-				if err == datastore.Done {
+				if err == iterator.Done {
 					break
 				}
 				dstx.Rollback()

@@ -6,8 +6,8 @@ import (
 	"math"
 	"time"
 
-	"golang.org/x/net/context"
 	"cloud.google.com/go/datastore"
+	"golang.org/x/net/context"
 
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/logger"
@@ -34,13 +34,13 @@ type GlobalLocker struct {
 func NewGlobalLocker(cfg *Config, hostname string, info string) *GlobalLocker {
 	l := &GlobalLocker{
 		cfg:     cfg,
-		rootKey: datastore.NewKey(ctxNoNamespace, kindGlobalLock, cfg.rootKeyStr, 0, nil),
+		rootKey: datastore.NameKey(kindGlobalLock, cfg.rootKeyStr, nil),
 		lockEntry: lockEntry{
 			HostName: hostname,
 			Info:     info,
 		},
 	}
-	l.lockEntryKey = datastore.NewKey(ctxNoNamespace, kindGlobalLock, "", 1, l.rootKey)
+	l.lockEntryKey = datastore.IDKey(kindGlobalLock, 1, l.rootKey)
 	return l
 }
 
