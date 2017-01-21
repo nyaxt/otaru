@@ -145,6 +145,10 @@ func (bs *GCSBlobStore) BlobSize(blobpath string) (int64, error) {
 var _ = blobstore.BlobRemover(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
+	if !oflags.IsWriteAllowed(bs.flags) {
+		return otaru.EPERM
+	}
+
 	bs.stats.NumRemoveBlob++
 
 	object := bs.bucket.Object(blobpath)

@@ -79,6 +79,12 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 
 	o.ReadOnly = cfg.ReadOnly
 
+	flags := oflags.O_RDWRCREATE
+	if o.ReadOnly {
+		logger.Infof(mylog, "Otaru in read only mode.")
+		flags = oflags.O_RDONLY
+	}
+
 	var err error
 
 	key := btncrypt.KeyFromPassword(cfg.Password)
@@ -99,7 +105,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		}
 		o.DSCfg = datastore.NewConfig(cfg.ProjectName, cfg.BucketName, o.C, o.Tsrc)
 		o.GL = datastore.NewGlobalLocker(o.DSCfg, GenHostName(), "FIXME: fill info")
-		if err := o.GL.Lock(); err != nil {
+		if err := o.GL.Lock(o.ReadOnly); err != nil {
 			return nil, err
 		}
 	}
@@ -111,7 +117,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	}
 
 	if !cfg.LocalDebug {
-		o.DefaultBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, cfg.BucketName, o.Tsrc, oflags.O_RDWRCREATE)
+		o.DefaultBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, cfg.BucketName, o.Tsrc, flags)
 		if err != nil {
 			o.Close()
 			return nil, fmt.Errorf("Failed to init GCSBlobStore: %v", err)
@@ -120,7 +126,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 			o.BackendBS = o.DefaultBS
 		} else {
 			metabucketname := fmt.Sprintf("%s-meta", cfg.BucketName)
-			o.MetadataBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, metabucketname, o.Tsrc, oflags.O_RDWRCREATE)
+			o.MetadataBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, metabucketname, o.Tsrc, flags)
 			if err != nil {
 				o.Close()
 				return nil, fmt.Errorf("Failed to init GCSBlobStore (metadata): %v", err)
@@ -132,7 +138,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 			}
 		}
 	} else {
-		o.BackendBS, err = blobstore.NewFileBlobStore(path.Join(DefaultConfigDir(), "bbs"), oflags.O_RDWRCREATE)
+		o.BackendBS, err = blobstore.NewFileBlobStore(path.Join(DefaultConfigDir(), "bbs"), flags)
 		if err != nil {
 			o.Close()
 			return nil, fmt.Errorf("Failed to init FileBlobStore (backend for local debugging): %v", err)
@@ -140,7 +146,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	}
 
 	queryFn := chunkstore.NewQueryChunkVersion(o.C)
-	o.CBS, err = cachedblobstore.New(o.BackendBS, o.CacheTgtBS, o.S, oflags.O_RDWRCREATE /* FIXME */, queryFn)
+	o.CBS, err = cachedblobstore.New(o.BackendBS, o.CacheTgtBS, o.S, flags, queryFn)
 	if err != nil {
 		o.Close()
 		return nil, fmt.Errorf("Failed to init CachedBlobStore: %v", err)
@@ -149,19 +155,23 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		logger.Warningf(mylog, "Attempted to restore cachedblobstore state but failed: %v", err)
 	}
 	o.AutoReduceCacheJob = cachedblobstore.SetupAutoReduceCache(o.CBS, o.R, cfg.CacheHighWatermarkInBytes, cfg.CacheLowWatermarkInBytes)
-	o.SaveStateJob = o.R.RunEveryPeriod(cachedblobstore.SaveStateTask{o.CBS, o.C}, 30*time.Second)
+	if !o.ReadOnly {
+		o.SaveStateJob = o.R.RunEveryPeriod(cachedblobstore.SaveStateTask{o.CBS, o.C}, 30*time.Second)
+	}
 
 	if !cfg.LocalDebug {
-		o.SSLoc = datastore.NewINodeDBSSLocator(o.DSCfg)
+		o.SSLoc = datastore.NewINodeDBSSLocator(o.DSCfg, flags)
 	} else {
 		o.SSLoc = blobstoredbstatesnapshotio.SimpleSSLocator{}
 	}
 	o.SIO = blobstoredbstatesnapshotio.New(o.CBS, o.C, o.SSLoc)
 
 	if !cfg.LocalDebug {
-		txio := datastore.NewDBTransactionLogIO(o.DSCfg)
+		txio := datastore.NewDBTransactionLogIO(o.DSCfg, flags)
 		o.TxIO = txio
-		o.TxIOSyncJob = o.R.SyncEveryPeriod(txio, 300*time.Millisecond)
+		if !cfg.ReadOnly {
+			o.TxIOSyncJob = o.R.SyncEveryPeriod(txio, 300*time.Millisecond)
+		}
 	} else {
 		o.TxIO = inodedb.NewSimpleDBTransactionLogIO()
 	}
@@ -182,11 +192,15 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	}
 
 	o.IDBS = inodedb.NewDBService(o.IDBBE)
-	o.IDBSyncJob = o.R.RunEveryPeriod(inodedbsyncer.NewSyncTask(o.IDBS), 30*time.Second)
+	if !cfg.ReadOnly {
+		o.IDBSyncJob = o.R.RunEveryPeriod(inodedbsyncer.NewSyncTask(o.IDBS), 30*time.Second)
+	}
 
 	o.FS = otaru.NewFileSystem(o.IDBS, o.CBS, o.C)
 
-	if cfg.GCPeriod <= 0 {
+	if o.ReadOnly {
+		logger.Infof(mylog, "No GC tasks are scheduled in read only mode.")
+	} else if cfg.GCPeriod <= 0 {
 		logger.Infof(mylog, "GCPeriod %d <= 0. No GC tasks are scheduled automatically.", cfg.GCPeriod)
 	} else {
 		const NoDryRun = false
@@ -221,7 +235,7 @@ func (o *Otaru) Close() error {
 		o.S.AbortAllAndStop()
 	}
 
-	if o.FS != nil {
+	if o.FS != nil && !o.ReadOnly {
 		if err := o.FS.Sync(); err != nil {
 			errs = append(errs, err)
 		}
@@ -231,22 +245,24 @@ func (o *Otaru) Close() error {
 		o.IDBS.Quit()
 	}
 
-	if o.IDBBE != nil {
+	if o.IDBBE != nil && !o.ReadOnly {
 		if err := o.IDBBE.Sync(); err != nil {
 			errs = append(errs, err)
 		}
 	}
 
 	if o.CBS != nil {
-		if err := o.CBS.SaveState(o.C); err != nil {
-			errs = append(errs, err)
+		if !o.ReadOnly {
+			if err := o.CBS.SaveState(o.C); err != nil {
+				errs = append(errs, err)
+			}
 		}
 		if err := o.CBS.Quit(); err != nil {
 			errs = append(errs, err)
 		}
 	}
 
-	if o.GL != nil {
+	if o.GL != nil && !o.ReadOnly {
 		if err := o.GL.Unlock(); err != nil {
 			errs = append(errs, err)
 		}

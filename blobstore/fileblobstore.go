@@ -182,6 +182,9 @@ func (f *FileBlobStore) BlobSize(blobpath string) (int64, error) {
 var _ = BlobRemover(&FileBlobStore{})
 
 func (f *FileBlobStore) RemoveBlob(blobpath string) error {
+	if fl.IsWriteAllowed(f.flags) {
+		return EPERM
+	}
 	return os.Remove(path.Join(f.base, blobpath))
 }
 

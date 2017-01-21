@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/api/iterator"
 
+	oflags "github.com/nyaxt/otaru/flags"
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/metadata"
@@ -20,12 +21,14 @@ const kindINodeDBSS = "OtaruINodeDBSS"
 var EEMPTY = errors.New("Failed to find any snapshot location entry.")
 
 type INodeDBSSLocator struct {
+	flags   int
 	cfg     *Config
 	rootKey *datastore.Key
 }
 
-func NewINodeDBSSLocator(cfg *Config) *INodeDBSSLocator {
+func NewINodeDBSSLocator(cfg *Config, flags int) *INodeDBSSLocator {
 	return &INodeDBSSLocator{
+		flags:   flags,
 		cfg:     cfg,
 		rootKey: datastore.NameKey(kindINodeDBSS, cfg.rootKeyStr, nil),
 	}
@@ -106,12 +109,20 @@ func (*INodeDBSSLocator) GenerateBlobpath() string {
 }
 
 func (loc *INodeDBSSLocator) Put(blobpath string, txid int64) error {
+	if !oflags.IsWriteAllowed(loc.flags) {
+		return EPERM
+	}
+
 	return gcutil.RetryIfNeeded(func() error {
 		return loc.tryPutOnce(blobpath, txid)
 	}, sslog)
 }
 
 func (loc *INodeDBSSLocator) DeleteOld(ctx context.Context, threshold int, dryRun bool) ([]string, error) {
+	if !oflags.IsWriteAllowed(loc.flags) {
+		return nil, EPERM
+	}
+
 	start := time.Now()
 
 	cli, err := loc.cfg.getClient(context.TODO())

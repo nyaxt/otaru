@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"syscall"
 	"time"
 
 	"cloud.google.com/go/datastore"
@@ -12,15 +13,19 @@ import (
 	"google.golang.org/api/iterator"
 
 	"github.com/nyaxt/otaru/btncrypt"
+	oflags "github.com/nyaxt/otaru/flags"
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
 
+const EPERM = syscall.Errno(syscall.EPERM)
+
 var txlog = logger.Registry().Category("dbtxlogio")
 
 type DBTransactionLogIO struct {
+	flags   int
 	cfg     *Config
 	rootKey *datastore.Key
 
@@ -35,8 +40,9 @@ const kindTransaction = "OtaruINodeDBTxBulk"
 
 var _ = inodedb.DBTransactionLogIO(&DBTransactionLogIO{})
 
-func NewDBTransactionLogIO(cfg *Config) *DBTransactionLogIO {
+func NewDBTransactionLogIO(cfg *Config, flags int) *DBTransactionLogIO {
 	return &DBTransactionLogIO{
+		flags:     flags,
 		cfg:       cfg,
 		rootKey:   datastore.NameKey(kindTransaction, cfg.rootKeyStr, nil),
 		nextbatch: make([]inodedb.DBTransaction, 0),
@@ -112,6 +118,10 @@ func decodeBatch(c *btncrypt.Cipher, key *datastore.Key, stx *storedbtx) ([]inod
 }
 
 func (txio *DBTransactionLogIO) AppendTransaction(tx inodedb.DBTransaction) error {
+	if !oflags.IsWriteAllowed(txio.flags) {
+		return EPERM
+	}
+
 	txio.mu.Lock()
 	defer txio.mu.Unlock()
 
@@ -120,6 +130,10 @@ func (txio *DBTransactionLogIO) AppendTransaction(tx inodedb.DBTransaction) erro
 }
 
 func (txio *DBTransactionLogIO) Sync() error {
+	if !oflags.IsWriteAllowed(txio.flags) {
+		return EPERM
+	}
+
 	start := time.Now()
 
 	txio.muSync.Lock()
@@ -280,6 +294,10 @@ func (txio *DBTransactionLogIO) queryTransactionsOnce(minID inodedb.TxID) ([]ino
 const maxWriteEntriesPerTx = 500 // Google Cloud Datastore limit on number of write entries per tx
 
 func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) error {
+	if !oflags.IsWriteAllowed(txio.flags) {
+		return EPERM
+	}
+
 	start := time.Now()
 
 	txio.mu.Lock()

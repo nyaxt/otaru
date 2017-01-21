@@ -232,6 +232,9 @@ func (cbs *CachedBlobStore) RemoveBlob(blobpath string) error {
 	if !ok {
 		return fmt.Errorf("Cachebs \"%v\" doesn't support removing blobs.", util.TryGetImplName(cbs.cachebs))
 	}
+	if fl.IsWriteAllowed(cbs.flags) {
+		return EPERM
+	}
 
 	if err := cbs.entriesmgr.RemoveBlob(blobpath); err != nil {
 		return err

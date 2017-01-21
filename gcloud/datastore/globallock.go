@@ -58,7 +58,7 @@ func (e *ErrLockTaken) Error() string {
 
 // Lock attempts to acquire the global lock.
 // If the lock was already taken by other GlobalLocker instance, it will return an ErrLockTaken.
-func (l *GlobalLocker) tryLockOnce() error {
+func (l *GlobalLocker) tryLockOnce(readOnly bool) error {
 	start := time.Now()
 	cli, err := l.cfg.getClient(context.Background())
 	if err != nil {
@@ -79,10 +79,12 @@ func (l *GlobalLocker) tryLockOnce() error {
 		}
 	}
 
-	l.lockEntry.CreatedAt = start
-	if _, err := dstx.Put(l.lockEntryKey, &l.lockEntry); err != nil {
-		dstx.Rollback()
-		return err
+	if !readOnly {
+		l.lockEntry.CreatedAt = start
+		if _, err := dstx.Put(l.lockEntryKey, &l.lockEntry); err != nil {
+			dstx.Rollback()
+			return err
+		}
 	}
 	if _, err := dstx.Commit(); err != nil {
 		return err
@@ -92,10 +94,10 @@ func (l *GlobalLocker) tryLockOnce() error {
 	return nil
 }
 
-func (l *GlobalLocker) Lock() (err error) {
-	logger.Infof(lklog, "GlobalLocker.Lock() started.")
+func (l *GlobalLocker) Lock(readOnly bool) (err error) {
+	logger.Infof(lklog, "GlobalLocker.Lock(readOnly=%t) started.", readOnly)
 	return gcutil.RetryIfNeeded(func() error {
-		return l.tryLockOnce()
+		return l.tryLockOnce(readOnly)
 	}, lklog)
 }
 
