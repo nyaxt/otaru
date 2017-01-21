@@ -251,7 +251,7 @@ func (fs *FileSystem) Attr(id inodedb.ID) (Attr, error) {
 		OrigPath:  v.GetOrigPath(),
 		Uid:       v.GetUid(),
 		Gid:       v.GetGid(),
-		PermMode:  v.GetPermMode(),
+		PermMode:  fl.MaskPermMode(v.GetPermMode(), fs.bs.Flags()),
 		ModifiedT: v.GetModifiedT(),
 	}
 	return a, nil

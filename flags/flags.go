@@ -96,3 +96,19 @@ func Mask(a, b int) int {
 
 	return ret
 }
+
+func MaskPermMode(pm uint16, flags int) uint16 {
+	if !IsReadAllowed(flags) {
+		pm = pm & ^uint16(0444)
+	}
+	if !IsWriteAllowed(flags) {
+		pm = pm & ^uint16(0222)
+	}
+	/*
+		if !IsCreateAllowed(flags) {
+			pm = pm & ^uint16(0111)
+		}
+	*/
+
+	return pm
+}
