@@ -9,11 +9,11 @@ import (
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
-	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
 	oflags "github.com/nyaxt/otaru/flags"
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/util"
 )
 
 var mylog = logger.Registry().Category("gcsblobstore")
@@ -54,7 +54,7 @@ type Writer struct {
 
 func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 	if !oflags.IsWriteAllowed(bs.flags) {
-		return nil, otaru.EPERM
+		return nil, util.EPERM
 	}
 
 	bs.stats.NumOpenWriter++
@@ -146,7 +146,7 @@ var _ = blobstore.BlobRemover(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
 	if !oflags.IsWriteAllowed(bs.flags) {
-		return otaru.EPERM
+		return util.EPERM
 	}
 
 	bs.stats.NumRemoveBlob++

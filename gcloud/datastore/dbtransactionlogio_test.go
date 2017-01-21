@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nyaxt/otaru/flags"
 	authtu "github.com/nyaxt/otaru/gcloud/auth/testutils"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/inodedb"
@@ -14,7 +15,7 @@ import (
 func init() { testutils.EnsureLogger() }
 
 func testDBTransactionIOWithRootKey(rootKeyStr string) *datastore.DBTransactionLogIO {
-	return datastore.NewDBTransactionLogIO(authtu.TestDSConfig(rootKeyStr))
+	return datastore.NewDBTransactionLogIO(authtu.TestDSConfig(rootKeyStr), flags.O_RDWRCREATE)
 }
 
 func testDBTransactionIO() *datastore.DBTransactionLogIO {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/util"
 )
 
 func (fs *FileSystem) FindDirFullPath(fullpath string) (inodedb.ID, error) {
@@ -52,7 +53,7 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileM
 				return nil, err
 			}
 		} else {
-			return nil, ENOENT
+			return nil, util.ENOENT
 		}
 	}
 

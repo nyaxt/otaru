@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/nyaxt/otaru/blobstore"
@@ -18,17 +17,6 @@ import (
 )
 
 var fslog = logger.Registry().Category("filesystem")
-
-const (
-	EACCES    = syscall.Errno(syscall.EACCES)
-	EBADF     = syscall.Errno(syscall.EBADF)
-	EEXIST    = syscall.Errno(syscall.EEXIST)
-	EISDIR    = syscall.Errno(syscall.EISDIR)
-	ENOENT    = syscall.Errno(syscall.ENOENT)
-	ENOTDIR   = syscall.Errno(syscall.ENOTDIR)
-	ENOTEMPTY = syscall.Errno(syscall.ENOTEMPTY)
-	EPERM     = syscall.Errno(syscall.EPERM)
-)
 
 type FileSystem struct {
 	idb inodedb.DBHandler
@@ -140,7 +128,7 @@ func (fs *FileSystem) ParentID(id inodedb.ID) (inodedb.ID, error) {
 		return inodedb.RootDirID, err
 	}
 	if v.GetType() != inodedb.DirNodeT {
-		return inodedb.RootDirID, ENOTDIR
+		return inodedb.RootDirID, util.ENOTDIR
 	}
 
 	dv := v.(*inodedb.DirNodeView)
@@ -153,7 +141,7 @@ func (fs *FileSystem) DirEntries(id inodedb.ID) (map[string]inodedb.ID, error) {
 		return nil, err
 	}
 	if v.GetType() != inodedb.DirNodeT {
-		return nil, ENOTDIR
+		return nil, util.ENOTDIR
 	}
 
 	dv := v.(*inodedb.DirNodeView)
@@ -374,7 +362,7 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 
 	tryLock := fl.IsWriteAllowed(flags)
 	if tryLock && !fl.IsWriteAllowed(fs.bs.Flags()) {
-		return nil, EACCES
+		return nil, util.EACCES
 	}
 
 	of := fs.getOrCreateOpenFile(id)
@@ -400,7 +388,7 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 		}
 
 		if v.GetType() == inodedb.DirNodeT {
-			return nil, EISDIR
+			return nil, util.EISDIR
 		}
 		return nil, fmt.Errorf("Specified node not file but has type %v", v.GetType())
 	}
@@ -685,7 +673,7 @@ func (fh *FileHandle) ID() inodedb.ID {
 
 func (fh *FileHandle) PWrite(p []byte, offset int64) error {
 	if !fl.IsWriteAllowed(fh.flags) {
-		return EBADF
+		return util.EBADF
 	}
 
 	if fl.IsWriteAppend(fh.flags) {
@@ -697,7 +685,7 @@ func (fh *FileHandle) PWrite(p []byte, offset int64) error {
 
 func (fh *FileHandle) ReadAt(p []byte, offset int64) (int, error) {
 	if !fl.IsReadAllowed(fh.flags) {
-		return 0, EBADF
+		return 0, util.EBADF
 	}
 
 	return fh.of.ReadAt(p, offset)
@@ -717,7 +705,7 @@ func (fh *FileHandle) Size() int64 {
 
 func (fh *FileHandle) Truncate(newsize int64) error {
 	if !fl.IsWriteAllowed(fh.flags) {
-		return EBADF
+		return util.EBADF
 	}
 
 	return fh.of.Truncate(newsize)

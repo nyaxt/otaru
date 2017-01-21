@@ -149,6 +149,10 @@ func (cbs *CachedBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
 }
 
 func (cbs *CachedBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
+	if !fl.IsWriteAllowed(cbs.flags) {
+		return nil, EPERM
+	}
+
 	bh, err := cbs.Open(blobpath, fl.O_WRONLY|fl.O_CREATE)
 	if err != nil {
 		return nil, err
@@ -232,7 +236,7 @@ func (cbs *CachedBlobStore) RemoveBlob(blobpath string) error {
 	if !ok {
 		return fmt.Errorf("Cachebs \"%v\" doesn't support removing blobs.", util.TryGetImplName(cbs.cachebs))
 	}
-	if fl.IsWriteAllowed(cbs.flags) {
+	if !fl.IsWriteAllowed(cbs.flags) {
 		return EPERM
 	}
 
