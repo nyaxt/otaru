@@ -5,20 +5,22 @@ import (
 	"io"
 	"log"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/nyaxt/otaru/flags"
 	authtu "github.com/nyaxt/otaru/gcloud/auth/testutils"
 	"github.com/nyaxt/otaru/gcloud/gcs"
 	tu "github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/util"
 )
 
-func testGCSBlobStore() *gcs.GCSBlobStore {
+func testGCSBlobStore(f int) *gcs.GCSBlobStore {
 	bs, err := gcs.NewGCSBlobStore(
 		authtu.TestConfig().ProjectName,
 		authtu.TestBucketName(),
 		authtu.TestTokenSource(),
-		flags.O_RDWR,
+		f,
 	)
 	if err != nil {
 		log.Fatalf("Failed to create GCSBlobStore: %v", err)
@@ -27,7 +29,7 @@ func testGCSBlobStore() *gcs.GCSBlobStore {
 }
 
 func TestGCSBlobStore_WriteReadDelete(t *testing.T) {
-	bs := testGCSBlobStore()
+	bs := testGCSBlobStore(flags.O_RDWR)
 
 	// Write
 	{
@@ -91,5 +93,65 @@ func TestGCSBlobStore_WriteReadDelete(t *testing.T) {
 	// Delete
 	if err := bs.RemoveBlob("hoge"); err != nil {
 		t.Errorf("Failed to remove blob: %v", err)
+	}
+}
+
+func TestGCSBlobStore_ReadOnly(t *testing.T) {
+	wbs := testGCSBlobStore(flags.O_RDWR)
+	defer func() {
+		_ = wbs.RemoveBlob("hoge")
+		_ = wbs.RemoveBlob("fuga")
+	}()
+	if err := tu.WriteVersionedBlob(wbs, "hoge", 42); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := tu.WriteVersionedBlob(wbs, "fuga", 123); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// Read should work just fine
+	rbs := testGCSBlobStore(flags.O_RDONLY)
+	if err := tu.AssertBlobVersion(rbs, "hoge", 42); err != nil {
+		t.Errorf("assert hoge 42. err: %v", err)
+	}
+	if err := tu.AssertBlobVersion(rbs, "fuga", 123); err != nil {
+		t.Errorf("assert fuga 123. err: %v", err)
+	}
+
+	// Delete should fail
+	err := rbs.RemoveBlob("hoge")
+	if err == nil {
+		t.Errorf("Unexpected RemoveBlob success.")
+		return
+	}
+	if err != util.EPERM {
+		t.Errorf("Expected EPERM. got %v", err)
+		return
+	}
+
+	// Write should fail
+	_, err = rbs.OpenWriter("new")
+	if err == nil {
+		t.Errorf("Unexpected OpenWriter success.")
+		return
+	}
+	if err != util.EPERM {
+		t.Errorf("Expected EPERM. got %v", err)
+		return
+	}
+
+	// ListBlobs should work
+	{
+		bpaths, err := rbs.ListBlobs()
+		if err != nil {
+			t.Errorf("Failed to ListBlobs(): %v", err)
+			return
+		}
+		sort.Strings(bpaths)
+		if !reflect.DeepEqual([]string{"fuga", "hoge"}, bpaths) {
+			t.Errorf("Unexpected BlobList: %v", bpaths)
+		}
 	}
 }
