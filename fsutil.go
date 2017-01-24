@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/util"
 )
@@ -68,4 +69,14 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileM
 	}
 
 	return fh, nil
+}
+
+func (fs *FileSystem) WriteFile(fullpath string, content []byte, perm os.FileMode) error {
+	h, err := fs.OpenFileFullPath(fullpath, fl.O_RDWRCREATE, 0666)
+	if err != nil {
+		return err
+	}
+	defer h.Close()
+
+	return h.PWrite(content, 0)
 }

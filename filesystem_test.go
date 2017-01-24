@@ -21,7 +21,7 @@ func TestFileWriteRead(t *testing.T) {
 
 	bs := tu.TestFileBlobStore()
 	fs := otaru.NewFileSystem(idb, bs, tu.TestCipher())
-	h, err := fs.OpenFileFullPath("/hello.txt", flags.O_CREATE|flags.O_RDWR, 0666)
+	h, err := fs.OpenFileFullPath("/hello.txt", flags.O_RDWRCREATE, 0666)
 	if err != nil {
 		t.Errorf("OpenFileFullPath failed: %v", err)
 		return

@@ -84,14 +84,21 @@ func NewFileBlobStore(base string, flags int) (*FileBlobStore, error) {
 		return nil, fmt.Errorf("Specified base \"%s\" is not a directory")
 	}
 
+	fbs := &FileBlobStore{
+		base: base,
+	}
+	fbs.SetFlags(flags)
+	return fbs, nil
+}
+
+func (f *FileBlobStore) SetFlags(flags int) {
 	fmask := fl.O_RDONLY
 	if fl.IsWriteAllowed(flags) {
 		fmask = fl.O_RDONLY | fl.O_WRONLY | fl.O_RDWR | fl.O_CREATE | fl.O_EXCL
 	}
 
-	return &FileBlobStore{
-		base: base, flags: flags, fmask: fmask,
-	}, nil
+	f.fmask = fmask
+	f.flags = flags
 }
 
 func (f *FileBlobStore) Open(blobpath string, flags int) (BlobHandle, error) {

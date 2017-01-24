@@ -17,9 +17,11 @@ import (
 
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
+	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/fuse"
 	"github.com/nyaxt/otaru/inodedb"
 	tu "github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/util"
 )
 
 func init() { tu.EnsureLogger() }
@@ -30,21 +32,21 @@ func maybeSkipTest(t *testing.T) {
 	}
 }
 
-type testfs struct {
+type testenv struct {
 	sio  *inodedb.SimpleDBStateSnapshotIO
 	txio *inodedb.SimpleDBTransactionLogIO
 	bs   *blobstore.FileBlobStore
 }
 
-func newtestfs() *testfs {
-	return &testfs{
+func newtestenv() *testenv {
+	return &testenv{
 		sio:  inodedb.NewSimpleDBStateSnapshotIO(),
 		txio: inodedb.NewSimpleDBTransactionLogIO(),
 		bs:   tu.TestFileBlobStore(),
 	}
 }
 
-func (tfs *testfs) newFS() *otaru.FileSystem {
+func (tfs *testenv) NewFS() *otaru.FileSystem {
 	idb, err := inodedb.NewEmptyDB(tfs.sio, tfs.txio)
 	if err != nil {
 		log.Fatalf("NewEmptyDB failed: %v", err)
@@ -53,8 +55,20 @@ func (tfs *testfs) newFS() *otaru.FileSystem {
 	return otaru.NewFileSystem(idb, tfs.bs, tu.TestCipher())
 }
 
+func (tfs *testenv) ReadOnlyFS() *otaru.FileSystem {
+	tfs.txio.SetReadOnly(true)
+	tfs.bs.SetFlags(fl.O_RDONLY)
+
+	idb, err := inodedb.NewDB(tfs.sio, tfs.txio)
+	if err != nil {
+		log.Fatalf("NewDB failed: %v", err)
+	}
+
+	return otaru.NewFileSystem(idb, tfs.bs, tu.TestCipher())
+}
+
 func fusetestFileSystem() *otaru.FileSystem {
-	return newtestfs().newFS()
+	return newtestenv().NewFS()
 }
 
 func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string)) {
@@ -90,6 +104,16 @@ func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string
 	<-done
 }
 
+func assertFileContents(t *testing.T, fullpath string, content []byte) {
+	b, err := ioutil.ReadFile(fullpath)
+	if err != nil {
+		t.Errorf("Failed to read file \"%v\": %v", err)
+	}
+	if !bytes.Equal(b, content) {
+		t.Errorf("content mismatch file \"%v\"", fullpath)
+	}
+}
+
 func TestServeFUSE_DoNothing(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
@@ -105,13 +129,7 @@ func TestServeFUSE_WriteReadFile(t *testing.T) {
 			t.Errorf("failed to write file: %v", err)
 		}
 
-		b, err := ioutil.ReadFile(path.Join(mountpoint, "hello.txt"))
-		if err != nil {
-			t.Errorf("Failed to read file: %v", err)
-		}
-		if !bytes.Equal(tu.HelloWorld, b) {
-			t.Errorf("Content mismatch!: %v", err)
-		}
+		assertFileContents(t, path.Join(mountpoint, "hello.txt"), tu.HelloWorld)
 	})
 
 	// Check that it persists
@@ -538,9 +556,35 @@ func TestServeFUSE_Chtimes(t *testing.T) {
 	})
 }
 
-/*
 func TestServeFUSE_ReadOnly(t *testing.T) {
 	maybeSkipTest(t)
-	fs := fusetestFileSystem()
+	env := newtestenv()
+	wfs := env.NewFS()
 
-}*/
+	fuga := []byte("fuga")
+	if err := wfs.WriteFile("/hoge.txt", fuga, 0666); err != nil {
+		t.Errorf("WriteFile: %v", err)
+		return
+	}
+	phello := []byte("p :hello")
+	if err := wfs.WriteFile("/foo.rb", phello, 0755); err != nil {
+		t.Errorf("WriteFile: %v", err)
+		return
+	}
+
+	wfs.Sync()
+
+	rfs := env.ReadOnlyFS()
+	fusetestCommon(t, rfs, func(mountpoint string) {
+		assertFileContents(t, path.Join(mountpoint, "hoge.txt"), fuga)
+		assertFileContents(t, path.Join(mountpoint, "foo.rb"), phello)
+
+		_, err := os.OpenFile(path.Join(mountpoint, "shouldfail.txt"), os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
+			t.Errorf("Unexpected WriteFile success on ReadOnlyFS")
+		}
+		if err != util.EACCES {
+			t.Errorf("Expected EACCES, Got %v", err)
+		}
+	})
+}
