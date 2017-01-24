@@ -16,12 +16,13 @@ import (
 	bfuse "github.com/nyaxt/fuse"
 
 	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/fuse"
 	"github.com/nyaxt/otaru/inodedb"
-	. "github.com/nyaxt/otaru/testutils"
+	tu "github.com/nyaxt/otaru/testutils"
 )
 
-func init() { EnsureLogger() }
+func init() { tu.EnsureLogger() }
 
 func maybeSkipTest(t *testing.T) {
 	if os.Getenv("SKIP_FUSE_TEST") == "1" {
@@ -29,19 +30,31 @@ func maybeSkipTest(t *testing.T) {
 	}
 }
 
-func fusetestFileSystem() *otaru.FileSystem {
-	sio := inodedb.NewSimpleDBStateSnapshotIO()
-	txio := inodedb.NewSimpleDBTransactionLogIO()
+type testfs struct {
+	sio  *inodedb.SimpleDBStateSnapshotIO
+	txio *inodedb.SimpleDBTransactionLogIO
+	bs   *blobstore.FileBlobStore
+}
 
-	idb, err := inodedb.NewEmptyDB(sio, txio)
+func newtestfs() *testfs {
+	return &testfs{
+		sio:  inodedb.NewSimpleDBStateSnapshotIO(),
+		txio: inodedb.NewSimpleDBTransactionLogIO(),
+		bs:   tu.TestFileBlobStore(),
+	}
+}
+
+func (tfs *testfs) newFS() *otaru.FileSystem {
+	idb, err := inodedb.NewEmptyDB(tfs.sio, tfs.txio)
 	if err != nil {
 		log.Fatalf("NewEmptyDB failed: %v", err)
 	}
 
-	bs := TestFileBlobStore()
-	fs := otaru.NewFileSystem(idb, bs, TestCipher())
+	return otaru.NewFileSystem(idb, tfs.bs, tu.TestCipher())
+}
 
-	return fs
+func fusetestFileSystem() *otaru.FileSystem {
+	return newtestfs().newFS()
 }
 
 func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string)) {
@@ -88,7 +101,7 @@ func TestServeFUSE_WriteReadFile(t *testing.T) {
 	fs := fusetestFileSystem()
 
 	fusetestCommon(t, fs, func(mountpoint string) {
-		if err := ioutil.WriteFile(path.Join(mountpoint, "hello.txt"), HelloWorld, 0644); err != nil {
+		if err := ioutil.WriteFile(path.Join(mountpoint, "hello.txt"), tu.HelloWorld, 0644); err != nil {
 			t.Errorf("failed to write file: %v", err)
 		}
 
@@ -96,7 +109,7 @@ func TestServeFUSE_WriteReadFile(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to read file: %v", err)
 		}
-		if !bytes.Equal(HelloWorld, b) {
+		if !bytes.Equal(tu.HelloWorld, b) {
 			t.Errorf("Content mismatch!: %v", err)
 		}
 	})
@@ -107,7 +120,7 @@ func TestServeFUSE_WriteReadFile(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to read file: %v", err)
 		}
-		if !bytes.Equal(HelloWorld, b) {
+		if !bytes.Equal(tu.HelloWorld, b) {
 			t.Errorf("Content mismatch!: %v", b)
 		}
 	})
@@ -119,10 +132,10 @@ func TestServeFUSE_WriteAppend(t *testing.T) {
 
 	var exp bytes.Buffer
 	fusetestCommon(t, fs, func(mountpoint string) {
-		if err := ioutil.WriteFile(path.Join(mountpoint, "foobar.log"), HelloWorld, 0644); err != nil {
+		if err := ioutil.WriteFile(path.Join(mountpoint, "foobar.log"), tu.HelloWorld, 0644); err != nil {
 			t.Errorf("failed to write file: %v", err)
 		}
-		exp.Write(HelloWorld)
+		exp.Write(tu.HelloWorld)
 	})
 	fusetestCommon(t, fs, func(mountpoint string) {
 		// According to POSIX:
@@ -166,7 +179,7 @@ func TestServeFUSE_RenameFile(t *testing.T) {
 		before := path.Join(mountpoint, "aaa.txt")
 		after := path.Join(mountpoint, "bbb.txt")
 
-		if err := ioutil.WriteFile(before, HelloWorld, 0644); err != nil {
+		if err := ioutil.WriteFile(before, tu.HelloWorld, 0644); err != nil {
 			t.Errorf("failed to write file: %v", err)
 		}
 
@@ -178,7 +191,7 @@ func TestServeFUSE_RenameFile(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to read file: %v", err)
 		}
-		if !bytes.Equal(HelloWorld, b) {
+		if !bytes.Equal(tu.HelloWorld, b) {
 			t.Errorf("Content mismatch!: %v", err)
 		}
 	})
@@ -192,10 +205,10 @@ func TestServeFUSE_RenameFile_Overwrite(t *testing.T) {
 		src := path.Join(mountpoint, "aaa.txt")
 		tgt := path.Join(mountpoint, "bbb.txt")
 
-		if err := ioutil.WriteFile(src, HelloWorld, 0644); err != nil {
+		if err := ioutil.WriteFile(src, tu.HelloWorld, 0644); err != nil {
 			t.Errorf("failed to write file: %v", err)
 		}
-		if err := ioutil.WriteFile(tgt, HogeFugaPiyo, 0644); err != nil {
+		if err := ioutil.WriteFile(tgt, tu.HogeFugaPiyo, 0644); err != nil {
 			t.Errorf("failed to write file: %v", err)
 		}
 
@@ -207,7 +220,7 @@ func TestServeFUSE_RenameFile_Overwrite(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to read file: %v", err)
 		}
-		if !bytes.Equal(HelloWorld, b) {
+		if !bytes.Equal(tu.HelloWorld, b) {
 			t.Errorf("Content mismatch!: %v", err)
 		}
 	})
@@ -220,7 +233,7 @@ func TestServeFUSE_RemoveFile(t *testing.T) {
 	fusetestCommon(t, fs, func(mountpoint string) {
 		filepath := path.Join(mountpoint, "hello.txt")
 
-		if err := ioutil.WriteFile(filepath, HelloWorld, 0644); err != nil {
+		if err := ioutil.WriteFile(filepath, tu.HelloWorld, 0644); err != nil {
 			t.Errorf("failed to write file: %v", err)
 		}
 
@@ -254,7 +267,7 @@ func TestServeFUSE_Mkdir(t *testing.T) {
 		}
 
 		filepath := path.Join(dirpath, "otaru.txt")
-		if err := ioutil.WriteFile(filepath, HelloWorld, 0644); err != nil {
+		if err := ioutil.WriteFile(filepath, tu.HelloWorld, 0644); err != nil {
 			t.Errorf("failed to write file: %v", err)
 		}
 	})
@@ -265,7 +278,7 @@ func TestServeFUSE_Mkdir(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to read file: %v", err)
 		}
-		if !bytes.Equal(HelloWorld, b) {
+		if !bytes.Equal(tu.HelloWorld, b) {
 			t.Errorf("Content mismatch!: %v", err)
 		}
 	})
@@ -289,7 +302,7 @@ func TestServeFUSE_MoveFile(t *testing.T) {
 		before := path.Join(dir1, "aaa.txt")
 		after := path.Join(dir2, "bbb.txt")
 
-		if err := ioutil.WriteFile(before, HelloWorld, 0644); err != nil {
+		if err := ioutil.WriteFile(before, tu.HelloWorld, 0644); err != nil {
 			t.Errorf("failed to write file: %v", err)
 		}
 
@@ -301,7 +314,7 @@ func TestServeFUSE_MoveFile(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to read file: %v", err)
 		}
-		if !bytes.Equal(HelloWorld, b) {
+		if !bytes.Equal(tu.HelloWorld, b) {
 			t.Errorf("Content mismatch!: %v", err)
 		}
 	})
@@ -318,7 +331,7 @@ func TestServeFUSE_Rmdir(t *testing.T) {
 		}
 
 		filepath := path.Join(dirpath, "otaru.txt")
-		if err := ioutil.WriteFile(filepath, HelloWorld, 0644); err != nil {
+		if err := ioutil.WriteFile(filepath, tu.HelloWorld, 0644); err != nil {
 			t.Errorf("failed to write file: %v", err)
 		}
 
@@ -353,7 +366,7 @@ func TestServeFUSE_LsCmd(t *testing.T) {
 		}
 
 		filepath := path.Join(dirpath, "otaru.txt")
-		if err := ioutil.WriteFile(filepath, HelloWorld, 0644); err != nil {
+		if err := ioutil.WriteFile(filepath, tu.HelloWorld, 0644); err != nil {
 			t.Errorf("failed to write file: %v", err)
 			return
 		}
@@ -407,7 +420,7 @@ func TestServeFUSE_Chmod(t *testing.T) {
 		}
 
 		filepath := path.Join(dirpath, "otaru.txt")
-		if err := ioutil.WriteFile(filepath, HelloWorld, 0644); err != nil {
+		if err := ioutil.WriteFile(filepath, tu.HelloWorld, 0644); err != nil {
 			t.Errorf("failed to write file: %v", err)
 			return
 		}
@@ -485,7 +498,7 @@ func TestServeFUSE_Chtimes(t *testing.T) {
 		}
 
 		filepath := path.Join(dirpath, "otaru.txt")
-		if err := ioutil.WriteFile(filepath, HelloWorld, 0644); err != nil {
+		if err := ioutil.WriteFile(filepath, tu.HelloWorld, 0644); err != nil {
 			t.Errorf("failed to write file: %v", err)
 			return
 		}
@@ -524,3 +537,10 @@ func TestServeFUSE_Chtimes(t *testing.T) {
 		}
 	})
 }
+
+/*
+func TestServeFUSE_ReadOnly(t *testing.T) {
+	maybeSkipTest(t)
+	fs := fusetestFileSystem()
+
+}*/
