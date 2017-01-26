@@ -47,9 +47,7 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileM
 	id, ok := entries[basename]
 	if !ok {
 		if flags|os.O_CREATE != 0 {
-			// FIXME: apply perm
-
-			id, err = fs.CreateFile(dirID, basename, 0666, 0, 0, time.Now())
+			id, err = fs.CreateFile(dirID, basename, uint16(perm), 0, 0, time.Now())
 			if err != nil {
 				return nil, err
 			}
@@ -62,7 +60,6 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileM
 		panic("inode id must != 0 here!")
 	}
 
-	// FIXME: handle flag
 	fh, err := fs.OpenFile(id, flags)
 	if err != nil {
 		return nil, err
@@ -72,7 +69,7 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileM
 }
 
 func (fs *FileSystem) WriteFile(fullpath string, content []byte, perm os.FileMode) error {
-	h, err := fs.OpenFileFullPath(fullpath, fl.O_RDWRCREATE, 0666)
+	h, err := fs.OpenFileFullPath(fullpath, fl.O_RDWRCREATE, perm)
 	if err != nil {
 		return err
 	}

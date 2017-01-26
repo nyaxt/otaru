@@ -578,12 +578,39 @@ func TestServeFUSE_ReadOnly(t *testing.T) {
 		assertFileContents(t, path.Join(mountpoint, "hoge.txt"), fuga)
 		assertFileContents(t, path.Join(mountpoint, "foo.rb"), phello)
 
+		// Create should fail
 		_, err := syscall.Open(path.Join(mountpoint, "shouldfail.txt"), os.O_WRONLY|os.O_CREATE, 0644)
 		if err == nil {
-			t.Errorf("Unexpected WriteFile success on ReadOnlyFS")
+			t.Errorf("Unexpected Create success on ReadOnlyFS")
 		}
 		if err != syscall.Errno(syscall.EACCES) {
 			t.Errorf("Expected EACCES, Got %v", err)
 		}
+
+		// Open write should fail
+		_, err = syscall.Open(path.Join(mountpoint, "hoge.txt"), os.O_WRONLY, 0644)
+		if err == nil {
+			t.Errorf("Unexpected Open(write) success on ReadOnlyFS")
+		}
+		if err != syscall.Errno(syscall.EACCES) {
+			t.Errorf("Expected EACCES, Got %v", err)
+		}
+
+		// Stat should return filtered fileperm
+		fi, err := os.Stat(path.Join(mountpoint, "hoge.txt"))
+		if err != nil {
+			t.Errorf("Failed to stat: %v", err)
+		}
+		if fi.Mode() != 0444 {
+			t.Errorf("Unexpected mode: %o", fi.Mode())
+		}
+		fi, err = os.Stat(path.Join(mountpoint, "foo.rb"))
+		if err != nil {
+			t.Errorf("Failed to stat: %v", err)
+		}
+		if fi.Mode() != 0555 {
+			t.Errorf("Unexpected mode: %o", fi.Mode())
+		}
+
 	})
 }
