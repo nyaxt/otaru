@@ -633,5 +633,14 @@ func TestServeFUSE_ReadOnly(t *testing.T) {
 		if err != syscall.Errno(syscall.EACCES) {
 			t.Errorf("Expected EACCES, Got %v", err)
 		}
+
+		// Mkdir should fail
+		err = syscall.Mkdir(path.Join(mountpoint, "newdir"), 0755)
+		if err == nil {
+			t.Errorf("Unexpected Mkdir success on ReadOnlyFS")
+		}
+		if err != syscall.Errno(syscall.EACCES) {
+			t.Errorf("Expected EACCES, Got %v", err)
+		}
 	})
 }

@@ -335,7 +335,6 @@ func (db *DB) QueryNode(id ID, tryLock bool) (NodeView, NodeLock, error) {
 
 func (db *DB) LockNode(id ID) (NodeLock, error) {
 	if db.readOnly {
-		logger.Warningf(mylog, "Lock node readonlly")
 		return NodeLock{}, util.EACCES
 	}
 
