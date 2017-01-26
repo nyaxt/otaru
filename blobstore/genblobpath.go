@@ -20,7 +20,7 @@ func GenerateNewBlobPath(bs RandomAccessBlobStore) (string, error) {
 
 		bh, err := bs.Open(candidate, flags.O_RDONLY)
 		if err != nil {
-			if err == ENOENT {
+			if err == util.ENOENT {
 				return candidate, nil
 			}
 			return "", err

@@ -182,8 +182,8 @@ func TestDBTransactionIO_ReadOnly(t *testing.T) {
 		t.Errorf("Unexpected DeleteTransactions success")
 		return
 	}
-	if err != util.EPERM {
-		t.Errorf("Expected EPERM. got %v", err)
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
 		return
 	}
 
@@ -193,8 +193,8 @@ func TestDBTransactionIO_ReadOnly(t *testing.T) {
 		t.Errorf("Unexpected AppendTransaction success")
 		return
 	}
-	if err != util.EPERM {
-		t.Errorf("Expected EPERM. got %v", err)
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
 		return
 	}
 
@@ -203,8 +203,8 @@ func TestDBTransactionIO_ReadOnly(t *testing.T) {
 		t.Errorf("Unexpected Sync success")
 		return
 	}
-	if err != util.EPERM {
-		t.Errorf("Expected EPERM. got %v", err)
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
 		return
 	}
 

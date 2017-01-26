@@ -280,7 +280,7 @@ func (mgr *CachedBlobEntriesManager) closeOldCacheEntriesIfNeeded() error {
 
 	if len(mgr.entries) > maxEntries {
 		logger.Infof(mylog, "closeOldCacheEntriesIfNeeded giving up. Couldn't reduce to <maxEntries. Took %s.", time.Since(start))
-		return ENFILE // give up
+		return util.ENFILE // give up
 	}
 
 	logger.Infof(mylog, "closeOldCacheEntriesIfNeeded finished. Took %s.", time.Since(start))

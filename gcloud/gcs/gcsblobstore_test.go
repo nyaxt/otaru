@@ -126,8 +126,8 @@ func TestGCSBlobStore_ReadOnly(t *testing.T) {
 		t.Errorf("Unexpected RemoveBlob success.")
 		return
 	}
-	if err != util.EPERM {
-		t.Errorf("Expected EPERM. got %v", err)
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
 		return
 	}
 
@@ -137,8 +137,8 @@ func TestGCSBlobStore_ReadOnly(t *testing.T) {
 		t.Errorf("Unexpected OpenWriter success.")
 		return
 	}
-	if err != util.EPERM {
-		t.Errorf("Expected EPERM. got %v", err)
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
 		return
 	}
 

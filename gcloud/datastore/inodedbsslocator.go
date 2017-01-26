@@ -12,6 +12,7 @@ import (
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/metadata"
+	"github.com/nyaxt/otaru/util"
 )
 
 var sslog = logger.Registry().Category("inodedbsslocator")
@@ -110,7 +111,7 @@ func (*INodeDBSSLocator) GenerateBlobpath() string {
 
 func (loc *INodeDBSSLocator) Put(blobpath string, txid int64) error {
 	if !oflags.IsWriteAllowed(loc.flags) {
-		return EPERM
+		return util.EACCES
 	}
 
 	return gcutil.RetryIfNeeded(func() error {
@@ -120,7 +121,7 @@ func (loc *INodeDBSSLocator) Put(blobpath string, txid int64) error {
 
 func (loc *INodeDBSSLocator) DeleteOld(ctx context.Context, threshold int, dryRun bool) ([]string, error) {
 	if !oflags.IsWriteAllowed(loc.flags) {
-		return nil, EPERM
+		return nil, util.EACCES
 	}
 
 	start := time.Now()

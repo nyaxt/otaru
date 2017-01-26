@@ -3,7 +3,6 @@ package cachedblobstore_test
 import (
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"sort"
 	"sync"
@@ -519,7 +518,7 @@ func TestCachedBlobStore_CancelInvalidatingBlobsOnExit(t *testing.T) {
 	// FIXME: Wait for Close(abandonAndClose) goroutine to run.
 	time.Sleep(100 * time.Millisecond)
 
-	if _, err := cachebs.OpenReader("backendonly"); !os.IsNotExist(err) {
+	if _, err := cachebs.OpenReader("backendonly"); !util.IsNotExist(err) {
 		t.Errorf("invalidate failed blob is still cached! Err: %v", err)
 	}
 }
@@ -582,7 +581,7 @@ func TestCachedBlobStore_CancelInvalidatingBlobsByClose(t *testing.T) {
 	// FIXME: Wait for Close(abandonAndClose) goroutine to run.
 	time.Sleep(100 * time.Millisecond)
 
-	if _, err := cachebs.OpenReader("backendonly"); !os.IsNotExist(err) {
+	if _, err := cachebs.OpenReader("backendonly"); !util.IsNotExist(err) {
 		t.Errorf("invalidate cancelled blob is still cached!")
 	}
 }
@@ -818,8 +817,8 @@ func TestCachedBlobStore_ReadOnly(t *testing.T) {
 		t.Errorf("Unexpected write succeed.")
 		return
 	}
-	if err != util.EPERM {
-		t.Errorf("Expected EPERM error. Got: %v", err)
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES error. Got: %v", err)
 		return
 	}
 
@@ -829,8 +828,8 @@ func TestCachedBlobStore_ReadOnly(t *testing.T) {
 		t.Errorf("Unexpected write succeed.")
 		return
 	}
-	if err != util.EPERM {
-		t.Errorf("Expected EPERM error. Got: %v", err)
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES error. Got: %v", err)
 		return
 	}
 
@@ -840,8 +839,8 @@ func TestCachedBlobStore_ReadOnly(t *testing.T) {
 		t.Errorf("Unexpected remove succeed.")
 		return
 	}
-	if err != util.EPERM {
-		t.Errorf("Expected EPERM error. Got: %v", err)
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES error. Got: %v", err)
 		return
 	}
 

@@ -2,7 +2,6 @@ package chunkstore
 
 import (
 	"fmt"
-	"syscall"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
@@ -11,8 +10,6 @@ import (
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
-
-const EPERM = syscall.Errno(syscall.EPERM)
 
 var ChunkSplitSize int64 = 256 * 1024 * 1024 // 256MB
 
@@ -206,7 +203,7 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 	logger.Debugf(mylog, "PWrite: offset=%d, len=%d", offset, len(p))
 
 	if !fl.IsReadWriteAllowed(cfio.bs.Flags()) {
-		return EPERM
+		return util.EACCES
 	}
 
 	remo := offset
@@ -336,7 +333,7 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 	}
 
 	if !fl.IsReadAllowed(cfio.bs.Flags()) {
-		return 0, EPERM
+		return 0, util.EACCES
 	}
 
 	// logger.Debugf(mylog, "cs: %v\n", cs)
@@ -389,7 +386,7 @@ func (cfio *ChunkedFileIO) Close() error {
 
 func (cfio *ChunkedFileIO) Truncate(size int64) error {
 	if !fl.IsReadWriteAllowed(cfio.bs.Flags()) {
-		return EPERM
+		return util.EACCES
 	}
 
 	for i := len(cfio.cs) - 1; i >= 0; i-- {

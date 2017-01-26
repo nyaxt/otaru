@@ -5,21 +5,16 @@ import (
 	"io"
 	"os"
 	"path"
-	"syscall"
 	"time"
 
 	"github.com/dustin/go-humanize"
 
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/util"
 )
 
 var mylog = logger.Registry().Category("filebs")
-
-const (
-	ENOENT = syscall.Errno(syscall.ENOENT)
-	EPERM  = syscall.Errno(syscall.EPERM)
-)
 
 type FileBlobHandle struct {
 	Fp *os.File
@@ -107,7 +102,7 @@ func (f *FileBlobStore) Open(blobpath string, flags int) (BlobHandle, error) {
 	fp, err := os.OpenFile(realpath, flags&f.fmask, 0644)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, ENOENT
+			return nil, util.ENOENT
 		}
 		return nil, err
 	}
@@ -120,7 +115,7 @@ func (f *FileBlobStore) Flags() int {
 
 func (f *FileBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 	if !fl.IsWriteAllowed(f.flags) {
-		return nil, EPERM
+		return nil, util.EACCES
 	}
 
 	realpath := path.Join(f.base, blobpath)
@@ -129,14 +124,14 @@ func (f *FileBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 
 func (f *FileBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
 	if !fl.IsReadAllowed(f.flags) {
-		return nil, EPERM
+		return nil, util.EACCES
 	}
 
 	realpath := path.Join(f.base, blobpath)
 	rc, err := os.Open(realpath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, ENOENT
+			return nil, util.ENOENT
 		}
 		return nil, err
 	}
@@ -178,7 +173,7 @@ func (f *FileBlobStore) BlobSize(blobpath string) (int64, error) {
 	fi, err := os.Stat(realpath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return -1, ENOENT
+			return -1, util.ENOENT
 		}
 		return -1, err
 	}
@@ -190,9 +185,16 @@ var _ = BlobRemover(&FileBlobStore{})
 
 func (f *FileBlobStore) RemoveBlob(blobpath string) error {
 	if !fl.IsWriteAllowed(f.flags) {
-		return EPERM
+		return util.EACCES
 	}
-	return os.Remove(path.Join(f.base, blobpath))
+	err := os.Remove(path.Join(f.base, blobpath))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return util.ENOENT
+		}
+		return err
+	}
+	return nil
 }
 
 var _ = TotalSizer(&FileBlobStore{})

@@ -200,8 +200,8 @@ func TestFileBlobStore_ReadOnly(t *testing.T) {
 		t.Errorf("Unexpected RemoveBlob success.")
 		return
 	}
-	if err != util.EPERM {
-		t.Errorf("Expected EPERM. got %v", err)
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
 		return
 	}
 
@@ -226,16 +226,16 @@ func TestFileBlobStore_ReadOnly(t *testing.T) {
 	if err == nil {
 		t.Errorf("Unexpected OpenWriter on ro fbs success")
 	}
-	if err != util.EPERM {
-		t.Errorf("Expected EPERM. got %v", err)
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
 		return
 	}
 	_, err = rbs.OpenWriter("safe")
 	if err == nil {
 		t.Errorf("Unexpected OpenWriter on ro fbs success")
 	}
-	if err != util.EPERM {
-		t.Errorf("Expected EPERM. got %v", err)
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
 		return
 	}
 }

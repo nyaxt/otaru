@@ -36,7 +36,7 @@ func TestSS_SaveRestore(t *testing.T) {
 		return
 	}
 
-	_, err = inodedb.NewDB(sio, inodedb.NewSimpleDBTransactionLogIO())
+	_, err = inodedb.NewDB(sio, inodedb.NewSimpleDBTransactionLogIO(), false)
 	if err != nil {
 		t.Errorf("Failed to NewDB: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
 		}
 	}
 
-	if _, err := inodedb.NewDB(sio, txlogio); err != nil {
+	if _, err := inodedb.NewDB(sio, txlogio, false); err != nil {
 		t.Errorf("Failed to NewDB (uncorrupted): %v", err)
 		return
 	}
@@ -124,7 +124,7 @@ func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
 	}
 
 	{
-		_, err = inodedb.NewDB(sio, txlogio)
+		_, err = inodedb.NewDB(sio, txlogio, false)
 		if err != nil {
 			t.Errorf("Failed to NewDB (corrupted): %v", err)
 			return
@@ -137,7 +137,7 @@ func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
 	}
 
 	{
-		_, err = inodedb.NewDB(sio, txlogio)
+		_, err = inodedb.NewDB(sio, txlogio, false)
 		if err != nil {
 			t.Errorf("Failed to NewDB (ss blob removed): %v", err)
 			return
@@ -193,7 +193,7 @@ func TestSS_DeleteOldSnapshots(t *testing.T) {
 	}
 
 	{
-		db, err := inodedb.NewDB(sio, inodedb.NewSimpleDBTransactionLogIO())
+		db, err := inodedb.NewDB(sio, inodedb.NewSimpleDBTransactionLogIO(), false)
 		if err != nil {
 			t.Errorf("Failed to NewDB: %v", err)
 			return

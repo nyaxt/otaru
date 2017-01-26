@@ -54,7 +54,7 @@ type Writer struct {
 
 func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 	if !oflags.IsWriteAllowed(bs.flags) {
-		return nil, util.EPERM
+		return nil, util.EACCES
 	}
 
 	bs.stats.NumOpenWriter++
@@ -84,7 +84,7 @@ func (bs *GCSBlobStore) tryOpenReaderOnce(blobpath string) (io.ReadCloser, error
 	rc, err := obj.NewReader(context.Background())
 	if err != nil {
 		if err == storage.ErrObjectNotExist {
-			return nil, blobstore.ENOENT
+			return nil, util.ENOENT
 		}
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (bs *GCSBlobStore) BlobSize(blobpath string) (int64, error) {
 	attrs, err := object.Attrs(context.Background())
 	if err != nil {
 		if err == storage.ErrObjectNotExist {
-			return -1, blobstore.ENOENT
+			return -1, util.ENOENT
 		}
 		return -1, err
 	}
@@ -146,7 +146,7 @@ var _ = blobstore.BlobRemover(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
 	if !oflags.IsWriteAllowed(bs.flags) {
-		return util.EPERM
+		return util.EACCES
 	}
 
 	bs.stats.NumRemoveBlob++

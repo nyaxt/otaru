@@ -3,8 +3,6 @@ package cachedblobstore
 import (
 	"fmt"
 	"io"
-	"os"
-	"syscall"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -20,11 +18,6 @@ import (
 )
 
 var mylog = logger.Registry().Category("cachedbs")
-
-const (
-	EPERM  = syscall.Errno(syscall.EPERM)
-	ENFILE = syscall.Errno(syscall.ENFILE)
-)
 
 type CachedBlobStoreStats struct {
 	NumWritebackOnClose int `json:num_writeback_on_close`
@@ -150,7 +143,7 @@ func (cbs *CachedBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
 
 func (cbs *CachedBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 	if !fl.IsWriteAllowed(cbs.flags) {
-		return nil, EPERM
+		return nil, util.EACCES
 	}
 
 	bh, err := cbs.Open(blobpath, fl.O_WRONLY|fl.O_CREATE)
@@ -177,7 +170,7 @@ func (cbs *CachedBlobStore) Flags() int {
 
 func (cbs *CachedBlobStore) Open(blobpath string, flags int) (blobstore.BlobHandle, error) {
 	if !fl.IsWriteAllowed(cbs.flags) && fl.IsWriteAllowed(flags) {
-		return nil, EPERM
+		return nil, util.EACCES
 	}
 
 	cbs.usagestats.ObserveOpen(blobpath, flags)
@@ -237,18 +230,18 @@ func (cbs *CachedBlobStore) RemoveBlob(blobpath string) error {
 		return fmt.Errorf("Cachebs \"%v\" doesn't support removing blobs.", util.TryGetImplName(cbs.cachebs))
 	}
 	if !fl.IsWriteAllowed(cbs.flags) {
-		return EPERM
+		return util.EACCES
 	}
 
 	if err := cbs.entriesmgr.RemoveBlob(blobpath); err != nil {
 		return err
 	}
 	cbs.bever.Delete(blobpath)
-	if err := backendrm.RemoveBlob(blobpath); err != nil && !os.IsNotExist(err) {
+	if err := backendrm.RemoveBlob(blobpath); err != nil && !util.IsNotExist(err) {
 		return fmt.Errorf("Backendbs RemoveBlob failed: %v", err)
 	}
 	cbs.usagestats.ObserveRemoveBlob(blobpath)
-	if err := cacherm.RemoveBlob(blobpath); err != nil && !os.IsNotExist(err) {
+	if err := cacherm.RemoveBlob(blobpath); err != nil && !util.IsNotExist(err) {
 		return fmt.Errorf("Cachebs RemoveBlob failed: %v", err)
 	}
 
@@ -290,7 +283,7 @@ func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, 
 	for _, bp := range bps {
 		size, err := blobsizer.BlobSize(bp)
 		if err != nil {
-			if os.IsNotExist(err) {
+			if util.IsNotExist(err) {
 				logger.Infof(mylog, "Attempted to drop blob cache \"%s\", but not found. Maybe it's already removed.", bp)
 				continue
 			}

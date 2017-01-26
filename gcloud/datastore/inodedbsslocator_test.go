@@ -138,8 +138,8 @@ func TestINodeDBSSLocator_ReadOnly(t *testing.T) {
 		t.Errorf("Unexpected Put success")
 		return
 	}
-	if err != util.EPERM {
-		t.Errorf("Expected EPERM. got %v", err)
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
 		return
 	}
 
@@ -149,8 +149,8 @@ func TestINodeDBSSLocator_ReadOnly(t *testing.T) {
 		t.Errorf("Unexpected DeleteAll success")
 		return
 	}
-	if err != util.EPERM {
-		t.Errorf("Expected EPERM. got %v", err)
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
 		return
 	}
 }

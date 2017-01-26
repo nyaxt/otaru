@@ -184,7 +184,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 			return nil, fmt.Errorf("NewEmptyDB failed: %v", err)
 		}
 	} else {
-		o.IDBBE, err = inodedb.NewDB(o.SIO, o.CTxIO)
+		o.IDBBE, err = inodedb.NewDB(o.SIO, o.CTxIO, cfg.ReadOnly)
 		if err != nil {
 			o.Close()
 			return nil, fmt.Errorf("NewDB failed: %v", err)
