@@ -88,6 +88,7 @@ func (d DirNode) Create(ctx context.Context, req *bfuse.CreateRequest, resp *bfu
 	permmode := uint16(req.Mode &^ req.Umask & os.ModePerm)
 	id, err := d.fs.CreateFile(d.id, req.Name, permmode, req.Uid, req.Gid, time.Now())
 	if err != nil {
+		logger.Warningf(mylog, "Create err: %v", err)
 		return nil, nil, err
 	}
 

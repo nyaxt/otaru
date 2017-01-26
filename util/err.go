@@ -1,14 +1,28 @@
 package util
 
-import "syscall"
+import (
+	"syscall"
+
+	"github.com/nyaxt/fuse"
+)
+
+type Error syscall.Errno
 
 const (
-	EACCES    = syscall.Errno(syscall.EACCES)
-	EBADF     = syscall.Errno(syscall.EBADF)
-	EEXIST    = syscall.Errno(syscall.EEXIST)
-	EISDIR    = syscall.Errno(syscall.EISDIR)
-	ENOENT    = syscall.Errno(syscall.ENOENT)
-	ENOTDIR   = syscall.Errno(syscall.ENOTDIR)
-	ENOTEMPTY = syscall.Errno(syscall.ENOTEMPTY)
-	EPERM     = syscall.Errno(syscall.EPERM)
+	EACCES    = Error(syscall.EACCES)
+	EBADF     = Error(syscall.EBADF)
+	EEXIST    = Error(syscall.EEXIST)
+	EISDIR    = Error(syscall.EISDIR)
+	ENOENT    = Error(syscall.ENOENT)
+	ENOTDIR   = Error(syscall.ENOTDIR)
+	ENOTEMPTY = Error(syscall.ENOTEMPTY)
+	EPERM     = Error(syscall.EPERM)
 )
+
+func (e Error) Errno() fuse.Errno {
+	return fuse.Errno(e)
+}
+
+func (e Error) Error() string {
+	return syscall.Errno(e).Error()
+}

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/nyaxt/otaru/util"
 )
 
 type DBOperation interface {
@@ -103,19 +105,19 @@ func (op *HardLinkOp) Apply(s *DBState) error {
 
 	n, ok := s.nodes[op.ID]
 	if !ok {
-		return ENOENT
+		return util.ENOENT
 	}
 	dn, ok := n.(*DirNode)
 	if !ok {
-		return ENOTDIR
+		return util.ENOTDIR
 	}
 
 	if _, ok := s.nodes[op.TargetID]; !ok {
-		return ENOENT
+		return util.ENOENT
 	}
 
 	if _, ok := dn.Entries[op.Name]; ok {
-		return EEXIST
+		return util.EEXIST
 	}
 	dn.Entries[op.Name] = op.TargetID
 	dn.ModifiedT = time.Now()
@@ -136,7 +138,7 @@ func (op *UpdateChunksOp) Apply(s *DBState) error {
 
 	n, ok := s.nodes[op.ID]
 	if !ok {
-		return ENOENT
+		return util.ENOENT
 	}
 	fn, ok := n.(*FileNode)
 	if !ok {
@@ -160,7 +162,7 @@ func (op *UpdateSizeOp) Apply(s *DBState) error {
 
 	n, ok := s.nodes[op.ID]
 	if !ok {
-		return ENOENT
+		return util.ENOENT
 	}
 	fn, ok := n.(*FileNode)
 	if !ok {
@@ -181,7 +183,7 @@ type UpdateUidOp struct {
 func (op *UpdateUidOp) Apply(s *DBState) error {
 	n, ok := s.nodes[op.ID]
 	if !ok {
-		return ENOENT
+		return util.ENOENT
 	}
 	switch n := n.(type) {
 	case *FileNode:
@@ -203,7 +205,7 @@ type UpdateGidOp struct {
 func (op *UpdateGidOp) Apply(s *DBState) error {
 	n, ok := s.nodes[op.ID]
 	if !ok {
-		return ENOENT
+		return util.ENOENT
 	}
 	switch n := n.(type) {
 	case *FileNode:
@@ -225,7 +227,7 @@ type UpdatePermModeOp struct {
 func (op *UpdatePermModeOp) Apply(s *DBState) error {
 	n, ok := s.nodes[op.ID]
 	if !ok {
-		return ENOENT
+		return util.ENOENT
 	}
 
 	switch n := n.(type) {
@@ -248,7 +250,7 @@ type UpdateModifiedTOp struct {
 func (op *UpdateModifiedTOp) Apply(s *DBState) error {
 	n, ok := s.nodes[op.ID]
 	if !ok {
-		return ENOENT
+		return util.ENOENT
 	}
 	switch n := n.(type) {
 	case *FileNode:
@@ -279,25 +281,25 @@ func (op *RenameOp) Apply(s *DBState) error {
 
 	srcn, ok := s.nodes[op.SrcDirID]
 	if !ok {
-		return ENOENT
+		return util.ENOENT
 	}
 	dstn, ok := s.nodes[op.DstDirID]
 	if !ok {
-		return ENOENT
+		return util.ENOENT
 	}
 
 	srcdn, ok := srcn.(*DirNode)
 	if !ok {
-		return ENOTDIR
+		return util.ENOTDIR
 	}
 	dstdn, ok := dstn.(*DirNode)
 	if !ok {
-		return ENOTDIR
+		return util.ENOTDIR
 	}
 
 	id, ok := srcdn.Entries[op.SrcName]
 	if !ok {
-		return ENOENT
+		return util.ENOENT
 	}
 
 	if srcdn == dstdn && op.SrcName == op.DstName {
@@ -333,21 +335,21 @@ func (op *RemoveOp) Apply(s *DBState) error {
 
 	n, ok := s.nodes[op.ID]
 	if !ok {
-		return ENOENT
+		return util.ENOENT
 	}
 	dn, ok := n.(*DirNode)
 	if !ok {
-		return ENOTDIR
+		return util.ENOTDIR
 	}
 
 	tgtid, ok := dn.Entries[op.Name]
 	if !ok {
-		return ENOENT
+		return util.ENOENT
 	}
 	if tgtnode, ok := s.nodes[tgtid]; ok {
 		if tgtdirnode, ok := tgtnode.(*DirNode); ok {
 			if len(tgtdirnode.Entries) != 0 {
-				return ENOTEMPTY
+				return util.ENOTEMPTY
 			}
 		}
 	}

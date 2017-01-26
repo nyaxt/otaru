@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru"
-	oflags "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
 
@@ -47,35 +46,6 @@ func (n FileNode) Attr(ctx context.Context, a *bfuse.Attr) error {
 	a.Uid = attr.Uid
 	a.Gid = attr.Gid
 	return nil
-}
-
-func Bazil2OtaruFlags(bf bfuse.OpenFlags) int {
-	ret := 0
-	if bf.IsReadOnly() {
-		ret = oflags.O_RDONLY
-	} else if bf.IsWriteOnly() {
-		ret = oflags.O_WRONLY
-	} else if bf.IsReadWrite() {
-		ret = oflags.O_RDWR
-	}
-
-	if bf&bfuse.OpenAppend != 0 {
-		ret |= oflags.O_APPEND
-	}
-	if bf&bfuse.OpenCreate != 0 {
-		ret |= oflags.O_CREATE
-	}
-	if bf&bfuse.OpenExclusive != 0 {
-		ret |= oflags.O_EXCL
-	}
-	if bf&bfuse.OpenSync != 0 {
-		logger.Criticalf(mylog, "FIXME: OpenSync not supported yet !!!!!!!!!!!")
-	}
-	if bf&bfuse.OpenTruncate != 0 {
-		ret |= oflags.O_TRUNCATE
-	}
-
-	return ret
 }
 
 func (n FileNode) Getattr(ctx context.Context, req *bfuse.GetattrRequest, resp *bfuse.GetattrResponse) error {

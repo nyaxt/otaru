@@ -21,7 +21,6 @@ import (
 	"github.com/nyaxt/otaru/fuse"
 	"github.com/nyaxt/otaru/inodedb"
 	tu "github.com/nyaxt/otaru/testutils"
-	"github.com/nyaxt/otaru/util"
 )
 
 func init() { tu.EnsureLogger() }
@@ -59,7 +58,7 @@ func (tfs *testenv) ReadOnlyFS() *otaru.FileSystem {
 	tfs.txio.SetReadOnly(true)
 	tfs.bs.SetFlags(fl.O_RDONLY)
 
-	idb, err := inodedb.NewDB(tfs.sio, tfs.txio)
+	idb, err := inodedb.NewDB(tfs.sio, tfs.txio, true)
 	if err != nil {
 		log.Fatalf("NewDB failed: %v", err)
 	}
@@ -579,11 +578,11 @@ func TestServeFUSE_ReadOnly(t *testing.T) {
 		assertFileContents(t, path.Join(mountpoint, "hoge.txt"), fuga)
 		assertFileContents(t, path.Join(mountpoint, "foo.rb"), phello)
 
-		_, err := os.OpenFile(path.Join(mountpoint, "shouldfail.txt"), os.O_WRONLY|os.O_CREATE, 0644)
-		if err != nil {
+		_, err := syscall.Open(path.Join(mountpoint, "shouldfail.txt"), os.O_WRONLY|os.O_CREATE, 0644)
+		if err == nil {
 			t.Errorf("Unexpected WriteFile success on ReadOnlyFS")
 		}
-		if err != util.EACCES {
+		if err != syscall.Errno(syscall.EACCES) {
 			t.Errorf("Expected EACCES, Got %v", err)
 		}
 	})
