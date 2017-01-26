@@ -570,6 +570,10 @@ func TestServeFUSE_ReadOnly(t *testing.T) {
 		t.Errorf("WriteFile: %v", err)
 		return
 	}
+	if err := wfs.CreateDirFullPath("/dir", 0755); err != nil {
+		t.Errorf("CreateDirFullPath: %v", err)
+		return
+	}
 
 	wfs.Sync()
 
@@ -612,5 +616,22 @@ func TestServeFUSE_ReadOnly(t *testing.T) {
 			t.Errorf("Unexpected mode: %o", fi.Mode())
 		}
 
+		// Unlink should fail
+		err = syscall.Unlink(path.Join(mountpoint, "hoge.txt"))
+		if err == nil {
+			t.Errorf("Unexpected Unlink success on ReadOnlyFS")
+		}
+		if err != syscall.Errno(syscall.EACCES) {
+			t.Errorf("Expected EACCES, Got %v", err)
+		}
+
+		// Rmdir should fail
+		err = syscall.Rmdir(path.Join(mountpoint, "dir"))
+		if err == nil {
+			t.Errorf("Unexpected Rmdir success on ReadOnlyFS")
+		}
+		if err != syscall.Errno(syscall.EACCES) {
+			t.Errorf("Expected EACCES, Got %v", err)
+		}
 	})
 }

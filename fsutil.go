@@ -77,3 +77,18 @@ func (fs *FileSystem) WriteFile(fullpath string, content []byte, perm os.FileMod
 
 	return h.PWrite(content, 0)
 }
+
+func (fs *FileSystem) CreateDirFullPath(fullpath string, permmode os.FileMode) error {
+	parent := filepath.Dir(fullpath)
+	id, err := fs.FindDirFullPath(parent)
+	if err != nil {
+		return fmt.Errorf("Failed to find parent \"%s\": %v", parent, err)
+	}
+
+	name := filepath.Base(fullpath)
+	_, err = fs.CreateDir(id, name, uint16(permmode), 0, 0, time.Now())
+	if err != nil {
+		return fmt.Errorf("CreateDir err: %v", err)
+	}
+	return nil
+}
