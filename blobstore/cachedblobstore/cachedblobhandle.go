@@ -14,7 +14,7 @@ func (bh *CachedBlobHandle) Flags() int { return bh.flags }
 
 func (bh *CachedBlobHandle) PRead(p []byte, offset int64) error {
 	if !fl.IsReadAllowed(bh.flags) {
-		return EPERM
+		return util.EACCES
 	}
 
 	return bh.be.PRead(p, offset)
@@ -22,7 +22,7 @@ func (bh *CachedBlobHandle) PRead(p []byte, offset int64) error {
 
 func (bh *CachedBlobHandle) PWrite(p []byte, offset int64) error {
 	if !fl.IsWriteAllowed(bh.flags) {
-		return EPERM
+		return util.EACCES
 	}
 
 	return bh.be.PWrite(p, offset)
@@ -34,7 +34,7 @@ func (bh *CachedBlobHandle) Size() int64 {
 
 func (bh *CachedBlobHandle) Truncate(newsize int64) error {
 	if !fl.IsWriteAllowed(bh.flags) {
-		return EPERM
+		return util.EACCES
 	}
 
 	return bh.be.Truncate(newsize)

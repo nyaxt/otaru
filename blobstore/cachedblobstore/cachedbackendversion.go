@@ -4,7 +4,6 @@ import (
 	"encoding/gob"
 	"fmt"
 	"sync"
-	"syscall"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/version"
@@ -12,9 +11,8 @@ import (
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/metadata/statesnapshot"
+	"github.com/nyaxt/otaru/util"
 )
-
-const ENOENT = syscall.Errno(syscall.ENOENT)
 
 type CachedBackendVersion struct {
 	backendbs    blobstore.BlobStore
@@ -51,7 +49,7 @@ func (cbv *CachedBackendVersion) Query(blobpath string) (version.Version, error)
 
 	r, err := cbv.backendbs.OpenReader(blobpath)
 	if err != nil {
-		if err == ENOENT {
+		if util.IsNotExist(err) {
 			cbv.cache[blobpath] = 0
 			return 0, nil
 		}

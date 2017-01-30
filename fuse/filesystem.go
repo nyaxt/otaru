@@ -80,8 +80,5 @@ func ServeFUSE(bucketName string, mountpoint string, ofs *otaru.FileSystem, read
 	if err := <-serveC; err != nil {
 		return nil
 	}
-	if err := ofs.Sync(); err != nil {
-		return fmt.Errorf("Failed to Sync fs: %v", err)
-	}
 	return nil
 }

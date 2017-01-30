@@ -32,6 +32,7 @@ type Config struct {
 	CacheLowWatermarkInBytes int64
 	CacheLowWatermark        string
 
+	ReadOnly   bool
 	LocalDebug bool
 
 	Password string

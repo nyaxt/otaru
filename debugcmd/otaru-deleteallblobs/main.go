@@ -19,6 +19,8 @@ import (
 	"github.com/nyaxt/otaru/logger"
 )
 
+const notReadOnly = false
+
 var mylog = logger.Registry().Category("otaru-globallock")
 
 var (
@@ -111,7 +113,7 @@ func main() {
 
 	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, tsrc)
 	l := datastore.NewGlobalLocker(dscfg, "otaru-deleteallblobs", facade.GenHostName())
-	if err := l.Lock(); err != nil {
+	if err := l.Lock(notReadOnly); err != nil {
 		logger.Infof(mylog, "Failed to acquire global lock: %v", err)
 		return
 	}

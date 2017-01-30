@@ -5,11 +5,11 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"os"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/version"
 	"github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/util"
 )
 
 func TestFileBlobStore() *blobstore.FileBlobStore {
@@ -44,7 +44,7 @@ func TestQueryVersion(r io.Reader) (version.Version, error) {
 func AssertBlobVersion(bs blobstore.BlobStore, blobpath string, expected version.Version) error {
 	r, err := bs.OpenReader(blobpath)
 	if err != nil {
-		if expected == 0 && os.IsNotExist(err) {
+		if expected == 0 && util.IsNotExist(err) {
 			return nil
 		}
 		return fmt.Errorf("Failed to open reader: %v", err)

@@ -1,18 +1,28 @@
 package inodedb
 
-import ()
+import (
+	"github.com/nyaxt/otaru/util"
+)
 
 type SimpleDBTransactionLogIO struct {
-	txs []DBTransaction
+	readOnly bool
+	txs      []DBTransaction
 }
 
 var _ = DBTransactionLogIO(&SimpleDBTransactionLogIO{})
 
 func NewSimpleDBTransactionLogIO() *SimpleDBTransactionLogIO {
-	return &SimpleDBTransactionLogIO{}
+	return &SimpleDBTransactionLogIO{readOnly: false}
+}
+
+func (io *SimpleDBTransactionLogIO) SetReadOnly(b bool) {
+	io.readOnly = b
 }
 
 func (io *SimpleDBTransactionLogIO) AppendTransaction(tx DBTransaction) error {
+	if io.readOnly {
+		return util.EACCES
+	}
 	io.txs = append(io.txs, tx)
 	return nil
 }

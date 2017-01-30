@@ -1,13 +1,17 @@
 package blobstore_test
 
 import (
+	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
 	"sort"
 	"testing"
 
+	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/flags"
 	tu "github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/util"
 )
 
 func TestFileBlobStore_MultiPRead(t *testing.T) {
@@ -162,5 +166,76 @@ func TestFileBlobStore_RemoveBlob(t *testing.T) {
 
 	if _, err := bs.OpenReader("hoge"); err == nil {
 		t.Errorf("Open removed file succeeded???")
+	}
+}
+
+func TestFileBlobStore_ReadOnly(t *testing.T) {
+	tempdir, err := ioutil.TempDir("", "blobstoretest_ro")
+	if err != nil {
+		t.Errorf("failed to create tmpdir: %v", err)
+		return
+	}
+	wbs, err := blobstore.NewFileBlobStore(tempdir, flags.O_RDWRCREATE)
+	if err != nil {
+		t.Errorf("failed to create wbs: %v", err)
+		return
+	}
+	if err := tu.WriteVersionedBlob(wbs, "hoge", 5); err != nil {
+		t.Errorf("Failed to write blob: %v", err)
+		return
+	}
+	if err := tu.WriteVersionedBlob(wbs, "safe", 3); err != nil {
+		t.Errorf("Failed to write blob: %v", err)
+		return
+	}
+
+	rbs, err := blobstore.NewFileBlobStore(tempdir, flags.O_RDONLY)
+	if err != nil {
+		t.Errorf("failed to create rbs: %v", err)
+		return
+	}
+
+	err = rbs.RemoveBlob("hoge")
+	if err == nil {
+		t.Errorf("Unexpected RemoveBlob success.")
+		return
+	}
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
+		return
+	}
+
+	blobs, err := rbs.ListBlobs()
+	if err != nil {
+		t.Errorf("ListBlobs failed: %v", err)
+		return
+	}
+	sort.Strings(blobs)
+	if !reflect.DeepEqual(blobs, []string{"hoge", "safe"}) {
+		t.Errorf("ListBlobs wrong result: %v", blobs)
+	}
+
+	if _, err := rbs.OpenReader("hoge"); err != nil {
+		t.Errorf("Open remove failed file success???")
+	}
+	if _, err := wbs.OpenReader("hoge"); err != nil {
+		t.Errorf("Open remove failed file success???")
+	}
+
+	_, err = rbs.OpenWriter("new")
+	if err == nil {
+		t.Errorf("Unexpected OpenWriter on ro fbs success")
+	}
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
+		return
+	}
+	_, err = rbs.OpenWriter("safe")
+	if err == nil {
+		t.Errorf("Unexpected OpenWriter on ro fbs success")
+	}
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
+		return
 	}
 }

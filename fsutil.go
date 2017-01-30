@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"time"
 
+	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/util"
 )
 
 func (fs *FileSystem) FindDirFullPath(fullpath string) (inodedb.ID, error) {
@@ -45,14 +47,12 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileM
 	id, ok := entries[basename]
 	if !ok {
 		if flags|os.O_CREATE != 0 {
-			// FIXME: apply perm
-
-			id, err = fs.CreateFile(dirID, basename, 0666, 0, 0, time.Now())
+			id, err = fs.CreateFile(dirID, basename, uint16(perm), 0, 0, time.Now())
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			return nil, ENOENT
+			return nil, util.ENOENT
 		}
 	}
 
@@ -60,11 +60,35 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileM
 		panic("inode id must != 0 here!")
 	}
 
-	// FIXME: handle flag
 	fh, err := fs.OpenFile(id, flags)
 	if err != nil {
 		return nil, err
 	}
 
 	return fh, nil
+}
+
+func (fs *FileSystem) WriteFile(fullpath string, content []byte, perm os.FileMode) error {
+	h, err := fs.OpenFileFullPath(fullpath, fl.O_RDWRCREATE, perm)
+	if err != nil {
+		return err
+	}
+	defer h.Close()
+
+	return h.PWrite(content, 0)
+}
+
+func (fs *FileSystem) CreateDirFullPath(fullpath string, permmode os.FileMode) error {
+	parent := filepath.Dir(fullpath)
+	id, err := fs.FindDirFullPath(parent)
+	if err != nil {
+		return fmt.Errorf("Failed to find parent \"%s\": %v", parent, err)
+	}
+
+	name := filepath.Base(fullpath)
+	_, err = fs.CreateDir(id, name, uint16(permmode), 0, 0, time.Now())
+	if err != nil {
+		return fmt.Errorf("CreateDir err: %v", err)
+	}
+	return nil
 }

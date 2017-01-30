@@ -6,13 +6,14 @@ import (
 	"cloud.google.com/go/storage"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
-	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
 	oflags "github.com/nyaxt/otaru/flags"
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/util"
 )
 
 var mylog = logger.Registry().Category("gcsblobstore")
@@ -53,7 +54,7 @@ type Writer struct {
 
 func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 	if !oflags.IsWriteAllowed(bs.flags) {
-		return nil, otaru.EPERM
+		return nil, util.EACCES
 	}
 
 	bs.stats.NumOpenWriter++
@@ -83,7 +84,7 @@ func (bs *GCSBlobStore) tryOpenReaderOnce(blobpath string) (io.ReadCloser, error
 	rc, err := obj.NewReader(context.Background())
 	if err != nil {
 		if err == storage.ErrObjectNotExist {
-			return nil, blobstore.ENOENT
+			return nil, util.ENOENT
 		}
 		return nil, err
 	}
@@ -109,17 +110,16 @@ func (bs *GCSBlobStore) ListBlobs() ([]string, error) {
 
 	ret := make([]string, 0)
 
-	q := &storage.Query{}
-	for q != nil {
-		olist, err := bs.bucket.List(context.Background(), q)
+	it := bs.bucket.Objects(context.Background(), &storage.Query{})
+	for {
+		oattr, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
 		if err != nil {
 			return nil, err
 		}
-		for _, o := range olist.Results {
-			blobpath := o.Name
-			ret = append(ret, blobpath)
-		}
-		q = olist.Next
+		ret = append(ret, oattr.Name)
 	}
 
 	return ret, nil
@@ -134,7 +134,7 @@ func (bs *GCSBlobStore) BlobSize(blobpath string) (int64, error) {
 	attrs, err := object.Attrs(context.Background())
 	if err != nil {
 		if err == storage.ErrObjectNotExist {
-			return -1, blobstore.ENOENT
+			return -1, util.ENOENT
 		}
 		return -1, err
 	}
@@ -145,6 +145,10 @@ func (bs *GCSBlobStore) BlobSize(blobpath string) (int64, error) {
 var _ = blobstore.BlobRemover(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
+	if !oflags.IsWriteAllowed(bs.flags) {
+		return util.EACCES
+	}
+
 	bs.stats.NumRemoveBlob++
 
 	object := bs.bucket.Object(blobpath)

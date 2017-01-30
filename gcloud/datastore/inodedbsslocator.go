@@ -4,12 +4,15 @@ import (
 	"errors"
 	"time"
 
-	"golang.org/x/net/context"
 	"cloud.google.com/go/datastore"
+	"golang.org/x/net/context"
+	"google.golang.org/api/iterator"
 
+	oflags "github.com/nyaxt/otaru/flags"
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/metadata"
+	"github.com/nyaxt/otaru/util"
 )
 
 var sslog = logger.Registry().Category("inodedbsslocator")
@@ -19,14 +22,16 @@ const kindINodeDBSS = "OtaruINodeDBSS"
 var EEMPTY = errors.New("Failed to find any snapshot location entry.")
 
 type INodeDBSSLocator struct {
+	flags   int
 	cfg     *Config
 	rootKey *datastore.Key
 }
 
-func NewINodeDBSSLocator(cfg *Config) *INodeDBSSLocator {
+func NewINodeDBSSLocator(cfg *Config, flags int) *INodeDBSSLocator {
 	return &INodeDBSSLocator{
+		flags:   flags,
 		cfg:     cfg,
-		rootKey: datastore.NewKey(ctxNoNamespace, kindINodeDBSS, cfg.rootKeyStr, 0, nil),
+		rootKey: datastore.NameKey(kindINodeDBSS, cfg.rootKeyStr, nil),
 	}
 }
 
@@ -52,7 +57,7 @@ func (loc *INodeDBSSLocator) tryLocateOnce(history int) (string, int64, error) {
 	var e sslocentry
 	if _, err := it.Next(&e); err != nil {
 		dstx.Rollback()
-		if err == datastore.Done {
+		if err == iterator.Done {
 			return "", 0, EEMPTY
 		}
 		return "", 0, err
@@ -87,7 +92,7 @@ func (loc *INodeDBSSLocator) tryPutOnce(blobpath string, txid int64) error {
 		return err
 	}
 
-	key := datastore.NewKey(ctxNoNamespace, kindINodeDBSS, "", int64(e.TxID), loc.rootKey)
+	key := datastore.IDKey(kindINodeDBSS, int64(e.TxID), loc.rootKey)
 	if _, err := dstx.Put(key, &e); err != nil {
 		dstx.Rollback()
 		return err
@@ -105,12 +110,20 @@ func (*INodeDBSSLocator) GenerateBlobpath() string {
 }
 
 func (loc *INodeDBSSLocator) Put(blobpath string, txid int64) error {
+	if !oflags.IsWriteAllowed(loc.flags) {
+		return util.EACCES
+	}
+
 	return gcutil.RetryIfNeeded(func() error {
 		return loc.tryPutOnce(blobpath, txid)
 	}, sslog)
 }
 
 func (loc *INodeDBSSLocator) DeleteOld(ctx context.Context, threshold int, dryRun bool) ([]string, error) {
+	if !oflags.IsWriteAllowed(loc.flags) {
+		return nil, util.EACCES
+	}
+
 	start := time.Now()
 
 	cli, err := loc.cfg.getClient(context.TODO())
@@ -135,7 +148,7 @@ func (loc *INodeDBSSLocator) DeleteOld(ctx context.Context, threshold int, dryRu
 			var e sslocentry
 			k, err := it.Next(&e)
 			if err != nil {
-				if err == datastore.Done {
+				if err == iterator.Done {
 					break
 				}
 				dstx.Rollback()

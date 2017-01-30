@@ -67,7 +67,8 @@ func main() {
 
 	switch flag.Arg(0) {
 	case "lock":
-		if err := l.Lock(); err != nil {
+		readOnly := false
+		if err := l.Lock(readOnly); err != nil {
 			logger.Infof(mylog, "Lock failed: %v", err)
 		}
 	case "unlock":

@@ -11,6 +11,7 @@ import (
 	bfuse "github.com/nyaxt/fuse"
 
 	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/util"
 )
 
 var mylog = logger.Registry().Category("inodedb")
@@ -26,16 +27,11 @@ func (e Errno) Error() string {
 }
 
 var (
-	EEXIST         = Errno(syscall.EEXIST)
-	ENOENT         = Errno(syscall.ENOENT)
-	EISDIR         = Errno(syscall.EISDIR)
-	ENOTDIR        = Errno(syscall.ENOTDIR)
-	ENOTEMPTY      = Errno(syscall.ENOTEMPTY)
 	ErrLockInvalid = errors.New("Invalid lock given.")
 	ErrLockTaken   = errors.New("Lock is already acquired by someone else.")
 )
 
-func IsErrNotFound(err error) bool { return err == ENOENT }
+func IsErrNotFound(err error) bool { return err == util.ENOENT }
 
 type ID uint64
 
@@ -192,21 +188,23 @@ type DB struct {
 	snapshotIO DBStateSnapshotIO
 	txLogIO    DBTransactionLogIO
 
-	stats DBServiceStats
+	readOnly bool
+	stats    DBServiceStats
 }
 
 var _ = DBHandler(&DB{})
 
-func newDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) *DB {
+func newDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO, readOnly bool) *DB {
 	return &DB{
 		state:      NewDBState(),
 		snapshotIO: snapshotIO,
 		txLogIO:    txLogIO,
+		readOnly:   readOnly,
 	}
 }
 
 func NewEmptyDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) (*DB, error) {
-	db := newDB(snapshotIO, txLogIO)
+	db := newDB(snapshotIO, txLogIO, false)
 	if _, err := snapshotIO.RestoreSnapshot(); err == nil {
 		return nil, fmt.Errorf("NewEmptyDB: Refusing to use non-empty snapshotIO")
 	}
@@ -229,8 +227,8 @@ func NewEmptyDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) (*DB, 
 	return db, nil
 }
 
-func NewDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO) (*DB, error) {
-	db := newDB(snapshotIO, txLogIO)
+func NewDB(snapshotIO DBStateSnapshotIO, txLogIO DBTransactionLogIO, readOnly bool) (*DB, error) {
+	db := newDB(snapshotIO, txLogIO, readOnly)
 	if err := db.RestoreVersion(LatestVersion); err != nil {
 		return nil, err
 	}
@@ -313,13 +311,17 @@ func (db *DB) applyTransactionInternal(tx DBTransaction, writeTxLogFlag bool) (T
 }
 
 func (db *DB) ApplyTransaction(tx DBTransaction) (TxID, error) {
+	if db.readOnly {
+		return 0, util.EACCES
+	}
+
 	return db.applyTransactionInternal(tx, writeTxLog)
 }
 
 func (db *DB) QueryNode(id ID, tryLock bool) (NodeView, NodeLock, error) {
 	n := db.state.nodes[id]
 	if n == nil {
-		return nil, NodeLock{}, ENOENT
+		return nil, NodeLock{}, util.ENOENT
 	}
 	v := n.View()
 
@@ -332,6 +334,10 @@ func (db *DB) QueryNode(id ID, tryLock bool) (NodeView, NodeLock, error) {
 }
 
 func (db *DB) LockNode(id ID) (NodeLock, error) {
+	if db.readOnly {
+		return NodeLock{}, util.EACCES
+	}
+
 	if id == AllocateNewNodeID {
 		id = db.state.lastID + 1
 		db.state.lastID = id
@@ -351,6 +357,10 @@ func (db *DB) LockNode(id ID) (NodeLock, error) {
 }
 
 func (db *DB) UnlockNode(nlock NodeLock) error {
+	if db.readOnly {
+		return util.EACCES
+	}
+
 	if err := db.state.checkLock(nlock, true); err != nil {
 		logger.Warningf(mylog, "Unlock node failed: %v", err)
 		return err
@@ -382,6 +392,10 @@ func (db *DB) TriggerSync() <-chan error {
 }
 
 func (db *DB) Sync() error {
+	if db.readOnly {
+		return util.EACCES
+	}
+
 	return <-db.TriggerSync()
 }
 
@@ -419,6 +433,10 @@ func (db *DB) fsckRecursive(id ID, foundblobpaths []string, errs []error) ([]str
 }
 
 func (db *DB) Fsck() ([]string, []error) {
+	if db.readOnly {
+		return nil, []error{util.EACCES}
+	}
+
 	foundblobpaths := make([]string, 0)
 	errs := make([]error, 0)
 	return db.fsckRecursive(RootDirID, foundblobpaths, errs)

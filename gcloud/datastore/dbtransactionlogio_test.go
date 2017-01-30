@@ -5,16 +5,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nyaxt/otaru/flags"
 	authtu "github.com/nyaxt/otaru/gcloud/auth/testutils"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/util"
 )
 
 func init() { testutils.EnsureLogger() }
 
 func testDBTransactionIOWithRootKey(rootKeyStr string) *datastore.DBTransactionLogIO {
-	return datastore.NewDBTransactionLogIO(authtu.TestDSConfig(rootKeyStr))
+	return datastore.NewDBTransactionLogIO(authtu.TestDSConfig(rootKeyStr), flags.O_RDWRCREATE)
 }
 
 func testDBTransactionIO() *datastore.DBTransactionLogIO {
@@ -168,5 +170,47 @@ func TestDBTransactionIO_BigTx(t *testing.T) {
 	}
 	if err := txio.Sync(); err != nil {
 		t.Errorf("Sync failed: %v", err)
+	}
+}
+
+func TestDBTransactionIO_ReadOnly(t *testing.T) {
+	rootKeyStr := authtu.TestBucketName()
+	txio := datastore.NewDBTransactionLogIO(authtu.TestDSConfig(rootKeyStr), flags.O_RDONLY)
+
+	err := txio.DeleteAllTransactions()
+	if err == nil {
+		t.Errorf("Unexpected DeleteTransactions success")
+		return
+	}
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
+		return
+	}
+
+	tx := inodedb.DBTransaction{TxID: 567, Ops: nil}
+	err = txio.AppendTransaction(tx)
+	if err == nil {
+		t.Errorf("Unexpected AppendTransaction success")
+		return
+	}
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
+		return
+	}
+
+	err = txio.Sync()
+	if err == nil {
+		t.Errorf("Unexpected Sync success")
+		return
+	}
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES. got %v", err)
+		return
+	}
+
+	// QueryTransaction should succeed
+	if _, err := txio.QueryTransactions(123); err != nil {
+		t.Errorf("QueryTransactions failed: %v", err)
+		return
 	}
 }

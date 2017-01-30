@@ -14,6 +14,7 @@ import (
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
 	tu "github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/util"
 )
 
 var mylog = logger.Registry().Category("otaru-fuzz-filesystem")
@@ -98,7 +99,7 @@ func Fuzz(data []byte) int {
 			}
 			fh, err := fs.OpenFileFullPath(fp, openFlags, 0666)
 			if err != nil {
-				if err == otaru.ENOENT {
+				if err == util.ENOENT {
 					logger.Infof(mylog, "fp %v open ENOENT.", fp)
 					break
 				}
@@ -126,7 +127,7 @@ func Fuzz(data []byte) int {
 			}
 			opLen := cmdp.OpLen % (AbsoluteMaxLen - offset)
 			if err := fh.PWrite(iobuf[:opLen], int64(offset)); err != nil {
-				if err == otaru.EBADF {
+				if err == util.EBADF {
 					logger.Infof(mylog, "fhs[%d] PWrite EBADF.", fileidx)
 					break
 				}
@@ -161,7 +162,7 @@ func Fuzz(data []byte) int {
 
 			opLen := cmdp.OpLen % AbsoluteMaxLen
 			if err := fh.Truncate(int64(opLen)); err != nil {
-				if err == otaru.EBADF {
+				if err == util.EBADF {
 					logger.Infof(mylog, "fhs[%d] Truncate  EBADF.", fileidx)
 					break
 				}

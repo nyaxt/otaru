@@ -3,7 +3,6 @@ package cachedblobstore_test
 import (
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"sort"
 	"sync"
@@ -519,7 +518,7 @@ func TestCachedBlobStore_CancelInvalidatingBlobsOnExit(t *testing.T) {
 	// FIXME: Wait for Close(abandonAndClose) goroutine to run.
 	time.Sleep(100 * time.Millisecond)
 
-	if _, err := cachebs.OpenReader("backendonly"); !os.IsNotExist(err) {
+	if _, err := cachebs.OpenReader("backendonly"); !util.IsNotExist(err) {
 		t.Errorf("invalidate failed blob is still cached! Err: %v", err)
 	}
 }
@@ -582,7 +581,7 @@ func TestCachedBlobStore_CancelInvalidatingBlobsByClose(t *testing.T) {
 	// FIXME: Wait for Close(abandonAndClose) goroutine to run.
 	time.Sleep(100 * time.Millisecond)
 
-	if _, err := cachebs.OpenReader("backendonly"); !os.IsNotExist(err) {
+	if _, err := cachebs.OpenReader("backendonly"); !util.IsNotExist(err) {
 		t.Errorf("invalidate cancelled blob is still cached!")
 	}
 }
@@ -769,5 +768,97 @@ func TestCachedBlobStore_ReduceCache(t *testing.T) {
 	}
 	if err := tu.AssertBlobVersion(backendbs, "both", 2); err != nil {
 		t.Errorf("backend sync failed: %v", err)
+	}
+}
+
+func TestCachedBlobStore_ReadOnly(t *testing.T) {
+	cachedblobstore.DisableAutoSyncForTesting = true
+	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
+
+	backendbs := tu.TestFileBlobStoreOfName("backend")
+	cachebs := tu.TestFileBlobStoreOfName("cache")
+	s := scheduler.NewScheduler()
+
+	if err := tu.WriteVersionedBlob(backendbs, "backendonly", 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	bs, err := cachedblobstore.New(backendbs, cachebs, s, flags.O_RDONLY, tu.TestQueryVersion)
+	if err != nil {
+		t.Errorf("Failed to create CachedBlobStore: %v", err)
+		return
+	}
+	defer bs.Quit()
+
+	if err := tu.AssertBlobVersion(backendbs, "backendonly", 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	// assert cache not yet filled
+	if err := tu.AssertBlobVersion(cachebs, "backendonly", 0); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := tu.AssertBlobVersionRA(bs, "backendonly", 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// assert cache fill
+	if err := tu.AssertBlobVersion(cachebs, "backendonly", 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// assert Open(O_RDWRCREATE) fails
+	_, err = bs.Open("backendonly", flags.O_RDWRCREATE)
+	if err == nil {
+		t.Errorf("Unexpected write succeed.")
+		return
+	}
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES error. Got: %v", err)
+		return
+	}
+
+	// assert OpenWriter() fails
+	_, err = bs.OpenWriter("backendonly")
+	if err == nil {
+		t.Errorf("Unexpected write succeed.")
+		return
+	}
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES error. Got: %v", err)
+		return
+	}
+
+	// assert RemoveBlob() fails
+	err = bs.RemoveBlob("backendonly")
+	if err == nil {
+		t.Errorf("Unexpected remove succeed.")
+		return
+	}
+	if err != util.EACCES {
+		t.Errorf("Expected EACCES error. Got: %v", err)
+		return
+	}
+
+	if err := bs.Sync(); err != nil {
+		t.Errorf("Sync failed: %v", err)
+		return
+	}
+
+	if err := tu.AssertBlobVersionRA(bs, "backendonly", 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := tu.AssertBlobVersion(cachebs, "backendonly", 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := tu.AssertBlobVersion(backendbs, "backendonly", 5); err != nil {
+		t.Errorf("%v", err)
+		return
 	}
 }

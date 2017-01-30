@@ -5,6 +5,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/nyaxt/otaru/flags"
 	authtu "github.com/nyaxt/otaru/gcloud/auth/testutils"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/inodedb"
@@ -17,7 +18,7 @@ func init() { tu.EnsureLogger() }
 func testRootKey() string { return authtu.TestBucketName() + "-blobstoredbstatesnapshotio_test" }
 
 func TestSS_SaveRestore(t *testing.T) {
-	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(testRootKey()))
+	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(testRootKey()), flags.O_RDWRCREATE)
 	if _, err := loc.DeleteAll(context.Background(), false); err != nil {
 		t.Errorf("Failed to loc.DeleteAll: %v", err)
 	}
@@ -35,7 +36,7 @@ func TestSS_SaveRestore(t *testing.T) {
 		return
 	}
 
-	_, err = inodedb.NewDB(sio, inodedb.NewSimpleDBTransactionLogIO())
+	_, err = inodedb.NewDB(sio, inodedb.NewSimpleDBTransactionLogIO(), false)
 	if err != nil {
 		t.Errorf("Failed to NewDB: %v", err)
 	}
@@ -65,7 +66,7 @@ func mockFileOp(t *testing.T, db inodedb.DBHandler, filename string) bool {
 }
 
 func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
-	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(testRootKey()))
+	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(testRootKey()), flags.O_RDWRCREATE)
 	if _, err := loc.DeleteAll(context.Background(), false); err != nil {
 		t.Errorf("Failed to loc.DeleteAll: %v", err)
 	}
@@ -99,7 +100,7 @@ func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
 		}
 	}
 
-	if _, err := inodedb.NewDB(sio, txlogio); err != nil {
+	if _, err := inodedb.NewDB(sio, txlogio, false); err != nil {
 		t.Errorf("Failed to NewDB (uncorrupted): %v", err)
 		return
 	}
@@ -123,7 +124,7 @@ func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
 	}
 
 	{
-		_, err = inodedb.NewDB(sio, txlogio)
+		_, err = inodedb.NewDB(sio, txlogio, false)
 		if err != nil {
 			t.Errorf("Failed to NewDB (corrupted): %v", err)
 			return
@@ -136,7 +137,7 @@ func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
 	}
 
 	{
-		_, err = inodedb.NewDB(sio, txlogio)
+		_, err = inodedb.NewDB(sio, txlogio, false)
 		if err != nil {
 			t.Errorf("Failed to NewDB (ss blob removed): %v", err)
 			return
@@ -145,7 +146,7 @@ func TestSS_AutoAvoidCorruptedSnapshot(t *testing.T) {
 }
 
 func TestSS_DeleteOldSnapshots(t *testing.T) {
-	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(testRootKey()))
+	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(testRootKey()), flags.O_RDWRCREATE)
 	if _, err := loc.DeleteAll(context.Background(), false); err != nil {
 		t.Errorf("Failed to loc.DeleteAll: %v", err)
 	}
@@ -192,7 +193,7 @@ func TestSS_DeleteOldSnapshots(t *testing.T) {
 	}
 
 	{
-		db, err := inodedb.NewDB(sio, inodedb.NewSimpleDBTransactionLogIO())
+		db, err := inodedb.NewDB(sio, inodedb.NewSimpleDBTransactionLogIO(), false)
 		if err != nil {
 			t.Errorf("Failed to NewDB: %v", err)
 			return

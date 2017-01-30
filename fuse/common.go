@@ -3,10 +3,12 @@ package fuse
 import (
 	"os"
 
-	"github.com/nyaxt/otaru"
-	"github.com/nyaxt/otaru/inodedb"
-
 	bfuse "github.com/nyaxt/fuse"
+
+	"github.com/nyaxt/otaru"
+	oflags "github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/logger"
 )
 
 func otaruSetattr(fs *otaru.FileSystem, id inodedb.ID, req *bfuse.SetattrRequest) error {
@@ -42,4 +44,33 @@ func otaruSetattr(fs *otaru.FileSystem, id inodedb.ID, req *bfuse.SetattrRequest
 	}
 
 	return nil
+}
+
+func Bazil2OtaruFlags(bf bfuse.OpenFlags) int {
+	ret := 0
+	if bf.IsReadOnly() {
+		ret = oflags.O_RDONLY
+	} else if bf.IsWriteOnly() {
+		ret = oflags.O_WRONLY
+	} else if bf.IsReadWrite() {
+		ret = oflags.O_RDWR
+	}
+
+	if bf&bfuse.OpenAppend != 0 {
+		ret |= oflags.O_APPEND
+	}
+	if bf&bfuse.OpenCreate != 0 {
+		ret |= oflags.O_CREATE
+	}
+	if bf&bfuse.OpenExclusive != 0 {
+		ret |= oflags.O_EXCL
+	}
+	if bf&bfuse.OpenSync != 0 {
+		logger.Criticalf(mylog, "FIXME: OpenSync not supported yet !!!!!!!!!!!")
+	}
+	if bf&bfuse.OpenTruncate != 0 {
+		ret |= oflags.O_TRUNCATE
+	}
+
+	return ret
 }

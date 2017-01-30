@@ -10,6 +10,7 @@ import (
 
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/facade"
+	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/inodedb"
@@ -85,7 +86,7 @@ func main() {
 	}
 	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, tsrc)
 
-	txlogio := datastore.NewDBTransactionLogIO(dscfg)
+	txlogio := datastore.NewDBTransactionLogIO(dscfg, flags.O_RDWRCREATE)
 
 	switch flag.Arg(0) {
 	case "purge":

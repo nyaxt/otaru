@@ -6,8 +6,8 @@ import (
 	"math"
 	"time"
 
-	"golang.org/x/net/context"
 	"cloud.google.com/go/datastore"
+	"golang.org/x/net/context"
 
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/logger"
@@ -34,13 +34,13 @@ type GlobalLocker struct {
 func NewGlobalLocker(cfg *Config, hostname string, info string) *GlobalLocker {
 	l := &GlobalLocker{
 		cfg:     cfg,
-		rootKey: datastore.NewKey(ctxNoNamespace, kindGlobalLock, cfg.rootKeyStr, 0, nil),
+		rootKey: datastore.NameKey(kindGlobalLock, cfg.rootKeyStr, nil),
 		lockEntry: lockEntry{
 			HostName: hostname,
 			Info:     info,
 		},
 	}
-	l.lockEntryKey = datastore.NewKey(ctxNoNamespace, kindGlobalLock, "", 1, l.rootKey)
+	l.lockEntryKey = datastore.IDKey(kindGlobalLock, 1, l.rootKey)
 	return l
 }
 
@@ -58,7 +58,7 @@ func (e *ErrLockTaken) Error() string {
 
 // Lock attempts to acquire the global lock.
 // If the lock was already taken by other GlobalLocker instance, it will return an ErrLockTaken.
-func (l *GlobalLocker) tryLockOnce() error {
+func (l *GlobalLocker) tryLockOnce(readOnly bool) error {
 	start := time.Now()
 	cli, err := l.cfg.getClient(context.Background())
 	if err != nil {
@@ -79,10 +79,12 @@ func (l *GlobalLocker) tryLockOnce() error {
 		}
 	}
 
-	l.lockEntry.CreatedAt = start
-	if _, err := dstx.Put(l.lockEntryKey, &l.lockEntry); err != nil {
-		dstx.Rollback()
-		return err
+	if !readOnly {
+		l.lockEntry.CreatedAt = start
+		if _, err := dstx.Put(l.lockEntryKey, &l.lockEntry); err != nil {
+			dstx.Rollback()
+			return err
+		}
 	}
 	if _, err := dstx.Commit(); err != nil {
 		return err
@@ -92,10 +94,10 @@ func (l *GlobalLocker) tryLockOnce() error {
 	return nil
 }
 
-func (l *GlobalLocker) Lock() (err error) {
-	logger.Infof(lklog, "GlobalLocker.Lock() started.")
+func (l *GlobalLocker) Lock(readOnly bool) (err error) {
+	logger.Infof(lklog, "GlobalLocker.Lock(readOnly=%t) started.", readOnly)
 	return gcutil.RetryIfNeeded(func() error {
-		return l.tryLockOnce()
+		return l.tryLockOnce(readOnly)
 	}, lklog)
 }
 

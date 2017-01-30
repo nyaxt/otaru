@@ -9,8 +9,10 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"golang.org/x/net/context"
+	"google.golang.org/api/iterator"
 
 	"github.com/nyaxt/otaru/btncrypt"
+	oflags "github.com/nyaxt/otaru/flags"
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
@@ -20,6 +22,7 @@ import (
 var txlog = logger.Registry().Category("dbtxlogio")
 
 type DBTransactionLogIO struct {
+	flags   int
 	cfg     *Config
 	rootKey *datastore.Key
 
@@ -34,10 +37,11 @@ const kindTransaction = "OtaruINodeDBTxBulk"
 
 var _ = inodedb.DBTransactionLogIO(&DBTransactionLogIO{})
 
-func NewDBTransactionLogIO(cfg *Config) *DBTransactionLogIO {
+func NewDBTransactionLogIO(cfg *Config, flags int) *DBTransactionLogIO {
 	return &DBTransactionLogIO{
+		flags:     flags,
 		cfg:       cfg,
-		rootKey:   datastore.NewKey(ctxNoNamespace, kindTransaction, cfg.rootKeyStr, 0, nil),
+		rootKey:   datastore.NameKey(kindTransaction, cfg.rootKeyStr, nil),
 		nextbatch: make([]inodedb.DBTransaction, 0),
 	}
 }
@@ -49,7 +53,7 @@ type storedbtx struct {
 }
 
 func (txio *DBTransactionLogIO) encodeKey(id inodedb.TxID) *datastore.Key {
-	return datastore.NewKey(ctxNoNamespace, kindTransaction, "", int64(id), txio.rootKey)
+	return datastore.IDKey(kindTransaction, int64(id), txio.rootKey)
 }
 
 func (txio *DBTransactionLogIO) encodeBatch(txs []inodedb.DBTransaction) (*datastore.Key, *storedbtx, error) {
@@ -111,6 +115,10 @@ func decodeBatch(c *btncrypt.Cipher, key *datastore.Key, stx *storedbtx) ([]inod
 }
 
 func (txio *DBTransactionLogIO) AppendTransaction(tx inodedb.DBTransaction) error {
+	if !oflags.IsWriteAllowed(txio.flags) {
+		return util.EACCES
+	}
+
 	txio.mu.Lock()
 	defer txio.mu.Unlock()
 
@@ -119,6 +127,10 @@ func (txio *DBTransactionLogIO) AppendTransaction(tx inodedb.DBTransaction) erro
 }
 
 func (txio *DBTransactionLogIO) Sync() error {
+	if !oflags.IsWriteAllowed(txio.flags) {
+		return util.EACCES
+	}
+
 	start := time.Now()
 
 	txio.muSync.Lock()
@@ -235,7 +247,7 @@ func (txio *DBTransactionLogIO) queryTransactionsOnce(minID inodedb.TxID) ([]ino
 		var stx storedbtx
 		key, err := it.Next(&stx)
 		if err != nil {
-			if err == datastore.Done {
+			if err == iterator.Done {
 				break
 			}
 			dstx.Commit()
@@ -279,6 +291,10 @@ func (txio *DBTransactionLogIO) queryTransactionsOnce(minID inodedb.TxID) ([]ino
 const maxWriteEntriesPerTx = 500 // Google Cloud Datastore limit on number of write entries per tx
 
 func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) error {
+	if !oflags.IsWriteAllowed(txio.flags) {
+		return util.EACCES
+	}
+
 	start := time.Now()
 
 	txio.mu.Lock()
@@ -313,7 +329,7 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 		for {
 			k, err := it.Next(nil)
 			if err != nil {
-				if err == datastore.Done {
+				if err == iterator.Done {
 					break
 				}
 				dstx.Rollback()
