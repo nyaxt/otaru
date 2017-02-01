@@ -638,6 +638,7 @@ func (of *OpenFile) Size() int64 {
 
 	size, err := of.sizeMayFailWithoutLock()
 	if err != nil {
+		logger.Warningf(fslog, "Failed to query OpenFile.Size(), but suppressing error: %v", err)
 		return 0
 	}
 	return size
@@ -713,4 +714,8 @@ func (fh *FileHandle) Truncate(newsize int64) error {
 
 func (fh *FileHandle) Close() {
 	fh.of.CloseHandle(fh)
+}
+
+func (fh *FileHandle) Attr() (Attr, error) {
+	return fh.of.fs.Attr(fh.ID())
 }
