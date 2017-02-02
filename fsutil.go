@@ -12,15 +12,29 @@ import (
 )
 
 func (fs *FileSystem) FindNodeFullPath(fullpath string) (inodedb.ID, error) {
+	fullpath = filepath.Clean(fullpath)
 	if len(fullpath) < 1 || fullpath[0] != '/' {
 		return 0, fmt.Errorf("Path must start with /, but given: %v", fullpath)
 	}
 
-	if fullpath != "/" {
-		panic("FIXME: implement me!!!!")
+	if fullpath == "/" {
+		return inodedb.ID(1), nil
 	}
 
-	return inodedb.ID(1), nil
+	parentPath := filepath.Dir(fullpath)
+	parentId, err := fs.FindNodeFullPath(parentPath)
+	if err != nil {
+		return 0, err
+	}
+
+	entries, err := fs.DirEntries(parentId)
+	base := filepath.Base(fullpath)
+	id, ok := entries[base]
+	if !ok {
+		return 0, util.ENOENT
+	}
+
+	return id, nil
 }
 
 func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileMode) (*FileHandle, error) {
