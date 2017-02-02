@@ -11,7 +11,7 @@ import (
 	"github.com/nyaxt/otaru/util"
 )
 
-func (fs *FileSystem) FindDirFullPath(fullpath string) (inodedb.ID, error) {
+func (fs *FileSystem) FindNodeFullPath(fullpath string) (inodedb.ID, error) {
 	if len(fullpath) < 1 || fullpath[0] != '/' {
 		return 0, fmt.Errorf("Path must start with /, but given: %v", fullpath)
 	}
@@ -33,7 +33,7 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileM
 	dirname := filepath.Dir(fullpath)
 	basename := filepath.Base(fullpath)
 
-	dirID, err := fs.FindDirFullPath(dirname)
+	dirID, err := fs.FindNodeFullPath(dirname)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (fs *FileSystem) WriteFile(fullpath string, content []byte, perm os.FileMod
 
 func (fs *FileSystem) CreateDirFullPath(fullpath string, permmode os.FileMode) error {
 	parent := filepath.Dir(fullpath)
-	id, err := fs.FindDirFullPath(parent)
+	id, err := fs.FindNodeFullPath(parent)
 	if err != nil {
 		return fmt.Errorf("Failed to find parent \"%s\": %v", parent, err)
 	}
