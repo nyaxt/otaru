@@ -71,6 +71,6 @@ COPY . /go/src/github.com/nyaxt/otaru
 WORKDIR /go/src/github.com/nyaxt/otaru
 
 RUN cd /go/src/github.com/nyaxt/otaru/webui && npm install && bower --allow-root install && gulp && go-bindata -pkg webui dist/...
-RUN go install github.com/nyaxt/otaru/cmd/... github.com/nyaxt/otaru/debugcmd/... github.com/nyaxt/otaru/gcloud/auth/otaru-gcloudauthcli
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go install github.com/nyaxt/otaru/cmd/... github.com/nyaxt/otaru/debugcmd/... github.com/nyaxt/otaru/gcloud/auth/otaru-gcloudauthcli
 
 CMD cp /go/bin/otaru* /out/
