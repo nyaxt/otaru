@@ -71,7 +71,7 @@ func (fs *FileSystem) tryGetOrigPath(id inodedb.ID) string {
 		logger.Warningf(fslog, "Failed to lookup orig path for ID %d", id)
 		return "<unknown>"
 	}
-	logger.Warningf(fslog, "Orig path for ID %d is \"%s\"", id, origpath)
+	// logger.Warningf(fslog, "Orig path for ID %d is \"%s\"", id, origpath)
 	return origpath
 }
 
