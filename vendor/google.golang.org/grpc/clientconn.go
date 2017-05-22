@@ -398,6 +398,7 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 			}
 			config := BalancerConfig{
 				DialCreds: credsClone,
+				Dialer:    cc.dopts.copts.Dialer,
 			}
 			if err := cc.dopts.balancer.Start(target, config); err != nil {
 				waitC <- err
@@ -867,11 +868,14 @@ func (ac *addrConn) resetTransport(closeTransport bool) error {
 			}
 			ac.mu.Unlock()
 			closeTransport = false
+			timer := time.NewTimer(sleepTime - time.Since(connectTime))
 			select {
-			case <-time.After(sleepTime - time.Since(connectTime)):
+			case <-timer.C:
 			case <-ac.ctx.Done():
+				timer.Stop()
 				return ac.ctx.Err()
 			}
+			timer.Stop()
 			continue
 		}
 		ac.mu.Lock()
