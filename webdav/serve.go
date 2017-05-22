@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-	"golang.org/x/net/webdav"
+
+	"github.com/nyaxt/otaru/third_party/webdav"
 
 	"github.com/nyaxt/otaru"
 	fl "github.com/nyaxt/otaru/flags"
