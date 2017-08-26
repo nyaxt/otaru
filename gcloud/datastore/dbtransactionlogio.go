@@ -161,6 +161,7 @@ func (txio *DBTransactionLogIO) Sync() error {
 		rollback()
 		return err
 	}
+	defer cli.Close()
 
 	key, txbatch, err := txio.encodeBatch(batch)
 	if err != nil {
@@ -230,6 +231,7 @@ func (txio *DBTransactionLogIO) queryTransactionsOnce(minID inodedb.TxID) ([]ino
 	if err != nil {
 		return nil, err
 	}
+	defer cli.Close()
 
 	dstx, err := cli.NewTransaction(context.Background())
 	if err != nil {
@@ -312,6 +314,7 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 	if err != nil {
 		return err
 	}
+	defer cli.Close()
 
 	ndel := 0
 	for {
