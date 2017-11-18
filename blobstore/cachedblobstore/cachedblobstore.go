@@ -62,7 +62,9 @@ func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore,
 		usagestats:   NewCacheUsageStats(),
 		stats:        CachedBlobStoreStats{},
 	}
-	cbs.syncer = NewCacheSyncer(&cbs.entriesmgr, defaultNumWorkers)
+	if fl.IsWriteAllowed(flags) {
+		cbs.syncer = NewCacheSyncer(&cbs.entriesmgr, defaultNumWorkers)
+	}
 
 	if _, ok := cachebs.(blobstore.BlobRemover); !ok {
 		return nil, fmt.Errorf("cachebs backend must support blob removals for failed-to-invalidate caches")
@@ -115,12 +117,17 @@ func (cbs *CachedBlobStore) SaveState(c *btncrypt.Cipher) error {
 
 func (cbs *CachedBlobStore) Sync() error {
 	ss := cbs.entriesmgr.FindAllSyncable()
+	if cbs.syncer == nil {
+		return nil
+	}
 	return cbs.syncer.SyncAll(ss)
 }
 
 func (cbs *CachedBlobStore) Quit() error {
 	err := cbs.Sync()
-	cbs.syncer.Quit()
+	if cbs.syncer != nil {
+		cbs.syncer.Quit()
+	}
 	cbs.entriesmgr.Quit()
 	return err
 }
