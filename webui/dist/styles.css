@@ -1,0 +1,88 @@
+:root {
+  --main-fg-color: #ffcc66;
+  --dark-fg-color: #ffa566;
+  --light-fg-color: #fffcee;
+  --comp-color: #a6ffed;
+  --comp-dark-color: #3dcc87;
+  --main-bg-color: #fff0cb;
+  --dark-bg-color: #998f7a;
+  --dark2-bg-color: #544F43;
+  --dark3-bg-color: #211F1A;
+}
+
+body, div, p, span, input, h1{
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--main-bg-color);
+}
+
+* {
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.nav {
+  display: flex; 
+  color: var(--main-fg-color);
+  background-color: var(--dark-bg-color);
+}
+
+.nav__item {
+  display: block;
+
+  height: 20px;
+  line-height: 20px;
+  padding: 5px 10px;
+  text-decoration: none;
+
+  color: var(--main-fg-color);
+  background-color: var(--dark-bg-color);
+}
+
+.nav__item--logo {
+  font-weight: bold;
+  background-color: var(--dark2-bg-color);
+}
+
+.nav__item--selected {
+  font-weight: bold;
+  color: var(--comp-dark-color);
+  background-color: var(--main-bg-color);
+}
+
+.section {
+  display: none;
+
+  padding: 5px;
+}
+
+.section--selected {
+  display: block;
+}
+
+.kvview {
+
+}
+
+.kvview__item {
+  display: flex; 
+  font-size: 14px;
+  height: 20px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--dark-bg-color);
+}
+
+.kvview__item:hover {
+  background-color: var(--light-fg-color);
+}
+
+.kvview__label {
+  width: 300px; 
+}
+
+.kvview__value {
+  flex-grow: 1;
+}
