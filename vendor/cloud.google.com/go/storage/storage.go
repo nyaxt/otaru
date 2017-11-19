@@ -110,7 +110,10 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 //
 // Close need not be called at program exit.
 func (c *Client) Close() error {
+	// Set fields to nil so that subsequent uses
+	// will panic.
 	c.hc = nil
+	c.raw = nil
 	return nil
 }
 
@@ -167,7 +170,7 @@ type SignedURLOptions struct {
 	// Optional.
 	ContentType string
 
-	// Headers is a list of extention headers the client must provide
+	// Headers is a list of extension headers the client must provide
 	// in order to use the generated signed URL.
 	// Optional.
 	Headers []string
@@ -346,11 +349,17 @@ func (o *ObjectHandle) Update(ctx context.Context, uattrs ObjectAttrsToUpdate) (
 	var forceSendFields, nullFields []string
 	if uattrs.ContentType != nil {
 		attrs.ContentType = optional.ToString(uattrs.ContentType)
-		forceSendFields = append(forceSendFields, "ContentType")
+		// For ContentType, sending the empty string is a no-op.
+		// Instead we send a null.
+		if attrs.ContentType == "" {
+			nullFields = append(nullFields, "ContentType")
+		} else {
+			forceSendFields = append(forceSendFields, "ContentType")
+		}
 	}
 	if uattrs.ContentLanguage != nil {
 		attrs.ContentLanguage = optional.ToString(uattrs.ContentLanguage)
-		// For ContentLanguage It's an error to send the empty string.
+		// For ContentLanguage it's an error to send the empty string.
 		// Instead we send a null.
 		if attrs.ContentLanguage == "" {
 			nullFields = append(nullFields, "ContentLanguage")
@@ -629,11 +638,10 @@ func (o *ObjectHandle) validate() error {
 	return nil
 }
 
-// parseKey converts the binary contents of a private key file
-// to an *rsa.PrivateKey. It detects whether the private key is in a
-// PEM container or not. If so, it extracts the the private key
-// from PEM container before conversion. It only supports PEM
-// containers with no passphrase.
+// parseKey converts the binary contents of a private key file to an
+// *rsa.PrivateKey. It detects whether the private key is in a PEM container or
+// not. If so, it extracts the private key from PEM container before
+// conversion. It only supports PEM containers with no passphrase.
 func parseKey(key []byte) (*rsa.PrivateKey, error) {
 	if block, _ := pem.Decode(key); block != nil {
 		key = block.Bytes
