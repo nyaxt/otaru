@@ -9,6 +9,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
 	"github.com/nyaxt/otaru/btncrypt"
@@ -215,10 +216,16 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		}
 	}
 
-	o.MGMT = mgmt.NewServer(cfg.HttpApiAddr)
-	if err := o.runMgmtServer(cfg); err != nil {
-		o.Close()
-		return nil, fmt.Errorf("Mgmt server run failed: %v", err)
+	/*
+		o.MGMT = mgmt.NewServer(cfg.HttpApiAddr)
+		if err := o.runMgmtServer(cfg); err != nil {
+			o.Close()
+			return nil, fmt.Errorf("Mgmt server run failed: %v", err)
+		}
+	*/
+
+	if err := apiserver.Serve(cfg.HttpApiAddr); err != nil {
+		return nil, fmt.Errorf("API server run failed: %v", err)
 	}
 
 	return o, nil
