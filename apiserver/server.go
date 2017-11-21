@@ -50,7 +50,7 @@ func Serve(addr string) error {
 		return fmt.Errorf("certpool creation failure")
 	}
 
-	grpcCredentials := credentials.NewClientTLSFromCert(certpool, "localhost:10249")
+	grpcCredentials := credentials.NewServerTLSFromCert(&cert)
 	opts := []grpc.ServerOption{grpc.Creds(grpcCredentials)}
 	grpcServer := grpc.NewServer(opts...)
 
@@ -61,11 +61,9 @@ func Serve(addr string) error {
 	logger.Debugf(clog, "loopbackaddr: %v", loopbackaddr)
 	ctx := context.Background()
 	gwmux := gwruntime.NewServeMux()
-	allowcertcred := credentials.NewTLS(&tls.Config{
-		ServerName: "localhost",
-		RootCAs:    certpool,
-	})
-	gwdialopts := []grpc.DialOption{grpc.WithTransportCredentials(allowcertcred)}
+	gwdialopts := []grpc.DialOption{
+		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(certpool, "")),
+	}
 	if err := pb.RegisterSystemInfoServiceHandlerFromEndpoint(ctx, gwmux, loopbackaddr, gwdialopts); err != nil {
 		return fmt.Errorf("Failed to register gw handler: %v", err)
 	}
