@@ -6,16 +6,12 @@ import (
 	"time"
 )
 
-type buildInfo struct {
-	GitCommit string    `json:"git_commit"`
-	BuildHost string    `json:"build_host"`
-	BuildTime time.Time `json:"build_time"`
-}
+var BuildTime time.Time
+var BuildTimeString string
 
-var BuildInfo = buildInfo{
-	GitCommit: GIT_COMMIT,
-	BuildHost: BUILD_HOST,
-	BuildTime: time.Unix(BUILD_TIME, 0),
+func init() {
+	BuildTime = time.Unix(BUILD_TIME, 0)
+	BuildTimeString = BuildTime.Format("Mon Jan 2 15:04:05 -0700 MST 2006")
 }
 
 func DumpBuildInfo() string {
@@ -27,7 +23,7 @@ func DumpBuildInfo() string {
 		"OS/Arch:    %s/%s\n",
 		GIT_COMMIT,
 		BUILD_HOST,
-		BuildInfo.BuildTime.Format("Mon Jan 2 15:04:05 -0700 MST 2006"),
+		BuildTimeString,
 		runtime.Version(),
 		runtime.GOOS, runtime.GOARCH,
 	)

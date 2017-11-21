@@ -30,6 +30,22 @@
           "SystemInfoService"
         ]
       }
+    },
+    "/v1/system/version": {
+      "get": {
+        "operationId": "GetVersion",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbVersionResponse"
+            }
+          }
+        },
+        "tags": [
+          "SystemInfoService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -75,6 +91,20 @@
         "num_fds": {
           "type": "integer",
           "format": "int64"
+        }
+      }
+    },
+    "pbVersionResponse": {
+      "type": "object",
+      "properties": {
+        "git_commit": {
+          "type": "string"
+        },
+        "build_host": {
+          "type": "string"
+        },
+        "build_time": {
+          "type": "string"
         }
       }
     }

@@ -24,10 +24,25 @@ message SystemInfoResponse {
 	uint32 num_fds = 11;
 }
 
+message GetVersionRequest {
+}
+
+message VersionResponse {
+  string git_commit = 1;
+  string build_host = 2;
+  string build_time = 3;
+}
+
 service SystemInfoService {
 	rpc GetSystemInfo(GetSystemInfoRequest) returns (SystemInfoResponse) {
     option (google.api.http) = {
-      get: "/v1/system/info" 
+      get: "/v1/system/info"
+    };
+  };
+
+	rpc GetVersion(GetVersionRequest) returns (VersionResponse) {
+    option (google.api.http) = {
+      get: "/v1/system/version"
     };
   };
 }

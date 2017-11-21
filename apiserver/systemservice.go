@@ -9,7 +9,7 @@ import (
 
 	"github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/util/countfds"
-	//"github.com/nyaxt/otaru/version"
+	"github.com/nyaxt/otaru/version"
 )
 
 type systemService struct{}
@@ -40,6 +40,14 @@ func (*systemService) GetSystemInfo(context.Context, *pb.GetSystemInfoRequest) (
 		NumGc: m.NumGC,
 
 		NumFds: uint32(countfds.CountFds()),
+	}, nil
+}
+
+func (*systemService) GetVersion(ctx context.Context, in *pb.GetVersionRequest) (*pb.VersionResponse, error) {
+	return &pb.VersionResponse{
+		GitCommit: version.GIT_COMMIT,
+		BuildHost: version.BUILD_HOST,
+		BuildTime: version.BuildTimeString,
 	}, nil
 }
 
