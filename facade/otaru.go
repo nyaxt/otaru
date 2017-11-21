@@ -2,6 +2,7 @@ package facade
 
 import (
 	"fmt"
+	"io"
 	"path"
 	"time"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/nyaxt/otaru/inodedb/inodedbsyncer"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/metadata"
-	"github.com/nyaxt/otaru/mgmt"
 	"github.com/nyaxt/otaru/scheduler"
 	"github.com/nyaxt/otaru/util"
 )
@@ -72,7 +72,7 @@ type Otaru struct {
 	AutoINodeDBTxLogGCJob scheduler.ID
 	AutoINodeDBSSGCJob    scheduler.ID
 
-	MGMT *mgmt.Server
+	ApiServerCloser io.Closer
 }
 
 func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
@@ -216,15 +216,9 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		}
 	}
 
-	/*
-		o.MGMT = mgmt.NewServer(cfg.HttpApiAddr)
-		if err := o.runMgmtServer(cfg); err != nil {
-			o.Close()
-			return nil, fmt.Errorf("Mgmt server run failed: %v", err)
-		}
-	*/
-
-	if err := apiserver.Serve(cfg.HttpApiAddr); err != nil {
+	options := o.buildApiServerOptions(cfg)
+	o.ApiServerCloser, err = apiserver.Serve(options...)
+	if err != nil {
 		return nil, fmt.Errorf("API server run failed: %v", err)
 	}
 
@@ -233,6 +227,12 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 
 func (o *Otaru) Close() error {
 	errs := []error{}
+
+	if o.ApiServerCloser != nil {
+		if err := o.ApiServerCloser.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
 
 	if o.R != nil {
 		o.R.Stop()

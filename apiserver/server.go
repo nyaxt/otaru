@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -16,10 +17,29 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"github.com/nyaxt/otaru/logger"
-	"github.com/nyaxt/otaru/pb"
 )
 
-var clog = logger.Registry().Category("apiserver")
+var mylog = logger.Registry().Category("apiserver")
+
+type serviceRegistryEntry struct {
+	registerServiceServer func(*grpc.Server)
+	registerProxy         func(ctx context.Context, mux *gwruntime.ServeMux, endpoint string, opts []grpc.DialOption) error
+}
+
+type options struct {
+	listenAddr      string
+	serviceRegistry []serviceRegistryEntry
+}
+
+var defaultOptions = options{
+	serviceRegistry: []serviceRegistryEntry{},
+}
+
+type Option func(*options)
+
+func ListenAddr(listenAddr string) Option {
+	return func(o *options) { o.listenAddr = listenAddr }
+}
 
 func grpcHttpMux(grpcServer *grpc.Server, httpHandler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -31,43 +51,50 @@ func grpcHttpMux(grpcServer *grpc.Server, httpHandler http.Handler) http.Handler
 	})
 }
 
-func Serve(addr string) error {
+func Serve(opt ...Option) (io.Closer, error) {
+	opts := defaultOptions
+	for _, o := range opt {
+		o(&opts)
+	}
+
 	certtext, err := ioutil.ReadFile("/home/kouhei/otaru-testconf/tls.crt")
 	if err != nil {
-		return fmt.Errorf("Failed to load TLS cert file: %v", err)
+		return nil, fmt.Errorf("Failed to load TLS cert file: %v", err)
 	}
 	keytext, err := ioutil.ReadFile("/home/kouhei/otaru-testconf/tls.key")
 	if err != nil {
-		return fmt.Errorf("Failed to load TLS key file: %v", err)
+		return nil, fmt.Errorf("Failed to load TLS key file: %v", err)
 	}
 
 	cert, err := tls.X509KeyPair(certtext, keytext)
 	if err != nil {
-		return fmt.Errorf("Failed to create X509KeyPair: %v", err)
+		return nil, fmt.Errorf("Failed to create X509KeyPair: %v", err)
 	}
 	certpool := x509.NewCertPool()
 	if !certpool.AppendCertsFromPEM(certtext) {
-		return fmt.Errorf("certpool creation failure")
+		return nil, fmt.Errorf("certpool creation failure")
 	}
 
 	grpcCredentials := credentials.NewServerTLSFromCert(&cert)
-	opts := []grpc.ServerOption{grpc.Creds(grpcCredentials)}
-	grpcServer := grpc.NewServer(opts...)
+	grpcServer := grpc.NewServer(grpc.Creds(grpcCredentials))
+	for _, e := range opts.serviceRegistry {
+		e.registerServiceServer(grpcServer)
+	}
 
 	mux := http.NewServeMux()
 	// mux.HandleFunc("/swagger.json", ...
 
-	loopbackaddr := "localhost" + addr // FIXME
-	logger.Debugf(clog, "loopbackaddr: %v", loopbackaddr)
+	loopbackaddr := "localhost" + opts.listenAddr // FIXME
 	ctx := context.Background()
 	gwmux := gwruntime.NewServeMux()
 	gwdialopts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(certpool, "")),
 	}
-	if err := pb.RegisterSystemInfoServiceHandlerFromEndpoint(ctx, gwmux, loopbackaddr, gwdialopts); err != nil {
-		return fmt.Errorf("Failed to register gw handler: %v", err)
+	for _, e := range opts.serviceRegistry {
+		if err := e.registerProxy(ctx, gwmux, loopbackaddr, gwdialopts); err != nil {
+			return nil, fmt.Errorf("Failed to register gw handler: %v", err)
+		}
 	}
-	logger.Debugf(clog, "RegisteredSystemInfoServiceHandler")
 	mux.Handle("/", gwmux)
 	// serveSwagger(mux)
 
@@ -75,15 +102,14 @@ func Serve(addr string) error {
 		AllowedOrigins: []string{"http://localhost:9000"}, // gulp devsrv
 	})
 
-	lis, err := net.Listen("tcp", addr)
+	lis, err := net.Listen("tcp", opts.listenAddr)
 	if err != nil {
-		return fmt.Errorf("Failed to listen \"%s\": %v", addr, err)
+		return nil, fmt.Errorf("Failed to listen \"%s\": %v", opts.listenAddr, err)
 	}
-	logger.Debugf(clog, "StartListen")
 
 	httpHandler := c.Handler(mux)
 	httpServer := &http.Server{
-		Addr:    addr,
+		Addr:    opts.listenAddr,
 		Handler: grpcHttpMux(grpcServer, httpHandler),
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{cert},
@@ -91,8 +117,10 @@ func Serve(addr string) error {
 		},
 	}
 
-	if err := httpServer.Serve(tls.NewListener(lis, httpServer.TLSConfig)); err != nil {
-		return fmt.Errorf("http.Server.Serve: %v", err)
-	}
-	return nil
+	go func() {
+		if err := httpServer.Serve(tls.NewListener(lis, httpServer.TLSConfig)); err != nil {
+			logger.Debugf(mylog, "http.Server.Serve exit: %v", err)
+		}
+	}()
+	return lis, nil
 }
