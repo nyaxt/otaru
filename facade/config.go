@@ -48,6 +48,7 @@ type Config struct {
 
 	// Install /api/debug handlers.
 	InstallDebugApi bool
+	WebUIRootPath   string `toml:"webui_root_path"`
 
 	Fluent gfluent.Config
 

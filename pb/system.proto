@@ -36,13 +36,13 @@ message VersionResponse {
 service SystemInfoService {
 	rpc GetSystemInfo(GetSystemInfoRequest) returns (SystemInfoResponse) {
     option (google.api.http) = {
-      get: "/v1/system/info"
+      get: "/api/v1/system/info"
     };
   };
 
 	rpc GetVersion(GetVersionRequest) returns (VersionResponse) {
     option (google.api.http) = {
-      get: "/v1/system/version"
+      get: "/api/v1/system/version"
     };
   };
 }

@@ -2,24 +2,28 @@ package facade
 
 import (
 	"github.com/nyaxt/otaru/apiserver"
+	"github.com/nyaxt/otaru/logger"
 	/*
-		  "github.com/nyaxt/otaru/logger"
-			"github.com/nyaxt/otaru/gcloud/gcs"
-			"github.com/nyaxt/otaru/mgmt/mblobstore"
-			"github.com/nyaxt/otaru/mgmt/mdebug"
-			"github.com/nyaxt/otaru/mgmt/mfilesystem"
-			"github.com/nyaxt/otaru/mgmt/mgc"
-			"github.com/nyaxt/otaru/mgmt/mgcsblobstore"
-			"github.com/nyaxt/otaru/mgmt/minodedb"
-			"github.com/nyaxt/otaru/mgmt/mlogger"
-			"github.com/nyaxt/otaru/mgmt/mscheduler"
-			"github.com/nyaxt/otaru/mgmt/msystem"
+		"github.com/nyaxt/otaru/gcloud/gcs"
+		"github.com/nyaxt/otaru/mgmt/mblobstore"
+		"github.com/nyaxt/otaru/mgmt/mdebug"
+		"github.com/nyaxt/otaru/mgmt/mfilesystem"
+		"github.com/nyaxt/otaru/mgmt/mgc"
+		"github.com/nyaxt/otaru/mgmt/mgcsblobstore"
+		"github.com/nyaxt/otaru/mgmt/minodedb"
+		"github.com/nyaxt/otaru/mgmt/mlogger"
+		"github.com/nyaxt/otaru/mgmt/mscheduler"
+		"github.com/nyaxt/otaru/mgmt/msystem"
 	*/)
 
 func (o *Otaru) buildApiServerOptions(cfg *Config) []apiserver.Option {
 	options := []apiserver.Option{
 		apiserver.ListenAddr(cfg.HttpApiAddr),
 		apiserver.InstallSystemService(),
+	}
+	if cfg.WebUIRootPath != "" {
+		logger.Infof(mylog, "Overriding embedded WebUI and serving WebUI at %s", cfg.WebUIRootPath)
+		options = append(options, apiserver.OverrideWebUI(cfg.WebUIRootPath))
 	}
 	/*
 		mlogger.Install(o.MGMT)

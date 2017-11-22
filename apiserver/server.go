@@ -28,10 +28,12 @@ type serviceRegistryEntry struct {
 
 type options struct {
 	listenAddr      string
+	defaultHandler  http.Handler
 	serviceRegistry []serviceRegistryEntry
 }
 
 var defaultOptions = options{
+	defaultHandler:  http.NotFoundHandler(),
 	serviceRegistry: []serviceRegistryEntry{},
 }
 
@@ -39,6 +41,10 @@ type Option func(*options)
 
 func ListenAddr(listenAddr string) Option {
 	return func(o *options) { o.listenAddr = listenAddr }
+}
+
+func OverrideWebUI(rootPath string) Option {
+	return func(o *options) { o.defaultHandler = http.FileServer(http.Dir(rootPath)) }
 }
 
 func grpcHttpMux(grpcServer *grpc.Server, httpHandler http.Handler) http.Handler {
@@ -95,7 +101,8 @@ func Serve(opt ...Option) (io.Closer, error) {
 			return nil, fmt.Errorf("Failed to register gw handler: %v", err)
 		}
 	}
-	mux.Handle("/", gwmux)
+	mux.Handle("/api/", gwmux)
+	mux.Handle("/", opts.defaultHandler)
 	// serveSwagger(mux)
 
 	c := cors.New(cors.Options{

@@ -146,9 +146,9 @@ func RegisterSystemInfoServiceHandlerClient(ctx context.Context, mux *runtime.Se
 }
 
 var (
-	pattern_SystemInfoService_GetSystemInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "system", "info"}, ""))
+	pattern_SystemInfoService_GetSystemInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "system", "info"}, ""))
 
-	pattern_SystemInfoService_GetVersion_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "system", "version"}, ""))
+	pattern_SystemInfoService_GetVersion_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "system", "version"}, ""))
 )
 
 var (

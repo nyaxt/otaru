@@ -15,7 +15,7 @@
     "application/json"
   ],
   "paths": {
-    "/v1/system/info": {
+    "/api/v1/system/info": {
       "get": {
         "operationId": "GetSystemInfo",
         "responses": {
@@ -31,7 +31,7 @@
         ]
       }
     },
-    "/v1/system/version": {
+    "/api/v1/system/version": {
       "get": {
         "operationId": "GetVersion",
         "responses": {
