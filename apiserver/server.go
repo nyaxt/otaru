@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/elazarl/go-bindata-assetfs"
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/rs/cors"
 	"golang.org/x/net/context"
@@ -17,6 +18,7 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/webui/swaggerui"
 )
 
 var mylog = logger.Registry().Category("apiserver")
@@ -55,6 +57,17 @@ func grpcHttpMux(grpcServer *grpc.Server, httpHandler http.Handler) http.Handler
 			httpHandler.ServeHTTP(w, r)
 		}
 	})
+}
+
+func serveSwagger(mux *http.ServeMux) {
+	server := http.FileServer(
+		&assetfs.AssetFS{
+			Asset:     swaggerui.Asset,
+			AssetDir:  swaggerui.AssetDir,
+			AssetInfo: swaggerui.AssetInfo,
+		})
+	prefix := "/swagger/"
+	mux.Handle(prefix, http.StripPrefix(prefix, server))
 }
 
 func Serve(opt ...Option) (io.Closer, error) {
@@ -101,9 +114,9 @@ func Serve(opt ...Option) (io.Closer, error) {
 			return nil, fmt.Errorf("Failed to register gw handler: %v", err)
 		}
 	}
-	mux.Handle("/api/", gwmux)
 	mux.Handle("/", opts.defaultHandler)
-	// serveSwagger(mux)
+	mux.Handle("/api/", gwmux)
+	serveSwagger(mux)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"http://localhost:9000"}, // gulp devsrv

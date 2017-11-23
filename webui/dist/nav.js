@@ -31,11 +31,14 @@ let showContent = () => {
     } 
   });
   const sectionNeedle = `section--${contentId}`;
+
   $$(".section").forEach(section => {
     if (section.classList.contains(sectionNeedle)) {
       section.classList.add("section--selected");
+      section.dispatchEvent(new Event('shown'));
     } else {
       section.classList.remove("section--selected");
+      section.dispatchEvent(new Event('hidden'));
     }
   });
 };
