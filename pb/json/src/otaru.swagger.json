@@ -1,11 +1,15 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "otaru.proto",
-    "version": "version not set"
+    "title": "Otaru API",
+    "version": "1.0",
+    "contact": {
+      "name": "Otaru project",
+      "url": "https://github.com/nyaxt/otaru",
+      "email": "ueno@nyaxtstep.com"
+    }
   },
   "schemes": [
-    "http",
     "https"
   ],
   "consumes": [
@@ -42,6 +46,16 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbReduceCacheRequest"
+            }
+          }
+        ],
         "tags": [
           "BlobstoreService"
         ]
@@ -94,6 +108,18 @@
           "type": "string"
         },
         "cache_flags": {
+          "type": "string"
+        }
+      }
+    },
+    "pbReduceCacheRequest": {
+      "type": "object",
+      "properties": {
+        "dry_run": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "desired_size": {
           "type": "string"
         }
       }

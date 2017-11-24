@@ -2,6 +2,22 @@ syntax = "proto3";
 package pb;
 
 import "google/api/annotations.proto";
+import "protoc-gen-swagger/options/annotations.proto";
+
+option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
+  info: {
+    title: "Otaru API";
+    version: "1.0";
+    contact: {
+      name: "Otaru project";
+      url: "https://github.com/nyaxt/otaru";
+      email: "ueno@nyaxtstep.com";
+    };
+  };
+  schemes: HTTPS;
+  consumes: "application/json";
+  produces: "application/json";
+};
 
 message GetBlobstoreConfigRequest {
 }
@@ -33,6 +49,7 @@ service BlobstoreService {
 	rpc ReduceCache(ReduceCacheRequest) returns (ReduceCacheResponse) {
     option (google.api.http) = {
       post: "/api/v1/blobstore/reduce_cache"
+      body: "*"
     };
   };
 }
