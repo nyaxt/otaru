@@ -12,6 +12,7 @@ protoc $protocflags \
   --grpc-gateway_out=logtostderr=true:. \
   ${protofiles[*]}
 protoc $protocflags \
-  --swagger_out=logtostderr=true:. \
+  --swagger_out=logtostderr=true:./json/src \
   ${protofiles[*]}
+(cd json && go-bindata -pkg json -prefix src/ src)
 go generate .

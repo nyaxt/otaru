@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"github.com/nyaxt/otaru/logger"
+	sjson "github.com/nyaxt/otaru/pb/json"
 	"github.com/nyaxt/otaru/webui/swaggerui"
 )
 
@@ -60,14 +61,21 @@ func grpcHttpMux(grpcServer *grpc.Server, httpHandler http.Handler) http.Handler
 }
 
 func serveSwagger(mux *http.ServeMux) {
-	server := http.FileServer(
+	uisrv := http.FileServer(
 		&assetfs.AssetFS{
 			Asset:     swaggerui.Asset,
 			AssetDir:  swaggerui.AssetDir,
 			AssetInfo: swaggerui.AssetInfo,
 		})
 	prefix := "/swagger/"
-	mux.Handle(prefix, http.StripPrefix(prefix, server))
+	mux.Handle(prefix, http.StripPrefix(prefix, uisrv))
+
+	mux.Handle("/otaru.swagger.json", http.FileServer(
+		&assetfs.AssetFS{
+			Asset:     sjson.Asset,
+			AssetDir:  sjson.AssetDir,
+			AssetInfo: sjson.AssetInfo,
+		}))
 }
 
 func Serve(opt ...Option) (io.Closer, error) {
