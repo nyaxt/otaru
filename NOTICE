@@ -1,0 +1,3 @@
+Otaru includes software from:
+- https://github.com/philips/grpc-gateway-example (under Apache License 2.0)
+- https://github.com/swagger-api/swagger-ui (under Apache License 2.0)

@@ -50,6 +50,9 @@ func OverrideWebUI(rootPath string) Option {
 	return func(o *options) { o.defaultHandler = http.FileServer(http.Dir(rootPath)) }
 }
 
+// grpcHttpMux, serveSwagger, and Serve functions based on code from:
+// https://github.com/philips/grpc-gateway-example
+
 func grpcHttpMux(grpcServer *grpc.Server, httpHandler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
@@ -109,7 +112,6 @@ func Serve(opt ...Option) (io.Closer, error) {
 	}
 
 	mux := http.NewServeMux()
-	// mux.HandleFunc("/swagger.json", ...
 
 	loopbackaddr := "localhost" + opts.listenAddr // FIXME
 	ctx := context.Background()
