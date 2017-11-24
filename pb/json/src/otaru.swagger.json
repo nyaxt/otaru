@@ -35,6 +35,22 @@
         ]
       }
     },
+    "/api/v1/blobstore/entries": {
+      "get": {
+        "operationId": "GetEntries",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbGetEntriesResponse"
+            }
+          }
+        },
+        "tags": [
+          "BlobstoreService"
+        ]
+      }
+    },
     "/api/v1/blobstore/reduce_cache": {
       "post": {
         "operationId": "ReduceCache",
@@ -95,6 +111,49 @@
     }
   },
   "definitions": {
+    "GetEntriesResponseEntry": {
+      "type": "object",
+      "properties": {
+        "blob_path": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "blob_len": {
+          "type": "string",
+          "format": "int64"
+        },
+        "valid_len": {
+          "type": "string",
+          "format": "int64"
+        },
+        "sync_count": {
+          "type": "string",
+          "format": "int64"
+        },
+        "last_used": {
+          "type": "string",
+          "format": "int64"
+        },
+        "last_write": {
+          "type": "string",
+          "format": "int64"
+        },
+        "last_sync": {
+          "type": "string",
+          "format": "int64"
+        },
+        "number_of_writer_handles": {
+          "type": "string",
+          "format": "int64"
+        },
+        "number_of_handles": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
     "pbGetBlobstoreConfigResponse": {
       "type": "object",
       "properties": {
@@ -109,6 +168,17 @@
         },
         "cache_flags": {
           "type": "string"
+        }
+      }
+    },
+    "pbGetEntriesResponse": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GetEntriesResponseEntry"
+          }
         }
       }
     },

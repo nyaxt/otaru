@@ -30,6 +30,29 @@ func (svc *blobstoreService) GetConfig(context.Context, *pb.GetBlobstoreConfigRe
 	}, nil
 }
 
+func (svc *blobstoreService) GetEntries(context.Context, *pb.GetEntriesRequest) (*pb.GetEntriesResponse, error) {
+	oes := svc.cbs.DumpEntriesInfo()
+
+	es := make([]*pb.GetEntriesResponse_Entry, 0, len(oes))
+	for _, oe := range oes {
+		e := &pb.GetEntriesResponse_Entry{
+			BlobPath:              oe.BlobPath,
+			State:                 oe.State,
+			BlobLen:               oe.BlobLen,
+			ValidLen:              oe.ValidLen,
+			SyncCount:             int64(oe.SyncCount),
+			LastUsed:              oe.LastUsed.Unix(),
+			LastWrite:             oe.LastWrite.Unix(),
+			LastSync:              oe.LastSync.Unix(),
+			NumberOfWriterHandles: int64(oe.NumberOfWriterHandles),
+			NumberOfHandles:       int64(oe.NumberOfHandles),
+		}
+		es = append(es, e)
+	}
+
+	return &pb.GetEntriesResponse{Entry: es}, nil
+}
+
 func (svc *blobstoreService) ReduceCache(ctx context.Context, req *pb.ReduceCacheRequest) (*pb.ReduceCacheResponse, error) {
 	desiredSizeP := req.DesiredSize
 	desiredSize, err := humanize.ParseBytes(desiredSizeP)

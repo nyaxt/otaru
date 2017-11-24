@@ -39,11 +39,36 @@ message ReduceCacheResponse {
   string error_message = 2;
 }
 
+message GetEntriesRequest {
+}
+
+message GetEntriesResponse {
+  message Entry {
+    string blob_path = 1;
+    string state = 2;
+    int64 blob_len = 3;
+    int64 valid_len = 4;
+    int64 sync_count = 5;
+    int64 last_used = 6;
+    int64 last_write = 7;
+    int64 last_sync = 8;
+    int64 number_of_writer_handles = 9;
+    int64 number_of_handles = 10;
+  }
+  repeated Entry entry = 1;
+}
+
 service BlobstoreService {
 	rpc GetConfig(GetBlobstoreConfigRequest) returns (GetBlobstoreConfigResponse) {
     option (google.api.http) = {
       get: "/api/v1/blobstore/config"
     };
+  };
+
+  rpc GetEntries(GetEntriesRequest) returns (GetEntriesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/blobstore/entries"
+    }; 
   };
 
 	rpc ReduceCache(ReduceCacheRequest) returns (ReduceCacheResponse) {
