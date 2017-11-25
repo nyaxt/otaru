@@ -4,9 +4,26 @@
 <body>
 <nav class="nav">
   <h1 class="nav__item nav__item--logo">Otaru</h1>
+  <a class="nav__item nav__tab" href="#browsefs">browse fs</a>
   <a class="nav__item nav__tab" href="#blobstore">blobstore</a>
   <a class="nav__item nav__tab" href="#settings">settings</a>
 </nav>
+<section class="section section--browsefs">
+  <div class="browsefs__header">
+    <label class="browsefs__label" for="browsefs-path">Path: </label>
+    <input class="browsefs__path" type="text" id="browsefs-path">
+  </div>
+  <div class="browsefs__list">
+    <div class="browsefs__entry">
+      <span class="browsefs__name">comic</span>
+      <span class="browsefs__size">32KiB</span>
+      <span class="browsefs__uid">1000</span>
+      <span class="browsefs__gid">1000</span>
+      <span class="browsefs__perm_mode">0755</span>
+      <span class="browsefs__modified_time">0755</span>
+    </div>
+  </div>
+</section>
 <section class="section section--blobstore">
   <div class="kvview">
     <div class="kvview__item">

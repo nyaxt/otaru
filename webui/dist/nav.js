@@ -8,6 +8,7 @@ $$(".nav__item").forEach(menu_item => {
 });
 
 const validContents = [
+  'browsefs',
   'blobstore',
   'settings',
 ];

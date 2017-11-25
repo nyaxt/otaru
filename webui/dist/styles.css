@@ -56,7 +56,6 @@ body {
 .section {
   display: none;
 
-  padding: 5px;
 }
 
 .section--selected {
@@ -64,7 +63,7 @@ body {
 }
 
 .kvview {
-
+  padding: 5px;
 }
 
 .kvview__item {
@@ -85,4 +84,21 @@ body {
 
 .kvview__value {
   flex-grow: 1;
+}
+
+.browsefs__header {
+  padding: 5px;
+  height: 25px;
+  line-height: 25px;
+  border-bottom: 1px solid var(--dark-bg-color);
+
+  display: flex;
+}
+
+.browsefs__path {
+  flex-grow: 1; 
+}
+
+.browsefs__list {
+  
 }
