@@ -68,7 +68,7 @@ service BlobstoreService {
   rpc GetEntries(GetEntriesRequest) returns (GetEntriesResponse) {
     option (google.api.http) = {
       get: "/api/v1/blobstore/entries"
-    }; 
+    };
   };
 
 	rpc ReduceCache(ReduceCacheRequest) returns (ReduceCacheResponse) {
