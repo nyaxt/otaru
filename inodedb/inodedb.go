@@ -47,6 +47,17 @@ const (
 	// SymlinkNode
 )
 
+func TypeName(t Type) string {
+	switch t {
+	case FileNodeT:
+		return "file"
+	case DirNodeT:
+		return "dir"
+	default:
+		return fmt.Sprintf("<unknown type: %d>", int(t))
+	}
+}
+
 type INode interface {
 	GetID() ID
 	GetType() Type

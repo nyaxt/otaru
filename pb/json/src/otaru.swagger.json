@@ -77,6 +77,30 @@
         ]
       }
     },
+    "/api/v1/filesystem/ls": {
+      "get": {
+        "operationId": "ListDir",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbListDirResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
     "/api/v1/system/info": {
       "get": {
         "operationId": "GetSystemInfo",
@@ -111,7 +135,35 @@
     }
   },
   "definitions": {
-    "GetEntriesResponseEntry": {
+    "pbGetBlobstoreConfigResponse": {
+      "type": "object",
+      "properties": {
+        "backend_impl_name": {
+          "type": "string"
+        },
+        "backend_flags": {
+          "type": "string"
+        },
+        "cache_impl_name": {
+          "type": "string"
+        },
+        "cache_flags": {
+          "type": "string"
+        }
+      }
+    },
+    "pbGetEntriesResponse": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pbGetEntriesResponseEntry"
+          }
+        }
+      }
+    },
+    "pbGetEntriesResponseEntry": {
       "type": "object",
       "properties": {
         "blob_path": {
@@ -154,31 +206,45 @@
         }
       }
     },
-    "pbGetBlobstoreConfigResponse": {
-      "type": "object",
-      "properties": {
-        "backend_impl_name": {
-          "type": "string"
-        },
-        "backend_flags": {
-          "type": "string"
-        },
-        "cache_impl_name": {
-          "type": "string"
-        },
-        "cache_flags": {
-          "type": "string"
-        }
-      }
-    },
-    "pbGetEntriesResponse": {
+    "pbListDirResponse": {
       "type": "object",
       "properties": {
         "entry": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/GetEntriesResponseEntry"
+            "$ref": "#/definitions/pbListDirResponseEntry"
           }
+        }
+      }
+    },
+    "pbListDirResponseEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string",
+          "format": "int64"
+        },
+        "uid": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "gid": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "perm_mode": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "modified_time": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },

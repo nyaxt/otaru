@@ -10,6 +10,7 @@ func (o *Otaru) buildApiServerOptions(cfg *Config) []apiserver.Option {
 		apiserver.ListenAddr(cfg.HttpApiAddr),
 		apiserver.InstallSystemService(),
 		apiserver.InstallBlobstoreService(o.S, o.DefaultBS, o.CBS),
+		apiserver.InstallFileSystemService(o.FS),
 	}
 	if cfg.WebUIRootPath != "" {
 		logger.Infof(mylog, "Overriding embedded WebUI and serving WebUI at %s", cfg.WebUIRootPath)
@@ -27,7 +28,6 @@ func (o *Otaru) buildApiServerOptions(cfg *Config) []apiserver.Option {
 		}
 		minodedb.Install(o.MGMT, o.IDBS)
 		mscheduler.Install(o.MGMT, o.S, o.R)
-		mfilesystem.Install(o.MGMT, o.FS)
 		mgc.Install(o.MGMT, o.S, o)
 	*/
 

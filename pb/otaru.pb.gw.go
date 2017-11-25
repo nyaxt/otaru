@@ -28,6 +28,23 @@ var _ status.Status
 var _ = runtime.String
 var _ = utilities.NewDoubleArray
 
+var (
+	filter_FileSystemService_ListDir_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
+func request_FileSystemService_ListDir_0(ctx context.Context, marshaler runtime.Marshaler, client FileSystemServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ListDirRequest
+	var metadata runtime.ServerMetadata
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_FileSystemService_ListDir_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.ListDir(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
 func request_BlobstoreService_GetConfig_0(ctx context.Context, marshaler runtime.Marshaler, client BlobstoreServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetBlobstoreConfigRequest
 	var metadata runtime.ServerMetadata
@@ -76,6 +93,84 @@ func request_SystemInfoService_GetVersion_0(ctx context.Context, marshaler runti
 	return msg, metadata, err
 
 }
+
+// RegisterFileSystemServiceHandlerFromEndpoint is same as RegisterFileSystemServiceHandler but
+// automatically dials to "endpoint" and closes the connection when "ctx" gets done.
+func RegisterFileSystemServiceHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
+	conn, err := grpc.Dial(endpoint, opts...)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			if cerr := conn.Close(); cerr != nil {
+				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+			}
+			return
+		}
+		go func() {
+			<-ctx.Done()
+			if cerr := conn.Close(); cerr != nil {
+				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+			}
+		}()
+	}()
+
+	return RegisterFileSystemServiceHandler(ctx, mux, conn)
+}
+
+// RegisterFileSystemServiceHandler registers the http handlers for service FileSystemService to "mux".
+// The handlers forward requests to the grpc endpoint over "conn".
+func RegisterFileSystemServiceHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
+	return RegisterFileSystemServiceHandlerClient(ctx, mux, NewFileSystemServiceClient(conn))
+}
+
+// RegisterFileSystemServiceHandler registers the http handlers for service FileSystemService to "mux".
+// The handlers forward requests to the grpc endpoint over the given implementation of "FileSystemServiceClient".
+// Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "FileSystemServiceClient"
+// doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
+// "FileSystemServiceClient" to call the correct interceptors.
+func RegisterFileSystemServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client FileSystemServiceClient) error {
+
+	mux.Handle("GET", pattern_FileSystemService_ListDir_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_FileSystemService_ListDir_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_FileSystemService_ListDir_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	return nil
+}
+
+var (
+	pattern_FileSystemService_ListDir_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "filesystem", "ls"}, ""))
+)
+
+var (
+	forward_FileSystemService_ListDir_0 = runtime.ForwardResponseMessage
+)
 
 // RegisterBlobstoreServiceHandlerFromEndpoint is same as RegisterBlobstoreServiceHandler but
 // automatically dials to "endpoint" and closes the connection when "ctx" gets done.
