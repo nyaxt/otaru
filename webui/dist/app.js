@@ -1,40 +1,42 @@
-import './nav.js';
-import {$, $$} from './util.js';
+import {contentSection, isSectionSelected} from './nav.js';
+import {rpc, fillRemoteContent} from './api.js'; 
 
-let apiprefix = `${window.document.location.origin}/api`;
+const updateInterval = 3000;
+
 (() => {
-  const apiprefix_input = $("#apiprefix");
-  apiprefix_input.value = apiprefix;
-  apiprefix_input.addEventListener("change", ev => {
-    apiprefix = ev.value;
+  const triggerUpdate = async () => {
+    if (!isSectionSelected('blobstore'))
+      return;
+
+    try {
+      await fillRemoteContent("/v1/blobstore/config", "#blobstore-", [
+          'backend_impl_name', 'backend_flags',
+          'cache_impl_name', 'cache_flags']);
+    } catch (e) {
+      console.log(e);
+    }
+    window.setTimeout(triggerUpdate, updateInterval);
+  }
+  contentSection('blobstore').addEventListener('shown', e => {
+    triggerUpdate();
   });
 })();
 
-const rpc = async (endpoint) => {
-  const response = await window.fetch(
-      apiprefix + endpoint,
-      {mode: 'cors', cache: 'reload'});
-  if (!response.ok) {
-    throw new Error(`fetch failed: ${response.status}`);
-  }
-  return await response.json();
-};
+(() => {
+  const triggerUpdate = async () => {
+    if (!isSectionSelected('settings'))
+      return;
 
-const updateInterval = 3000;
-const triggerUpdate = async () => {
-  try {
-    const result = await rpc("/v1/system/info");
-
-    const fillKeys = ['go_version', 'os', 'arch', 'num_goroutine', 'hostname', 'pid', 'uid', 'mem_alloc', 'mem_sys', 'num_gc', 'num_fds'];
-    for (let k of fillKeys) {
-      $(`#settings-${k}`).textContent = result[k];
+    try {
+      await fillRemoteContent("/v1/system/info", "#settings-", [
+          'go_version', 'os', 'arch', 'num_goroutine', 'hostname', 'pid', 'uid',
+          'mem_alloc', 'mem_sys', 'num_gc', 'num_fds']);
+    } catch (e) {
+      console.log(e);
     }
-  } catch (e) {
-    console.log(e);
-  }
-  if ($('.section--settings').classList.contains('section--selected'))
     window.setTimeout(triggerUpdate, updateInterval);
-}
-$('.section--settings').addEventListener('shown', e => {
-  triggerUpdate();
-});
+  }
+  contentSection('settings').addEventListener('shown', e => {
+    triggerUpdate();
+  });
+})();

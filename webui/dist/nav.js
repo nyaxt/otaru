@@ -12,6 +12,15 @@ const validContents = [
   'settings',
 ];
 
+const contentSection = contentId => {
+  if (!validContents.includes(contentId))
+    throw new Error(`Invalid contentId "${contentId}"`);
+
+  return $(`.section--${contentId}`)
+};
+const isSectionSelected = contentId =>
+  contentSection(contentId).classList.contains('section--selected');
+
 let showContent = () => {
   let contentId = "";
   let m;
@@ -43,7 +52,11 @@ let showContent = () => {
   });
 };
 
-window.addEventListener("hashchange", ev => {
+window.addEventListener("hashchange", () => {
   showContent();
 })
-showContent();
+window.addEventListener("DOMContentLoaded", () => {
+  showContent();
+}, {oneshot: true});
+
+export {contentSection, isSectionSelected};
