@@ -50,6 +50,8 @@ let showContent = () => {
       section.dispatchEvent(new Event('hidden'));
     }
   });
+
+  document.title = `Otaru WebUI: ${contentId}`;
 };
 
 window.addEventListener("hashchange", () => {
