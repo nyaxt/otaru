@@ -1,7 +1,31 @@
 import {contentSection, isSectionSelected} from './nav.js';
 import {rpc, fillRemoteContent} from './api.js'; 
+import {$, $$} from './util.js';
 
 const updateInterval = 3000;
+
+(() => {
+  const triggerUpdate = async () => {
+    if (!isSectionSelected('browsefs'))
+      return;
+
+    try {
+      const result = await rpc("/v1/filesystem/ls?path=/");
+      console.dir(result);
+      for (let e of result.entry) {
+        console.dir(e);
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  }
+  contentSection('browsefs').addEventListener('shown', e => {
+    triggerUpdate();
+  });
+  contentSection('browsefs').addEventListener('hidden', e => {
+    // $('.browsefs__entry').removeChild();
+  });
+})();
 
 (() => {
   const triggerUpdate = async () => {

@@ -95,10 +95,44 @@ body {
   display: flex;
 }
 
+.browsefs__parentdir {
+  display: block;
+
+  height: 23px;
+  line-height: 23px;
+  width: 23px;
+  border: 1px solid var(--dark-bg-color);
+
+  font-size: 18px;
+  text-decoration: none;
+  text-align: center;
+  color: black;
+}
+
+.browsefs__label {
+  margin-left: 5px;
+}
+
 .browsefs__path {
   flex-grow: 1; 
 }
 
 .browsefs__list {
-  
+}
+
+.browsefs__entry {
+  display: flex;
+}
+
+.browsefs__entry:hover {
+  background-color: var(--light-fg-color);
+}
+
+.browsefs__cell {
+  display: block;
+  padding: 5px;
+}
+
+.browsefs__cell--name {
+  flex-grow: 1;
 }
