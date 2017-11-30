@@ -13,9 +13,14 @@
     <a class="browsefs__parentdir" href="#">↑</a>
     <label class="browsefs__label" for="browsefs-path">Path: </label>
     <input class="browsefs__path" type="text" id="browsefs-path">
+    <select class="browsefs__sort">
+      <option value="name" selected>Name</option> 
+      <option value="time_asc">Time ↓</option> 
+      <option value="time_desc">Time ↑</option> 
+    </select>
   </div>
-  <div class="browsefs__list browsefs__list--content">
-  </div>
+  <table class="browsefs__list"><tbody>
+  </tbody></table>
 </section>
 <section class="section section--blobstore">
   <div class="kvview">

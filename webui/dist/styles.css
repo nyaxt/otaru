@@ -10,7 +10,7 @@
   --dark3-bg-color: #211F1A;
 }
 
-body, div, p, span, input, h1{
+body, div, p, span, input, h1, table, tbody, th, tr, td {
   margin: 0;
   padding: 0;
 }
@@ -117,11 +117,17 @@ body {
   flex-grow: 1; 
 }
 
+.browsefs__sort {
+  margin-left: 5px;
+}
+
 .browsefs__list {
+  table-layout: fixed;
+  border-collapse: collapse;
+  width: 100%;
 }
 
 .browsefs__entry {
-  display: flex;
 }
 
 .browsefs__entry:hover {
@@ -129,10 +135,37 @@ body {
 }
 
 .browsefs__cell {
-  display: block;
   padding: 5px;
 }
 
+.browsefs__cell--type {
+  width: 8px;
+}
+
+.browsefs__cell--size {
+  text-align: right;
+  width: 65px;
+}
+
+.browsefs__cell--uid {
+  text-align: right;
+  width: 45px;
+}
+
+.browsefs__cell--gid {
+  text-align: right;
+  width: 45px;
+}
+
+.browsefs__cell--perm_mode {
+  text-align: right;
+  width: 30px;
+}
+
+.browsefs__cell--modified_time {
+  text-align: right;
+  width: 80px;
+}
+
 .browsefs__cell--name {
-  flex-grow: 1;
 }
