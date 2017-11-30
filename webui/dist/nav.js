@@ -1,4 +1,4 @@
-import {$, $$} from './util.js';
+import {$, $$} from './domhelper.js';
 
 $$(".nav__item").forEach(menu_item => {
   menu_item.addEventListener("click", ev => {

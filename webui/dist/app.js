@@ -1,6 +1,7 @@
 import {contentSection, isSectionSelected} from './nav.js';
 import {rpc, fillRemoteContent} from './api.js';
-import {$, $$, removeAllChildNodes} from './util.js';
+import {$, $$, removeAllChildNodes} from './domhelper.js';
+import {formatBlobSize, formatTimestamp} from './format.js';
 
 const updateInterval = 3000;
 
@@ -56,39 +57,9 @@ const updateInterval = 3000;
             } else if (colName === 'gid') {
               val = 'g'+val;
             } else if (colName === 'size') {
-              if (val === undefined) {
-                val = '';
-              } else if (val > 1024 * 1024 * 1024) {
-                val = (val / (1024 * 1024 * 1024)).toPrecision(2) + 'GiB';
-              } else if (val > 1024 * 1024) {
-                val = (val / (1024 * 1024)).toPrecision(2) + 'MiB';
-              } else if (val > 1024) {
-                val = (val / 1024).toPrecision(2) + 'KiB';
-              } else {
-                val = val + 'B';
-              }
+              val = formatBlobSize(val);
             } else if (colName.match(reTime)) {
-              const t = new Date(val*1000);
-              const diff = new Date() - t;
-
-              const startOfToday = new Date();
-              startOfToday.setHours(0);
-              startOfToday.setMinutes(0);
-              startOfToday.setSeconds(0);
-              startOfToday.setMilliseconds(0);
-
-              const pad = n => (n < 10 ? '0' : '') + n;
-              if (diff < 60 * 1000) {
-                val = `${(diff / (1000)).toFixed(0)}s ago`;
-              } else if (diff < 1 * 60 * 60 * 1000) {
-                val = `${(diff / (60 * 1000)).toFixed(0)}m ago`;
-              } else if (diff < 6 * 60 * 60 * 1000) {
-                val = `${(diff / (60 * 60 * 1000)).toFixed(0)}h ago`;
-              } else if (t > startOfToday) {
-                val = `${pad(t.getHours())}:${pad(t.getMinutes())}`;
-              } else {
-                val = `${pad(t.getFullYear()-2000)}/${pad(t.getMonth()+1)}/${pad(t.getDay()+1)}`;
-              }
+              val = formatTimestamp(new Date(val*1000));
             }
             if (val === undefined)
               val = '-';

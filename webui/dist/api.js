@@ -1,4 +1,4 @@
-import {$} from './util.js';
+import {$} from './domhelper.js';
 
 let apiprefix = `${window.document.location.origin}/api`;
 (() => {
