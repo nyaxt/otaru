@@ -1,4 +1,4 @@
-import {contentSection, isSectionSelected} from './nav.js';
+import {contentSection, isSectionSelected, getBrowsefsPath, setBrowsefsPath} from './nav.js';
 import {rpc, fillRemoteContent} from './api.js';
 import {$, $$, removeAllChildNodes} from './domhelper.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
@@ -18,13 +18,19 @@ const updateInterval = 3000;
     'time_asc': (a, b) => a['modified_time'] - b['modified_time'],
     'time_desc': (a, b) => b['modified_time'] - a['modified_time'],
   };
+  const pathInput = $('.browsefs__path');
 
   const triggerUpdate = async () => {
     if (!isSectionSelected('browsefs'))
       return;
 
+    const path = getBrowsefsPath();
+    if (pathInput.value !== path) {
+      pathInput.value = path;
+    }
+
     try {
-      const result = await rpc('v1/filesystem/ls', {args: {path: '/'}});
+      const result = await rpc('v1/filesystem/ls', {args: {path: path}});
 
       const listDiv = $('.browsefs__list');
       removeAllChildNodes($('.browsefs__list'));
@@ -77,6 +83,20 @@ const updateInterval = 3000;
   }
   contentSection('browsefs').addEventListener('shown', triggerUpdate);
   $('.browsefs__sort').addEventListener('change', triggerUpdate);
+  $('.browsefs__parentdir').addEventListener('click', ev => {
+    const curr = getBrowsefsPath();
+    const next = curr.replace(/[^\/]+\/?$/, '');
+    if (next !== curr)
+      setBrowsefsPath(next);
+
+    ev.preventDefault(); 
+  });
+  pathInput.addEventListener('change', () => {
+    const path = getBrowsefsPath();
+    if (pathInput.value !== path) {
+      setBrowsefsPath(pathInput.value);
+    }
+  });
   contentSection('browsefs').addEventListener('hidden', () => {
     removeAllChildNodes($('.browsefs__list'));
   });
