@@ -18,7 +18,12 @@ const updateInterval = 3000;
     'time_asc': (a, b) => a['modified_time'] - b['modified_time'],
     'time_desc': (a, b) => b['modified_time'] - a['modified_time'],
   };
+  const actionListMap = {
+    'dir': ['→'],
+    'file': ['DL'],
+  };
   const pathInput = $('.browsefs__path');
+  const listTbody = $('.browsefs__list').lastChild;
 
   const triggerUpdate = async () => {
     if (!isSectionSelected('browsefs'))
@@ -32,22 +37,21 @@ const updateInterval = 3000;
     try {
       const result = await rpc('v1/filesystem/ls', {args: {path: path}});
 
-      const listDiv = $('.browsefs__list');
-      removeAllChildNodes($('.browsefs__list'));
+      removeAllChildNodes(listTbody);
 
       const sortSel = $('.browsefs__sort').value;
       const sortFunc = sortFuncMap[sortSel];
 
       if (result['entry'] === undefined) {
-        listDiv.classList.add('.browsefs__list--empty');
+        listTbody.classList.add('.browsefs__list--empty');
       } else {
         const rows = result['entry'].sort(sortFunc);
         for (let row of rows) {
-          listDiv.classList.remove('.browsefs__list--empty');
+          listTbody.classList.remove('.browsefs__list--empty');
 
           var rowDiv = document.createElement('tr');
           rowDiv.classList.add('browsefs__entry');
-          listDiv.appendChild(rowDiv);
+          listTbody.appendChild(rowDiv);
 
           for (let colName of colNames) {
             var cell = document.createElement('td');
@@ -72,6 +76,15 @@ const updateInterval = 3000;
               val = '-';
 
             cell.textContent = val;
+            if (colName === 'name') {
+              const actionList = actionListMap[row['type']] || [];
+              for (let action of actionList) {
+                const actionDiv = document.createElement('div');
+                actionDiv.classList.add('browsefs__action');
+                actionDiv.textContent = action;
+                cell.appendChild(actionDiv);
+              }
+            }
 
             rowDiv.appendChild(cell);
           }
@@ -98,7 +111,7 @@ const updateInterval = 3000;
     }
   });
   contentSection('browsefs').addEventListener('hidden', () => {
-    removeAllChildNodes($('.browsefs__list'));
+    removeAllChildNodes(listTbody);
   });
 })();
 

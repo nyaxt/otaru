@@ -16,7 +16,7 @@ const updateContentIfNeeded = (opts) => {
   let newContentId = opts['contentId'];
   let newBrowsefsPath = opts['currBrowsefsPath'];
   if (fromHash) {
-    let m = window.location.hash.match(/^#(\w+)(\/.+)?$/);
+    let m = window.location.hash.match(/^#(\w+)(\/.*)?$/);
     if (m) {
       newContentId = m[1];
       newBrowsefsPath = m[2];

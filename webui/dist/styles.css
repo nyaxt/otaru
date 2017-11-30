@@ -169,3 +169,17 @@ body {
 
 .browsefs__cell--name {
 }
+
+.browsefs__action {
+  display: none;
+}
+
+.browsefs__entry:hover .browsefs__action {
+  display: inline;
+
+  font-weight: bold;
+  margin-left: 5px;
+  padding: 0 5px;
+  width: 30px;
+  border: 1px solid black;
+}
