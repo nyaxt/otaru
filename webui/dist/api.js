@@ -1,6 +1,6 @@
 import {$} from './domhelper.js';
 
-let apiprefix = `${window.document.location.origin}/api`;
+let apiprefix = `${window.document.location.origin}/api/`;
 (() => {
   const apiprefix_input = $("#apiprefix");
   apiprefix_input.value = apiprefix;
@@ -9,10 +9,14 @@ let apiprefix = `${window.document.location.origin}/api`;
   });
 })();
 
-const rpc = async (endpoint) => {
-  const response = await window.fetch(
-      apiprefix + endpoint,
-      {mode: 'cors', cache: 'reload'});
+const rpc = async (endpoint, opts = {}) => {
+  let url = new URL(endpoint, apiprefix);
+  let args = opts['args'] || {};
+  for (let k in args) {
+    url.searchParams.set(k, args[k]);
+  }
+
+  const response = await window.fetch(url, {mode: 'cors', cache: 'reload'});
   if (!response.ok) {
     throw new Error(`fetch failed: ${response.status}`);
   }

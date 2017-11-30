@@ -24,7 +24,8 @@ const updateInterval = 3000;
       return;
 
     try {
-      const result = await rpc('/v1/filesystem/ls?path=/');
+      const result = await rpc('v1/filesystem/ls', {args: {path: '/'}});
+
       const listDiv = $('.browsefs__list');
       removeAllChildNodes($('.browsefs__list'));
 
@@ -76,8 +77,8 @@ const updateInterval = 3000;
   }
   contentSection('browsefs').addEventListener('shown', triggerUpdate);
   $('.browsefs__sort').addEventListener('change', triggerUpdate);
-  contentSection('browsefs').addEventListener('hidden', e => {
-    // $('.browsefs__entry').removeChild();
+  contentSection('browsefs').addEventListener('hidden', () => {
+    removeAllChildNodes($('.browsefs__list'));
   });
 })();
 
@@ -87,7 +88,7 @@ const updateInterval = 3000;
       return;
 
     try {
-      await fillRemoteContent('/v1/blobstore/config', '#blobstore-', [
+      await fillRemoteContent('v1/blobstore/config', '#blobstore-', [
           'backend_impl_name', 'backend_flags',
           'cache_impl_name', 'cache_flags']);
     } catch (e) {
@@ -106,7 +107,7 @@ const updateInterval = 3000;
       return;
 
     try {
-      await fillRemoteContent("/v1/system/info", "#settings-", [
+      await fillRemoteContent("v1/system/info", "#settings-", [
           'go_version', 'os', 'arch', 'num_goroutine', 'hostname', 'pid', 'uid',
           'mem_alloc', 'mem_sys', 'num_gc', 'num_fds']);
     } catch (e) {
