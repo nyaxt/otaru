@@ -18,9 +18,18 @@ const updateInterval = 3000;
     'time_asc': (a, b) => a['modified_time'] - b['modified_time'],
     'time_desc': (a, b) => b['modified_time'] - a['modified_time'],
   };
-  const actionListMap = {
-    'dir': ['→'],
-    'file': ['DL'],
+  const actionDefMap = {
+    'dir': {
+      labels: ['→'],
+      action: (entry) => {
+        const curr = getBrowsefsPath();
+        const next = curr.replace(/\/?$/, '/') + entry.name;
+        setBrowsefsPath(next);
+      },
+    },
+    'file': {
+      labels: ['DL'],
+    },
   };
   const pathInput = $('.browsefs__path');
   const listTbody = $('.browsefs__list').lastChild;
@@ -49,9 +58,9 @@ const updateInterval = 3000;
         for (let row of rows) {
           listTbody.classList.remove('.browsefs__list--empty');
 
-          var rowDiv = document.createElement('tr');
-          rowDiv.classList.add('browsefs__entry');
-          listTbody.appendChild(rowDiv);
+          var tr = document.createElement('tr');
+          tr.classList.add('browsefs__entry');
+          listTbody.appendChild(tr);
 
           for (let colName of colNames) {
             var cell = document.createElement('td');
@@ -77,16 +86,23 @@ const updateInterval = 3000;
 
             cell.textContent = val;
             if (colName === 'name') {
-              const actionList = actionListMap[row['type']] || [];
-              for (let action of actionList) {
-                const actionDiv = document.createElement('div');
-                actionDiv.classList.add('browsefs__action');
-                actionDiv.textContent = action;
-                cell.appendChild(actionDiv);
+              const actionDef = actionDefMap[row.type] || {labels: []};
+
+              for (let l of actionDef.labels) {
+                const span = document.createElement('span');
+                span.classList.add('browsefs__action');
+                span.textContent = l;
+                cell.appendChild(span);
+              }
+              const action = actionDef.action;
+              if (action !== undefined) {
+                tr.addEventListener('click', (ev) => {
+                  actionDef.action(row);
+                });
               }
             }
 
-            rowDiv.appendChild(cell);
+            tr.appendChild(cell);
           }
         }
       }
