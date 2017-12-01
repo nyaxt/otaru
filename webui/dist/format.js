@@ -31,7 +31,7 @@ const formatTimestamp = t => {
   } else if (t > startOfToday) {
     return `${pad(t.getHours())}:${pad(t.getMinutes())}`;
   } else {
-    return `${pad(t.getFullYear()-2000)}/${pad(t.getMonth()+1)}/${pad(t.getDay()+1)}`;
+    return `${pad(t.getFullYear()-2000)}/${pad(t.getMonth()+1)}/${pad(t.getDate())}`;
   }
 }
 

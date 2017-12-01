@@ -183,3 +183,9 @@ body {
   width: 30px;
   border: 1px solid black;
 }
+
+@media (max-width:580px) {
+  .browsefs__cell--uid { display: none; }
+  .browsefs__cell--gid { display: none; }
+  .browsefs__cell--perm_mode { display: none; }
+}
