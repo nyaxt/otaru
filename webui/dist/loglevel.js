@@ -18,9 +18,9 @@ const triggerUpdate = async () => {
         (a, b) => a['category'].localeCompare(b['category']));
     for (let category of categories) {
       const name = category['category'];
-      let currLevel = category['level'];
+      let currLevel = category['level'] || 0;
       const inputName = `loglevel-${name}`;
-      const onclick = async (ev) => {
+      const onchange = async (ev) => {
         const selectedInput = $(`.loglevel__radio[name='${inputName}']:checked`);
         const selectedValue = parseInt(selectedInput.value);
         if (currLevel != selectedValue) {
@@ -54,7 +54,7 @@ const triggerUpdate = async () => {
         input.id = inputId;
         input.value = i;
         input.checked = (currLevel == i);
-        input.addEventListener('click', onclick);
+        input.addEventListener('change', onchange);
         valueDiv.appendChild(input);
 
         const label = document.createElement('label');
