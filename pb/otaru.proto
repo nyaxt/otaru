@@ -25,13 +25,14 @@ message ListDirRequest {
 
 message ListDirResponse {
   message Entry {
-    string name = 1;
-    string type = 2;
-    int64 size = 3;
-    uint32 uid = 4;
-    uint32 gid = 5;
-    uint32 perm_mode = 6;
-    int64 modified_time = 7;
+    uint64 id = 1;
+    string name = 2;
+    string type = 3;
+    int64 size = 4;
+    uint32 uid = 5;
+    uint32 gid = 6;
+    uint32 perm_mode = 7;
+    int64 modified_time = 8;
   }
 
   repeated Entry entry = 1;

@@ -43,6 +43,7 @@ func (svc *fileSystemService) ListDir(ctx context.Context, req *pb.ListDirReques
 		}
 
 		es = append(es, &pb.ListDirResponse_Entry{
+			Id:           uint64(cid),
 			Name:         name,
 			Type:         inodedb.TypeName(attr.Type),
 			Size:         attr.Size,

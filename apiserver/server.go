@@ -32,11 +32,13 @@ type serviceRegistryEntry struct {
 type options struct {
 	listenAddr      string
 	defaultHandler  http.Handler
+	fileHandler     http.Handler
 	serviceRegistry []serviceRegistryEntry
 }
 
 var defaultOptions = options{
 	defaultHandler:  http.NotFoundHandler(),
+	fileHandler:     nil,
 	serviceRegistry: []serviceRegistryEntry{},
 }
 
@@ -126,6 +128,10 @@ func Serve(opt ...Option) (io.Closer, error) {
 	}
 	mux.Handle("/", opts.defaultHandler)
 	mux.Handle("/api/", gwmux)
+	if opts.fileHandler != nil {
+		filePrefix := "/file/"
+		mux.Handle(filePrefix, http.StripPrefix(filePrefix, opts.fileHandler))
+	}
 	serveSwagger(mux)
 
 	c := cors.New(cors.Options{
