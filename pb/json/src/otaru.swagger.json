@@ -101,6 +101,22 @@
         ]
       }
     },
+    "/api/v1/logger/categories": {
+      "get": {
+        "operationId": "GetCategories",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbGetCategoriesResponse"
+            }
+          }
+        },
+        "tags": [
+          "LoggerService"
+        ]
+      }
+    },
     "/api/v1/system/info": {
       "get": {
         "operationId": "GetSystemInfo",
@@ -149,6 +165,17 @@
         },
         "cache_flags": {
           "type": "string"
+        }
+      }
+    },
+    "pbGetCategoriesResponse": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pbLoggerCategory"
+          }
         }
       }
     },
@@ -248,6 +275,18 @@
         },
         "modified_time": {
           "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "pbLoggerCategory": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "level": {
+          "type": "integer",
           "format": "int64"
         }
       }
