@@ -1,5 +1,5 @@
 import {contentSection, isSectionSelected, getBrowsefsPath, setBrowsefsPath} from './nav.js';
-import {rpc, fillRemoteContent} from './api.js';
+import {rpc, fillRemoteContent, downloadFile} from './api.js';
 import {$, $$, removeAllChildNodes} from './domhelper.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
 
@@ -21,7 +21,7 @@ const updateInterval = 3000;
   const actionDefMap = {
     'dir': {
       labels: ['→'],
-      action: (entry) => {
+      action: entry => {
         const curr = getBrowsefsPath();
         const next = curr.replace(/\/?$/, '/') + entry.name;
         setBrowsefsPath(next);
@@ -29,6 +29,9 @@ const updateInterval = 3000;
     },
     'file': {
       labels: ['DL'],
+      action: entry => {
+        downloadFile(entry['id'], entry['name'])
+      },
     },
   };
   const pathInput = $('.browsefs__path');
@@ -44,7 +47,7 @@ const updateInterval = 3000;
     }
 
     try {
-      const result = await rpc('v1/filesystem/ls', {args: {path: path}});
+      const result = await rpc('api/v1/filesystem/ls', {args: {path: path}});
 
       removeAllChildNodes(listTbody);
 
@@ -137,7 +140,7 @@ const updateInterval = 3000;
       return;
 
     try {
-      await fillRemoteContent('v1/blobstore/config', '#blobstore-', [
+      await fillRemoteContent('api/v1/blobstore/config', '#blobstore-', [
           'backend_impl_name', 'backend_flags',
           'cache_impl_name', 'cache_flags']);
     } catch (e) {
@@ -156,7 +159,7 @@ const updateInterval = 3000;
       return;
 
     try {
-      await fillRemoteContent("v1/system/info", "#settings-", [
+      await fillRemoteContent("api/v1/system/info", "#settings-", [
           'go_version', 'os', 'arch', 'num_goroutine', 'hostname', 'pid', 'uid',
           'mem_alloc', 'mem_sys', 'num_gc', 'num_fds']);
     } catch (e) {

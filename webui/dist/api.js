@@ -1,6 +1,6 @@
 import {$} from './domhelper.js';
 
-let apiprefix = `${window.document.location.origin}/api/`;
+let apiprefix = `${window.document.location.origin}/`;
 (() => {
   const apiprefix_input = $("#apiprefix");
   apiprefix_input.value = apiprefix;
@@ -10,8 +10,8 @@ let apiprefix = `${window.document.location.origin}/api/`;
 })();
 
 const rpc = async (endpoint, opts = {}) => {
-  let url = new URL(endpoint, apiprefix);
-  let args = opts['args'] || {};
+  const url = new URL(endpoint, apiprefix);
+  const args = opts['args'] || {};
   for (let k in args) {
     url.searchParams.set(k, args[k]);
   }
@@ -31,4 +31,9 @@ const fillRemoteContent = async (endpoint, prefix, fillKeys) => {
   }
 };
 
-export {rpc, fillRemoteContent};
+const downloadFile = (id, filename) => {
+  const url = new URL(`file/${id}/${encodeURIComponent(filename)}`, apiprefix);
+  window.location = url;
+}
+
+export {rpc, fillRemoteContent, downloadFile};
