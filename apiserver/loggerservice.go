@@ -36,6 +36,11 @@ func (loggerService) SetCategory(ctx context.Context, req *pb.SetCategoryRequest
 	return &pb.SetCategoryResponse{}, nil
 }
 
+func (loggerService) QueryLogs(ctx context.Context, req *pb.QueryLogsRequest) (*pb.QueryLogsResponse, error) {
+	return nil, grpc.Errorf(codes.Unimplemented, "FIXME")
+	return &pb.QueryLogsResponse{}, nil
+}
+
 func InstallLoggerService() Option {
 	return func(o *options) {
 		o.serviceRegistry = append(o.serviceRegistry, serviceRegistryEntry{

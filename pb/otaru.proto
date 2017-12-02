@@ -146,6 +146,23 @@ message SetCategoryRequest {
 message SetCategoryResponse {
 }
 
+message QueryLogsRequest {
+  uint64 min_id = 1;
+  repeated string category = 2;
+  uint32 limit = 3;
+}
+
+message QueryLogsResponse {
+  message Entry {
+    uint64 id = 1;
+    string log = 2;
+    int64 time = 3;
+    string location = 4;
+    string category = 5;
+  }
+  repeated Entry entry = 1;
+}
+
 service LoggerService {
   rpc GetCategories(GetCategoriesRequest) returns (GetCategoriesResponse) {
     option (google.api.http) = {
@@ -157,6 +174,12 @@ service LoggerService {
     option (google.api.http) = {
       post: "/api/v1/logger/category/{category}"
       body: "level"
+    };
+  }
+
+  rpc QueryLogs(QueryLogsRequest) returns (QueryLogsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/logger/logs"
     };
   }
 }

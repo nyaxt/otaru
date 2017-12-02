@@ -166,6 +166,40 @@
         ]
       }
     },
+    "/api/v1/logger/logs": {
+      "get": {
+        "operationId": "QueryLogs",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbQueryLogsResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "min_id",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ],
+        "tags": [
+          "LoggerService"
+        ]
+      }
+    },
     "/api/v1/system/info": {
       "get": {
         "operationId": "GetSystemInfo",
@@ -366,6 +400,39 @@
         "level": {
           "type": "integer",
           "format": "int64"
+        }
+      }
+    },
+    "pbQueryLogsResponse": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pbQueryLogsResponseEntry"
+          }
+        }
+      }
+    },
+    "pbQueryLogsResponseEntry": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "log": {
+          "type": "string"
+        },
+        "time": {
+          "type": "string",
+          "format": "int64"
+        },
+        "location": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
         }
       }
     },
