@@ -37,8 +37,15 @@ const rpc = async (endpoint, opts = {}) => {
 const fillRemoteContent = async (endpoint, prefix, fillKeys) => {
   const result = await rpc(endpoint);
 
-  for (let k of fillKeys) {
-    $(`${prefix}${k}`).textContent = result[k];
+  if (Array.isArray(fillKeys)) {
+    for (let k of fillKeys) {
+      $(`${prefix}${k}`).textContent = result[k] || 0;
+    }
+  } else {
+    for (let k in fillKeys) {
+      const t = fillKeys[k] || (a => a);
+      $(`${prefix}${k}`).textContent = t(result[k] || 0);
+    }
   }
 };
 

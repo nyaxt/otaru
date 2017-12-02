@@ -6,6 +6,7 @@
 <nav class="nav">
   <h1 class="nav__item nav__item--logo">Otaru</h1>
   <a class="nav__item nav__tab nav__tab--browsefs" href="#browsefs">browse fs</a>
+  <a class="nav__item nav__tab" href="#inodedbstats">inodedb stats</a>
   <a class="nav__item nav__tab" href="#blobstore">blobstore</a>
   <a class="nav__item nav__tab" href="#loglevel">loglevel</a>
   <a class="nav__item nav__tab" href="#settings">settings</a>
@@ -54,6 +55,34 @@
     <div class="kvview__item">
       <span class="kvview__label">Cache Flags:</span>
       <span class="kvview__value" id="blobstore-cache_flags">-</span>
+    </div>
+  </div>
+</section>
+<section class="section section--inodedbstats">
+  <div class="kvview">
+    <div class="kvview__item">
+      <span class="kvview__label">Last Sync:</span>
+      <span class="kvview__value" id="inodedbstats-last_sync">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Last Tx:</span>
+      <span class="kvview__value" id="inodedbstats-last_tx">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Last ID:</span>
+      <span class="kvview__value" id="inodedbstats-last_id">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Version:</span>
+      <span class="kvview__value" id="inodedbstats-version">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Last Ticket:</span>
+      <span class="kvview__value" id="inodedbstats-last_ticket">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Number of Node Locks:</span>
+      <span class="kvview__value" id="inodedbstats-number_of_node_locks">-</span>
     </div>
   </div>
 </section>

@@ -35,4 +35,11 @@ const formatTimestamp = t => {
   }
 }
 
-export {formatBlobSize, formatTimestamp};
+const formatTimestampRPC = n => {
+  if (n < 0)
+    return "-";
+  else
+    return formatTimestamp(new Date(n*1000));
+};
+
+export {formatBlobSize, formatTimestamp, formatTimestampRPC};
