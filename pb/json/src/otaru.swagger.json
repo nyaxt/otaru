@@ -101,6 +101,22 @@
         ]
       }
     },
+    "/api/v1/inodedb/stats": {
+      "get": {
+        "operationId": "GetINodeDBStats",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbGetINodeDBStatsResponse"
+            }
+          }
+        },
+        "tags": [
+          "INodeDBService"
+        ]
+      }
+    },
     "/api/v1/logger/categories": {
       "get": {
         "operationId": "GetCategories",
@@ -262,6 +278,35 @@
         },
         "number_of_handles": {
           "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "pbGetINodeDBStatsResponse": {
+      "type": "object",
+      "properties": {
+        "last_sync": {
+          "type": "string",
+          "format": "int64"
+        },
+        "last_tx": {
+          "type": "string",
+          "format": "int64"
+        },
+        "last_id": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "version": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "last_ticket": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "number_of_node_locks": {
+          "type": "integer",
           "format": "int64"
         }
       }

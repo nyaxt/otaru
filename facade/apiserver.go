@@ -11,6 +11,7 @@ func (o *Otaru) buildApiServerOptions(cfg *Config) []apiserver.Option {
 		apiserver.InstallBlobstoreService(o.S, o.DefaultBS, o.CBS),
 		apiserver.InstallFileHandler(o.FS),
 		apiserver.InstallFileSystemService(o.FS),
+		apiserver.InstallINodeDBService(o.IDBS),
 		apiserver.InstallLoggerService(),
 		apiserver.InstallSystemService(),
 	}
@@ -27,7 +28,6 @@ func (o *Otaru) buildApiServerOptions(cfg *Config) []apiserver.Option {
 		if gcsbs, ok := o.DefaultBS.(*gcs.GCSBlobStore); ok {
 			mgcsblobstore.Install(o.MGMT, gcsbs)
 		}
-		minodedb.Install(o.MGMT, o.IDBS)
 		mscheduler.Install(o.MGMT, o.S, o.R)
 		mgc.Install(o.MGMT, o.S, o)
 	*/

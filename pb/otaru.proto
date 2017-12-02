@@ -106,6 +106,26 @@ service BlobstoreService {
   };
 }
 
+message GetINodeDBStatsRequest {
+}
+
+message GetINodeDBStatsResponse {
+  int64 last_sync = 1;
+  int64 last_tx = 2;
+  uint64 last_id = 3;
+  uint64 version = 4;
+  uint64 last_ticket = 5;
+  uint32 number_of_node_locks = 6;
+}
+
+service INodeDBService {
+  rpc GetINodeDBStats(GetINodeDBStatsRequest) returns (GetINodeDBStatsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/inodedb/stats"
+    };
+  }
+}
+
 message GetCategoriesRequest {
 }
 
