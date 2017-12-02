@@ -3,6 +3,7 @@ package apiserver
 import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/pb"
@@ -22,6 +23,17 @@ func (loggerService) GetCategories(ctx context.Context, req *pb.GetCategoriesReq
 	}
 
 	return &pb.GetCategoriesResponse{Category: pcs}, nil
+}
+
+func (loggerService) SetCategory(ctx context.Context, req *pb.SetCategoryRequest) (*pb.SetCategoryResponse, error) {
+	c := logger.Registry().CategoryIfExist(req.Category)
+	if c == nil {
+		return nil, grpc.Errorf(codes.NotFound, "Specified category not found")
+	}
+
+	c.Level = logger.Level(req.Level)
+
+	return &pb.SetCategoryResponse{}, nil
 }
 
 func InstallLoggerService() Option {

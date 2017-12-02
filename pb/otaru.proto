@@ -118,10 +118,25 @@ message GetCategoriesResponse {
   repeated LoggerCategory category = 1;
 }
 
+message SetCategoryRequest {
+  string category = 1;
+  uint32 level = 2;
+}
+
+message SetCategoryResponse {
+}
+
 service LoggerService {
   rpc GetCategories(GetCategoriesRequest) returns (GetCategoriesResponse) {
     option (google.api.http) = {
       get: "/api/v1/logger/categories"
+    };
+  }
+
+  rpc SetCategory(SetCategoryRequest) returns (SetCategoryResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/logger/category/{category}"
+      body: "level"
     };
   }
 }

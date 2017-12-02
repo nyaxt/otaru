@@ -117,6 +117,39 @@
         ]
       }
     },
+    "/api/v1/logger/category/{category}": {
+      "post": {
+        "operationId": "SetCategory",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbSetCategoryResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "tags": [
+          "LoggerService"
+        ]
+      }
+    },
     "/api/v1/system/info": {
       "get": {
         "operationId": "GetSystemInfo",
@@ -314,6 +347,9 @@
           "type": "string"
         }
       }
+    },
+    "pbSetCategoryResponse": {
+      "type": "object"
     },
     "pbSystemInfoResponse": {
       "type": "object",
