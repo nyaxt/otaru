@@ -184,6 +184,43 @@ body {
   border: 1px solid black;
 }
 
+.loglevel__level {
+  display: flex;
+}
+
+.loglevel__radio {
+  display: none;
+}
+
+.loglevel__label {
+  display: block;
+
+  margin: -3px 0;
+  padding: 3px 5px;
+
+  color: var(--main-fg-color);
+  background-color: var(--dark-bg-color);
+
+  border-top: 1px solid var(--dark2-bg-color);
+  border-bottom: 1px solid var(--dark2-bg-color);
+
+  border-collapse: collapse;
+}
+
+.loglevel__label:first-of-type {
+  border-left: 1px solid var(--dark2-bg-color);
+}
+
+.loglevel__label:last-of-type {
+  border-right: 1px solid var(--dark2-bg-color);
+}
+
+.loglevel__radio:checked + .loglevel__label {
+  font-weight: bold;
+  color: var(--comp-dark-color);
+  background-color: var(--main-bg-color);
+}
+
 @media (max-width:580px) {
   .browsefs__cell--uid { display: none; }
   .browsefs__cell--gid { display: none; }

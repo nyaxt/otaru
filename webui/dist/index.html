@@ -7,6 +7,7 @@
   <h1 class="nav__item nav__item--logo">Otaru</h1>
   <a class="nav__item nav__tab nav__tab--browsefs" href="#browsefs">browse fs</a>
   <a class="nav__item nav__tab" href="#blobstore">blobstore</a>
+  <a class="nav__item nav__tab" href="#loglevel">loglevel</a>
   <a class="nav__item nav__tab" href="#settings">settings</a>
 </nav>
 <section class="section section--browsefs">
@@ -22,6 +23,19 @@
   </div>
   <table class="browsefs__list"><tbody>
   </tbody></table>
+</section>
+<section class="section section--loglevel">
+  <div class="kvview loglevel--list">
+    <div class="kvview__item">
+      <span class="kvview__label">filesystem:</span>
+      <div class="kvview__value loglevel__level" id="loglevel-filesystem">
+        <input type="radio" class="loglevel__radio" name="loglevel-filesystem" id="loglevel-filesystem-0" value="0"><label class="loglevel__label" for="loglevel-filesystem-0">Debug</label>
+        <input type="radio" class="loglevel__radio" name="loglevel-filesystem" id="loglevel-filesystem-1" value="1"><label class="loglevel__label" for="loglevel-filesystem-1">Info</label>
+        <input type="radio" class="loglevel__radio" name="loglevel-filesystem" id="loglevel-filesystem-2" value="2"><label class="loglevel__label" for="loglevel-filesystem-2">Warning</label>
+        <input type="radio" class="loglevel__radio" name="loglevel-filesystem" id="loglevel-filesystem-3" value="3"><label class="loglevel__label" for="loglevel-filesystem-3">Critical</label>
+      </select>
+    </div>
+  </div>
 </section>
 <section class="section section--blobstore">
   <div class="kvview">

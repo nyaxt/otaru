@@ -1,6 +1,7 @@
 import {contentSection, isSectionSelected} from './nav.js';
 import {fillRemoteContent} from './api.js';
 import './browsefs.js';
+import './loglevel.js';
 
 const updateInterval = 3000;
 

@@ -3,6 +3,7 @@ import {$, $$} from './domhelper.js';
 const validContents = [
   'browsefs',
   'blobstore',
+  'loglevel',
   'settings',
 ];
 
