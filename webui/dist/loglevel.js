@@ -18,6 +18,17 @@ const triggerUpdate = async () => {
         (a, b) => a['category'].localeCompare(b['category']));
     for (let category of categories) {
       const name = category['category'];
+      let currLevel = category['level'];
+      const inputName = `loglevel-${name}`;
+      const onclick = async (ev) => {
+        const selectedInput = $(`.loglevel__radio[name='${inputName}']:checked`);
+        const selectedValue = parseInt(selectedInput.value);
+        if (currLevel != selectedValue) {
+          await rpc(`api/v1/logger/category/${name}`, {method: 'post', body: selectedValue});
+          currLevel = selectedValue;
+        }
+      };
+
       const itemDiv = document.createElement('div');
       itemDiv.classList.add('kvview__item');
       listDiv.appendChild(itemDiv);
@@ -39,10 +50,11 @@ const triggerUpdate = async () => {
         const input = document.createElement('input');
         input.type = 'radio';
         input.classList.add('loglevel__radio');
-        input.name = `loglevel-${name}`;
+        input.name = inputName;
         input.id = inputId;
         input.value = i;
-        input.checked = (category['level'] == i);
+        input.checked = (currLevel == i);
+        input.addEventListener('click', onclick);
         valueDiv.appendChild(input);
 
         const label = document.createElement('label');

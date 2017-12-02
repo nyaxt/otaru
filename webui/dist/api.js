@@ -9,6 +9,7 @@ let apiprefix = `${window.document.location.origin}/`;
   });
 })();
 
+const propagateKeys = ['method']
 const rpc = async (endpoint, opts = {}) => {
   const url = new URL(endpoint, apiprefix);
   const args = opts['args'] || {};
@@ -16,7 +17,17 @@ const rpc = async (endpoint, opts = {}) => {
     url.searchParams.set(k, args[k]);
   }
 
-  const response = await window.fetch(url, {mode: 'cors', cache: 'reload'});
+  const fetchOpts = {mode: 'cors', cache: 'reload'}
+  for (let k of propagateKeys) {
+    if (opts[k] !== undefined)
+      fetchOpts[k] = opts[k];
+  }
+  if (opts['body'] !== undefined) {
+    const jsonStr = JSON.stringify(opts['body']);
+    fetchOpts.body = new Blob([jsonStr], {type: 'application/json'});
+  }
+
+  const response = await window.fetch(url, fetchOpts);
   if (!response.ok) {
     throw new Error(`fetch failed: ${response.status}`);
   }
