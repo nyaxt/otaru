@@ -147,14 +147,14 @@ message SetCategoryResponse {
 }
 
 message QueryLogsRequest {
-  uint64 min_id = 1;
+  uint32 min_id = 1;
   repeated string category = 2;
   uint32 limit = 3;
 }
 
 message QueryLogsResponse {
   message Entry {
-    uint64 id = 1;
+    uint32 id = 1;
     string log = 2;
     int64 time = 3;
     string location = 4;

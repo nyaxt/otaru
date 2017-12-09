@@ -182,8 +182,8 @@
             "name": "min_id",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "uint64"
+            "type": "integer",
+            "format": "int64"
           },
           {
             "name": "category",
@@ -193,6 +193,13 @@
             "items": {
               "type": "string"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
           }
         ],
         "tags": [
@@ -418,8 +425,8 @@
       "type": "object",
       "properties": {
         "id": {
-          "type": "string",
-          "format": "uint64"
+          "type": "integer",
+          "format": "int64"
         },
         "log": {
           "type": "string"
