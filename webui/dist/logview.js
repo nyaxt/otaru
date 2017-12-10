@@ -39,7 +39,7 @@ const divFromEntry = (entry) => {
     let val = entry[colName];
     if (colName === 'time') {
       val = formatTimestamp(new Date(val*1000), {relative: false, full: true});
-      val = entry['id'];
+      // val = entry['id'];
     } else if (colName === 'level') {
       if (val === undefined)
         val = 0;
