@@ -4,6 +4,7 @@ const validContents = [
   'browsefs',
   'blobstore',
   'inodedbstats',
+  'logview',
   'loglevel',
   'settings',
 ];

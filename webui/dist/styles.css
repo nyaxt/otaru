@@ -24,6 +24,20 @@ body {
   font-size: 14px;
 }
 
+.button {
+  display: block;
+
+  height: 23px;
+  line-height: 23px;
+  width: 23px;
+  border: 1px solid var(--dark-bg-color);
+
+  font-size: 18px;
+  text-decoration: none;
+  text-align: center;
+  color: black;
+}
+
 .nav {
   display: flex; 
   color: var(--main-fg-color);
@@ -60,6 +74,21 @@ body {
 
 .section--selected {
   display: block;
+}
+
+.section__header {
+  padding: 5px;
+  height: 25px;
+  line-height: 25px;
+  border-bottom: 1px solid var(--dark-bg-color);
+
+  display: flex;
+}
+
+.content__table {
+  table-layout: fixed;
+  border-collapse: collapse;
+  width: 100%;
 }
 
 .kvview {
@@ -121,12 +150,6 @@ body {
   margin-left: 5px;
 }
 
-.browsefs__list {
-  table-layout: fixed;
-  border-collapse: collapse;
-  width: 100%;
-}
-
 .browsefs__entry {
 }
 
@@ -182,6 +205,14 @@ body {
   padding: 0 5px;
   width: 30px;
   border: 1px solid black;
+}
+
+.logview__cell--time {
+  width: 80px;
+}
+
+.logview__cell--level {
+  width: 20px;
 }
 
 .loglevel__level {

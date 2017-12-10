@@ -8,12 +8,13 @@
   <a class="nav__item nav__tab nav__tab--browsefs" href="#browsefs">browse fs</a>
   <a class="nav__item nav__tab" href="#inodedbstats">inodedb stats</a>
   <a class="nav__item nav__tab" href="#blobstore">blobstore</a>
+  <a class="nav__item nav__tab" href="#logview">logview</a>
   <a class="nav__item nav__tab" href="#loglevel">loglevel</a>
   <a class="nav__item nav__tab" href="#settings">settings</a>
 </nav>
 <section class="section section--browsefs">
-  <div class="browsefs__header">
-    <a class="browsefs__parentdir" href="#">↑</a>
+  <div class="section__header browsefs__header">
+    <a class="button browsefs__parentdir" href="#">↑</a>
     <label class="browsefs__label" for="browsefs-path">Path: </label>
     <input class="browsefs__path" type="text" id="browsefs-path">
     <select class="browsefs__sort">
@@ -22,8 +23,33 @@
       <option value="time_desc">Time ↑</option> 
     </select>
   </div>
-  <table class="browsefs__list"><tbody>
+  <table class="content__table browsefs__list"><tbody>
   </tbody></table>
+</section>
+<section class="section section--logview">
+  <div class="section__header logview__header">
+    <a class="button logview__refresh" href="#">↺</a>
+  </div>
+  <table class="content__table logview__list">
+    <!-- <thead>
+      <tr>
+        <th class="logview__cell--time">time</th>
+        <th class="logview__cell--level">level</th>
+        <th class="logview__cell--category">category</th>
+        <th class="logview__cell--log">log</th>
+        <th class="logview__cell--location">location</th>
+      </tr>
+    </thead> -->
+    <tbody class="logview__list--body">
+      <tr>
+        <td class="logview__cell--time">13:37</td>
+        <td class="logview__cell--level">W</td>
+        <td class="logview__cell--category">scheduler</td>
+        <td class="logview__cell--log">JobGC start</td>
+        <td class="logview__cell--location">scheduler.go:338</td>
+      </tr>
+    </tbody>
+  </table>
 </section>
 <section class="section section--loglevel">
   <div class="kvview loglevel--list">
