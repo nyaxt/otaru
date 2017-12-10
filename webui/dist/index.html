@@ -30,26 +30,15 @@
   <div class="section__header logview__header">
     <a class="button logview__refresh" href="#">↺</a>
   </div>
-  <table class="content__table logview__list">
-    <!-- <thead>
-      <tr>
-        <th class="logview__cell--time">time</th>
-        <th class="logview__cell--level">level</th>
-        <th class="logview__cell--category">category</th>
-        <th class="logview__cell--log">log</th>
-        <th class="logview__cell--location">location</th>
-      </tr>
-    </thead> -->
-    <tbody class="logview__list--body">
-      <tr>
-        <td class="logview__cell--time">13:37</td>
-        <td class="logview__cell--level">W</td>
-        <td class="logview__cell--category">scheduler</td>
-        <td class="logview__cell--log">JobGC start</td>
-        <td class="logview__cell--location">scheduler.go:338</td>
-      </tr>
-    </tbody>
-  </table>
+  <div class="logview__list">
+    <div class="logview__entry">
+      <span class="logview__cell logview__cell--time">13:37</span>
+      <span class="logview__cell logview__cell--level">W</span>
+      <span class="logview__cell logview__cell--category">[scheduler]</span>
+      <span class="logview__cell logview__cell--log">JobGC start</span>
+      <span class="logiew__cell logview__cell--location">scheduler.go:338</span>
+    </div>
+  </div>
 </section>
 <section class="section section--loglevel">
   <div class="kvview loglevel--list">

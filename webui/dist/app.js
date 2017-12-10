@@ -2,6 +2,7 @@ import {contentSection, isSectionSelected} from './nav.js';
 import {fillRemoteContent} from './api.js';
 import {formatTimestampRPC} from './format.js';
 import './browsefs.js';
+import './logview.js';
 import './loglevel.js';
 
 const updateInterval = 3000;

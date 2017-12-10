@@ -207,12 +207,54 @@ body {
   border: 1px solid black;
 }
 
+.logview__entry {
+  padding: 3px;
+  border-top: 1px solid var(--dark2-bg-color);
+
+  display: flex;
+}
+
+.logview__entry:hover {
+  background-color: var(--light-fg-color);
+}
+
+.logview__cell {
+  display: block;
+  padding: 0 5px;
+}
+
 .logview__cell--time {
-  width: 80px;
+  text-align: right;
+  width: 150px;
+  flex: none;
 }
 
 .logview__cell--level {
-  width: 20px;
+  font-weight: bold;
+  flex: none;
+}
+
+.logview__cell--category::before { 
+  content: "[";
+  font-weight: bold;
+  color: var(--dark-bg-color);
+}
+.logview__cell--category::after { 
+  content: "]";
+  font-weight: bold;
+  color: var(--dark-bg-color);
+}
+
+.logview__cell--category {
+}
+
+.logview__cell--log {
+  flex-grow: 1;
+}
+
+.logview__cell--location {
+  text-align: right;
+  color: var(--dark2-bg-color);
 }
 
 .loglevel__level {

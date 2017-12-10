@@ -71,3 +71,5 @@ const triggerUpdate = async () => {
 contentSection('loglevel').addEventListener('shown', e => {
   triggerUpdate();
 });
+
+export { levels };

@@ -9,7 +9,7 @@ let apiprefix = `${window.document.location.origin}/`;
   });
 })();
 
-const propagateKeys = ['method']
+const propagateKeys = ['method'];
 const rpc = async (endpoint, opts = {}) => {
   const url = new URL(endpoint, apiprefix);
   const args = opts['args'] || {};
