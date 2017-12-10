@@ -7,7 +7,7 @@ import (
 )
 
 func TestLogBuf_WillAccept(t *testing.T) {
-	lb := NewLogBuf(3)
+	lb := New(3)
 	if !lb.WillAccept(logger.Debug) {
 		t.Errorf("LogBuf should accept all log levels")
 	}
@@ -52,13 +52,16 @@ func helperAssertEntries(t *testing.T, as []*Entry, es []expectedEntry) {
 }
 
 func TestLogBuf_Query(t *testing.T) {
-	lb := NewLogBuf(300)
+	lb := New(300)
 	logger.Debugf(lb, "msg1")
 
 	es := lb.Query(0, []string{}, 100)
 	helperAssertEntries(t, es, []expectedEntry{
 		{0, "msg1", "", logger.Debug},
 	})
+	if lb.LatestEntryId() != 0 {
+		t.Errorf("LatestEntryId")
+	}
 
 	logger.Infof(lb, "msg2")
 	logger.Warningf(lb, "msg3")
@@ -68,6 +71,9 @@ func TestLogBuf_Query(t *testing.T) {
 		{1, "msg2", "", logger.Info},
 		{2, "msg3", "", logger.Warning},
 	})
+	if lb.LatestEntryId() != 2 {
+		t.Errorf("LatestEntryId")
+	}
 
 	es = lb.Query(1, []string{}, 100)
 	helperAssertEntries(t, es, []expectedEntry{

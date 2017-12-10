@@ -27,7 +27,7 @@ type LogBuf struct {
 
 var _ = logger.Logger(&LogBuf{})
 
-func NewLogBuf(maxEntries int) *LogBuf {
+func New(maxEntries int) *LogBuf {
 	if maxEntries < 1 {
 		panic("NewLogBuf maxEntries must be larger than 0")
 	}
@@ -96,4 +96,11 @@ func (lb *LogBuf) Query(minId int, categories []string, limit int) []*Entry {
 		}
 	}
 	return ret
+}
+
+func (lb *LogBuf) LatestEntryId() int {
+	if len(lb.entries) == 0 {
+		return 0
+	}
+	return lb.entries[len(lb.entries)-1].Id
 }

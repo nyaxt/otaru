@@ -166,6 +166,22 @@
         ]
       }
     },
+    "/api/v1/logger/latest_log_entry_id": {
+      "get": {
+        "operationId": "GetLatestLogEntryId",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbGetLatestLogEntryIdResponse"
+            }
+          }
+        },
+        "tags": [
+          "LoggerService"
+        ]
+      }
+    },
     "/api/v1/logger/logs": {
       "get": {
         "operationId": "QueryLogs",
@@ -352,6 +368,15 @@
         }
       }
     },
+    "pbGetLatestLogEntryIdResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
     "pbListDirResponse": {
       "type": "object",
       "properties": {
@@ -431,14 +456,18 @@
         "log": {
           "type": "string"
         },
+        "category": {
+          "type": "string"
+        },
+        "level": {
+          "type": "integer",
+          "format": "int64"
+        },
         "time": {
           "type": "string",
           "format": "int64"
         },
         "location": {
-          "type": "string"
-        },
-        "category": {
           "type": "string"
         }
       }

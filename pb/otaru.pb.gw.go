@@ -142,6 +142,15 @@ func request_LoggerService_QueryLogs_0(ctx context.Context, marshaler runtime.Ma
 
 }
 
+func request_LoggerService_GetLatestLogEntryId_0(ctx context.Context, marshaler runtime.Marshaler, client LoggerServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetLatestLogEntryIdRequest
+	var metadata runtime.ServerMetadata
+
+	msg, err := client.GetLatestLogEntryId(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
 func request_SystemInfoService_GetSystemInfo_0(ctx context.Context, marshaler runtime.Marshaler, client SystemInfoServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetSystemInfoRequest
 	var metadata runtime.ServerMetadata
@@ -585,6 +594,35 @@ func RegisterLoggerServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 
 	})
 
+	mux.Handle("GET", pattern_LoggerService_GetLatestLogEntryId_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_LoggerService_GetLatestLogEntryId_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_LoggerService_GetLatestLogEntryId_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
@@ -594,6 +632,8 @@ var (
 	pattern_LoggerService_SetCategory_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "logger", "category"}, ""))
 
 	pattern_LoggerService_QueryLogs_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "logger", "logs"}, ""))
+
+	pattern_LoggerService_GetLatestLogEntryId_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "logger", "latest_log_entry_id"}, ""))
 )
 
 var (
@@ -602,6 +642,8 @@ var (
 	forward_LoggerService_SetCategory_0 = runtime.ForwardResponseMessage
 
 	forward_LoggerService_QueryLogs_0 = runtime.ForwardResponseMessage
+
+	forward_LoggerService_GetLatestLogEntryId_0 = runtime.ForwardResponseMessage
 )
 
 // RegisterSystemInfoServiceHandlerFromEndpoint is same as RegisterSystemInfoServiceHandler but
