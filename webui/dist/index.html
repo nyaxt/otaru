@@ -12,7 +12,7 @@
   <a class="nav__item nav__tab" href="#loglevel">loglevel</a>
   <a class="nav__item nav__tab" href="#settings">settings</a>
 </nav>
-<section class="section section--browsefs">
+<section class="section section--hasheader section--browsefs">
   <div class="section__header browsefs__header">
     <a class="button browsefs__parentdir" href="#">↑</a>
     <label class="browsefs__label" for="browsefs-path">Path: </label>
@@ -26,19 +26,12 @@
   <table class="content__table browsefs__list"><tbody>
   </tbody></table>
 </section>
-<section class="section section--logview">
+<section class="section section--hasheader section--logview">
   <div class="section__header logview__header">
     <a class="button logview__refresh" href="#">↺</a>
   </div>
-  <div class="logview__list">
-    <div class="logview__entry">
-      <span class="logview__cell logview__cell--time">13:37</span>
-      <span class="logview__cell logview__cell--level">W</span>
-      <span class="logview__cell logview__cell--category">[scheduler]</span>
-      <span class="logview__cell logview__cell--log">JobGC start</span>
-      <span class="logiew__cell logview__cell--location">scheduler.go:338</span>
-    </div>
-  </div>
+  <a class="logview__more">load more …</a>
+  <div class="logview__list"></div>
 </section>
 <section class="section section--loglevel">
   <div class="kvview loglevel--list">

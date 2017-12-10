@@ -1,4 +1,7 @@
 :root {
+  --nav-height: 30px;
+  --section-header-height: 35px;
+
   --main-fg-color: #ffcc66;
   --dark-fg-color: #ffa566;
   --light-fg-color: #fffcee;
@@ -39,6 +42,11 @@ body {
 }
 
 .nav {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  height: var(--nav-height);
+
   display: flex; 
   color: var(--main-fg-color);
   background-color: var(--dark-bg-color);
@@ -69,20 +77,32 @@ body {
 
 .section {
   display: none;
-
+  
+  margin-top: var(--nav-height);
+  height: 100%;
 }
 
 .section--selected {
   display: block;
 }
 
-.section__header {
-  padding: 5px;
-  height: 25px;
-  line-height: 25px;
-  border-bottom: 1px solid var(--dark-bg-color);
+.section--hasheader {
+  margin-top: calc(var(--nav-height) + var(--section-header-height));
+}
 
+.section__header {
   display: flex;
+
+  position: fixed;
+  top: var(--nav-height);
+
+  box-sizing: border-box;
+  padding: 5px;
+  height: var(--section-header-height);
+  line-height: var(--section-header-height);
+  width: 100%;
+  background-color: var(--main-bg-color);
+  border-bottom: 1px solid var(--dark-bg-color);
 }
 
 .content__table {
@@ -205,6 +225,22 @@ body {
   padding: 0 5px;
   width: 30px;
   border: 1px solid black;
+}
+
+.logview__more {
+  display: block;
+
+  padding: 5px;
+  width: 100%;
+  text-align: center;
+
+  color: var(--dark2-bg-color);
+  text-decoration: none;
+}
+
+.logview__more:hover {
+  background-color: var(--light-fg-color);
+  text-decoration: underline;
 }
 
 .logview__entry {
