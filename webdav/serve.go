@@ -21,7 +21,7 @@ import (
 var mylog = logger.Registry().Category("webdav")
 
 type webdavFile struct {
-	h      *otaru.FileHandle
+	h      *filesystem.FileHandle
 	name   string
 	offset int64
 	size   int64
@@ -73,7 +73,7 @@ func (wf *webdavFile) Readdir(count int) ([]os.FileInfo, error) {
 
 type webdavFileInfo struct {
 	name string
-	attr *otaru.Attr
+	attr *filesystem.Attr
 }
 
 var _ = os.FileInfo(&webdavFileInfo{})
@@ -165,7 +165,7 @@ func (wd *webdavDir) Stat() (os.FileInfo, error) {
 }
 
 type webdavFS struct {
-	ofs *otaru.FileSystem
+	ofs *filesystem.FileSystem
 }
 
 var _ = webdav.FileSystem(webdavFS{})
@@ -247,7 +247,7 @@ func (fs webdavFS) Stat(ctx context.Context, name string) (os.FileInfo, error) {
 	return &webdavFileInfo{name: filepath.Base(name), attr: &attr}, nil
 }
 
-func Serve(addr string, ofs *otaru.FileSystem) error {
+func Serve(addr string, ofs *filesystem.FileSystem) error {
 	handler := &webdav.Handler{
 		Prefix:     "",
 		FileSystem: webdavFS{ofs},

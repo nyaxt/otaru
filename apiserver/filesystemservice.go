@@ -14,7 +14,7 @@ import (
 )
 
 type fileSystemService struct {
-	fs *otaru.FileSystem
+	fs *filesystem.FileSystem
 }
 
 func (svc *fileSystemService) ListDir(ctx context.Context, req *pb.ListDirRequest) (*pb.ListDirResponse, error) {
@@ -57,7 +57,7 @@ func (svc *fileSystemService) ListDir(ctx context.Context, req *pb.ListDirReques
 	return &pb.ListDirResponse{Entry: es}, nil
 }
 
-func InstallFileSystemService(fs *otaru.FileSystem) Option {
+func InstallFileSystemService(fs *filesystem.FileSystem) Option {
 	svc := &fileSystemService{fs}
 
 	return func(o *options) {

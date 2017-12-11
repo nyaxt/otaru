@@ -11,29 +11,29 @@ import (
 	"github.com/nyaxt/otaru/logger"
 )
 
-func otaruSetattr(fs *otaru.FileSystem, id inodedb.ID, req *bfuse.SetattrRequest) error {
-	var valid otaru.ValidAttrFields
-	var a otaru.Attr
+func otaruSetattr(fs *filesystem.FileSystem, id inodedb.ID, req *bfuse.SetattrRequest) error {
+	var valid filesystem.ValidAttrFields
+	var a filesystem.Attr
 
 	if req.Valid.Uid() {
-		valid |= otaru.UidValid
+		valid |= filesystem.UidValid
 		a.Uid = req.Uid
 	}
 	if req.Valid.Gid() {
-		valid |= otaru.GidValid
+		valid |= filesystem.GidValid
 		a.Gid = req.Gid
 	}
 	if req.Valid.Mode() {
-		valid |= otaru.PermModeValid
+		valid |= filesystem.PermModeValid
 		a.PermMode = uint16(req.Mode & os.ModePerm)
 	}
 	if req.Valid.Atime() {
 		// otaru fs doesn't keep atime. set mtime instead.
-		valid |= otaru.ModifiedTValid
+		valid |= filesystem.ModifiedTValid
 		a.ModifiedT = req.Atime
 	}
 	if req.Valid.Mtime() {
-		valid |= otaru.ModifiedTValid
+		valid |= filesystem.ModifiedTValid
 		a.ModifiedT = req.Mtime
 	}
 

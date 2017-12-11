@@ -22,7 +22,7 @@ func init() {
 }
 
 type FileSystem struct {
-	ofs *otaru.FileSystem
+	ofs *filesystem.FileSystem
 }
 
 func (fs FileSystem) Root() (bfs.Node, error) {
@@ -46,7 +46,7 @@ func (fs FileSystem) Statfs(ctx context.Context, req *bfuse.StatfsRequest, resp 
 	return nil
 }
 
-func Serve(bucketName string, mountpoint string, ofs *otaru.FileSystem, ready chan<- bool, closeC <-chan struct{}) error {
+func Serve(bucketName string, mountpoint string, ofs *filesystem.FileSystem, ready chan<- bool, closeC <-chan struct{}) error {
 	fsName := fmt.Sprintf("otaru+gs://%s", bucketName)
 	volName := fmt.Sprintf("Otaru %s", bucketName)
 

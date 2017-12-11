@@ -68,7 +68,7 @@ type Otaru struct {
 	IDBS       *inodedb.DBService
 	IDBSyncJob scheduler.ID
 
-	FS *otaru.FileSystem
+	FS *filesystem.FileSystem
 
 	AutoBlobstoreGCJob    scheduler.ID
 	AutoINodeDBTxLogGCJob scheduler.ID
@@ -197,7 +197,7 @@ func Serve(cfg *Config, oneshotcfg *OneshotConfig, closeC <-chan error) error {
 		o.IDBSyncJob = o.R.RunEveryPeriod(inodedbsyncer.NewSyncTask(o.IDBS), 30*time.Second)
 	}
 
-	o.FS = otaru.NewFileSystem(o.IDBS, o.CBS, o.C)
+	o.FS = filesystem.NewFileSystem(o.IDBS, o.CBS, o.C)
 
 	if o.ReadOnly {
 		logger.Infof(mylog, "No GC tasks are scheduled in read only mode.")

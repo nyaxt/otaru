@@ -18,11 +18,11 @@ import (
 )
 
 type fileHandler struct {
-	fs *otaru.FileSystem
+	fs *filesystem.FileSystem
 }
 
 type content struct {
-	h      *otaru.FileHandle
+	h      *filesystem.FileHandle
 	offset int64
 	size   int64
 }
@@ -121,7 +121,7 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func InstallFileHandler(fs *otaru.FileSystem) Option {
+func InstallFileHandler(fs *filesystem.FileSystem) Option {
 	return func(o *options) {
 		o.fileHandler = &fileHandler{fs}
 	}

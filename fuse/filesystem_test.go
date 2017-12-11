@@ -45,16 +45,16 @@ func newtestenv() *testenv {
 	}
 }
 
-func (tfs *testenv) NewFS() *otaru.FileSystem {
+func (tfs *testenv) NewFS() *filesystem.FileSystem {
 	idb, err := inodedb.NewEmptyDB(tfs.sio, tfs.txio)
 	if err != nil {
 		log.Fatalf("NewEmptyDB failed: %v", err)
 	}
 
-	return otaru.NewFileSystem(idb, tfs.bs, tu.TestCipher())
+	return filesystem.NewFileSystem(idb, tfs.bs, tu.TestCipher())
 }
 
-func (tfs *testenv) ReadOnlyFS() *otaru.FileSystem {
+func (tfs *testenv) ReadOnlyFS() *filesystem.FileSystem {
 	tfs.txio.SetReadOnly(true)
 	tfs.bs.SetFlags(fl.O_RDONLY)
 
@@ -63,14 +63,14 @@ func (tfs *testenv) ReadOnlyFS() *otaru.FileSystem {
 		log.Fatalf("NewDB failed: %v", err)
 	}
 
-	return otaru.NewFileSystem(idb, tfs.bs, tu.TestCipher())
+	return filesystem.NewFileSystem(idb, tfs.bs, tu.TestCipher())
 }
 
-func fusetestFileSystem() *otaru.FileSystem {
+func fusetestFileSystem() *filesystem.FileSystem {
 	return newtestenv().NewFS()
 }
 
-func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string)) {
+func fusetestCommon(t *testing.T, fs *filesystem.FileSystem, f func(mountpoint string)) {
 	bfuse.Debug = func(msg interface{}) {
 		log.Printf("fusedbg: %v", msg)
 	}

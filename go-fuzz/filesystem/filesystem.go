@@ -57,11 +57,11 @@ func Fuzz(data []byte) int {
 	}
 
 	bs := blobstore.NewMemBlobStore()
-	fs := otaru.NewFileSystem(idb, bs, tu.TestCipher())
+	fs := filesystem.NewFileSystem(idb, bs, tu.TestCipher())
 
 	const NumFs = 2
 	const NumFHs = NumFs * 2
-	fhs := make([]*otaru.FileHandle, NumFHs)
+	fhs := make([]*filesystem.FileHandle, NumFHs)
 
 	iobuf := make([]byte, AbsoluteMaxLen)
 

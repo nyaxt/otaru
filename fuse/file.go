@@ -21,7 +21,7 @@ const (
 )
 
 type FileNode struct {
-	fs *otaru.FileSystem
+	fs *filesystem.FileSystem
 	id inodedb.ID
 }
 
@@ -93,7 +93,7 @@ func (n FileNode) Fsync(ctx context.Context, req *bfuse.FsyncRequest) error {
 }
 
 type FileHandle struct {
-	h *otaru.FileHandle
+	h *filesystem.FileHandle
 }
 
 func (fh FileHandle) Read(ctx context.Context, req *bfuse.ReadRequest, resp *bfuse.ReadResponse) error {

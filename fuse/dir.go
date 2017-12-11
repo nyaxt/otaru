@@ -15,7 +15,7 @@ import (
 )
 
 type DirNode struct {
-	fs *otaru.FileSystem
+	fs *filesystem.FileSystem
 	id inodedb.ID
 }
 
