@@ -13,7 +13,7 @@ import (
 	"github.com/nyaxt/otaru/version"
 )
 
-var mylog = logger.Registry().Category("otaru-mount")
+var mylog = logger.Registry().Category("otaru-server")
 
 var Usage = func() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
