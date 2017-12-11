@@ -1,7 +1,7 @@
 package otaru_test
 
 import (
-	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	tu "github.com/nyaxt/otaru/testutils"

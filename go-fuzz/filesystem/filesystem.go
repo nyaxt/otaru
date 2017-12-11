@@ -6,9 +6,9 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/chunkstore"
+	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/filewritecache"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"

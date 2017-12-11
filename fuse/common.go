@@ -5,7 +5,7 @@ import (
 
 	bfuse "github.com/nyaxt/fuse"
 
-	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/filesystem"
 	oflags "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"

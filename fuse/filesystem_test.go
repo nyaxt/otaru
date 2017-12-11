@@ -15,8 +15,8 @@ import (
 
 	bfuse "github.com/nyaxt/fuse"
 
-	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
+	"github.com/nyaxt/otaru/filesystem"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/fuse"
 	"github.com/nyaxt/otaru/inodedb"

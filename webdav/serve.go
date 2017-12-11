@@ -11,7 +11,7 @@ import (
 
 	"github.com/nyaxt/otaru/third_party/webdav"
 
-	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/filesystem"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"

@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
-	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/util"

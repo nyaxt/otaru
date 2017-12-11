@@ -9,12 +9,12 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 
-	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
+	"github.com/nyaxt/otaru/filesystem"
 	oflags "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/fuse"
 	"github.com/nyaxt/otaru/gc/blobstoregc"

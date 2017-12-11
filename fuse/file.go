@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
 
