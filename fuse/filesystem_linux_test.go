@@ -10,8 +10,8 @@ import (
 	tu "github.com/nyaxt/otaru/testutils"
 )
 
-// Note: invoke test by: docker build -t otaru-dev . && docker run -ti --rm -privileged=true otaru-dev go test ./fuse -run TestServeFUSE_ChUGid -v
-func TestServeFUSE_ChUGid(t *testing.T) {
+// Note: invoke test by: docker build -t otaru-dev . && docker run -ti --rm -privileged=true otaru-dev go test ./fuse -run TestServe_ChUGid -v
+func TestServe_ChUGid(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 

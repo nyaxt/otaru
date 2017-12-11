@@ -233,7 +233,7 @@ func Serve(cfg *Config, oneshotcfg *OneshotConfig, closeC <-chan error) error {
 		defer close(fuseCloseC)
 
 		go func() {
-			if err := fuse.ServeFUSE(cfg.BucketName, cfg.FuseMountPoint, o.FS, nil, fuseCloseC); err != nil {
+			if err := fuse.Serve(cfg.BucketName, cfg.FuseMountPoint, o.FS, nil, fuseCloseC); err != nil {
 				fuseErrC <- err
 			}
 			close(fuseErrC)

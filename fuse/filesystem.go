@@ -46,7 +46,7 @@ func (fs FileSystem) Statfs(ctx context.Context, req *bfuse.StatfsRequest, resp 
 	return nil
 }
 
-func ServeFUSE(bucketName string, mountpoint string, ofs *otaru.FileSystem, ready chan<- bool, closeC <-chan struct{}) error {
+func Serve(bucketName string, mountpoint string, ofs *otaru.FileSystem, ready chan<- bool, closeC <-chan struct{}) error {
 	fsName := fmt.Sprintf("otaru+gs://%s", bucketName)
 	volName := fmt.Sprintf("Otaru %s", bucketName)
 

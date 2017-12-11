@@ -85,9 +85,10 @@ func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string
 
 	done := make(chan bool)
 	ready := make(chan bool)
+	closeC := make(chan struct{})
 	go func() {
-		if err := fuse.ServeFUSE("otaru-test", mountpoint, fs, ready); err != nil {
-			t.Errorf("ServeFUSE err: %v", err)
+		if err := fuse.Serve("otaru-test", mountpoint, fs, ready, closeC); err != nil {
+			t.Errorf("fuse.Serve err: %v", err)
 			close(ready)
 		}
 		close(done)
@@ -96,10 +97,7 @@ func fusetestCommon(t *testing.T, fs *otaru.FileSystem, f func(mountpoint string
 
 	f(mountpoint)
 
-	time.Sleep(100 * time.Millisecond)
-	if err := bfuse.Unmount(mountpoint); err != nil {
-		t.Errorf("umount failed: %v", err)
-	}
+	close(closeC)
 	<-done
 }
 
@@ -113,13 +111,13 @@ func assertFileContents(t *testing.T, fullpath string, content []byte) {
 	}
 }
 
-func TestServeFUSE_DoNothing(t *testing.T) {
+func TestServe_DoNothing(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 	fusetestCommon(t, fs, func(mountpoint string) {})
 }
 
-func TestServeFUSE_WriteReadFile(t *testing.T) {
+func TestServe_WriteReadFile(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
@@ -143,7 +141,7 @@ func TestServeFUSE_WriteReadFile(t *testing.T) {
 	})
 }
 
-func TestServeFUSE_WriteAppend(t *testing.T) {
+func TestServe_WriteAppend(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
@@ -188,7 +186,7 @@ func TestServeFUSE_WriteAppend(t *testing.T) {
 	})
 }
 
-func TestServeFUSE_RenameFile(t *testing.T) {
+func TestServe_RenameFile(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
@@ -214,7 +212,7 @@ func TestServeFUSE_RenameFile(t *testing.T) {
 	})
 }
 
-func TestServeFUSE_RenameFile_Overwrite(t *testing.T) {
+func TestServe_RenameFile_Overwrite(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
@@ -243,7 +241,7 @@ func TestServeFUSE_RenameFile_Overwrite(t *testing.T) {
 	})
 }
 
-func TestServeFUSE_RemoveFile(t *testing.T) {
+func TestServe_RemoveFile(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
@@ -273,7 +271,7 @@ func TestServeFUSE_RemoveFile(t *testing.T) {
 	})
 }
 
-func TestServeFUSE_Mkdir(t *testing.T) {
+func TestServe_Mkdir(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
@@ -301,7 +299,7 @@ func TestServeFUSE_Mkdir(t *testing.T) {
 	})
 }
 
-func TestServeFUSE_MoveFile(t *testing.T) {
+func TestServe_MoveFile(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
@@ -337,7 +335,7 @@ func TestServeFUSE_MoveFile(t *testing.T) {
 	})
 }
 
-func TestServeFUSE_Rmdir(t *testing.T) {
+func TestServe_Rmdir(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
@@ -371,7 +369,7 @@ func TestServeFUSE_Rmdir(t *testing.T) {
 	})
 }
 
-func TestServeFUSE_LsCmd(t *testing.T) {
+func TestServe_LsCmd(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
@@ -425,7 +423,7 @@ func TestServeFUSE_LsCmd(t *testing.T) {
 	})
 }
 
-func TestServeFUSE_Chmod(t *testing.T) {
+func TestServe_Chmod(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
@@ -501,7 +499,7 @@ func TestServeFUSE_Chmod(t *testing.T) {
 	})
 }
 
-func TestServeFUSE_Chtimes(t *testing.T) {
+func TestServe_Chtimes(t *testing.T) {
 	maybeSkipTest(t)
 	fs := fusetestFileSystem()
 
@@ -555,7 +553,7 @@ func TestServeFUSE_Chtimes(t *testing.T) {
 	})
 }
 
-func TestServeFUSE_ReadOnly(t *testing.T) {
+func TestServe_ReadOnly(t *testing.T) {
 	maybeSkipTest(t)
 	env := newtestenv()
 	wfs := env.NewFS()
