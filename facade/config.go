@@ -182,7 +182,3 @@ func NewConfig(configdir string) (*Config, error) {
 
 	return cfg, nil
 }
-
-type OneshotConfig struct {
-	Mkfs bool
-}

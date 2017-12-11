@@ -22,7 +22,6 @@ var Usage = func() {
 
 var (
 	flagVersion   = flag.Bool("version", false, "Show version info")
-	flagMkfs      = flag.Bool("mkfs", false, "Reset metadata if no existing metadata exists")
 	flagReadOnly  = flag.Bool("readonly", false, "Mount as read-only mode. No changes to the filesystem is allowed.")
 	flagConfigDir = flag.String("configDir", facade.DefaultConfigDir(), "Config dirpath")
 )
@@ -68,7 +67,7 @@ func main() {
 		closeC <- errors.New("Critical log event.")
 	}))
 
-	if err := facade.Serve(cfg, &facade.OneshotConfig{Mkfs: *flagMkfs}, closeC); err != nil {
+	if err := facade.Serve(cfg, closeC); err != nil {
 		logger.Warningf(mylog, "facade.Serve end: %v", err)
 	}
 }

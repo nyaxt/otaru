@@ -62,6 +62,7 @@ Visit displayed url, and paste response code. Check that `~/.otaru/tokencache.js
 ### Mount!
     
     $ mkdir -p /otaru/foobar && sudo chown `whoami` /otaru/foobar
-    $ OTARUDIR=~/.otaru out/otaru-mount -mkfs /otaru/foobar # -mkfs option is only for first mount.
+    $ OTARUDIR=~/.otaru out/otaru-mkfs /otaru/foobar
+    $ OTARUDIR=~/.otaru out/otaru-server /otaru/foobar
 
 Enjoy using /otaru/foobar. Press Ctrl-C to start unmount sequence. Navigate to http://localhost:10246 for webui.

@@ -31,7 +31,8 @@ fuse/cli/cli
 
 dep.png
 out/*
-otaru-mount
+otaru-server
+otaru-mkfs
 *-fuzz.zip
 
 version/consts.go

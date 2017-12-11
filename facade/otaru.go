@@ -1,6 +1,7 @@
 package facade
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -79,7 +80,42 @@ func BootstrapLogger() {
 	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
 }
 
-func Serve(cfg *Config, oneshotcfg *OneshotConfig, closeC <-chan error) error {
+func Mkfs(cfg *Config) error {
+	o := &Otaru{}
+	defer o.Close()
+
+	if cfg.ReadOnly {
+		return errors.New("Mkfs operation can't be performed in read only mode.")
+	}
+
+	flags := oflags.O_RDWRCREATE
+
+	if err := o.initCrypt(cfg); err != nil {
+		return err
+	}
+
+	o.S = scheduler.NewScheduler()
+
+	if err := o.initCloudDatastore(cfg); err != nil {
+		return err
+	}
+	if err := o.initBlobStore(cfg, flags); err != nil {
+		return err
+	}
+	if err := o.initINodeDBIO(cfg, flags); err != nil {
+		return err
+	}
+
+	var err error
+	o.IDBBE, err = inodedb.NewEmptyDB(o.SIO, o.CTxIO)
+	if err != nil {
+		return fmt.Errorf("NewEmptyDB failed: %v", err)
+	}
+
+	return nil
+}
+
+func Serve(cfg *Config, closeC <-chan error) error {
 	o := &Otaru{}
 	defer o.Close()
 
@@ -95,101 +131,28 @@ func Serve(cfg *Config, oneshotcfg *OneshotConfig, closeC <-chan error) error {
 		flags = oflags.O_RDONLY
 	}
 
-	var err error
-
-	key := btncrypt.KeyFromPassword(cfg.Password)
-	o.C, err = btncrypt.NewCipher(key)
-	if err != nil {
-		return fmt.Errorf("Failed to init Cipher: %v", err)
+	if err := o.initCrypt(cfg); err != nil {
+		return err
 	}
 
 	o.S = scheduler.NewScheduler()
 	o.R = scheduler.NewRepetitiveJobRunner(o.S)
 
-	if !cfg.LocalDebug {
-		o.Tsrc, err = auth.GetGCloudTokenSource(context.TODO(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
-		if err != nil {
-			return fmt.Errorf("Failed to init GCloudClientSource: %v", err)
-		}
-		o.DSCfg = datastore.NewConfig(cfg.ProjectName, cfg.BucketName, o.C, o.Tsrc)
-		o.GL = datastore.NewGlobalLocker(o.DSCfg, GenHostName(), "FIXME: fill info")
-		if err := o.GL.Lock(o.ReadOnly); err != nil {
-			return err
-		}
+	if err := o.initCloudDatastore(cfg); err != nil {
+		return err
+	}
+	if err := o.initBlobStore(cfg, flags); err != nil {
+		return err
+	}
+	if err := o.initINodeDBIO(cfg, flags); err != nil {
+		return err
 	}
 
-	o.CacheTgtBS, err = blobstore.NewFileBlobStore(cfg.CacheDir, oflags.O_RDWRCREATE)
+	var err error
+
+	o.IDBBE, err = inodedb.NewDB(o.SIO, o.CTxIO, cfg.ReadOnly)
 	if err != nil {
-		return fmt.Errorf("Failed to init FileBlobStore: %v", err)
-	}
-
-	if !cfg.LocalDebug {
-		o.DefaultBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, cfg.BucketName, o.Tsrc, flags)
-		if err != nil {
-			return fmt.Errorf("Failed to init GCSBlobStore: %v", err)
-		}
-		if !cfg.UseSeparateBucketForMetadata {
-			o.BackendBS = o.DefaultBS
-		} else {
-			metabucketname := fmt.Sprintf("%s-meta", cfg.BucketName)
-			o.MetadataBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, metabucketname, o.Tsrc, flags)
-			if err != nil {
-				return fmt.Errorf("Failed to init GCSBlobStore (metadata): %v", err)
-			}
-
-			o.BackendBS = blobstore.Mux{
-				blobstore.MuxEntry{metadata.IsMetadataBlobpath, o.MetadataBS},
-				blobstore.MuxEntry{nil, o.DefaultBS},
-			}
-		}
-	} else {
-		o.BackendBS, err = blobstore.NewFileBlobStore(path.Join(DefaultConfigDir(), "bbs"), flags)
-		if err != nil {
-			return fmt.Errorf("Failed to init FileBlobStore (backend for local debugging): %v", err)
-		}
-	}
-
-	queryFn := chunkstore.NewQueryChunkVersion(o.C)
-	o.CBS, err = cachedblobstore.New(o.BackendBS, o.CacheTgtBS, o.S, flags, queryFn)
-	if err != nil {
-		return fmt.Errorf("Failed to init CachedBlobStore: %v", err)
-	}
-	if err := o.CBS.RestoreState(o.C); err != nil {
-		logger.Warningf(mylog, "Attempted to restore cachedblobstore state but failed: %v", err)
-	}
-	o.AutoReduceCacheJob = cachedblobstore.SetupAutoReduceCache(o.CBS, o.R, cfg.CacheHighWatermarkInBytes, cfg.CacheLowWatermarkInBytes)
-	if !o.ReadOnly {
-		o.SaveStateJob = o.R.RunEveryPeriod(cachedblobstore.SaveStateTask{o.CBS, o.C}, 30*time.Second)
-	}
-
-	if !cfg.LocalDebug {
-		o.SSLoc = datastore.NewINodeDBSSLocator(o.DSCfg, flags)
-	} else {
-		o.SSLoc = blobstoredbstatesnapshotio.SimpleSSLocator{}
-	}
-	o.SIO = blobstoredbstatesnapshotio.New(o.CBS, o.C, o.SSLoc)
-
-	if !cfg.LocalDebug {
-		txio := datastore.NewDBTransactionLogIO(o.DSCfg, flags)
-		o.TxIO = txio
-		if !cfg.ReadOnly {
-			o.TxIOSyncJob = o.R.SyncEveryPeriod(txio, 300*time.Millisecond)
-		}
-	} else {
-		o.TxIO = inodedb.NewSimpleDBTransactionLogIO()
-	}
-	o.CTxIO = inodedb.NewCachedDBTransactionLogIO(o.TxIO)
-
-	if oneshotcfg.Mkfs {
-		o.IDBBE, err = inodedb.NewEmptyDB(o.SIO, o.CTxIO)
-		if err != nil {
-			return fmt.Errorf("NewEmptyDB failed: %v", err)
-		}
-	} else {
-		o.IDBBE, err = inodedb.NewDB(o.SIO, o.CTxIO, cfg.ReadOnly)
-		if err != nil {
-			return fmt.Errorf("NewDB failed: %v", err)
-		}
+		return fmt.Errorf("NewDB failed: %v", err)
 	}
 
 	o.IDBS = inodedb.NewDBService(o.IDBBE)
@@ -280,6 +243,110 @@ func Serve(cfg *Config, oneshotcfg *OneshotConfig, closeC <-chan error) error {
 			return fmt.Errorf("Shutdown requested. Cause: %v", err)
 		}
 	}
+
+	return nil
+}
+
+func (o *Otaru) initCrypt(cfg *Config) error {
+	var err error
+
+	key := btncrypt.KeyFromPassword(cfg.Password)
+	o.C, err = btncrypt.NewCipher(key)
+	if err != nil {
+		return fmt.Errorf("Failed to init Cipher: %v", err)
+	}
+
+	return nil
+}
+
+func (o *Otaru) initCloudDatastore(cfg *Config) error {
+	if !cfg.LocalDebug {
+		var err error
+		o.Tsrc, err = auth.GetGCloudTokenSource(context.TODO(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
+		if err != nil {
+			return fmt.Errorf("Failed to init GCloudClientSource: %v", err)
+		}
+		o.DSCfg = datastore.NewConfig(cfg.ProjectName, cfg.BucketName, o.C, o.Tsrc)
+		o.GL = datastore.NewGlobalLocker(o.DSCfg, GenHostName(), "FIXME: fill info")
+		if err := o.GL.Lock(o.ReadOnly); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (o *Otaru) initBlobStore(cfg *Config, flags int) error {
+	var err error
+
+	o.CacheTgtBS, err = blobstore.NewFileBlobStore(cfg.CacheDir, oflags.O_RDWRCREATE)
+	if err != nil {
+		return fmt.Errorf("Failed to init FileBlobStore: %v", err)
+	}
+
+	if !cfg.LocalDebug {
+		o.DefaultBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, cfg.BucketName, o.Tsrc, flags)
+		if err != nil {
+			return fmt.Errorf("Failed to init GCSBlobStore: %v", err)
+		}
+		if !cfg.UseSeparateBucketForMetadata {
+			o.BackendBS = o.DefaultBS
+		} else {
+			metabucketname := fmt.Sprintf("%s-meta", cfg.BucketName)
+			o.MetadataBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, metabucketname, o.Tsrc, flags)
+			if err != nil {
+				return fmt.Errorf("Failed to init GCSBlobStore (metadata): %v", err)
+			}
+
+			o.BackendBS = blobstore.Mux{
+				blobstore.MuxEntry{metadata.IsMetadataBlobpath, o.MetadataBS},
+				blobstore.MuxEntry{nil, o.DefaultBS},
+			}
+		}
+	} else {
+		o.BackendBS, err = blobstore.NewFileBlobStore(path.Join(DefaultConfigDir(), "bbs"), flags)
+		if err != nil {
+			return fmt.Errorf("Failed to init FileBlobStore (backend for local debugging): %v", err)
+		}
+	}
+
+	queryFn := chunkstore.NewQueryChunkVersion(o.C)
+	o.CBS, err = cachedblobstore.New(o.BackendBS, o.CacheTgtBS, o.S, flags, queryFn)
+	if err != nil {
+		return fmt.Errorf("Failed to init CachedBlobStore: %v", err)
+	}
+	if err := o.CBS.RestoreState(o.C); err != nil {
+		logger.Warningf(mylog, "Attempted to restore cachedblobstore state but failed: %v", err)
+	}
+
+	if o.R != nil {
+		o.AutoReduceCacheJob = cachedblobstore.SetupAutoReduceCache(o.CBS, o.R, cfg.CacheHighWatermarkInBytes, cfg.CacheLowWatermarkInBytes)
+		if !o.ReadOnly {
+			o.SaveStateJob = o.R.RunEveryPeriod(cachedblobstore.SaveStateTask{o.CBS, o.C}, 30*time.Second)
+		}
+	}
+
+	return nil
+}
+
+func (o *Otaru) initINodeDBIO(cfg *Config, flags int) error {
+	if !cfg.LocalDebug {
+		o.SSLoc = datastore.NewINodeDBSSLocator(o.DSCfg, flags)
+	} else {
+		o.SSLoc = blobstoredbstatesnapshotio.SimpleSSLocator{}
+	}
+	o.SIO = blobstoredbstatesnapshotio.New(o.CBS, o.C, o.SSLoc)
+
+	if !cfg.LocalDebug {
+		txio := datastore.NewDBTransactionLogIO(o.DSCfg, flags)
+		o.TxIO = txio
+		if o.R != nil && !cfg.ReadOnly {
+			o.TxIOSyncJob = o.R.SyncEveryPeriod(txio, 300*time.Millisecond)
+		}
+	} else {
+		o.TxIO = inodedb.NewSimpleDBTransactionLogIO()
+	}
+	o.CTxIO = inodedb.NewCachedDBTransactionLogIO(o.TxIO)
 
 	return nil
 }
