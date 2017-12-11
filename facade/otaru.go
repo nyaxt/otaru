@@ -30,6 +30,7 @@ import (
 	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/scheduler"
 	"github.com/nyaxt/otaru/util"
+	"github.com/nyaxt/otaru/webdav"
 )
 
 var mylog = logger.Registry().Category("facade")
@@ -230,18 +231,23 @@ func Serve(cfg *Config, oneshotcfg *OneshotConfig, closeC <-chan error) error {
 	if cfg.FuseMountPoint != "" {
 		fuseCloseC := make(chan struct{})
 		defer close(fuseCloseC)
-		go func() {
-			<-fuseCloseC
 
-			if err := fuse.Unmount(cfg.FuseMountPoint); err != nil {
-				logger.Warningf(mylog, "umount err: %v", err)
-			}
-		}()
 		go func() {
-			if err := fuse.ServeFUSE(cfg.BucketName, cfg.FuseMountPoint, o.FS, nil); err != nil {
+			if err := fuse.ServeFUSE(cfg.BucketName, cfg.FuseMountPoint, o.FS, nil, fuseCloseC); err != nil {
 				fuseErrC <- err
 			}
 			close(fuseErrC)
+		}()
+	}
+
+	webdavErrC := make(chan error)
+	// FIXME: webdavCloseC
+	if cfg.WebdavAddr != "" {
+		go func() {
+			if err := webdav.Serve(cfg.WebdavAddr, o.FS); err != nil {
+				webdavErrC <- err
+			}
+			close(webdavErrC)
 		}()
 	}
 
@@ -258,6 +264,13 @@ func Serve(cfg *Config, oneshotcfg *OneshotConfig, closeC <-chan error) error {
 			logger.Infof(mylog, "Fuse shutdown detected.")
 		} else {
 			return fmt.Errorf("Fuse error: %v", err)
+		}
+
+	case err := <-webdavErrC:
+		if err == nil {
+			logger.Infof(mylog, "WebDav shutdown detected.")
+		} else {
+			return fmt.Errorf("WebDav error: %v", err)
 		}
 
 	case err := <-closeC:

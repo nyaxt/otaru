@@ -247,7 +247,7 @@ func (fs webdavFS) Stat(ctx context.Context, name string) (os.FileInfo, error) {
 	return &webdavFileInfo{name: filepath.Base(name), attr: &attr}, nil
 }
 
-func Serve(ofs *otaru.FileSystem) error {
+func Serve(addr string, ofs *otaru.FileSystem) error {
 	handler := &webdav.Handler{
 		Prefix:     "",
 		FileSystem: webdavFS{ofs},
@@ -257,7 +257,7 @@ func Serve(ofs *otaru.FileSystem) error {
 		},
 	}
 	httpsrv := http.Server{
-		Addr:    ":8005",
+		Addr:    addr,
 		Handler: handler,
 	}
 	return httpsrv.ListenAndServe()

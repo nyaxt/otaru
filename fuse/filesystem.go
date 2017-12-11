@@ -3,6 +3,7 @@ package fuse
 import (
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/inodedb"
@@ -45,7 +46,7 @@ func (fs FileSystem) Statfs(ctx context.Context, req *bfuse.StatfsRequest, resp 
 	return nil
 }
 
-func ServeFUSE(bucketName string, mountpoint string, ofs *otaru.FileSystem, ready chan<- bool) error {
+func ServeFUSE(bucketName string, mountpoint string, ofs *otaru.FileSystem, ready chan<- bool, closeC <-chan struct{}) error {
 	fsName := fmt.Sprintf("otaru+gs://%s", bucketName)
 	volName := fmt.Sprintf("Otaru %s", bucketName)
 
@@ -65,8 +66,6 @@ func ServeFUSE(bucketName string, mountpoint string, ofs *otaru.FileSystem, read
 	go func() {
 		if err := bfs.Serve(c, FileSystem{ofs}); err != nil {
 			serveC <- err
-			close(serveC)
-			return
 		}
 		close(serveC)
 	}()
@@ -82,12 +81,25 @@ func ServeFUSE(bucketName string, mountpoint string, ofs *otaru.FileSystem, read
 		close(ready)
 	}
 
-	if err := <-serveC; err != nil {
-		return nil
-	}
-	return nil
+	go func() {
+		<-closeC
+		Unmount(mountpoint)
+	}()
+
+	return <-serveC
 }
 
-func Unmount(mountpoint string) error {
-	return bfuse.Unmount(mountpoint)
+func Unmount(mountpoint string) {
+	doneC := make(chan struct{})
+	go func() {
+		bfuse.Unmount(mountpoint)
+		close(doneC)
+	}()
+	timeoutC := time.After(time.Second * 3)
+	select {
+	case <-doneC:
+		logger.Infof(mylog, "Successfully unmounted: %v", mountpoint)
+	case <-timeoutC:
+		logger.Warningf(mylog, "Timeout reached while trying to unmount: %v", mountpoint)
+	}
 }

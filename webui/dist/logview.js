@@ -62,7 +62,7 @@ const triggerUpdate = async () => {
     const latestId = await getLatestId();
 
     const result = await rpc('api/v1/logger/logs', {args: {
-      min_id: latestId - perQueryLogLimit,
+      min_id: Math.max(0, latestId - perQueryLogLimit),
       limit: perQueryLogLimit,
     }});
     removeAllChildNodes(listDiv);
@@ -85,7 +85,7 @@ $('.logview__more').addEventListener('click', async ev => {
     return;
 
   const result = await rpc('api/v1/logger/logs', {args: {
-    min_id: oldestEntryId - moreQueryLogLimit,
+    min_id: Math.max(oldestEntryId - moreQueryLogLimit, 0),
     limit: moreQueryLogLimit,
   }});
   if (!result.entry)
