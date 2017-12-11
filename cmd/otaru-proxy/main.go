@@ -48,11 +48,6 @@ func main() {
 		os.Exit(2)
 	}
 
-	if err := facade.SetupFluentLogger(cfg); err != nil {
-		logger.Criticalf(mylog, "Failed to setup fluentd logger: %v", err)
-		os.Exit(1)
-	}
-
 	o, err := facade.NewOtaru(cfg, &facade.OneshotConfig{Mkfs: false})
 	if err != nil {
 		logger.Criticalf(mylog, "NewOtaru failed: %v", err)

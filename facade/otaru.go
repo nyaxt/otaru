@@ -2,7 +2,7 @@ package facade
 
 import (
 	"fmt"
-	"io"
+	"os"
 	"path"
 	"time"
 
@@ -16,6 +16,7 @@ import (
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
 	oflags "github.com/nyaxt/otaru/flags"
+	"github.com/nyaxt/otaru/fuse"
 	"github.com/nyaxt/otaru/gc/blobstoregc"
 	"github.com/nyaxt/otaru/gc/inodedbssgc"
 	"github.com/nyaxt/otaru/gc/inodedbtxloggc"
@@ -71,12 +72,19 @@ type Otaru struct {
 	AutoBlobstoreGCJob    scheduler.ID
 	AutoINodeDBTxLogGCJob scheduler.ID
 	AutoINodeDBSSGCJob    scheduler.ID
-
-	ApiServerCloser io.Closer
 }
 
-func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
+func BootstrapLogger() {
+	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
+}
+
+func Serve(cfg *Config, oneshotcfg *OneshotConfig, closeC <-chan error) error {
 	o := &Otaru{}
+	defer o.Close()
+
+	if err := SetupFluentLogger(cfg); err != nil {
+		return fmt.Errorf("Failed to setup fluentd logger: %v", err)
+	}
 
 	o.ReadOnly = cfg.ReadOnly
 
@@ -91,8 +99,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	key := btncrypt.KeyFromPassword(cfg.Password)
 	o.C, err = btncrypt.NewCipher(key)
 	if err != nil {
-		o.Close()
-		return nil, fmt.Errorf("Failed to init Cipher: %v", err)
+		return fmt.Errorf("Failed to init Cipher: %v", err)
 	}
 
 	o.S = scheduler.NewScheduler()
@@ -101,27 +108,24 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	if !cfg.LocalDebug {
 		o.Tsrc, err = auth.GetGCloudTokenSource(context.TODO(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
 		if err != nil {
-			o.Close()
-			return nil, fmt.Errorf("Failed to init GCloudClientSource: %v", err)
+			return fmt.Errorf("Failed to init GCloudClientSource: %v", err)
 		}
 		o.DSCfg = datastore.NewConfig(cfg.ProjectName, cfg.BucketName, o.C, o.Tsrc)
 		o.GL = datastore.NewGlobalLocker(o.DSCfg, GenHostName(), "FIXME: fill info")
 		if err := o.GL.Lock(o.ReadOnly); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	o.CacheTgtBS, err = blobstore.NewFileBlobStore(cfg.CacheDir, oflags.O_RDWRCREATE)
 	if err != nil {
-		o.Close()
-		return nil, fmt.Errorf("Failed to init FileBlobStore: %v", err)
+		return fmt.Errorf("Failed to init FileBlobStore: %v", err)
 	}
 
 	if !cfg.LocalDebug {
 		o.DefaultBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, cfg.BucketName, o.Tsrc, flags)
 		if err != nil {
-			o.Close()
-			return nil, fmt.Errorf("Failed to init GCSBlobStore: %v", err)
+			return fmt.Errorf("Failed to init GCSBlobStore: %v", err)
 		}
 		if !cfg.UseSeparateBucketForMetadata {
 			o.BackendBS = o.DefaultBS
@@ -129,8 +133,7 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 			metabucketname := fmt.Sprintf("%s-meta", cfg.BucketName)
 			o.MetadataBS, err = gcs.NewGCSBlobStore(cfg.ProjectName, metabucketname, o.Tsrc, flags)
 			if err != nil {
-				o.Close()
-				return nil, fmt.Errorf("Failed to init GCSBlobStore (metadata): %v", err)
+				return fmt.Errorf("Failed to init GCSBlobStore (metadata): %v", err)
 			}
 
 			o.BackendBS = blobstore.Mux{
@@ -141,16 +144,14 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	} else {
 		o.BackendBS, err = blobstore.NewFileBlobStore(path.Join(DefaultConfigDir(), "bbs"), flags)
 		if err != nil {
-			o.Close()
-			return nil, fmt.Errorf("Failed to init FileBlobStore (backend for local debugging): %v", err)
+			return fmt.Errorf("Failed to init FileBlobStore (backend for local debugging): %v", err)
 		}
 	}
 
 	queryFn := chunkstore.NewQueryChunkVersion(o.C)
 	o.CBS, err = cachedblobstore.New(o.BackendBS, o.CacheTgtBS, o.S, flags, queryFn)
 	if err != nil {
-		o.Close()
-		return nil, fmt.Errorf("Failed to init CachedBlobStore: %v", err)
+		return fmt.Errorf("Failed to init CachedBlobStore: %v", err)
 	}
 	if err := o.CBS.RestoreState(o.C); err != nil {
 		logger.Warningf(mylog, "Attempted to restore cachedblobstore state but failed: %v", err)
@@ -181,14 +182,12 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 	if oneshotcfg.Mkfs {
 		o.IDBBE, err = inodedb.NewEmptyDB(o.SIO, o.CTxIO)
 		if err != nil {
-			o.Close()
-			return nil, fmt.Errorf("NewEmptyDB failed: %v", err)
+			return fmt.Errorf("NewEmptyDB failed: %v", err)
 		}
 	} else {
 		o.IDBBE, err = inodedb.NewDB(o.SIO, o.CTxIO, cfg.ReadOnly)
 		if err != nil {
-			o.Close()
-			return nil, fmt.Errorf("NewDB failed: %v", err)
+			return fmt.Errorf("NewDB failed: %v", err)
 		}
 	}
 
@@ -216,23 +215,64 @@ func NewOtaru(cfg *Config, oneshotcfg *OneshotConfig) (*Otaru, error) {
 		}
 	}
 
-	options := o.buildApiServerOptions(cfg)
-	o.ApiServerCloser, err = apiserver.Serve(options...)
-	if err != nil {
-		return nil, fmt.Errorf("API server run failed: %v", err)
+	apiCloseC := make(chan struct{})
+	defer close(apiCloseC)
+	apiErrC := make(chan error)
+	apiopts := append(o.buildApiServerOptions(cfg), apiserver.CloseChannel(apiCloseC))
+	go func() {
+		if err := apiserver.Serve(apiopts...); err != nil {
+			apiErrC <- err
+		}
+		close(apiErrC)
+	}()
+
+	fuseErrC := make(chan error)
+	if cfg.FuseMountPoint != "" {
+		fuseCloseC := make(chan struct{})
+		defer close(fuseCloseC)
+		go func() {
+			<-fuseCloseC
+
+			if err := fuse.Unmount(cfg.FuseMountPoint); err != nil {
+				logger.Warningf(mylog, "umount err: %v", err)
+			}
+		}()
+		go func() {
+			if err := fuse.ServeFUSE(cfg.BucketName, cfg.FuseMountPoint, o.FS, nil); err != nil {
+				fuseErrC <- err
+			}
+			close(fuseErrC)
+		}()
 	}
 
-	return o, nil
+	select {
+	case err := <-apiErrC:
+		if err == nil {
+			logger.Infof(mylog, "Apiserver shutdown detected.")
+		} else {
+			return fmt.Errorf("Apiserver error: %v", err)
+		}
+
+	case err := <-fuseErrC:
+		if err == nil {
+			logger.Infof(mylog, "Fuse shutdown detected.")
+		} else {
+			return fmt.Errorf("Fuse error: %v", err)
+		}
+
+	case err := <-closeC:
+		if err == nil {
+			logger.Infof(mylog, "Shutdown requested.")
+		} else {
+			return fmt.Errorf("Shutdown requested. Cause: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func (o *Otaru) Close() error {
 	errs := []error{}
-
-	if o.ApiServerCloser != nil {
-		if err := o.ApiServerCloser.Close(); err != nil {
-			errs = append(errs, err)
-		}
-	}
 
 	if o.R != nil {
 		o.R.Stop()

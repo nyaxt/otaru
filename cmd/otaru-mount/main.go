@@ -1,17 +1,14 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
-	bfuse "github.com/nyaxt/fuse"
-
 	"github.com/nyaxt/otaru/facade"
-	"github.com/nyaxt/otaru/fuse"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/version"
 )
@@ -31,10 +28,7 @@ var (
 	flagConfigDir = flag.String("configDir", facade.DefaultConfigDir(), "Config dirpath")
 )
 
-var bfuseLogger = logger.Registry().Category("bfuse")
-
 func main() {
-	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
 	flag.Usage = Usage
 	flag.Parse()
 
@@ -42,6 +36,8 @@ func main() {
 		fmt.Print(version.DumpBuildInfo())
 		os.Exit(1)
 	}
+
+	facade.BootstrapLogger()
 
 	cfg, err := facade.NewConfig(*flagConfigDir)
 	if err != nil {
@@ -56,35 +52,9 @@ func main() {
 		Usage()
 		os.Exit(2)
 	}
-	mountpoint := flag.Arg(0)
+	cfg.FuseMountPoint = flag.Arg(0)
 
-	if err := facade.SetupFluentLogger(cfg); err != nil {
-		logger.Criticalf(mylog, "Failed to setup fluentd logger: %v", err)
-		os.Exit(1)
-	}
-
-	o, err := facade.NewOtaru(cfg, &facade.OneshotConfig{Mkfs: *flagMkfs})
-	if err != nil {
-		logger.Criticalf(mylog, "NewOtaru failed: %v", err)
-		os.Exit(1)
-	}
-	var muClose sync.Mutex
-	closeOtaruAndExit := func(exitCode int) {
-		muClose.Lock()
-		defer muClose.Unlock()
-
-		if err := bfuse.Unmount(mountpoint); err != nil {
-			logger.Warningf(mylog, "umount err: %v", err)
-		}
-		if o != nil {
-			if err := o.Close(); err != nil {
-				logger.Warningf(mylog, "Otaru.Close() returned errs: %v", err)
-			}
-			o = nil
-		}
-		os.Exit(exitCode)
-	}
-	defer closeOtaruAndExit(0)
+	closeC := make(chan error)
 
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, os.Interrupt)
@@ -92,18 +62,18 @@ func main() {
 	go func() {
 		for s := range sigC {
 			logger.Warningf(mylog, "Received signal: %v", s)
-			closeOtaruAndExit(1)
+			closeC <- fmt.Errorf("Received singal: %v", s)
+			close(closeC)
 		}
 	}()
 	logger.Registry().AddOutput(logger.HandleCritical(func() {
 		logger.Warningf(mylog, "Starting shutdown due to critical event.")
-		go closeOtaruAndExit(1)
+		closeC <- errors.New("Critical log event.")
+		close(closeC)
 	}))
 
-	bfuse.Debug = func(msg interface{}) { logger.Debugf(bfuseLogger, "%v", msg) }
-	if err := fuse.ServeFUSE(cfg.BucketName, mountpoint, o.FS, nil); err != nil {
-		logger.Warningf(mylog, "ServeFUSE failed: %v", err)
-		closeOtaruAndExit(1)
+	if err := facade.Serve(cfg, &facade.OneshotConfig{Mkfs: *flagMkfs}, closeC); err != nil {
+		logger.Criticalf(mylog, "facade.Serve end: %v", err)
+		os.Exit(1)
 	}
-	logger.Infof(mylog, "ServeFUSE end!")
 }

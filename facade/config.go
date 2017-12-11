@@ -40,6 +40,9 @@ type Config struct {
 	CredentialsFilePath string
 	TokenCacheFilePath  string
 
+	// If non-empty, perform fuse mount
+	FuseMountPoint string
+
 	// Run GC every "GCPeriod" seconds.
 	GCPeriod int64
 

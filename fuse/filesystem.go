@@ -14,6 +14,11 @@ import (
 )
 
 var mylog = logger.Registry().Category("fuse")
+var bfuseLogger = logger.Registry().Category("bfuse")
+
+func init() {
+	bfuse.Debug = func(msg interface{}) { logger.Debugf(bfuseLogger, "%v", msg) }
+}
 
 type FileSystem struct {
 	ofs *otaru.FileSystem
@@ -81,4 +86,8 @@ func ServeFUSE(bucketName string, mountpoint string, ofs *otaru.FileSystem, read
 		return nil
 	}
 	return nil
+}
+
+func Unmount(mountpoint string) error {
+	return bfuse.Unmount(mountpoint)
 }
