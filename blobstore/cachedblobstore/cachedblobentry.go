@@ -3,6 +3,7 @@ package cachedblobstore
 import (
 	"fmt"
 	"io"
+	"runtime"
 	"sync"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/nyaxt/otaru/util"
 	"github.com/nyaxt/otaru/util/cancellable"
 )
+
+const RecordOpenHandleStackTraceForDebugging = false
 
 type CacheEntryState int
 
@@ -458,7 +461,14 @@ Loop:
 
 	be.lastUsed = time.Now()
 
-	bh := &CachedBlobHandle{be, flags}
+	var stacktrace []byte
+	if RecordOpenHandleStackTraceForDebugging {
+		stacktrace = make([]byte, 4096)
+		n := runtime.Stack(stacktrace, false)
+		stacktrace = stacktrace[:n]
+	}
+
+	bh := &CachedBlobHandle{be, flags, stacktrace}
 	be.handles[bh] = struct{}{}
 
 	return bh, nil
@@ -793,6 +803,9 @@ func (be *CachedBlobEntry) Close(mode CloseMode) error {
 
 	if be.state != CacheEntryErrored {
 		if nhandles := len(be.handles); nhandles > 0 {
+			for h, _ := range be.handles {
+				logger.Debugf(mylog, "Leaking handle: %s", h.String())
+			}
 			return fmt.Errorf("Entry has %d handles", nhandles)
 		}
 	}

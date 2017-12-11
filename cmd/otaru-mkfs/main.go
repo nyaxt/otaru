@@ -48,5 +48,5 @@ func main() {
 		logger.Warningf(mylog, "facade.Mkfs end: %v", err)
 		return
 	}
-	logger.Infof(mylog, "facade.Mkfs end successfully!", err)
+	logger.Infof(mylog, "facade.Mkfs end successfully!")
 }

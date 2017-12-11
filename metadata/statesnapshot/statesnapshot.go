@@ -86,6 +86,7 @@ func Restore(blobpath string, c *btncrypt.Cipher, bs blobstore.BlobStore, cb Dec
 	if err != nil {
 		return err
 	}
+	defer r.Close()
 
 	cr, err := chunkstore.NewChunkReader(r, c)
 	if err != nil {
