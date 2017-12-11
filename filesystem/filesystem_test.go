@@ -1,4 +1,4 @@
-package otaru_test
+package filesystem_test
 
 import (
 	"github.com/nyaxt/otaru/filesystem"

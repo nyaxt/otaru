@@ -1,4 +1,4 @@
-package otaru
+package filesystem
 
 import (
 	"bytes"
