@@ -19,9 +19,8 @@ import (
 const maxWrite = 1 << 20
 
 var (
-	errNoAvail         = errors.New("no available fuse devices")
-	errNotLoaded       = errors.New("osxfuse is not loaded")
-	errOSXFUSENotFound = errors.New("cannot locate OSXFUSE")
+	errNoAvail   = errors.New("no available fuse devices")
+	errNotLoaded = errors.New("osxfuse is not loaded")
 )
 
 func loadOSXFUSE(bin string) error {
@@ -119,7 +118,10 @@ func callMount(bin string, daemonVar string, dir string, conf *mountConfig, f *o
 	)
 	cmd.ExtraFiles = []*os.File{f}
 	cmd.Env = os.Environ()
+	// OSXFUSE <3.3.0
 	cmd.Env = append(cmd.Env, "MOUNT_FUSEFS_CALL_BY_LIB=")
+	// OSXFUSE >=3.3.0
+	cmd.Env = append(cmd.Env, "MOUNT_OSXFUSE_CALL_BY_LIB=")
 
 	daemon := os.Args[0]
 	if daemonVar != "" {
@@ -207,5 +209,5 @@ func mount(dir string, conf *mountConfig, ready chan<- struct{}, errp *error) (*
 		}
 		return f, nil
 	}
-	return nil, errOSXFUSENotFound
+	return nil, ErrOSXFUSENotFound
 }

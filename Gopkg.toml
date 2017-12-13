@@ -22,8 +22,8 @@
 
 
 [[constraint]]
+  branch = "master"
   name = "cloud.google.com/go"
-  version = "0.16.0"
 
 [[constraint]]
   branch = "master"
@@ -34,24 +34,24 @@
   name = "github.com/elazarl/go-bindata-assetfs"
 
 [[constraint]]
+  branch = "master"
   name = "github.com/fluent/fluent-logger-golang"
-  version = "1.2.1"
 
 [[constraint]]
+  branch = "master"
   name = "github.com/gorilla/mux"
-  version = "1.6.0"
 
 [[constraint]]
+  branch = "master"
   name = "github.com/naoina/toml"
-  version = "0.1.1"
 
 [[constraint]]
   branch = "master"
   name = "github.com/nyaxt/fuse"
 
 [[constraint]]
+  branch = "master"
   name = "github.com/rs/cors"
-  version = "1.2.0"
 
 [[constraint]]
   branch = "master"

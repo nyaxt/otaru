@@ -2,10 +2,10 @@
 
 
 [[projects]]
+  branch = "master"
   name = "cloud.google.com/go"
   packages = ["compute/metadata","datastore","iam","internal","internal/atomiccache","internal/fields","internal/optional","internal/version","storage"]
-  revision = "2d3a6656c17a60b0815b7e06ab0be04eacb6e613"
-  version = "v0.16.0"
+  revision = "22fb6a34557c2f9bf6c92ff78a5adac447167d1c"
 
 [[projects]]
   branch = "master"
@@ -22,8 +22,8 @@
 [[projects]]
   name = "github.com/fluent/fluent-logger-golang"
   packages = ["fluent"]
-  revision = "28bdb662295c1b7aca09c1a4edbf9430010775a9"
-  version = "v1.2.1"
+  revision = "8bbc2356beaf021b04c9bd5cdc76ea5a7ccb40ec"
+  version = "v1.3.0"
 
 [[projects]]
   branch = "master"
@@ -38,20 +38,8 @@
   version = "v2.0.0"
 
 [[projects]]
-  name = "github.com/gorilla/context"
-  packages = ["."]
-  revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
-  version = "v1.1"
-
-[[projects]]
-  name = "github.com/gorilla/mux"
-  packages = ["."]
-  revision = "7f08801859139f86dfafd1c296e2cba9a80d292e"
-  version = "v1.6.0"
-
-[[projects]]
   name = "github.com/grpc-ecosystem/grpc-gateway"
-  packages = ["runtime","runtime/internal","utilities"]
+  packages = ["protoc-gen-swagger/options","runtime","runtime/internal","utilities"]
   revision = "8cc3a55af3bcf171a1c23a90c4df9cf591706104"
   version = "v1.3.0"
 
@@ -62,28 +50,28 @@
   version = "v0.1.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/naoina/toml"
   packages = [".","ast"]
-  revision = "e6f5723bf2a66af014955e0888881314cf294129"
-  version = "v0.1.1"
+  revision = "9fafd69674167c06933b1787ae235618431ce87f"
 
 [[projects]]
   branch = "master"
   name = "github.com/nyaxt/fuse"
   packages = [".","fs","fuseutil"]
-  revision = "732b398ec264516f7398a64bafedb7290eb6dc01"
+  revision = "b89602e08173883e9bc7d1842c830d9e3aa8e938"
 
 [[projects]]
-  branch = "master"
   name = "github.com/philhofer/fwd"
   packages = ["."]
   revision = "bb6d471dc95d4fe11e432687f8b70ff496cf3136"
+  version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/rs/cors"
   packages = ["."]
-  revision = "7af7a1e09ba336d2ea14b1ce73bf693c6837dbf6"
-  version = "v1.2"
+  revision = "eabcc6af4bbe5ad3a949d36450326a2b0b9894b8"
 
 [[projects]]
   name = "github.com/tinylib/msgp"
@@ -95,31 +83,31 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["pbkdf2"]
-  revision = "9f005a07e0d31d45e6656d241bb5c0f2efd4bc94"
+  revision = "94eea52f7b742c7cbe0b03b22f0c4c8631ece122"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context","context/ctxhttp","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace","webdav","webdav/internal/xml"]
-  revision = "9dfe39835686865bff950a07b394c12a98ddc811"
+  revision = "d866cfc389cec985d6fda2859936a575a55a3ab6"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/oauth2"
   packages = [".","google","internal","jws","jwt"]
-  revision = "f95fa95eaa936d9d87489b15d1d18b97c1ba9c28"
+  revision = "00dc70155e4c968f5afa403a799926838a4aa28f"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/text"
   packages = ["collate","collate/build","internal/colltab","internal/gen","internal/tag","internal/triegen","internal/ucd","language","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable"]
-  revision = "88f656faf3f37f690df1a32515b479415e1a6769"
+  revision = "c4d099d611ac3ded35360abf03581e13d91c828f"
 
 [[projects]]
   branch = "master"
   name = "google.golang.org/api"
   packages = ["gensupport","googleapi","googleapi/internal/uritemplates","googleapi/transport","internal","iterator","option","storage/v1","transport/grpc","transport/http"]
-  revision = "790790d1b4a7d6b0d03d3725f980eedf80dc2707"
+  revision = "ea28708ab465bb536c27f29a34011f3d5b5bb052"
 
 [[projects]]
   name = "google.golang.org/appengine"
@@ -131,17 +119,17 @@
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/api/annotations","googleapis/datastore/v1","googleapis/iam/v1","googleapis/rpc/status","googleapis/type/latlng"]
-  revision = "11c7f9e547da6db876260ce49ea7536985904c9b"
+  revision = "a8101f21cf983e773d0c1133ebc5424792003214"
 
 [[projects]]
   name = "google.golang.org/grpc"
-  packages = [".","balancer","codes","connectivity","credentials","credentials/oauth","grpclb/grpc_lb_v1/messages","grpclog","internal","keepalive","metadata","naming","peer","resolver","stats","status","tap","transport"]
-  revision = "401e0e00e4bb830a10496d64cd95e068c5bf50de"
-  version = "v1.7.3"
+  packages = [".","balancer","balancer/roundrobin","codes","connectivity","credentials","credentials/oauth","encoding","grpclb/grpc_lb_v1/messages","grpclog","internal","keepalive","metadata","naming","peer","resolver","resolver/dns","resolver/passthrough","stats","status","tap","transport"]
+  revision = "e687fa4e6424368ece6e4fe727cea2c806a0fcb4"
+  version = "v1.8.2"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "dc82c139664eecb36cb1ff5fa6d735d37f9d1fc2b1e492b6374e4fdadbc59c3e"
+  inputs-digest = "0a2ecc317ca0bb3318a88e2348b31ce8b28de58b8a467d37d1fcfe496c134fa8"
   solver-name = "gps-cdcl"
   solver-version = 1

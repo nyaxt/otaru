@@ -391,37 +391,6 @@ func (s *AppEngineHttpTarget) MarshalJSON() ([]byte, error) {
 	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
-// AppEngineQueueConfig: Deprecated. Use AppEngineHttpTarget.
-type AppEngineQueueConfig struct {
-	// AppEngineRoutingOverride: Deprecated. Use
-	// AppEngineHttpTarget.app_engine_routing_override.
-	AppEngineRoutingOverride *AppEngineRouting `json:"appEngineRoutingOverride,omitempty"`
-
-	// ForceSendFields is a list of field names (e.g.
-	// "AppEngineRoutingOverride") to unconditionally include in API
-	// requests. By default, fields with empty values are omitted from API
-	// requests. However, any non-pointer, non-interface field appearing in
-	// ForceSendFields will be sent to the server regardless of whether the
-	// field is empty or not. This may be used to include empty fields in
-	// Patch requests.
-	ForceSendFields []string `json:"-"`
-
-	// NullFields is a list of field names (e.g. "AppEngineRoutingOverride")
-	// to include in API requests with the JSON null value. By default,
-	// fields with empty values are omitted from API requests. However, any
-	// field with an empty value appearing in NullFields will be sent to the
-	// server as null. It is an error if a field in this list has a
-	// non-empty value. This may be used to include null fields in Patch
-	// requests.
-	NullFields []string `json:"-"`
-}
-
-func (s *AppEngineQueueConfig) MarshalJSON() ([]byte, error) {
-	type NoMethod AppEngineQueueConfig
-	raw := NoMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
-}
-
 // AppEngineRouting: App Engine Routing.
 //
 // For more information about services, versions, and instances see
@@ -588,56 +557,6 @@ type AppEngineRouting struct {
 
 func (s *AppEngineRouting) MarshalJSON() ([]byte, error) {
 	type NoMethod AppEngineRouting
-	raw := NoMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
-}
-
-// AppEngineTaskTarget: Deprecated. Use AppEngineHttpRequest.
-type AppEngineTaskTarget struct {
-	// AppEngineRouting: Deprecated. Use
-	// AppEngineHttpRequest.app_engine_routing.
-	AppEngineRouting *AppEngineRouting `json:"appEngineRouting,omitempty"`
-
-	// Headers: Deprecated. Use AppEngineHttpRequest.headers.
-	Headers map[string]string `json:"headers,omitempty"`
-
-	// HttpMethod: Deprecated. Use AppEngineHttpRequest.http_method.
-	//
-	// Possible values:
-	//   "HTTP_METHOD_UNSPECIFIED" - HTTP method unspecified
-	//   "POST" - HTTP Post
-	//   "GET" - HTTP Get
-	//   "HEAD" - HTTP Head
-	//   "PUT" - HTTP Put
-	//   "DELETE" - HTTP Delete
-	HttpMethod string `json:"httpMethod,omitempty"`
-
-	// Payload: Deprecated. Use AppEngineHttpRequest.payload.
-	Payload string `json:"payload,omitempty"`
-
-	// RelativeUrl: Deprecated. Use AppEngineHttpRequest.relative_url.
-	RelativeUrl string `json:"relativeUrl,omitempty"`
-
-	// ForceSendFields is a list of field names (e.g. "AppEngineRouting") to
-	// unconditionally include in API requests. By default, fields with
-	// empty values are omitted from API requests. However, any non-pointer,
-	// non-interface field appearing in ForceSendFields will be sent to the
-	// server regardless of whether the field is empty or not. This may be
-	// used to include empty fields in Patch requests.
-	ForceSendFields []string `json:"-"`
-
-	// NullFields is a list of field names (e.g. "AppEngineRouting") to
-	// include in API requests with the JSON null value. By default, fields
-	// with empty values are omitted from API requests. However, any field
-	// with an empty value appearing in NullFields will be sent to the
-	// server as null. It is an error if a field in this list has a
-	// non-empty value. This may be used to include null fields in Patch
-	// requests.
-	NullFields []string `json:"-"`
-}
-
-func (s *AppEngineTaskTarget) MarshalJSON() ([]byte, error) {
-	type NoMethod AppEngineTaskTarget
 	raw := NoMethod(*s)
 	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
@@ -1273,43 +1192,8 @@ func (s *PullMessage) MarshalJSON() ([]byte, error) {
 	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
-// PullQueueConfig: Deprecated. Use PullTarget.
-type PullQueueConfig struct {
-}
-
 // PullTarget: Pull target.
 type PullTarget struct {
-}
-
-// PullTaskTarget: Deprecated. Use PullMessage.
-type PullTaskTarget struct {
-	// Payload: Deprecated. Use PullMessage.payload.
-	Payload string `json:"payload,omitempty"`
-
-	// Tag: Deprecated. Use PullMessage.tag.
-	Tag string `json:"tag,omitempty"`
-
-	// ForceSendFields is a list of field names (e.g. "Payload") to
-	// unconditionally include in API requests. By default, fields with
-	// empty values are omitted from API requests. However, any non-pointer,
-	// non-interface field appearing in ForceSendFields will be sent to the
-	// server regardless of whether the field is empty or not. This may be
-	// used to include empty fields in Patch requests.
-	ForceSendFields []string `json:"-"`
-
-	// NullFields is a list of field names (e.g. "Payload") to include in
-	// API requests with the JSON null value. By default, fields with empty
-	// values are omitted from API requests. However, any field with an
-	// empty value appearing in NullFields will be sent to the server as
-	// null. It is an error if a field in this list has a non-empty value.
-	// This may be used to include null fields in Patch requests.
-	NullFields []string `json:"-"`
-}
-
-func (s *PullTaskTarget) MarshalJSON() ([]byte, error) {
-	type NoMethod PullTaskTarget
-	raw := NoMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // PullTasksRequest: Request message for pulling tasks using
@@ -1479,9 +1363,6 @@ type Queue struct {
 	// An App Engine queue is a queue that has an AppEngineHttpTarget.
 	AppEngineHttpTarget *AppEngineHttpTarget `json:"appEngineHttpTarget,omitempty"`
 
-	// AppEngineQueueConfig: Deprecated. Use Queue.app_engine_http_target.
-	AppEngineQueueConfig *AppEngineQueueConfig `json:"appEngineQueueConfig,omitempty"`
-
 	// Name: The queue name.
 	//
 	// The queue name must have the following
@@ -1491,6 +1372,15 @@ type Queue struct {
 	// *
 	//  `PROJECT_ID` can contain letters ([A-Za-z]), numbers ([0-9]),
 	//    hyphens (-), colons (:), or periods (.).
+	//    For more information, see
+	//    [Identifying
+	// projects](/resource-manager/docs/creating-managing-projects#identifyin
+	// g_projects)
+	// * `LOCATION_ID` is the canonical ID for the queue's location.
+	//    The list of available locations can be obtained by calling
+	//    google.cloud.location.Locations.ListLocations.
+	//    For more information, see
+	// https://cloud.google.com/about/locations/.
 	// * `QUEUE_ID` can contain letters ([A-Za-z]), numbers ([0-9]), or
 	//   hyphens (-). The maximum length is 100
 	// characters.
@@ -1498,9 +1388,6 @@ type Queue struct {
 	// Caller-specified and required in CreateQueueRequest, after which
 	// it becomes output only.
 	Name string `json:"name,omitempty"`
-
-	// PullQueueConfig: Deprecated. Use Queue.pull_target.
-	PullQueueConfig *PullQueueConfig `json:"pullQueueConfig,omitempty"`
 
 	// PullTarget: Pull target.
 	//
@@ -1520,45 +1407,6 @@ type Queue struct {
 	// Purge time will be truncated to the nearest microsecond. Purge
 	// time will be zero if the queue has never been purged.
 	PurgeTime string `json:"purgeTime,omitempty"`
-
-	// QueueState: Output only. The state of the queue.
-	//
-	// `queue_state` can only be changed by called
-	// CloudTasks.PauseQueue, CloudTasks.ResumeQueue, or
-	// uploading
-	// [queue.yaml](/appengine/docs/python/config/queueref).
-	// CloudT
-	// asks.UpdateQueue cannot be used to change `queue_state`.
-	//
-	// Possible values:
-	//   "QUEUE_STATE_UNSPECIFIED" - Unspecified state.
-	//   "RUNNING" - The queue is running. Tasks can be dispatched.
-	//   "PAUSED" - Tasks are paused by the user. If the queue is paused
-	// then Cloud
-	// Tasks will stop delivering tasks from it, but more tasks can
-	// still be added to it by the user. When a pull queue is paused,
-	// all CloudTasks.PullTasks calls will return a
-	// `FAILED_PRECONDITION` error.
-	//   "DISABLED" - The queue is disabled.
-	//
-	// A queue becomes `DISABLED`
-	// when
-	// [queue.yaml](/appengine/docs/python/config/queueref)
-	// or
-	// [queue.xml](appengine/docs/standard/java/config/queueref) is
-	// uploaded
-	// which does not contain the queue. You cannot directly disable a
-	// queue.
-	//
-	// When a queue is disabled, tasks can still be added to a queue
-	// but the tasks are not dispatched and CloudTasks.PullTasks
-	// calls
-	// return a `FAILED_PRECONDITION` error.
-	//
-	// To permanently delete this queue and all of its tasks,
-	// call
-	// CloudTasks.DeleteQueue.
-	QueueState string `json:"queueState,omitempty"`
 
 	// RateLimits: Rate limits for task dispatches.
 	//
@@ -1595,6 +1443,45 @@ type Queue struct {
 	// documentation](/appengine/docs/standard/python/taskqueue/push/retrying
 	// -tasks).
 	RetryConfig *RetryConfig `json:"retryConfig,omitempty"`
+
+	// State: Output only. The state of the queue.
+	//
+	// `state` can only be changed by called
+	// CloudTasks.PauseQueue, CloudTasks.ResumeQueue, or
+	// uploading
+	// [queue.yaml](/appengine/docs/python/config/queueref).
+	// CloudT
+	// asks.UpdateQueue cannot be used to change `state`.
+	//
+	// Possible values:
+	//   "STATE_UNSPECIFIED" - Unspecified state.
+	//   "RUNNING" - The queue is running. Tasks can be dispatched.
+	//   "PAUSED" - Tasks are paused by the user. If the queue is paused
+	// then Cloud
+	// Tasks will stop delivering tasks from it, but more tasks can
+	// still be added to it by the user. When a pull queue is paused,
+	// all CloudTasks.PullTasks calls will return a
+	// `FAILED_PRECONDITION` error.
+	//   "DISABLED" - The queue is disabled.
+	//
+	// A queue becomes `DISABLED`
+	// when
+	// [queue.yaml](/appengine/docs/python/config/queueref)
+	// or
+	// [queue.xml](appengine/docs/standard/java/config/queueref) is
+	// uploaded
+	// which does not contain the queue. You cannot directly disable a
+	// queue.
+	//
+	// When a queue is disabled, tasks can still be added to a queue
+	// but the tasks are not dispatched and CloudTasks.PullTasks
+	// calls
+	// return a `FAILED_PRECONDITION` error.
+	//
+	// To permanently delete this queue and all of its tasks,
+	// call
+	// CloudTasks.DeleteQueue.
+	State string `json:"state,omitempty"`
 
 	// ServerResponse contains the HTTP response code and headers from the
 	// server.
@@ -1687,6 +1574,10 @@ type RateLimits struct {
 	//
 	// * For App Engine queues, this field is 1 by default.
 	// * For pull queues, this field is output only and always 10,000.
+	//   In addition to the `max_tasks_dispatched_per_second` limit, a
+	// maximum of
+	//   10 QPS of CloudTasks.PullTasks requests are allowed per
+	// queue.
 	//
 	// This field has the same meaning as
 	// [rate in
@@ -2170,9 +2061,6 @@ type Task struct {
 	// An App Engine task is a task that has AppEngineHttpRequest set.
 	AppEngineHttpRequest *AppEngineHttpRequest `json:"appEngineHttpRequest,omitempty"`
 
-	// AppEngineTaskTarget: Deprecated. Use Task.app_engine_http_request.
-	AppEngineTaskTarget *AppEngineTaskTarget `json:"appEngineTaskTarget,omitempty"`
-
 	// CreateTime: Output only. The time that the task was
 	// created.
 	//
@@ -2188,6 +2076,15 @@ type Task struct {
 	//
 	// * `PROJECT_ID` can contain letters ([A-Za-z]), numbers ([0-9]),
 	//    hyphens (-), colons (:), or periods (.).
+	//    For more information, see
+	//    [Identifying
+	// projects](/resource-manager/docs/creating-managing-projects#identifyin
+	// g_projects)
+	// * `LOCATION_ID` is the canonical ID for the task's location.
+	//    The list of available locations can be obtained by calling
+	//    google.cloud.location.Locations.ListLocations.
+	//    For more information, see
+	// https://cloud.google.com/about/locations/.
 	// * `QUEUE_ID` can contain letters ([A-Za-z]), numbers ([0-9]), or
 	//   hyphens (-). The maximum length is 100 characters.
 	// * `TASK_ID` can contain only letters ([A-Za-z]), numbers ([0-9]),
@@ -2205,9 +2102,6 @@ type Task struct {
 	//
 	// A pull task is a task that has PullMessage set.
 	PullMessage *PullMessage `json:"pullMessage,omitempty"`
-
-	// PullTaskTarget: Deprecated. Use Task.pull_message.
-	PullTaskTarget *PullTaskTarget `json:"pullTaskTarget,omitempty"`
 
 	// ScheduleTime: The time when the task is scheduled to be
 	// attempted.
@@ -3672,7 +3566,7 @@ func (c *ProjectsLocationsQueuesPatchCall) Do(opts ...googleapi.CallOption) (*Qu
 	//   ],
 	//   "parameters": {
 	//     "name": {
-	//       "description": "The queue name.\n\nThe queue name must have the following format:\n`projects/PROJECT_ID/locations/LOCATION_ID/queues/QUEUE_ID`\n\n* `PROJECT_ID` can contain letters ([A-Za-z]), numbers ([0-9]),\n   hyphens (-), colons (:), or periods (.).\n* `QUEUE_ID` can contain letters ([A-Za-z]), numbers ([0-9]), or\n  hyphens (-). The maximum length is 100 characters.\n\nCaller-specified and required in CreateQueueRequest, after which\nit becomes output only.",
+	//       "description": "The queue name.\n\nThe queue name must have the following format:\n`projects/PROJECT_ID/locations/LOCATION_ID/queues/QUEUE_ID`\n\n* `PROJECT_ID` can contain letters ([A-Za-z]), numbers ([0-9]),\n   hyphens (-), colons (:), or periods (.).\n   For more information, see\n   [Identifying projects](/resource-manager/docs/creating-managing-projects#identifying_projects)\n* `LOCATION_ID` is the canonical ID for the queue's location.\n   The list of available locations can be obtained by calling\n   google.cloud.location.Locations.ListLocations.\n   For more information, see https://cloud.google.com/about/locations/.\n* `QUEUE_ID` can contain letters ([A-Za-z]), numbers ([0-9]), or\n  hyphens (-). The maximum length is 100 characters.\n\nCaller-specified and required in CreateQueueRequest, after which\nit becomes output only.",
 	//       "location": "path",
 	//       "pattern": "^projects/[^/]+/locations/[^/]+/queues/[^/]+$",
 	//       "required": true,
@@ -3715,11 +3609,9 @@ type ProjectsLocationsQueuesPauseCall struct {
 // If a queue is paused then the system will stop executing the
 // tasks in the queue until it is resumed via
 // CloudTasks.ResumeQueue. Tasks can still be added when the
-// queue is paused. The state of the queue is stored
-// in
-// Queue.queue_state; if paused it will be set
-// to
-// Queue.QueueState.PAUSED.
+// queue is paused. The state of the queue is stored in
+// Queue.state; if paused it will be set to
+// Queue.State.PAUSED.
 func (r *ProjectsLocationsQueuesService) Pause(name string, pausequeuerequest *PauseQueueRequest) *ProjectsLocationsQueuesPauseCall {
 	c := &ProjectsLocationsQueuesPauseCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.name = name
@@ -3813,7 +3705,7 @@ func (c *ProjectsLocationsQueuesPauseCall) Do(opts ...googleapi.CallOption) (*Qu
 	}
 	return ret, nil
 	// {
-	//   "description": "Pauses the queue.\n\nIf a queue is paused then the system will stop executing the\ntasks in the queue until it is resumed via\nCloudTasks.ResumeQueue. Tasks can still be added when the\nqueue is paused. The state of the queue is stored in\nQueue.queue_state; if paused it will be set to\nQueue.QueueState.PAUSED.",
+	//   "description": "Pauses the queue.\n\nIf a queue is paused then the system will stop executing the\ntasks in the queue until it is resumed via\nCloudTasks.ResumeQueue. Tasks can still be added when the\nqueue is paused. The state of the queue is stored in\nQueue.state; if paused it will be set to\nQueue.State.PAUSED.",
 	//   "flatPath": "v2beta2/projects/{projectsId}/locations/{locationsId}/queues/{queuesId}:pause",
 	//   "httpMethod": "POST",
 	//   "id": "cloudtasks.projects.locations.queues.pause",
@@ -4000,10 +3892,9 @@ type ProjectsLocationsQueuesResumeCall struct {
 // Resume: Resume a queue.
 //
 // This method resumes a queue after it has been
-// Queue.QueueState.PAUSED or Queue.QueueState.DISABLED. The state of
-// a queue is stored in Queue.queue_state; after calling this method
-// it
-// will be set to Queue.QueueState.RUNNING.
+// Queue.State.PAUSED or Queue.State.DISABLED. The state of
+// a queue is stored in Queue.state; after calling this method it
+// will be set to Queue.State.RUNNING.
 //
 // WARNING: Resuming many high-QPS queues at the same time can
 // lead to target overloading. If you are resuming high-QPS
@@ -4104,7 +3995,7 @@ func (c *ProjectsLocationsQueuesResumeCall) Do(opts ...googleapi.CallOption) (*Q
 	}
 	return ret, nil
 	// {
-	//   "description": "Resume a queue.\n\nThis method resumes a queue after it has been\nQueue.QueueState.PAUSED or Queue.QueueState.DISABLED. The state of\na queue is stored in Queue.queue_state; after calling this method it\nwill be set to Queue.QueueState.RUNNING.\n\nWARNING: Resuming many high-QPS queues at the same time can\nlead to target overloading. If you are resuming high-QPS\nqueues, follow the 500/50/5 pattern described in\n[Managing Cloud Tasks Scaling Risks](/cloud-tasks/pdfs/managing-cloud-tasks-scaling-risks-2017-06-05.pdf).",
+	//   "description": "Resume a queue.\n\nThis method resumes a queue after it has been\nQueue.State.PAUSED or Queue.State.DISABLED. The state of\na queue is stored in Queue.state; after calling this method it\nwill be set to Queue.State.RUNNING.\n\nWARNING: Resuming many high-QPS queues at the same time can\nlead to target overloading. If you are resuming high-QPS\nqueues, follow the 500/50/5 pattern described in\n[Managing Cloud Tasks Scaling Risks](/cloud-tasks/pdfs/managing-cloud-tasks-scaling-risks-2017-06-05.pdf).",
 	//   "flatPath": "v2beta2/projects/{projectsId}/locations/{locationsId}/queues/{queuesId}:resume",
 	//   "httpMethod": "POST",
 	//   "id": "cloudtasks.projects.locations.queues.resume",
@@ -5757,7 +5648,7 @@ type ProjectsLocationsQueuesTasksRunCall struct {
 //
 // When this method is called, Cloud Tasks will dispatch the task to
 // its
-// target, even if the queue is Queue.QueueState.PAUSED.
+// target, even if the queue is Queue.State.PAUSED.
 //
 // The dispatched task is returned. That is, the task that is
 // returned
@@ -5779,6 +5670,8 @@ type ProjectsLocationsQueuesTasksRunCall struct {
 // when
 // CloudTasks.RunTask is called on task that is dispatched or
 // already running.
+//
+// CloudTasks.RunTask cannot be called on pull tasks.
 func (r *ProjectsLocationsQueuesTasksService) Run(name string, runtaskrequest *RunTaskRequest) *ProjectsLocationsQueuesTasksRunCall {
 	c := &ProjectsLocationsQueuesTasksRunCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.name = name
@@ -5872,7 +5765,7 @@ func (c *ProjectsLocationsQueuesTasksRunCall) Do(opts ...googleapi.CallOption) (
 	}
 	return ret, nil
 	// {
-	//   "description": "Forces a task to run now.\n\nThis command is meant to be used for manual debugging. For\nexample, CloudTasks.RunTask can be used to retry a failed\ntask after a fix has been made or to manually force a task to be\ndispatched now.\n\nWhen this method is called, Cloud Tasks will dispatch the task to its\ntarget, even if the queue is Queue.QueueState.PAUSED.\n\nThe dispatched task is returned. That is, the task that is returned\ncontains the Task.task_status after the task is dispatched but\nbefore the task is received by its target.\n\nIf Cloud Tasks receives a successful response from the task's\nhandler, then the task will be deleted; otherwise the task's\nTask.schedule_time will be reset to the time that\nCloudTasks.RunTask was called plus the retry delay specified\nin the queue and task's RetryConfig.\n\nCloudTasks.RunTask returns google.rpc.Code.NOT_FOUND when\nit is called on a task that has already succeeded or permanently\nfailed. google.rpc.Code.FAILED_PRECONDITION is returned when\nCloudTasks.RunTask is called on task that is dispatched or\nalready running.",
+	//   "description": "Forces a task to run now.\n\nThis command is meant to be used for manual debugging. For\nexample, CloudTasks.RunTask can be used to retry a failed\ntask after a fix has been made or to manually force a task to be\ndispatched now.\n\nWhen this method is called, Cloud Tasks will dispatch the task to its\ntarget, even if the queue is Queue.State.PAUSED.\n\nThe dispatched task is returned. That is, the task that is returned\ncontains the Task.task_status after the task is dispatched but\nbefore the task is received by its target.\n\nIf Cloud Tasks receives a successful response from the task's\nhandler, then the task will be deleted; otherwise the task's\nTask.schedule_time will be reset to the time that\nCloudTasks.RunTask was called plus the retry delay specified\nin the queue and task's RetryConfig.\n\nCloudTasks.RunTask returns google.rpc.Code.NOT_FOUND when\nit is called on a task that has already succeeded or permanently\nfailed. google.rpc.Code.FAILED_PRECONDITION is returned when\nCloudTasks.RunTask is called on task that is dispatched or\nalready running.\n\nCloudTasks.RunTask cannot be called on pull tasks.",
 	//   "flatPath": "v2beta2/projects/{projectsId}/locations/{locationsId}/queues/{queuesId}/tasks/{tasksId}:run",
 	//   "httpMethod": "POST",
 	//   "id": "cloudtasks.projects.locations.queues.tasks.run",

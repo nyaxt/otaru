@@ -259,6 +259,16 @@ type Build struct {
 	// Default time is ten minutes.
 	Timeout string `json:"timeout,omitempty"`
 
+	// Timing: Stores timing information for phases of the build.
+	// Valid keys are:
+	// - BUILD: time to execute all build steps
+	// - PUSH: time to push all specified images.
+	// - FETCHSOURCE: time to fetch source.
+	// If the build does not specify source, or does not specify
+	// images,
+	// these keys will not be included.
+	Timing map[string]TimeSpan `json:"timing,omitempty"`
+
 	// ServerResponse contains the HTTP response code and headers from the
 	// server.
 	googleapi.ServerResponse `json:"-"`
@@ -349,8 +359,8 @@ type BuildOptions struct {
 	//
 	// Possible values:
 	//   "UNSPECIFIED" - Standard machine type.
-	//   "N1_HIGHCPU_8" - Medium size.
-	//   "N1_HIGHCPU_32" - Large size.
+	//   "N1_HIGHCPU_8" - Highcpu machine with 8 CPUs.
+	//   "N1_HIGHCPU_32" - Highcpu machine with 32 CPUs.
 	MachineType string `json:"machineType,omitempty"`
 
 	// RequestedVerifyOption: Requested verifiability options.
@@ -472,6 +482,9 @@ type BuildStep struct {
 	// a Cloud KMS
 	// crypto key. These values must be specified in the build's secrets.
 	SecretEnv []string `json:"secretEnv,omitempty"`
+
+	// Timing: Stores timing information for executing this build step.
+	Timing *TimeSpan `json:"timing,omitempty"`
 
 	// Volumes: List of volumes to mount into the build step.
 	//
@@ -597,6 +610,10 @@ type BuiltImage struct {
 	// Registry, as
 	// presented to `docker push`.
 	Name string `json:"name,omitempty"`
+
+	// PushTiming: Stores timing information for pushing the specified
+	// image.
+	PushTiming *TimeSpan `json:"pushTiming,omitempty"`
 
 	// ForceSendFields is a list of field names (e.g. "Digest") to
 	// unconditionally include in API requests. By default, fields with
@@ -1275,6 +1292,37 @@ type StorageSource struct {
 
 func (s *StorageSource) MarshalJSON() ([]byte, error) {
 	type NoMethod StorageSource
+	raw := NoMethod(*s)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
+}
+
+// TimeSpan: Stores start and end times for a build execution phase.
+type TimeSpan struct {
+	// EndTime: End of time span.
+	EndTime string `json:"endTime,omitempty"`
+
+	// StartTime: Start of time span.
+	StartTime string `json:"startTime,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "EndTime") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "EndTime") to include in
+	// API requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. However, any field with an
+	// empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
+}
+
+func (s *TimeSpan) MarshalJSON() ([]byte, error) {
+	type NoMethod TimeSpan
 	raw := NoMethod(*s)
 	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
