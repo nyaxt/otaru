@@ -25,13 +25,14 @@ message ListDirRequest {
 
 message ListDirResponse {
   message Entry {
-    string name = 1;
-    string type = 2;
-    int64 size = 3;
-    uint32 uid = 4;
-    uint32 gid = 5;
-    uint32 perm_mode = 6;
-    int64 modified_time = 7;
+    uint64 id = 1;
+    string name = 2;
+    string type = 3;
+    int64 size = 4;
+    uint32 uid = 5;
+    uint32 gid = 6;
+    uint32 perm_mode = 7;
+    int64 modified_time = 8;
   }
 
   repeated Entry entry = 1;
@@ -85,7 +86,7 @@ message GetEntriesResponse {
 }
 
 service BlobstoreService {
-	rpc GetConfig(GetBlobstoreConfigRequest) returns (GetBlobstoreConfigResponse) {
+  rpc GetConfig(GetBlobstoreConfigRequest) returns (GetBlobstoreConfigResponse) {
     option (google.api.http) = {
       get: "/api/v1/blobstore/config"
     };
@@ -97,7 +98,7 @@ service BlobstoreService {
     };
   };
 
-	rpc ReduceCache(ReduceCacheRequest) returns (ReduceCacheResponse) {
+  rpc ReduceCache(ReduceCacheRequest) returns (ReduceCacheResponse) {
     option (google.api.http) = {
       post: "/api/v1/blobstore/reduce_cache"
       body: "*"
@@ -105,25 +106,117 @@ service BlobstoreService {
   };
 }
 
+message GetINodeDBStatsRequest {
+}
+
+message GetINodeDBStatsResponse {
+  int64 last_sync = 1;
+  int64 last_tx = 2;
+  uint64 last_id = 3;
+  uint64 version = 4;
+  uint64 last_ticket = 5;
+  uint32 number_of_node_locks = 6;
+}
+
+service INodeDBService {
+  rpc GetINodeDBStats(GetINodeDBStatsRequest) returns (GetINodeDBStatsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/inodedb/stats"
+    };
+  }
+}
+
+message GetCategoriesRequest {
+}
+
+message LoggerCategory {
+  string category = 1;
+  uint32 level = 2;
+}
+
+message GetCategoriesResponse {
+  repeated LoggerCategory category = 1;
+}
+
+message SetCategoryRequest {
+  string category = 1;
+  uint32 level = 2;
+}
+
+message SetCategoryResponse {
+}
+
+message QueryLogsRequest {
+  uint32 min_id = 1;
+  repeated string category = 2;
+  uint32 limit = 3;
+}
+
+message QueryLogsResponse {
+  message Entry {
+    uint32 id = 1;
+    string log = 2;
+    string category = 3;
+    uint32 level = 4;
+    int64 time = 5;
+    string location = 6;
+  }
+  repeated Entry entry = 1;
+}
+
+message GetLatestLogEntryIdRequest {
+}
+
+message GetLatestLogEntryIdResponse {
+  uint32 id = 1;
+}
+
+service LoggerService {
+  rpc GetCategories(GetCategoriesRequest) returns (GetCategoriesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/logger/categories"
+    };
+  }
+
+  rpc SetCategory(SetCategoryRequest) returns (SetCategoryResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/logger/category/{category}"
+      body: "level"
+    };
+  }
+
+  rpc QueryLogs(QueryLogsRequest) returns (QueryLogsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/logger/logs"
+    };
+  }
+
+  rpc GetLatestLogEntryId(GetLatestLogEntryIdRequest) returns (GetLatestLogEntryIdResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/logger/latest_log_entry_id"
+    };
+  }
+}
+
 message GetSystemInfoRequest {
 }
 
 message SystemInfoResponse {
-	string go_version = 1;
-	string os = 2;
-	string arch = 3;
+  string go_version = 1;
+  string os = 2;
+  string arch = 3;
 
-	uint32 num_goroutine = 4;
+  uint32 num_goroutine = 4;
 
-	string hostname = 5;
-	uint64 pid = 6;
-	uint64 uid = 7;
+  string hostname = 5;
+  uint64 pid = 6;
+  uint64 uid = 7;
 
-	uint64 mem_alloc = 8;
-	uint64 mem_sys = 9;
+  uint64 mem_alloc = 8;
+  uint64 mem_sys = 9;
 
-	uint32 num_gc = 10;
-	uint32 num_fds = 11;
+  uint32 num_gc = 10;
+  uint32 num_fds = 11;
 }
 
 message GetVersionRequest {
@@ -136,13 +229,13 @@ message VersionResponse {
 }
 
 service SystemInfoService {
-	rpc GetSystemInfo(GetSystemInfoRequest) returns (SystemInfoResponse) {
+  rpc GetSystemInfo(GetSystemInfoRequest) returns (SystemInfoResponse) {
     option (google.api.http) = {
       get: "/api/v1/system/info"
     };
   };
 
-	rpc GetVersion(GetVersionRequest) returns (VersionResponse) {
+  rpc GetVersion(GetVersionRequest) returns (VersionResponse) {
     option (google.api.http) = {
       get: "/api/v1/system/version"
     };

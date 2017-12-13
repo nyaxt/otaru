@@ -15,7 +15,6 @@ type syncer interface { // avoid using github.com/nyaxt/otaru/util.Syncer for re
 }
 
 func (l WriterLogger) Log(lv Level, data map[string]interface{}) {
-
 	var b bytes.Buffer
 	t := data["time"].(time.Time)
 	b.WriteString(t.Format("2006/01/02 15:04:05 "))

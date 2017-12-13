@@ -22,9 +22,14 @@ type blobstoreService struct {
 }
 
 func (svc *blobstoreService) GetConfig(context.Context, *pb.GetBlobstoreConfigRequest) (*pb.GetBlobstoreConfigResponse, error) {
+	beFlags := "unknown"
+	if reader, ok := svc.bbs.(flags.FlagsReader); ok {
+		beFlags = flags.FlagsToString(reader.Flags())
+	}
+
 	return &pb.GetBlobstoreConfigResponse{
 		BackendImplName: util.TryGetImplName(svc.bbs),
-		BackendFlags:    flags.FlagsToString(svc.bbs.(flags.FlagsReader).Flags()),
+		BackendFlags:    beFlags,
 		CacheImplName:   util.TryGetImplName(svc.cbs),
 		CacheFlags:      flags.FlagsToString(svc.cbs.Flags()),
 	}, nil

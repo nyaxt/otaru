@@ -1,4 +1,7 @@
 :root {
+  --nav-height: 30px;
+  --section-header-height: 35px;
+
   --main-fg-color: #ffcc66;
   --dark-fg-color: #ffa566;
   --light-fg-color: #fffcee;
@@ -10,7 +13,7 @@
   --dark3-bg-color: #211F1A;
 }
 
-body, div, p, span, input, h1{
+body, div, p, span, input, h1, table, tbody, th, tr, td {
   margin: 0;
   padding: 0;
 }
@@ -24,7 +27,26 @@ body {
   font-size: 14px;
 }
 
+.button {
+  display: block;
+
+  height: 23px;
+  line-height: 23px;
+  width: 23px;
+  border: 1px solid var(--dark-bg-color);
+
+  font-size: 18px;
+  text-decoration: none;
+  text-align: center;
+  color: black;
+}
+
 .nav {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  height: var(--nav-height);
+
   display: flex; 
   color: var(--main-fg-color);
   background-color: var(--dark-bg-color);
@@ -55,11 +77,38 @@ body {
 
 .section {
   display: none;
-
+  
+  margin-top: var(--nav-height);
+  height: 100%;
 }
 
 .section--selected {
   display: block;
+}
+
+.section--hasheader {
+  margin-top: calc(var(--nav-height) + var(--section-header-height));
+}
+
+.section__header {
+  display: flex;
+
+  position: fixed;
+  top: var(--nav-height);
+
+  box-sizing: border-box;
+  padding: 5px;
+  height: var(--section-header-height);
+  line-height: var(--section-header-height);
+  width: 100%;
+  background-color: var(--main-bg-color);
+  border-bottom: 1px solid var(--dark-bg-color);
+}
+
+.content__table {
+  table-layout: fixed;
+  border-collapse: collapse;
+  width: 100%;
 }
 
 .kvview {
@@ -95,10 +144,194 @@ body {
   display: flex;
 }
 
+.browsefs__parentdir {
+  display: block;
+
+  height: 23px;
+  line-height: 23px;
+  width: 23px;
+  border: 1px solid var(--dark-bg-color);
+
+  font-size: 18px;
+  text-decoration: none;
+  text-align: center;
+  color: black;
+}
+
+.browsefs__label {
+  margin-left: 5px;
+}
+
 .browsefs__path {
   flex-grow: 1; 
 }
 
-.browsefs__list {
-  
+.browsefs__sort {
+  margin-left: 5px;
+}
+
+.browsefs__entry {
+}
+
+.browsefs__entry:hover {
+  background-color: var(--light-fg-color);
+}
+
+.browsefs__cell {
+  padding: 5px;
+}
+
+.browsefs__cell--type {
+  width: 8px;
+}
+
+.browsefs__cell--size {
+  text-align: right;
+  width: 65px;
+}
+
+.browsefs__cell--uid {
+  text-align: right;
+  width: 45px;
+}
+
+.browsefs__cell--gid {
+  text-align: right;
+  width: 45px;
+}
+
+.browsefs__cell--perm_mode {
+  text-align: right;
+  width: 30px;
+}
+
+.browsefs__cell--modified_time {
+  text-align: right;
+  width: 80px;
+}
+
+.browsefs__cell--name {
+}
+
+.browsefs__action {
+  display: none;
+}
+
+.browsefs__entry:hover .browsefs__action {
+  display: inline;
+
+  font-weight: bold;
+  margin-left: 5px;
+  padding: 0 5px;
+  width: 30px;
+  border: 1px solid black;
+}
+
+.logview__more {
+  display: block;
+
+  padding: 5px;
+  width: 100%;
+  text-align: center;
+
+  color: var(--dark2-bg-color);
+  text-decoration: none;
+}
+
+.logview__more:hover {
+  background-color: var(--light-fg-color);
+  text-decoration: underline;
+}
+
+.logview__entry {
+  padding: 3px;
+  border-top: 1px solid var(--dark2-bg-color);
+
+  display: flex;
+}
+
+.logview__entry:hover {
+  background-color: var(--light-fg-color);
+}
+
+.logview__cell {
+  display: block;
+  padding: 0 5px;
+}
+
+.logview__cell--time {
+  text-align: right;
+  width: 150px;
+  flex: none;
+}
+
+.logview__cell--level {
+  font-weight: bold;
+  flex: none;
+}
+
+.logview__cell--category::before { 
+  content: "[";
+  font-weight: bold;
+  color: var(--dark-bg-color);
+}
+.logview__cell--category::after { 
+  content: "]";
+  font-weight: bold;
+  color: var(--dark-bg-color);
+}
+
+.logview__cell--category {
+}
+
+.logview__cell--log {
+  flex-grow: 1;
+}
+
+.logview__cell--location {
+  text-align: right;
+  color: var(--dark2-bg-color);
+}
+
+.loglevel__level {
+  display: flex;
+}
+
+.loglevel__radio {
+  display: none;
+}
+
+.loglevel__label {
+  display: block;
+
+  margin: -3px 0;
+  padding: 3px 5px;
+
+  color: var(--main-fg-color);
+  background-color: var(--dark-bg-color);
+
+  border-top: 1px solid var(--dark2-bg-color);
+  border-bottom: 1px solid var(--dark2-bg-color);
+
+  border-collapse: collapse;
+}
+
+.loglevel__label:first-of-type {
+  border-left: 1px solid var(--dark2-bg-color);
+}
+
+.loglevel__label:last-of-type {
+  border-right: 1px solid var(--dark2-bg-color);
+}
+
+.loglevel__radio:checked + .loglevel__label {
+  font-weight: bold;
+  color: var(--comp-dark-color);
+  background-color: var(--main-bg-color);
+}
+
+@media (max-width:580px) {
+  .browsefs__cell--uid { display: none; }
+  .browsefs__cell--gid { display: none; }
+  .browsefs__cell--perm_mode { display: none; }
 }

@@ -1,7 +1,7 @@
-package otaru_test
+package filesystem_test
 
 import (
-	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
 	tu "github.com/nyaxt/otaru/testutils"
@@ -20,7 +20,7 @@ func TestFileWriteRead(t *testing.T) {
 	}
 
 	bs := tu.TestFileBlobStore()
-	fs := otaru.NewFileSystem(idb, bs, tu.TestCipher())
+	fs := filesystem.NewFileSystem(idb, bs, tu.TestCipher())
 	h, err := fs.OpenFileFullPath("/hello.txt", flags.O_RDWRCREATE, 0666)
 	if err != nil {
 		t.Errorf("OpenFileFullPath failed: %v", err)
@@ -56,7 +56,7 @@ func TestFile_CloseOpenFile(t *testing.T) {
 	}
 
 	bs := tu.TestFileBlobStore()
-	fs := otaru.NewFileSystem(idb, bs, tu.TestCipher())
+	fs := filesystem.NewFileSystem(idb, bs, tu.TestCipher())
 	h, err := fs.OpenFileFullPath("/hello.txt", flags.O_CREATE|flags.O_RDWR, 0666)
 	if err != nil {
 		t.Errorf("OpenFileFullPath failed: %v", err)

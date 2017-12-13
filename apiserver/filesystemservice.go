@@ -7,14 +7,14 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
-	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/util"
 )
 
 type fileSystemService struct {
-	fs *otaru.FileSystem
+	fs *filesystem.FileSystem
 }
 
 func (svc *fileSystemService) ListDir(ctx context.Context, req *pb.ListDirRequest) (*pb.ListDirResponse, error) {
@@ -43,6 +43,7 @@ func (svc *fileSystemService) ListDir(ctx context.Context, req *pb.ListDirReques
 		}
 
 		es = append(es, &pb.ListDirResponse_Entry{
+			Id:           uint64(cid),
 			Name:         name,
 			Type:         inodedb.TypeName(attr.Type),
 			Size:         attr.Size,
@@ -56,7 +57,7 @@ func (svc *fileSystemService) ListDir(ctx context.Context, req *pb.ListDirReques
 	return &pb.ListDirResponse{Entry: es}, nil
 }
 
-func InstallFileSystemService(fs *otaru.FileSystem) Option {
+func InstallFileSystemService(fs *filesystem.FileSystem) Option {
 	svc := &fileSystemService{fs}
 
 	return func(o *options) {

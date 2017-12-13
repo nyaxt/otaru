@@ -1,13 +1,16 @@
 package cachedblobstore
 
 import (
+	"fmt"
+
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/util"
 )
 
 type CachedBlobHandle struct {
-	be    *CachedBlobEntry
-	flags int
+	be         *CachedBlobEntry
+	flags      int
+	stacktrace []byte
 }
 
 func (bh *CachedBlobHandle) Flags() int { return bh.flags }
@@ -54,4 +57,8 @@ func (bh *CachedBlobHandle) Close() error {
 	bh.be.CloseHandle(bh)
 
 	return nil
+}
+
+func (bh *CachedBlobHandle) String() string {
+	return fmt.Sprintf("CachedBlobHandle{be.blobpath: \"%s\", %v, stack: %v}", bh.be.blobpath, fl.FlagsToString(bh.flags), string(bh.stacktrace))
 }

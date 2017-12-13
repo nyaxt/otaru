@@ -6,9 +6,9 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/nyaxt/otaru"
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/chunkstore"
+	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/filewritecache"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
@@ -57,11 +57,11 @@ func Fuzz(data []byte) int {
 	}
 
 	bs := blobstore.NewMemBlobStore()
-	fs := otaru.NewFileSystem(idb, bs, tu.TestCipher())
+	fs := filesystem.NewFileSystem(idb, bs, tu.TestCipher())
 
 	const NumFs = 2
 	const NumFHs = NumFs * 2
-	fhs := make([]*otaru.FileHandle, NumFHs)
+	fhs := make([]*filesystem.FileHandle, NumFHs)
 
 	iobuf := make([]byte, AbsoluteMaxLen)
 

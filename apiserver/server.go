@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -32,11 +31,14 @@ type serviceRegistryEntry struct {
 type options struct {
 	listenAddr      string
 	defaultHandler  http.Handler
+	fileHandler     http.Handler
 	serviceRegistry []serviceRegistryEntry
+	closeC          <-chan struct{}
 }
 
 var defaultOptions = options{
 	defaultHandler:  http.NotFoundHandler(),
+	fileHandler:     nil,
 	serviceRegistry: []serviceRegistryEntry{},
 }
 
@@ -48,6 +50,10 @@ func ListenAddr(listenAddr string) Option {
 
 func OverrideWebUI(rootPath string) Option {
 	return func(o *options) { o.defaultHandler = http.FileServer(http.Dir(rootPath)) }
+}
+
+func CloseChannel(c <-chan struct{}) Option {
+	return func(o *options) { o.closeC = c }
 }
 
 // grpcHttpMux, serveSwagger, and Serve functions based on code from:
@@ -81,7 +87,7 @@ func serveSwagger(mux *http.ServeMux) {
 		}))
 }
 
-func Serve(opt ...Option) (io.Closer, error) {
+func Serve(opt ...Option) error {
 	opts := defaultOptions
 	for _, o := range opt {
 		o(&opts)
@@ -89,20 +95,20 @@ func Serve(opt ...Option) (io.Closer, error) {
 
 	certtext, err := ioutil.ReadFile("/home/kouhei/otaru-testconf/tls.crt")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load TLS cert file: %v", err)
+		return fmt.Errorf("Failed to load TLS cert file: %v", err)
 	}
 	keytext, err := ioutil.ReadFile("/home/kouhei/otaru-testconf/tls.key")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load TLS key file: %v", err)
+		return fmt.Errorf("Failed to load TLS key file: %v", err)
 	}
 
 	cert, err := tls.X509KeyPair(certtext, keytext)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create X509KeyPair: %v", err)
+		return fmt.Errorf("Failed to create X509KeyPair: %v", err)
 	}
 	certpool := x509.NewCertPool()
 	if !certpool.AppendCertsFromPEM(certtext) {
-		return nil, fmt.Errorf("certpool creation failure")
+		return fmt.Errorf("certpool creation failure")
 	}
 
 	grpcCredentials := credentials.NewServerTLSFromCert(&cert)
@@ -121,11 +127,15 @@ func Serve(opt ...Option) (io.Closer, error) {
 	}
 	for _, e := range opts.serviceRegistry {
 		if err := e.registerProxy(ctx, gwmux, loopbackaddr, gwdialopts); err != nil {
-			return nil, fmt.Errorf("Failed to register gw handler: %v", err)
+			return fmt.Errorf("Failed to register gw handler: %v", err)
 		}
 	}
 	mux.Handle("/", opts.defaultHandler)
 	mux.Handle("/api/", gwmux)
+	if opts.fileHandler != nil {
+		filePrefix := "/file/"
+		mux.Handle(filePrefix, http.StripPrefix(filePrefix, opts.fileHandler))
+	}
 	serveSwagger(mux)
 
 	c := cors.New(cors.Options{
@@ -134,7 +144,13 @@ func Serve(opt ...Option) (io.Closer, error) {
 
 	lis, err := net.Listen("tcp", opts.listenAddr)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to listen \"%s\": %v", opts.listenAddr, err)
+		return fmt.Errorf("Failed to listen \"%s\": %v", opts.listenAddr, err)
+	}
+	if opts.closeC != nil {
+		go func() {
+			<-opts.closeC
+			lis.Close()
+		}()
 	}
 
 	httpHandler := c.Handler(mux)
@@ -147,10 +163,5 @@ func Serve(opt ...Option) (io.Closer, error) {
 		},
 	}
 
-	go func() {
-		if err := httpServer.Serve(tls.NewListener(lis, httpServer.TLSConfig)); err != nil {
-			logger.Debugf(mylog, "http.Server.Serve exit: %v", err)
-		}
-	}()
-	return lis, nil
+	return httpServer.Serve(tls.NewListener(lis, httpServer.TLSConfig))
 }

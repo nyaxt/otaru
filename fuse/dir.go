@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/nyaxt/otaru"
+	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
 
@@ -15,7 +15,7 @@ import (
 )
 
 type DirNode struct {
-	fs *otaru.FileSystem
+	fs *filesystem.FileSystem
 	id inodedb.ID
 }
 

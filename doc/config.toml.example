@@ -26,8 +26,14 @@ cache_low_watermark = "18GB"
 # - HTTP API listen addr. Defaults to ":10246"
 # http_api_addr = ":10247"
 
-# - Enable /api/debug apis. Makes otaru unsecure. Defaults to false.
+# - Enable /api/debug apis. Makes otaru insecure. Defaults to false.
 # install_debug_api = false
+
+# - If specified, FUSE mount to specified point.
+# fuse_mount_point = "/mnt/otaru"
+
+# - If specified, expose filesystem via webdav.
+# webdav_addr = ":8005"
 
 # Logger config
 [logger]

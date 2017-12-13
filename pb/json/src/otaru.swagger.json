@@ -101,6 +101,128 @@
         ]
       }
     },
+    "/api/v1/inodedb/stats": {
+      "get": {
+        "operationId": "GetINodeDBStats",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbGetINodeDBStatsResponse"
+            }
+          }
+        },
+        "tags": [
+          "INodeDBService"
+        ]
+      }
+    },
+    "/api/v1/logger/categories": {
+      "get": {
+        "operationId": "GetCategories",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbGetCategoriesResponse"
+            }
+          }
+        },
+        "tags": [
+          "LoggerService"
+        ]
+      }
+    },
+    "/api/v1/logger/category/{category}": {
+      "post": {
+        "operationId": "SetCategory",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbSetCategoryResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "tags": [
+          "LoggerService"
+        ]
+      }
+    },
+    "/api/v1/logger/latest_log_entry_id": {
+      "get": {
+        "operationId": "GetLatestLogEntryId",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbGetLatestLogEntryIdResponse"
+            }
+          }
+        },
+        "tags": [
+          "LoggerService"
+        ]
+      }
+    },
+    "/api/v1/logger/logs": {
+      "get": {
+        "operationId": "QueryLogs",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbQueryLogsResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "min_id",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "LoggerService"
+        ]
+      }
+    },
     "/api/v1/system/info": {
       "get": {
         "operationId": "GetSystemInfo",
@@ -149,6 +271,17 @@
         },
         "cache_flags": {
           "type": "string"
+        }
+      }
+    },
+    "pbGetCategoriesResponse": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pbLoggerCategory"
+          }
         }
       }
     },
@@ -206,6 +339,44 @@
         }
       }
     },
+    "pbGetINodeDBStatsResponse": {
+      "type": "object",
+      "properties": {
+        "last_sync": {
+          "type": "string",
+          "format": "int64"
+        },
+        "last_tx": {
+          "type": "string",
+          "format": "int64"
+        },
+        "last_id": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "version": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "last_ticket": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "number_of_node_locks": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "pbGetLatestLogEntryIdResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
     "pbListDirResponse": {
       "type": "object",
       "properties": {
@@ -220,6 +391,10 @@
     "pbListDirResponseEntry": {
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string",
+          "format": "uint64"
+        },
         "name": {
           "type": "string"
         },
@@ -248,6 +423,55 @@
         }
       }
     },
+    "pbLoggerCategory": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "level": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "pbQueryLogsResponse": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pbQueryLogsResponseEntry"
+          }
+        }
+      }
+    },
+    "pbQueryLogsResponseEntry": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "log": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "level": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "time": {
+          "type": "string",
+          "format": "int64"
+        },
+        "location": {
+          "type": "string"
+        }
+      }
+    },
     "pbReduceCacheRequest": {
       "type": "object",
       "properties": {
@@ -271,6 +495,9 @@
           "type": "string"
         }
       }
+    },
+    "pbSetCategoryResponse": {
+      "type": "object"
     },
     "pbSystemInfoResponse": {
       "type": "object",
