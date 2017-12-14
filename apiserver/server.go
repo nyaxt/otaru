@@ -18,6 +18,7 @@ import (
 
 	"github.com/nyaxt/otaru/logger"
 	sjson "github.com/nyaxt/otaru/pb/json"
+	"github.com/nyaxt/otaru/webui"
 	"github.com/nyaxt/otaru/webui/swaggerui"
 )
 
@@ -37,7 +38,11 @@ type options struct {
 }
 
 var defaultOptions = options{
-	defaultHandler:  http.NotFoundHandler(),
+	defaultHandler: http.FileServer(&assetfs.AssetFS{
+		Asset:     webui.Asset,
+		AssetDir:  webui.AssetDir,
+		AssetInfo: webui.AssetInfo,
+	}),
 	fileHandler:     nil,
 	serviceRegistry: []serviceRegistryEntry{},
 }
