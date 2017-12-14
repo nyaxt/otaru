@@ -2,6 +2,7 @@ package logbuf
 
 import (
 	"testing"
+	"time"
 
 	"github.com/nyaxt/otaru/logger"
 )
@@ -51,38 +52,57 @@ func helperAssertEntries(t *testing.T, as []*Entry, es []expectedEntry) {
 	}
 }
 
+func helperWaitFlush(t *testing.T, lb *LogBuf, id int) {
+	t.Helper()
+
+	ticker := time.NewTicker(100 * time.Microsecond)
+	defer ticker.Stop()
+
+	for i := 0; i < 3; i++ {
+		if lb.LatestEntryId() >= id {
+			return
+		}
+		<-ticker.C
+	}
+
+	t.Fatalf("lb.LatestEntryId() never became >= %d", id)
+}
+
 func TestLogBuf_Query(t *testing.T) {
 	lb := New(300)
 	logger.Debugf(lb, "msg1")
+	helperWaitFlush(t, lb, 1)
 
 	es := lb.Query(0, []string{}, 100)
 	helperAssertEntries(t, es, []expectedEntry{
-		{0, "msg1", "", logger.Debug},
+		{1, "msg1", "", logger.Debug},
 	})
-	if lb.LatestEntryId() != 0 {
+	if lb.LatestEntryId() != 1 {
 		t.Errorf("LatestEntryId")
 	}
 
 	logger.Infof(lb, "msg2")
 	logger.Warningf(lb, "msg3")
+	helperWaitFlush(t, lb, 3)
+
 	es = lb.Query(0, []string{}, 100)
 	helperAssertEntries(t, es, []expectedEntry{
-		{0, "msg1", "", logger.Debug},
-		{1, "msg2", "", logger.Info},
-		{2, "msg3", "", logger.Warning},
+		{1, "msg1", "", logger.Debug},
+		{2, "msg2", "", logger.Info},
+		{3, "msg3", "", logger.Warning},
 	})
-	if lb.LatestEntryId() != 2 {
+	if lb.LatestEntryId() != 3 {
 		t.Errorf("LatestEntryId")
 	}
 
-	es = lb.Query(1, []string{}, 100)
+	es = lb.Query(2, []string{}, 100)
 	helperAssertEntries(t, es, []expectedEntry{
-		{1, "msg2", "", logger.Info},
-		{2, "msg3", "", logger.Warning},
+		{2, "msg2", "", logger.Info},
+		{3, "msg3", "", logger.Warning},
 	})
 
-	es = lb.Query(1, []string{}, 1)
+	es = lb.Query(2, []string{}, 1)
 	helperAssertEntries(t, es, []expectedEntry{
-		{1, "msg2", "", logger.Info},
+		{2, "msg2", "", logger.Info},
 	})
 }

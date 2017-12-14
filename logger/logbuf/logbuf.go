@@ -1,9 +1,7 @@
 package logbuf
 
 import (
-	"fmt"
-	"os"
-
+	"sync"
 	"time"
 
 	"github.com/nyaxt/otaru/logger"
@@ -20,6 +18,9 @@ type Entry struct {
 }
 
 type LogBuf struct {
+	mu sync.Mutex
+	ch chan *Entry
+
 	entries    []*Entry
 	maxEntries int
 	nextId     int
@@ -32,38 +33,54 @@ func New(maxEntries int) *LogBuf {
 		panic("NewLogBuf maxEntries must be larger than 0")
 	}
 
-	return &LogBuf{
+	lb := &LogBuf{
+		ch:         make(chan *Entry, 16),
 		entries:    make([]*Entry, 0, maxEntries),
 		maxEntries: maxEntries,
-		nextId:     0,
+		nextId:     1,
 	}
+	go lb.consume()
+	return lb
 }
 
 func (lb *LogBuf) Log(lv logger.Level, data map[string]interface{}) {
-	if len(lb.entries) == lb.maxEntries-1 {
-		lb.entries = lb.entries[1:]
-	}
-
 	category := ""
 	if c, ok := data["category"]; ok {
 		category = c.(string)
 	}
-	entry := &Entry{
-		Id:       lb.nextId,
+
+	lb.ch <- &Entry{
+		Id:       -1,
 		Log:      data["log"].(string),
 		Category: category,
 		Level:    lv,
 		Time:     data["time"].(time.Time),
 		Location: data["location"].(string),
 	}
-	lb.nextId++
+}
 
-	lb.entries = append(lb.entries, entry)
+func (lb *LogBuf) consume() {
+	for e := range lb.ch {
+		lb.mu.Lock()
+
+		e.Id = lb.nextId
+		lb.nextId++
+
+		if len(lb.entries) == lb.maxEntries-1 {
+			lb.entries = lb.entries[1:]
+		}
+		lb.entries = append(lb.entries, e)
+
+		lb.mu.Unlock()
+	}
 }
 
 func (lb *LogBuf) WillAccept(lv logger.Level) bool { return true }
 
 func (lb *LogBuf) Query(minId int, categories []string, limit int) []*Entry {
+	lb.mu.Lock()
+	defer lb.mu.Unlock()
+
 	if len(lb.entries) == 0 {
 		return []*Entry{}
 	}
@@ -79,7 +96,7 @@ func (lb *LogBuf) Query(minId int, categories []string, limit int) []*Entry {
 	}
 
 	if len(categories) == 0 {
-		fmt.Fprintf(os.Stderr, "len %d minid %d i %d n %d\n", len(lb.entries), lbMinId, i, n)
+		// fmt.Fprintf(os.Stderr, "len %d minid %d i %d n %d\n", len(lb.entries), lbMinId, i, n)
 		return lb.entries[i : i+n]
 	}
 
@@ -99,8 +116,8 @@ func (lb *LogBuf) Query(minId int, categories []string, limit int) []*Entry {
 }
 
 func (lb *LogBuf) LatestEntryId() int {
-	if len(lb.entries) == 0 {
-		return 0
-	}
-	return lb.entries[len(lb.entries)-1].Id
+	lb.mu.Lock()
+	defer lb.mu.Unlock()
+
+	return lb.nextId - 1
 }
