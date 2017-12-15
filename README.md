@@ -55,6 +55,15 @@ Complete the step "Build otaru inside Docker container" before executing below.
 
 Visit displayed url, and paste response code. Check that `~/.otaru/tokencache.json` is correctly generated.
 
+### Generate self-signed cert+key for quick testing.
+Otaru requires TLS for its WebUI and api server.
+Below command will generate self-signed X.509 certificate and key pair at ~/.otaru/cert{,-key}.pem :
+
+    $ go get -u -v github.com/cloudflare/cfssl/cmd/cfssl{,json}
+    $ OTARUDIR=~/.otaru scripts/gen_self_signed_cert.bash
+
+**Warning:** Use the generated self-signed certificates only for quick testing purposes, not for production.
+
 ### Setup Google Cloud Datastore index, and verify Google Cloud Storage settings
 
     $ OTARUDIR=~/.otaru scripts/gcloud_setup.bash
