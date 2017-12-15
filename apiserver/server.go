@@ -29,7 +29,11 @@ type serviceRegistryEntry struct {
 }
 
 type options struct {
-	listenAddr      string
+	listenAddr string
+	certFile   string
+	keyFile    string
+
+	allowedOrigins  []string
 	defaultHandler  http.Handler
 	fileHandler     http.Handler
 	serviceRegistry []serviceRegistryEntry
@@ -38,7 +42,6 @@ type options struct {
 
 var defaultOptions = options{
 	defaultHandler:  http.NotFoundHandler(),
-	fileHandler:     nil,
 	serviceRegistry: []serviceRegistryEntry{},
 }
 
@@ -48,12 +51,23 @@ func ListenAddr(listenAddr string) Option {
 	return func(o *options) { o.listenAddr = listenAddr }
 }
 
+func X509KeyPair(certFile, keyFile string) Option {
+	return func(o *options) {
+		o.certFile = certFile
+		o.keyFile = keyFile
+	}
+}
+
 func OverrideWebUI(rootPath string) Option {
 	return func(o *options) { o.defaultHandler = http.FileServer(http.Dir(rootPath)) }
 }
 
 func CloseChannel(c <-chan struct{}) Option {
 	return func(o *options) { o.closeC = c }
+}
+
+func CORSAllowedOrigins(allowedOrigins []string) Option {
+	return func(o *options) { o.allowedOrigins = allowedOrigins }
 }
 
 // grpcHttpMux, serveSwagger, and Serve functions based on code from:
@@ -87,17 +101,42 @@ func serveSwagger(mux *http.ServeMux) {
 		}))
 }
 
+func serveApiGateway(mux *http.ServeMux, opts *options, certtext []byte) error {
+	certpool := x509.NewCertPool()
+	if !certpool.AppendCertsFromPEM(certtext) {
+		return fmt.Errorf("certpool creation failure")
+	}
+	gwdialopts := []grpc.DialOption{
+		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(certpool, "")),
+	}
+
+	ctx := context.Background()
+	gwmux := gwruntime.NewServeMux()
+	loopbackaddr := opts.listenAddr
+	if strings.HasPrefix(loopbackaddr, ":") {
+		loopbackaddr = "localhost" + loopbackaddr
+	}
+	for _, e := range opts.serviceRegistry {
+		if err := e.registerProxy(ctx, gwmux, loopbackaddr, gwdialopts); err != nil {
+			return fmt.Errorf("Failed to register gw handler: %v", err)
+		}
+	}
+	mux.Handle("/api/", gwmux)
+
+	return nil
+}
+
 func Serve(opt ...Option) error {
 	opts := defaultOptions
 	for _, o := range opt {
 		o(&opts)
 	}
 
-	certtext, err := ioutil.ReadFile("/home/kouhei/otaru-testconf/tls.crt")
+	certtext, err := ioutil.ReadFile(opts.certFile)
 	if err != nil {
 		return fmt.Errorf("Failed to load TLS cert file: %v", err)
 	}
-	keytext, err := ioutil.ReadFile("/home/kouhei/otaru-testconf/tls.key")
+	keytext, err := ioutil.ReadFile(opts.keyFile)
 	if err != nil {
 		return fmt.Errorf("Failed to load TLS key file: %v", err)
 	}
@@ -105,10 +144,6 @@ func Serve(opt ...Option) error {
 	cert, err := tls.X509KeyPair(certtext, keytext)
 	if err != nil {
 		return fmt.Errorf("Failed to create X509KeyPair: %v", err)
-	}
-	certpool := x509.NewCertPool()
-	if !certpool.AppendCertsFromPEM(certtext) {
-		return fmt.Errorf("certpool creation failure")
 	}
 
 	grpcCredentials := credentials.NewServerTLSFromCert(&cert)
@@ -118,29 +153,17 @@ func Serve(opt ...Option) error {
 	}
 
 	mux := http.NewServeMux()
-
-	loopbackaddr := "localhost" + opts.listenAddr // FIXME
-	ctx := context.Background()
-	gwmux := gwruntime.NewServeMux()
-	gwdialopts := []grpc.DialOption{
-		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(certpool, "")),
-	}
-	for _, e := range opts.serviceRegistry {
-		if err := e.registerProxy(ctx, gwmux, loopbackaddr, gwdialopts); err != nil {
-			return fmt.Errorf("Failed to register gw handler: %v", err)
-		}
-	}
 	mux.Handle("/", opts.defaultHandler)
-	mux.Handle("/api/", gwmux)
+	if err := serveApiGateway(mux, &opts, certtext); err != nil {
+		return err
+	}
 	if opts.fileHandler != nil {
 		filePrefix := "/file/"
 		mux.Handle(filePrefix, http.StripPrefix(filePrefix, opts.fileHandler))
 	}
 	serveSwagger(mux)
 
-	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://localhost:9000"}, // gulp devsrv
-	})
+	c := cors.New(cors.Options{AllowedOrigins: opts.allowedOrigins})
 
 	lis, err := net.Listen("tcp", opts.listenAddr)
 	if err != nil {

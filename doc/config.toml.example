@@ -4,36 +4,51 @@
 
 # GCP settings
 
-# - Google Cloud Platform project name for storing otaru blobs/metadata
+# - Google Cloud Platform project name for storing otaru blobs/metadata.
 project_name = "example-com"
 
-# - Google Cloud Storage bucket for storing otaru blobs
+# - Google Cloud Storage bucket for storing otaru blobs.
 bucket_name = "otaru-my-foobar"
-# - If set to true, use [bucket_name]+"-meta" for storing metadata
+# - If set to true, use [bucket_name]+"-meta" for storing metadata.
 use_separate_bucket_for_metadata = true
 
 # Blob cache config
 
-# - Directory for storing cache
-cache_dir = "/var/cache/otaru/anime"
+# - Directory for storing cache.
+cache_dir = "/var/cache/otaru"
 # - Cache directory high water mark:
-#     cache discard will run if cache dir usage is above this threshold
+#     cache discard will run if cache dir usage is above this threshold.
 cache_high_watermark = "25GB"
 # - Cache directory low water mark:
-#     cache discard will try to keep cache dir usage below this threshold
+#     cache discard will try to keep cache dir usage below this threshold.
 cache_low_watermark = "18GB"
-
-# - HTTP API listen addr. Defaults to ":10246"
-# http_api_addr = ":10247"
-
-# - Enable /api/debug apis. Makes otaru insecure. Defaults to false.
-# install_debug_api = false
 
 # - If specified, FUSE mount to specified point.
 # fuse_mount_point = "/mnt/otaru"
 
 # - If specified, expose filesystem via webdav.
 # webdav_addr = ":8005"
+
+# API server config
+[api_server]
+# - API server listen addr. Defaults to ":10246".
+# listen_addr = ":10246"
+
+# - Enable debug apis. Makes otaru insecure. Defaults to false.
+# enable_debug = false
+
+# - If specified, serve webui from the specified directory instead of using embedded one.
+# webui_root_path = "/home/kouhei/go/src/github.com/nyaxt/otaru/webui/dist"
+
+# - TLS certificate file. Defaults to "${OTARUDIR}/tls.cert"
+# cert_file = "tls.cert"
+
+# - TLS key file. Defaults to "${OTARUDIR}/tls.key"
+# key_file = "tls.key"
+
+# - CORS allowed origins.
+#   Domains listed here will be added to "Access-Control-Allow-Origin" HTTP header.
+# cors_allowed_origins = ["https://localhost:9000"]
 
 # Logger config
 [logger]

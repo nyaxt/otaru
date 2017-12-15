@@ -5,9 +5,11 @@ import (
 	"github.com/nyaxt/otaru/logger"
 )
 
-func (o *Otaru) buildApiServerOptions(cfg *Config) []apiserver.Option {
+func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) []apiserver.Option {
 	options := []apiserver.Option{
-		apiserver.ListenAddr(cfg.HttpApiAddr),
+		apiserver.ListenAddr(cfg.ListenAddr),
+		apiserver.X509KeyPair(cfg.CertFile, cfg.KeyFile),
+		apiserver.CORSAllowedOrigins(cfg.CORSAllowedOrigins),
 		apiserver.InstallBlobstoreService(o.S, o.DefaultBS, o.CBS),
 		apiserver.InstallFileHandler(o.FS),
 		apiserver.InstallFileSystemService(o.FS),
