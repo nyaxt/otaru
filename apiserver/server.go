@@ -182,7 +182,7 @@ func Serve(opt ...Option) error {
 		}()
 	}
 
-	httpHandler := c.Handler(mux)
+	httpHandler := httpLoggerHandler(c.Handler(mux))
 	httpServer := &http.Server{
 		Addr:    opts.listenAddr,
 		Handler: grpcHttpMux(grpcServer, httpHandler),
