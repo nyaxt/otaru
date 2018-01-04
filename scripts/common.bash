@@ -100,6 +100,22 @@ function otaru::gcloud_setup() {
 	echo "- Google Cloud Storage API : https://console.developers.google.com/project/$PROJECT_NAME/apiui/apiview/storage_component/overview"
 }
 
+function otaru::gen_self_signed_cert() {
+	echo "*** cfssl version"
+	cfssl version || {
+		echo "cfssl not installed. Please install via go get -u https://github.com/cloudflare/cfssl"
+		exit 1
+	}
+	echo "*** cfssljson version"
+	cfssljson -version || {
+		echo "cfssljson not installed. Please install via go get -u https://github.com/cloudflare/cfsslversion"
+		exit 1
+	}
+	echo
+	echo "Generating self-signed cert/key PEM pair..."
+	cfssl selfsign localhost $BASEDIR/resources/selfsign-csr.json | (cd $OTARUDIR; cfssljson -bare)
+}
+
 function otaru::update_version() {
 	(
 		gitcommit=`git rev-parse HEAD`

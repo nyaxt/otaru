@@ -49,16 +49,24 @@ type Config struct {
 	// Run GC every "GCPeriod" seconds.
 	GCPeriod int64
 
-	// HTTP API listen addr. Defaults to ":10246".
-	HttpApiAddr string
-
-	// Install /api/debug handlers.
-	InstallDebugApi bool
-	WebUIRootPath   string `toml:"webui_root_path"`
-
 	Fluent gfluent.Config
 
 	Logger loggerconfig.Config
+
+	ApiServer ApiServerConfig
+}
+
+type ApiServerConfig struct {
+	// API listen addr. Defaults to ":10246".
+	ListenAddr string
+
+	// Install debug handlers if enabled.
+	EnableDebug bool
+
+	WebUIRootPath      string `toml:"webui_root_path"`
+	CertFile           string
+	KeyFile            string
+	CORSAllowedOrigins []string `toml:"cors_allowed_origins"`
 }
 
 func DefaultConfigDir() string {
@@ -91,8 +99,12 @@ func NewConfig(configdir string) (*Config, error) {
 		CredentialsFilePath:          path.Join(configdir, "credentials.json"),
 		TokenCacheFilePath:           path.Join(configdir, "tokencache.json"),
 		GCPeriod:                     15 * 60,
-		HttpApiAddr:                  ":10246",
-		InstallDebugApi:              false,
+		ApiServer: ApiServerConfig{
+			ListenAddr:  ":10246",
+			EnableDebug: false,
+			CertFile:    path.Join(configdir, "cert.pem"),
+			KeyFile:     path.Join(configdir, "cert-key.pem"),
+		},
 	}
 
 	if err := toml.Unmarshal(buf, &cfg); err != nil {
