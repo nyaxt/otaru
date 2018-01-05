@@ -92,7 +92,7 @@ func apiJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "api.js", size: 1560, mode: os.FileMode(420), modTime: time.Unix(1513175800, 0)}
+	info := bindataFileInfo{name: "api.js", size: 1560, mode: os.FileMode(420), modTime: time.Unix(1513160440, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -112,7 +112,7 @@ func appJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "app.js", size: 1866, mode: os.FileMode(420), modTime: time.Unix(1513175800, 0)}
+	info := bindataFileInfo{name: "app.js", size: 1866, mode: os.FileMode(420), modTime: time.Unix(1513160440, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -132,7 +132,7 @@ func browsefsJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "browsefs.js", size: 3999, mode: os.FileMode(420), modTime: time.Unix(1513175800, 0)}
+	info := bindataFileInfo{name: "browsefs.js", size: 3999, mode: os.FileMode(420), modTime: time.Unix(1513160440, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -152,7 +152,7 @@ func domhelperJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "domhelper.js", size: 245, mode: os.FileMode(420), modTime: time.Unix(1513175800, 0)}
+	info := bindataFileInfo{name: "domhelper.js", size: 245, mode: os.FileMode(420), modTime: time.Unix(1513160440, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -172,7 +172,7 @@ func formatJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "format.js", size: 1497, mode: os.FileMode(420), modTime: time.Unix(1513175800, 0)}
+	info := bindataFileInfo{name: "format.js", size: 1497, mode: os.FileMode(420), modTime: time.Unix(1513160440, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -192,7 +192,7 @@ func indexHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "index.html", size: 6470, mode: os.FileMode(420), modTime: time.Unix(1513175800, 0)}
+	info := bindataFileInfo{name: "index.html", size: 6470, mode: os.FileMode(420), modTime: time.Unix(1513160440, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -212,7 +212,7 @@ func loglevelJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "loglevel.js", size: 2487, mode: os.FileMode(420), modTime: time.Unix(1513175800, 0)}
+	info := bindataFileInfo{name: "loglevel.js", size: 2487, mode: os.FileMode(420), modTime: time.Unix(1513160440, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -232,7 +232,7 @@ func logviewJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "logview.js", size: 2926, mode: os.FileMode(420), modTime: time.Unix(1513175800, 0)}
+	info := bindataFileInfo{name: "logview.js", size: 2926, mode: os.FileMode(420), modTime: time.Unix(1513160440, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -252,7 +252,7 @@ func navJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "nav.js", size: 3116, mode: os.FileMode(420), modTime: time.Unix(1513175800, 0)}
+	info := bindataFileInfo{name: "nav.js", size: 3116, mode: os.FileMode(420), modTime: time.Unix(1513160440, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -272,7 +272,7 @@ func stylesCss() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "styles.css", size: 5266, mode: os.FileMode(420), modTime: time.Unix(1513175800, 0)}
+	info := bindataFileInfo{name: "styles.css", size: 5266, mode: os.FileMode(420), modTime: time.Unix(1513160440, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
