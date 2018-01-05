@@ -20,8 +20,10 @@ func verifyWebdavServerConfig(cfg *WebdavServerConfig) error {
 			logger.Warningf(mylog, "Webdav {cert,key} file specified, but TLS is not enabled.")
 		}
 	}
-	if _, err := ioutil.ReadFile(cfg.HtdigestFilePath); err != nil {
-		return fmt.Errorf("Failed to read htdigest file: %v", err)
+	if cfg.HtdigestFilePath != "" {
+		if _, err := ioutil.ReadFile(cfg.HtdigestFilePath); err != nil {
+			return fmt.Errorf("Failed to read htdigest file: %v", err)
+		}
 	}
 
 	return nil
