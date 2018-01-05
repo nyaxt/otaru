@@ -206,8 +206,9 @@ func Serve(cfg *Config, closeC <-chan error) error {
 	webdavErrC := make(chan error)
 	// FIXME: webdavCloseC
 	if cfg.WebdavAddr != "" {
+		opts := o.buildWebdavServerOptions(o.FS, &cfg.WebdavServer)
 		go func() {
-			if err := webdav.Serve(cfg.WebdavAddr, o.FS); err != nil {
+			if err := webdav.Serve(opts...); err != nil {
 				webdavErrC <- err
 			}
 			close(webdavErrC)

@@ -1,12 +1,16 @@
 package webdav
 
 import (
+	"crypto/tls"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
+	auth "github.com/abbot/go-http-auth"
 	"golang.org/x/net/context"
 
 	"github.com/nyaxt/otaru/third_party/webdav"
@@ -247,18 +251,98 @@ func (fs webdavFS) Stat(ctx context.Context, name string) (os.FileInfo, error) {
 	return &webdavFileInfo{name: filepath.Base(name), attr: &attr}, nil
 }
 
-func Serve(addr string, ofs *filesystem.FileSystem) error {
-	handler := &webdav.Handler{
+type options struct {
+	ofs *filesystem.FileSystem
+
+	listenAddr string
+	certFile   string
+	keyFile    string
+
+	realm   string
+	secrets auth.SecretProvider
+}
+
+var defaultOptions = options{
+	listenAddr: ":8005",
+
+	certFile: "",
+	keyFile:  "",
+
+	realm:   "otaru webdav",
+	secrets: nil,
+}
+
+type Option func(*options)
+
+func FileSystem(ofs *filesystem.FileSystem) Option {
+	return func(o *options) { o.ofs = ofs }
+}
+
+func ListenAddr(listenAddr string) Option {
+	return func(o *options) { o.listenAddr = listenAddr }
+}
+
+func X509KeyPair(certFile, keyFile string) Option {
+	return func(o *options) {
+		o.certFile = certFile
+		o.keyFile = keyFile
+	}
+}
+
+func DigestAuth(realm, htdigestFilePath string) Option {
+	secrets := auth.HtdigestFileProvider(htdigestFilePath)
+	return func(o *options) {
+		o.realm = realm
+		o.secrets = secrets
+	}
+}
+
+func Serve(opt ...Option) error {
+	opts := defaultOptions
+	for _, o := range opt {
+		o(&opts)
+	}
+
+	var handler http.Handler
+	handler = &webdav.Handler{
 		Prefix:     "",
-		FileSystem: webdavFS{ofs},
+		FileSystem: webdavFS{opts.ofs},
 		LockSystem: webdav.NewMemLS(),
 		Logger: func(req *http.Request, err error) {
 			logger.Debugf(mylog, "req: %v, err: %v", req, err)
 		},
 	}
+
+	if opts.secrets != nil {
+		a := auth.NewDigestAuthenticator(opts.realm, opts.secrets)
+		handler = a.JustCheck(func(w http.ResponseWriter, r *http.Request) {
+			handler.ServeHTTP(w, r)
+		})
+	}
+
 	httpsrv := http.Server{
-		Addr:    addr,
+		Addr:    opts.listenAddr,
 		Handler: handler,
 	}
-	return httpsrv.ListenAndServe()
+
+	lis, err := net.Listen("tcp", opts.listenAddr)
+	if err != nil {
+		return fmt.Errorf("Failed to listen \"%s\": %v", opts.listenAddr, err)
+	}
+	if opts.certFile != "" {
+		// Serve over TLS (HTTPS)
+
+		cert, err := tls.LoadX509KeyPair(opts.certFile, opts.keyFile)
+		if err != nil {
+			return fmt.Errorf("Failed to load webdav {cert,key} pair: %v", err)
+		}
+
+		// Note: This doesn't enable h2. Reconsider this if there is a webdav client w/ h2 support.
+		httpsrv.TLSConfig = &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			NextProtos:   []string{"http/1.1"},
+		}
+		lis = tls.NewListener(lis, httpsrv.TLSConfig)
+	}
+	return httpsrv.Serve(lis)
 }

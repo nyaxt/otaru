@@ -49,11 +49,10 @@ type Config struct {
 	// Run GC every "GCPeriod" seconds.
 	GCPeriod int64
 
-	Fluent gfluent.Config
-
-	Logger loggerconfig.Config
-
-	ApiServer ApiServerConfig
+	Fluent       gfluent.Config
+	Logger       loggerconfig.Config
+	ApiServer    ApiServerConfig
+	WebdavServer WebdavServerConfig
 }
 
 type ApiServerConfig struct {
@@ -67,6 +66,21 @@ type ApiServerConfig struct {
 	CertFile           string
 	KeyFile            string
 	CORSAllowedOrigins []string `toml:"cors_allowed_origins"`
+}
+
+type WebdavServerConfig struct {
+	ListenAddr string
+
+	// Serve WebDav over TLS
+	EnableTLS bool `toml:"enable_tls"`
+
+	CertFile string
+	KeyFile  string
+
+	DigestAuthRealm string
+
+	// Require digest auth if specified
+	HtdigestFilePath string
 }
 
 func DefaultConfigDir() string {
@@ -181,6 +195,10 @@ func NewConfig(configdir string) (*Config, error) {
 				return nil, fmt.Errorf("Failed to stat token cache file \"%s\" from unknown err: %v", cfg.TokenCacheFilePath, err)
 			}
 		}
+	}
+
+	if err := verifyWebdavServerConfig(&cfg.WebdavServer); err != nil {
+		return nil, err
 	}
 
 	if cfg.Fluent.TagPrefix == "" {

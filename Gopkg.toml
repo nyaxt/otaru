@@ -68,3 +68,7 @@
 [[constraint]]
   branch = "master"
   name = "google.golang.org/api"
+
+[[constraint]]
+  name = "github.com/abbot/go-http-auth"
+  version = "0.4.0"
