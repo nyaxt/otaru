@@ -24,6 +24,7 @@ import (
 )
 
 var mylog = logger.Registry().Category("webdav")
+var accesslog = logger.Registry().Category("http-webdav")
 
 type webdavFile struct {
 	h      *filesystem.FileHandle
@@ -320,7 +321,7 @@ func Serve(opt ...Option) error {
 		FileSystem: webdavFS{opts.ofs},
 		LockSystem: webdav.NewMemLS(),
 		Logger: func(req *http.Request, err error) {
-			logger.Debugf(mylog, "req: %v, err: %v", req, err)
+			//logger.Debugf(mylog, "req: %v, err: %v", req, err)
 		},
 	}
 
@@ -336,7 +337,7 @@ func Serve(opt ...Option) error {
 
 	httpsrv := http.Server{
 		Addr:    opts.listenAddr,
-		Handler: handler,
+		Handler: logger.HttpHandler(accesslog, logger.Info, handler),
 	}
 
 	lis, err := net.Listen("tcp", opts.listenAddr)

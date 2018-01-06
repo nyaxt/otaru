@@ -16,7 +16,7 @@ func verifyWebdavServerConfig(configdir string, cfg *WebdavServerConfig) error {
 			cfg.CertFile = path.Join(configdir, "cert.pem")
 		}
 		if cfg.KeyFile == "" {
-			cfg.CertFile = path.Join(configdir, "cert-key.pem")
+			cfg.KeyFile = path.Join(configdir, "cert-key.pem")
 		}
 	} else {
 		if cfg.CertFile != "" || cfg.KeyFile != "" {

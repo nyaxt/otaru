@@ -43,9 +43,6 @@ type Config struct {
 	// If non-empty, perform fuse mount.
 	FuseMountPoint string
 
-	// If non-empty, serve content over webdav.
-	WebdavAddr string
-
 	// Run GC every "GCPeriod" seconds.
 	GCPeriod int64
 

@@ -204,7 +204,7 @@ func Serve(cfg *Config, closeC <-chan error) error {
 	}
 
 	webdavErrC := make(chan error)
-	if cfg.WebdavAddr != "" {
+	if cfg.WebdavServer.ListenAddr != "" {
 		webdavCloseC := make(chan struct{})
 		defer close(webdavCloseC)
 

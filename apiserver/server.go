@@ -23,6 +23,7 @@ import (
 )
 
 var mylog = logger.Registry().Category("apiserver")
+var accesslog = logger.Registry().Category("http-apiserver")
 
 type serviceRegistryEntry struct {
 	registerServiceServer func(*grpc.Server)
@@ -182,7 +183,7 @@ func Serve(opt ...Option) error {
 		}()
 	}
 
-	httpHandler := httpLoggerHandler(c.Handler(mux))
+	httpHandler := logger.HttpHandler(accesslog, logger.Info, c.Handler(mux))
 	httpServer := &http.Server{
 		Addr:    opts.listenAddr,
 		Handler: grpcHttpMux(grpcServer, httpHandler),
