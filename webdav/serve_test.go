@@ -2,9 +2,12 @@ package webdav
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/bobziuchkovski/digest"
@@ -39,6 +42,69 @@ func TestServe_Basic(t *testing.T) {
 	}()
 
 	resp, err := http.Get("http://" + testListenAddr + "/foo.txt")
+	if err != nil {
+		t.Errorf("http.Get: %v", err)
+		return
+	}
+	cont, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("ReadAll(http.Get resp.Body): %v", err)
+		return
+	}
+	if !bytes.Equal(cont, tu.HelloWorld) {
+		t.Errorf("unexpected content: %v != exp %v", cont, tu.HelloWorld)
+	}
+	resp.Body.Close()
+
+	close(apiCloseC)
+	<-joinC
+}
+
+func TestServe_TLS(t *testing.T) {
+	otarudir := os.Getenv("OTARUDIR")
+	certFile := path.Join(otarudir, "cert.pem")
+	keyFile := path.Join(otarudir, "cert-key.pem")
+
+	certtext, err := ioutil.ReadFile(certFile)
+	if err != nil {
+		t.Errorf("cert file read: %v", err)
+		return
+	}
+	certpool := x509.NewCertPool()
+	if !certpool.AppendCertsFromPEM(certtext) {
+		t.Errorf("certpool creation failure")
+		return
+	}
+
+	fs := tu.TestFileSystem()
+	if err := fs.WriteFile("/foo.txt", tu.HelloWorld, 0644); err != nil {
+		t.Errorf("WriteFile: %v", err)
+	}
+
+	apiCloseC := make(chan struct{})
+	joinC := make(chan struct{})
+	go func() {
+		err := Serve(
+			FileSystem(fs),
+			X509KeyPair(certFile, keyFile),
+			ListenAddr(testListenAddr),
+			CloseChannel(apiCloseC),
+		)
+		if err != nil {
+			t.Errorf("Serve failed: %v", err)
+		}
+		joinC <- struct{}{}
+	}()
+
+	c := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: certpool,
+			},
+		},
+	}
+
+	resp, err := c.Get("https://" + testListenAddr + "/foo.txt")
 	if err != nil {
 		t.Errorf("http.Get: %v", err)
 		return
@@ -118,7 +184,9 @@ func TestServe_Htdigest(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	resp, err = http.Get("http://" + testListenAddr + "/foo.txt")
+	c := &http.Client{Transport: &http.Transport{}}
+
+	resp, err = c.Get("http://" + testListenAddr + "/foo.txt")
 	if err != nil {
 		t.Errorf("http.Get: %v", err)
 		return
