@@ -204,9 +204,12 @@ func Serve(cfg *Config, closeC <-chan error) error {
 	}
 
 	webdavErrC := make(chan error)
-	// FIXME: webdavCloseC
 	if cfg.WebdavAddr != "" {
+		apiCloseC := make(chan struct{})
+		defer close(apiCloseC)
+
 		opts := o.buildWebdavServerOptions(o.FS, &cfg.WebdavServer)
+		opts = append(opts, webdav.CloseChannel(webdavCloseC))
 		go func() {
 			if err := webdav.Serve(opts...); err != nil {
 				webdavErrC <- err
@@ -240,6 +243,7 @@ func Serve(cfg *Config, closeC <-chan error) error {
 	case err := <-closeC:
 		if err == nil {
 			logger.Infof(mylog, "Shutdown requested.")
+			return nil
 		} else {
 			return fmt.Errorf("Shutdown requested. Cause: %v", err)
 		}

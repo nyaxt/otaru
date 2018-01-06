@@ -2,6 +2,7 @@ package webdav
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -260,6 +261,8 @@ type options struct {
 
 	realm   string
 	secrets auth.SecretProvider
+
+	closeC <-chan struct{}
 }
 
 var defaultOptions = options{
@@ -297,10 +300,18 @@ func DigestAuth(realm, htdigestFilePath string) Option {
 	}
 }
 
+func CloseChannel(c <-chan struct{}) Option {
+	return func(o *options) { o.closeC = c }
+}
+
 func Serve(opt ...Option) error {
 	opts := defaultOptions
 	for _, o := range opt {
 		o(&opts)
+	}
+
+	if opts.ofs == nil {
+		return errors.New("Webdav backend filesystem must be specified.")
 	}
 
 	var handler http.Handler
@@ -326,6 +337,15 @@ func Serve(opt ...Option) error {
 	}
 
 	lis, err := net.Listen("tcp", opts.listenAddr)
+	closed := false
+	if opts.closeC != nil {
+		go func() {
+			<-opts.closeC
+			closed = true
+			lis.Close()
+		}()
+	}
+
 	if err != nil {
 		return fmt.Errorf("Failed to listen \"%s\": %v", opts.listenAddr, err)
 	}
@@ -344,5 +364,13 @@ func Serve(opt ...Option) error {
 		}
 		lis = tls.NewListener(lis, httpsrv.TLSConfig)
 	}
-	return httpsrv.Serve(lis)
+
+	if err := httpsrv.Serve(lis); err != nil {
+		if closed {
+			// Suppress "use of closed network connection" error if we intentionally closed the listener.
+			return nil
+		}
+		return err
+	}
+	return nil
 }
