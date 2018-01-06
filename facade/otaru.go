@@ -205,8 +205,8 @@ func Serve(cfg *Config, closeC <-chan error) error {
 
 	webdavErrC := make(chan error)
 	if cfg.WebdavAddr != "" {
-		apiCloseC := make(chan struct{})
-		defer close(apiCloseC)
+		webdavCloseC := make(chan struct{})
+		defer close(webdavCloseC)
 
 		opts := o.buildWebdavServerOptions(o.FS, &cfg.WebdavServer)
 		opts = append(opts, webdav.CloseChannel(webdavCloseC))

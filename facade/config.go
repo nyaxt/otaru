@@ -77,10 +77,10 @@ type WebdavServerConfig struct {
 	CertFile string
 	KeyFile  string
 
-	DigestAuthRealm string
-
 	// Require digest auth if specified
 	HtdigestFilePath string
+
+	DigestAuthRealm string
 }
 
 func DefaultConfigDir() string {
@@ -197,7 +197,7 @@ func NewConfig(configdir string) (*Config, error) {
 		}
 	}
 
-	if err := verifyWebdavServerConfig(&cfg.WebdavServer); err != nil {
+	if err := verifyWebdavServerConfig(configdir, &cfg.WebdavServer); err != nil {
 		return nil, err
 	}
 

@@ -1,19 +1,22 @@
 package facade
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
+	"path"
 
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/webdav"
 )
 
-func verifyWebdavServerConfig(cfg *WebdavServerConfig) error {
+func verifyWebdavServerConfig(configdir string, cfg *WebdavServerConfig) error {
 	if cfg.EnableTLS {
-		if cfg.CertFile == "" || cfg.KeyFile == "" {
-			return errors.New("Webdav TLS is enabled, but {cert,key} file not specified.")
+		if cfg.CertFile == "" {
+			cfg.CertFile = path.Join(configdir, "cert.pem")
+		}
+		if cfg.KeyFile == "" {
+			cfg.CertFile = path.Join(configdir, "cert-key.pem")
 		}
 	} else {
 		if cfg.CertFile != "" || cfg.KeyFile != "" {
