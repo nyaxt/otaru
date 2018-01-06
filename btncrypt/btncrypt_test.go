@@ -10,6 +10,8 @@ import (
 	"testing"
 )
 
+func init() { tu.EnsureLogger() }
+
 func TestEncrypt_Short(t *testing.T) {
 	payload := []byte("short string")
 	envelope, err := btncrypt.Encrypt(tu.TestCipher(), payload)

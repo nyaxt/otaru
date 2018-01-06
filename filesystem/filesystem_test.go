@@ -10,6 +10,8 @@ import (
 	"testing"
 )
 
+func init() { tu.EnsureLogger() }
+
 func TestFileWriteRead(t *testing.T) {
 	snapshotio := inodedb.NewSimpleDBStateSnapshotIO()
 	txio := inodedb.NewSimpleDBTransactionLogIO()

@@ -325,9 +325,12 @@ func Serve(opt ...Option) error {
 	}
 
 	if opts.secrets != nil {
+		logger.Debugf(mylog, "Serving Webdav under digest auth.")
 		a := auth.NewDigestAuthenticator(opts.realm, opts.secrets)
-		handler = a.JustCheck(func(w http.ResponseWriter, r *http.Request) {
-			handler.ServeHTTP(w, r)
+		origHandler := handler
+		handler = a.Wrap(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+			logger.Debugf(mylog, "digest user: %s", r.Username)
+			origHandler.ServeHTTP(w, &r.Request)
 		})
 	}
 

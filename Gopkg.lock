@@ -25,6 +25,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/bobziuchkovski/digest"
+  packages = ["."]
+  revision = "26857231d60c9cfee5fbe14cd873bf7633ebbd80"
+
+[[projects]]
+  branch = "master"
   name = "github.com/dustin/go-humanize"
   packages = ["."]
   revision = "bb3d318650d48840a39aa21a027c6630e198e626"
@@ -257,6 +263,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b0d364b8ea758b772509160b7879ffb8a9e3d30fe44e7a20c846b98c895b1c3c"
+  inputs-digest = "c7205d9c753aa6c5a4a38221bc5330d2ad832d103f43d9c612c8202b51ad81ef"
   solver-name = "gps-cdcl"
   solver-version = 1
