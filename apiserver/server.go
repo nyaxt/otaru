@@ -18,6 +18,7 @@ import (
 
 	"github.com/nyaxt/otaru/logger"
 	sjson "github.com/nyaxt/otaru/pb/json"
+	x509util "github.com/nyaxt/otaru/util/x509"
 	"github.com/nyaxt/otaru/webui"
 	"github.com/nyaxt/otaru/webui/swaggerui"
 )
@@ -113,8 +114,13 @@ func serveApiGateway(mux *http.ServeMux, opts *options, certtext []byte) error {
 	if !certpool.AppendCertsFromPEM(certtext) {
 		return fmt.Errorf("certpool creation failure")
 	}
+	serverName, err := x509util.FindServerName(certpool.Subjects())
+	if err != nil {
+		return fmt.Errorf("failed to find server name")
+	}
+	logger.Infof(mylog, "Using server name \"%s\" for grpc loopback connection.", serverName)
 	gwdialopts := []grpc.DialOption{
-		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(certpool, "")),
+		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(certpool, serverName)),
 	}
 
 	ctx := context.Background()
