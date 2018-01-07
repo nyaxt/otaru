@@ -167,6 +167,10 @@ func Serve(opt ...Option) error {
 
 	mux := http.NewServeMux()
 	mux.Handle("/", opts.defaultHandler)
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte("ok\n"))
+	})
 	if err := serveApiGateway(mux, &opts, certtext); err != nil {
 		return err
 	}
