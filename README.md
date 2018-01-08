@@ -25,17 +25,12 @@ Building otaru takes a bit of time (Approx 6 min. with decent internet connectio
   - Otaru supports using separate bucket for storing metadata, which is accessed more frequently compared to blobs.
   - Blob bucket may be any of Standard, Durable Reduced Availability, or Nearline. However, it is recommended to store metadata in Standard class bucket.
   - Metadata bucket name must be blob bucket name + "-meta" suffix. For example, if your bucket for storing blobs is named `otaru-foobar`, metadata bucket must be named `otaru-foobar-meta`.
-- Issue OAuth 2.0 client ID. "APIs & auth" -> "Credentials" -> "Add credentials" -> "API key"
-  - Choose "OAuth 2.0 client ID", Application type "Other".
-  - Name the ID `Otaru client` or something distinguishable.
-  - Download the client secret by clicking on the "Download JSON" icon button located on the left of the table.
 
-### Create {config,password} file & place OAuth 2.0 credentials
+### Create {config,password} file
 
     $ mkdir ~/.otaru # You may change this dir to any dir you want, but a new directory is needed as otaru has multiple config files to keep.
     $ cp doc/config.toml.example ~/.otaru/config.toml
     $ $EDITOR ~/.otaru/config.toml # replace placeholders
-    $ cp [downloaded-client-secret-json] ~/.otaru/credentials.json
     $ echo [your-password] > ~/.otaru/password.txt # configure encryption key
 
 ### Setup Google Cloud SDK
@@ -49,12 +44,15 @@ Install `gcloud` command per instructions: https://cloud.google.com/sdk/
 #### Authenticate gcloud tool
     $ gcloud auth login
 
-### Authorize Google Cloud Storage / Datastore access to Otaru
-Complete the step "Build otaru inside Docker container" before executing below.
+### Create and configure service account
 
-    $ OTARUDIR=~/.otaru out/otaru-gcloudauthcli
-
-Visit displayed url, and paste response code. Check that `~/.otaru/tokencache.json` is correctly generated.
+    $ export account=otaru-user
+    $ export project=$(gcloud config get-value core/project)
+    $ gcloud iam service-accounts create ${account}
+    $ gcloud iam service-accounts keys create ~/.otaru/credentials.json --iam-account ${account}@${project}.iam.gserviceaccount.com
+    $ gcloud projects add-iam-policy-binding ${project} --member serviceAccount:${account}@${project}.iam.gserviceaccount.com --role "roles/datastore.owner"
+    $ gsutil -m acl ch -r -u ${account}@${project}.iam.gserviceaccount.com:O gs://${bucket}
+    $ gsutil -m acl ch -r -u ${account}@${project}.iam.gserviceaccount.com:O gs://${bucket}-meta
 
 ### Generate self-signed cert+key for quick testing.
 Otaru requires TLS for its WebUI and api server.
@@ -71,8 +69,7 @@ Below command will generate self-signed X.509 certificate and key pair at `~/.ot
 
 ### Mount!
     
-    $ mkdir -p /otaru/foobar && sudo chown `whoami` /otaru/foobar
-    $ OTARUDIR=~/.otaru out/otaru-mkfs /otaru/foobar
-    $ OTARUDIR=~/.otaru out/otaru-server /otaru/foobar
+    $ OTARUDIR=~/.otaru out/otaru-mkfs
+    $ OTARUDIR=~/.otaru out/otaru-server
 
-Enjoy using `/otaru/foobar`. Press Ctrl-C to start unmount sequence. Navigate to http://localhost:10246 for webui.
+Navigate to http://localhost:10246 for webui.
