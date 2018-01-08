@@ -44,6 +44,12 @@ func main() {
 		os.Exit(2)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := facade.AuthenticateIfNeeded(cfg, ctx); err != nil {
+		logger.Criticalf(mylog, "facade.AuthenticateIfNeeded failed: %v", err)
+		return
+	}
 	if err := facade.Mkfs(cfg); err != nil {
 		logger.Warningf(mylog, "facade.Mkfs end: %v", err)
 		return

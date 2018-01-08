@@ -10,7 +10,11 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+
+	"github.com/nyaxt/otaru/logger"
 )
+
+var mylog = logger.Registry().Category("gcloud-auth")
 
 func GetGCloudTokenViaWebUI(ctx context.Context, conf *oauth2.Config) (*oauth2.Token, error) {
 	authurl := conf.AuthCodeURL("otaru", oauth2.AccessTypeOffline)
@@ -43,17 +47,35 @@ func getGCloudTokenCached(tokenCacheFilePath string) (*oauth2.Token, error) {
 	return &token, nil
 }
 
-func updateGCloudTokenCache(token *oauth2.Token, tokenCacheFilePath string) error {
-	tjson, err := json.Marshal(token)
+type updateCacheTokenSource struct {
+	be            oauth2.TokenSource
+	cacheFilePath string
+
+	cachedToken *oauth2.Token
+}
+
+func (s *updateCacheTokenSource) Token() (*oauth2.Token, error) {
+	token, err := s.be.Token()
 	if err != nil {
-		return fmt.Errorf("Serializing token failed: %v", err)
+		return nil, err
 	}
 
-	if err := ioutil.WriteFile(tokenCacheFilePath, tjson, 0600); err != nil {
-		return fmt.Errorf("Writing token cache failed: %v", err)
+	if token != s.cachedToken {
+		tjson, err := json.Marshal(token)
+		if err != nil {
+			logger.Panicf(mylog, "Marshalling token failed: %v", err)
+			return nil, err
+		}
+
+		if err := ioutil.WriteFile(s.cacheFilePath, tjson, 0600); err != nil {
+			logger.Warningf(mylog, "Marshalling token failed: %v", err)
+			return token, nil
+		}
+
+		s.cachedToken = token
 	}
 
-	return nil
+	return token, err
 }
 
 func GetGCloudTokenSource(ctx context.Context, credentialsFilePath string, tokenCacheFilePath string, tryWebUI bool) (oauth2.TokenSource, error) {
@@ -68,41 +90,45 @@ func GetGCloudTokenSource(ctx context.Context, credentialsFilePath string, token
 		datastore.ScopeDatastore,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("invalid google cloud key json: %v", err)
+		return nil, fmt.Errorf("invalid google cloud key json \"%v\" err: %v", credentialsFilePath, err)
 	}
 
-	revertToWebUI := func() (oauth2.TokenSource, error) {
+	var tsrc oauth2.TokenSource
+	cachedToken, err := getGCloudTokenCached(tokenCacheFilePath)
+	if err == nil {
+		tsrc = &updateCacheTokenSource{
+			be:            conf.TokenSource(ctx, cachedToken),
+			cacheFilePath: tokenCacheFilePath,
+			cachedToken:   cachedToken,
+		}
+		// Set |err| and fallback to webui if refresh failed.
+		_, err = tsrc.Token()
+		if err != nil {
+			logger.Infof(mylog, "Cached token invalid or refresh failed. Falling back to webui auth: %v", err)
+		}
+	}
+	if err != nil {
 		if !tryWebUI {
-			return nil, fmt.Errorf("OAuth2 token cache invalid.")
+			return nil, fmt.Errorf("OAuth2 token cache \"%v\" invalid, and WebUI session disabled.", tokenCacheFilePath)
 		}
 
 		token, err := GetGCloudTokenViaWebUI(ctx, conf)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get valid gcloud token: %v", err)
+			return nil, fmt.Errorf("Failed to get valid gcloud token via WebUI: %v", err)
 		}
-		if err := updateGCloudTokenCache(token, tokenCacheFilePath); err != nil {
-			return nil, fmt.Errorf("Failed to update token cache: %v", err)
+		if !token.Valid() {
+			logger.Panicf(mylog, "gcloud auth token acquired via WebUI must be valid.")
 		}
 
-		// FIXME: Token cache is not updated if token was refreshed by tokenRefresher from conf.Client
-		return conf.TokenSource(ctx, token), nil
-	}
-
-	token, err := getGCloudTokenCached(tokenCacheFilePath)
-	if err != nil {
-		return revertToWebUI()
-	}
-	if !token.Valid() {
-		// try refresh
-		token, err = conf.TokenSource(ctx, token).Token()
-		if err != nil {
-			return revertToWebUI()
-		}
-		if updateGCloudTokenCache(token, tokenCacheFilePath); err != nil {
-			return nil, fmt.Errorf("Failed to update token cache: %v", err)
+		tsrc = &updateCacheTokenSource{
+			be:            conf.TokenSource(ctx, token),
+			cacheFilePath: tokenCacheFilePath,
+			cachedToken:   nil,
 		}
 	}
 
-	// FIXME: Token cache is not updated if token was refreshed by tokenRefresher from conf.Client
-	return conf.TokenSource(ctx, token), nil
+	if tsrc == nil {
+		logger.Panicf(mylog, "tsrc must be non-nil by here.")
+	}
+	return tsrc, nil
 }

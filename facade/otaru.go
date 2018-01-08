@@ -1,13 +1,13 @@
 package facade
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path"
 	"time"
 
-	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 
 	"github.com/nyaxt/otaru/apiserver"
@@ -78,6 +78,19 @@ type Otaru struct {
 
 func BootstrapLogger() {
 	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
+}
+
+func AuthenticateIfNeeded(cfg *Config, ctx context.Context) error {
+	if cfg.LocalDebug {
+		return nil
+	}
+
+	_, err := auth.GetGCloudTokenSource(ctx, cfg.CredentialsFilePath, cfg.TokenCacheFilePath, true)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func Mkfs(cfg *Config) error {
