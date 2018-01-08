@@ -31,7 +31,7 @@ func TestConfig() *facade.Config {
 func TestTokenSource() oauth2.TokenSource {
 	cfg := TestConfig()
 
-	clisrc, err := auth.GetGCloudTokenSource(context.TODO(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
+	clisrc, err := auth.GetGCloudTokenSource(cfg.CredentialsFilePath)
 	if err != nil {
 		log.Fatalf("Failed to create TestTokenSource: %v", err)
 	}

@@ -44,8 +44,6 @@ func main() {
 		os.Exit(2)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	if err := facade.Mkfs(cfg); err != nil {
 		logger.Warningf(mylog, "facade.Mkfs end: %v", err)
 		return

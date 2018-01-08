@@ -56,7 +56,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	tsrc, err := auth.GetGCloudTokenSource(context.Background(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
+	tsrc, err := auth.GetGCloudTokenSource(cfg.CredentialsFilePath)
 	if err != nil {
 		logger.Criticalf(mylog, "Failed to init GCloudTokenSource: %v", err)
 	}

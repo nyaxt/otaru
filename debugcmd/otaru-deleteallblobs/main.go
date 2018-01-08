@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 
 	"github.com/nyaxt/otaru/blobstore"
@@ -90,7 +89,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	tsrc, err := auth.GetGCloudTokenSource(context.Background(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
+	tsrc, err := auth.GetGCloudTokenSource(cfg.CredentialsFilePath)
 	if err != nil {
 		logger.Criticalf(mylog, "Failed to init GCloudClientSource: %v", err)
 	}
