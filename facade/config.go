@@ -127,11 +127,6 @@ func NewConfig(configdir string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to resolve cache dir to absolute path \"%s\": %v", cfg.CacheDir, err)
 	}
-	if err := util.IsDir(cfg.CacheDir); err != nil {
-		return nil, fmt.Errorf("Failed to resolve cache dir \"%s\": %v", cfg.CacheDir, err)
-	} else {
-		logger.Infof(mylog, "Cache dir resolved to: %s", cfg.CacheDir)
-	}
 
 	if cfg.CacheHighWatermark != "" {
 		bytes, err := humanize.ParseBytes(cfg.CacheHighWatermark)

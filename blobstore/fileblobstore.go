@@ -73,7 +73,15 @@ func NewFileBlobStore(base string, flags int) (*FileBlobStore, error) {
 
 	fi, err := os.Stat(base)
 	if err != nil {
-		return nil, fmt.Errorf("Fstat base \"%s\" failed: %v", base, err)
+		if os.IsNotExist(err) {
+			logger.Infof(mylog, "FileBlobStore mkdir basedir: %s", base)
+			if err := os.Mkdir(base, 0755); err != nil {
+				return nil, fmt.Errorf("Mkdir base \"%s\" failed: %v", base, err)
+			}
+			fi, err = os.Stat(base)
+		} else {
+			return nil, fmt.Errorf("Fstat base \"%s\" failed: %v", base, err)
+		}
 	}
 	if !fi.Mode().IsDir() {
 		return nil, fmt.Errorf("Specified base \"%s\" is not a directory")
