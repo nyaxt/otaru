@@ -12,6 +12,9 @@ bucket_name = "otaru-my-foobar"
 # - If set to true, use [bucket_name]+"-meta" for storing metadata.
 use_separate_bucket_for_metadata = true
 
+# - Service account private key json file path
+# credentials_file_path = "${OTARUDIR}/credentials.json"
+
 # Blob cache config
 
 # - Directory for storing cache.
@@ -23,8 +26,13 @@ cache_high_watermark = "25GB"
 #     cache discard will try to keep cache dir usage below this threshold.
 cache_low_watermark = "18GB"
 
+# - If true, forbid any modificatino to the filesystem.
+# read_only = false
+
 # - If specified, FUSE mount to specified point.
 # fuse_mount_point = "/mnt/otaru"
+# - Run GC once per specified seconds. Set -1 to disable auto GC.
+# gc_period = 900
 
 # API server config
 [api_server]

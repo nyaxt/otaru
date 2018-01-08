@@ -23,6 +23,7 @@ type Config struct {
 	ProjectName                  string
 	BucketName                   string
 	UseSeparateBucketForMetadata bool
+	CredentialsFilePath          string
 
 	CacheDir string
 	// Cache size high watermark: discard cache when cache dir usage reach here.
@@ -37,13 +38,11 @@ type Config struct {
 
 	Password string
 
-	CredentialsFilePath string
-
 	// If non-empty, perform fuse mount.
 	FuseMountPoint string
 
 	// Run GC every "GCPeriod" seconds.
-	GCPeriod int64
+	GCPeriod int64 `toml:"gc_period"`
 
 	Fluent       gfluent.Config
 	Logger       loggerconfig.Config
