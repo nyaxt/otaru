@@ -38,7 +38,6 @@ type Config struct {
 	Password string
 
 	CredentialsFilePath string
-	TokenCacheFilePath  string
 
 	// If non-empty, perform fuse mount.
 	FuseMountPoint string
@@ -108,7 +107,6 @@ func NewConfig(configdir string) (*Config, error) {
 		CacheHighWatermarkInBytes:    math.MaxInt64,
 		CacheLowWatermarkInBytes:     math.MaxInt64,
 		CredentialsFilePath:          path.Join(configdir, "credentials.json"),
-		TokenCacheFilePath:           path.Join(configdir, "tokencache.json"),
 		GCPeriod:                     15 * 60,
 		ApiServer: ApiServerConfig{
 			ListenAddr:  ":10246",
@@ -172,19 +170,12 @@ func NewConfig(configdir string) (*Config, error) {
 	}
 
 	if !cfg.LocalDebug {
+		cfg.CredentialsFilePath = os.ExpandEnv(cfg.CredentialsFilePath)
 		if _, err := os.Stat(cfg.CredentialsFilePath); err != nil {
 			if os.IsNotExist(err) {
 				return nil, fmt.Errorf("Credentials not found at %s", cfg.CredentialsFilePath)
 			} else {
 				return nil, fmt.Errorf("Failed to stat credentials file \"%s\" from unknown err: %v", cfg.CredentialsFilePath, err)
-			}
-		}
-
-		if _, err := os.Stat(cfg.TokenCacheFilePath); err != nil {
-			if os.IsNotExist(err) {
-				logger.Warningf(mylog, "Warning: Token cache file found not at %s", cfg.TokenCacheFilePath)
-			} else {
-				return nil, fmt.Errorf("Failed to stat token cache file \"%s\" from unknown err: %v", cfg.TokenCacheFilePath, err)
 			}
 		}
 	}

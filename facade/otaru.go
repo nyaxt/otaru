@@ -1,7 +1,6 @@
 package facade
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -80,19 +79,6 @@ func BootstrapLogger() {
 	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
 }
 
-func AuthenticateIfNeeded(cfg *Config, ctx context.Context) error {
-	if cfg.LocalDebug {
-		return nil
-	}
-
-	_, err := auth.GetGCloudTokenSource(ctx, cfg.CredentialsFilePath, cfg.TokenCacheFilePath, true)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func Mkfs(cfg *Config) error {
 	o := &Otaru{}
 	defer o.Close()
@@ -145,20 +131,20 @@ func Serve(cfg *Config, closeC <-chan error) error {
 	}
 
 	if err := o.initCrypt(cfg); err != nil {
-		return err
+		return fmt.Errorf("initCrypt: %v", err)
 	}
 
 	o.S = scheduler.NewScheduler()
 	o.R = scheduler.NewRepetitiveJobRunner(o.S)
 
 	if err := o.initCloudDatastore(cfg); err != nil {
-		return err
+		return fmt.Errorf("initCloudDatastore: %v", err)
 	}
 	if err := o.initBlobStore(cfg, flags); err != nil {
-		return err
+		return fmt.Errorf("initBlobStore: %v", err)
 	}
 	if err := o.initINodeDBIO(cfg, flags); err != nil {
-		return err
+		return fmt.Errorf("initINodeDBIO: %v", err)
 	}
 
 	var err error
@@ -280,14 +266,15 @@ func (o *Otaru) initCrypt(cfg *Config) error {
 func (o *Otaru) initCloudDatastore(cfg *Config) error {
 	if !cfg.LocalDebug {
 		var err error
-		o.Tsrc, err = auth.GetGCloudTokenSource(context.TODO(), cfg.CredentialsFilePath, cfg.TokenCacheFilePath, false)
+		// FIXME: move below
+		o.Tsrc, err = auth.GetGCloudTokenSource(cfg.CredentialsFilePath)
 		if err != nil {
 			return fmt.Errorf("Failed to init GCloudClientSource: %v", err)
 		}
 		o.DSCfg = datastore.NewConfig(cfg.ProjectName, cfg.BucketName, o.C, o.Tsrc)
 		o.GL = datastore.NewGlobalLocker(o.DSCfg, GenHostName(), "FIXME: fill info")
 		if err := o.GL.Lock(o.ReadOnly); err != nil {
-			return err
+			return fmt.Errorf("Failed to acquire global lock: %v", err)
 		}
 	}
 

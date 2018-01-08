@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -68,12 +67,6 @@ func main() {
 		closeC <- errors.New("Critical log event.")
 	}))
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	if err := facade.AuthenticateIfNeeded(cfg, ctx); err != nil {
-		logger.Criticalf(mylog, "facade.AuthenticateIfNeeded failed: %v", err)
-		return
-	}
 	if err := facade.Serve(cfg, closeC); err != nil {
 		logger.Warningf(mylog, "facade.Serve end: %v", err)
 	}
