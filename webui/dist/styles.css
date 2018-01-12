@@ -136,15 +136,6 @@ body {
 }
 
 .browsefs__parentdir {
-  display: block;
-  height: 23px;
-  line-height: 23px;
-  padding: px;
-  border: 1px solid var(--dark-bg-color);
-  font-size: 18px;
-  text-decoration: none;
-  text-align: center;
-  color: black;
 }
 
 .browsefs__label {

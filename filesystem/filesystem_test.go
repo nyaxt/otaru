@@ -28,6 +28,7 @@ func TestFileWriteRead(t *testing.T) {
 		t.Errorf("OpenFileFullPath failed: %v", err)
 		return
 	}
+	defer h.Close()
 
 	err = h.PWrite(tu.HelloWorld, 0)
 	if err != nil {

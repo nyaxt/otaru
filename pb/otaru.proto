@@ -38,10 +38,45 @@ message ListDirResponse {
   repeated Entry entry = 1;
 }
 
+message CreateFileRequest {
+  uint64 dir_id = 1;
+  string name = 2;
+  uint32 uid = 3;
+  uint32 gid = 4;
+  uint32 perm_mode = 5;
+  int64 modified_time = 6;
+}
+
+message CreateFileResponse {
+  uint64 id = 1;
+}
+
+message WriteFileRequest {
+  uint64 id = 1;
+  uint64 offset = 2;
+  bytes body = 3;
+}
+
+message WriteFileResponse {
+}
+
 service FileSystemService {
   rpc ListDir(ListDirRequest) returns (ListDirResponse) {
     option (google.api.http) = {
       get: "/api/v1/filesystem/ls"
+    };
+  }
+
+  rpc CreateFile(CreateFileRequest) returns (CreateFileResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/filesystem/file"
+      body: "*"
+    };
+  }
+  rpc WriteFile(WriteFileRequest) returns (WriteFileResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/filesystem/file/{id}"
+      body: "*"
     };
   }
 }

@@ -33,6 +33,7 @@ const actionDefMap = {
 };
 const pathInput = $('.browsefs__path');
 const listTbody = $('.browsefs__list').lastChild;
+const upload = $('.browsefs__upload');
 
 const triggerUpdate = async () => {
   if (!isSectionSelected('browsefs'))
@@ -124,6 +125,13 @@ pathInput.addEventListener('change', () => {
   const path = getBrowsefsPath();
   if (pathInput.value !== path) {
     setBrowsefsPath(pathInput.value);
+  }
+});
+upload.addEventListener('change', () => {
+  const files = upload.files;
+  console.log('------') ;
+  for (let file of files) {
+    console.log(`name: ${file.name} size: ${file.size} type: ${file.type}`) ;
   }
 });
 contentSection('browsefs').addEventListener('hidden', () => {
