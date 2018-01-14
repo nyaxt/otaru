@@ -33,6 +33,7 @@ dep.png
 out/*
 otaru-server
 otaru-mkfs
+otaru-cli
 *-fuzz.zip
 
 version/consts.go

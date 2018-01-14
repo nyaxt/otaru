@@ -2,7 +2,6 @@ package apiserver
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -16,9 +15,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
+	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/logger"
 	sjson "github.com/nyaxt/otaru/pb/json"
-	x509util "github.com/nyaxt/otaru/util/x509"
 	"github.com/nyaxt/otaru/webui"
 	"github.com/nyaxt/otaru/webui/swaggerui"
 )
@@ -110,18 +109,11 @@ func serveSwagger(mux *http.ServeMux) {
 }
 
 func serveApiGateway(mux *http.ServeMux, opts *options, certtext []byte) error {
-	certpool := x509.NewCertPool()
-	if !certpool.AppendCertsFromPEM(certtext) {
-		return fmt.Errorf("certpool creation failure")
-	}
-	serverName, err := x509util.FindServerName(certpool.Subjects())
+	transcred, err := cli.ClientTransportCredentialFromCertText(certtext)
 	if err != nil {
-		return fmt.Errorf("failed to find server name")
+		return err
 	}
-	logger.Infof(mylog, "Using server name \"%s\" for grpc loopback connection.", serverName)
-	gwdialopts := []grpc.DialOption{
-		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(certpool, serverName)),
-	}
+	gwdialopts := []grpc.DialOption{grpc.WithTransportCredentials(transcred)}
 
 	ctx := context.Background()
 	gwmux := gwruntime.NewServeMux()

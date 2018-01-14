@@ -15,11 +15,6 @@ import (
 
 var mylog = logger.Registry().Category("otaru-server")
 
-var Usage = func() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	flag.PrintDefaults()
-}
-
 var (
 	flagVersion   = flag.Bool("version", false, "Show version info")
 	flagReadOnly  = flag.Bool("readonly", false, "Mount as read-only mode. No changes to the filesystem is allowed.")
@@ -27,7 +22,6 @@ var (
 )
 
 func main() {
-	flag.Usage = Usage
 	flag.Parse()
 
 	if *flagVersion {
