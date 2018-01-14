@@ -32,6 +32,6 @@ func Ls(ctx context.Context, cfg *CliConfig, pathstr string) {
 		return
 	}
 	for _, e := range resp.Entry {
-		fmt.Printf("%s", e.Name)
+		fmt.Printf("%s\n", e.Name)
 	}
 }

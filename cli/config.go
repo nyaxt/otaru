@@ -12,7 +12,7 @@ import (
 )
 
 type CliConfig struct {
-	Host map[string]Host
+	Host map[string]*Host
 }
 
 type Host struct {
@@ -40,7 +40,16 @@ func NewConfig(configdir string) (*CliConfig, error) {
 		return nil, fmt.Errorf("Failed to parse config file: %v", err)
 	}
 
-	// TODO expandpath *File
+	possibleCertFile := path.Join(configdir, "cert.pem")
+	if util.IsRegular(possibleCertFile) != nil {
+		possibleCertFile = ""
+	}
+	for _, h := range cfg.Host {
+		h.ExpectedCertFile = os.ExpandEnv(h.ExpectedCertFile)
+		if h.ExpectedCertFile == "" {
+			h.ExpectedCertFile = possibleCertFile
+		}
+	}
 
 	return &cfg, nil
 }

@@ -8,6 +8,8 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/nyaxt/otaru/logger"
 )
 
 func getConnInfo(cfg *CliConfig, vhost string) (string, []grpc.DialOption, error) {
@@ -23,12 +25,14 @@ func getConnInfo(cfg *CliConfig, vhost string) (string, []grpc.DialOption, error
 		if err != nil {
 			return "", nil, fmt.Errorf("Failed to read specified cert file: %s", certfile)
 		}
+		logger.Debugf(Log, "Expecting server cert to match: %v", certfile)
 
 		transcred, err = ClientTransportCredentialFromCertText(certtext)
 		if err != nil {
 			return "", nil, err
 		}
 	} else {
+		logger.Debugf(Log, "No server cert expectation given.")
 		transcred = credentials.NewTLS(&tls.Config{})
 	}
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(transcred)}

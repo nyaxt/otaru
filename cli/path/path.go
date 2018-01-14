@@ -52,7 +52,7 @@ func advance(st *State, p *Path, s string) (string, error) {
 		return s, nil
 
 	case BeforeFsPath:
-		p.FsPath = strings.TrimPrefix(s, "/")
+		p.FsPath = s
 		*st = End
 		return "", nil
 
