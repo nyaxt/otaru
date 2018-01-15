@@ -321,7 +321,8 @@
       "properties": {
         "dir_id": {
           "type": "string",
-          "format": "uint64"
+          "format": "uint64",
+          "description": "If |dir_id| == 0, then treat |name| as fullpath."
         },
         "name": {
           "type": "string"
@@ -350,6 +351,10 @@
         "id": {
           "type": "string",
           "format": "uint64"
+        },
+        "is_new_file": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },

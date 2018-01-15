@@ -34,14 +34,14 @@ func main() {
 	cfg, err := facade.NewConfig(*flagConfigDir)
 	if err != nil {
 		logger.Criticalf(mylog, "%v", err)
-		Usage()
+		flag.Usage()
 		os.Exit(2)
 	}
 	if *flagReadOnly {
 		cfg.ReadOnly = true
 	}
 	if flag.NArg() != 0 {
-		Usage()
+		flag.Usage()
 		os.Exit(2)
 	}
 

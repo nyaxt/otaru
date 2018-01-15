@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"path"
 	"strings"
 )
 
@@ -52,7 +53,7 @@ func advance(st *State, p *Path, s string) (string, error) {
 		return s, nil
 
 	case BeforeFsPath:
-		p.FsPath = s
+		p.FsPath = path.Clean(s)
 		*st = End
 		return "", nil
 

@@ -28,6 +28,14 @@ func (e Error) Error() string {
 	return syscall.Errno(e).Error()
 }
 
+func IsExist(e error) bool {
+	e2, ok := e.(Error)
+	if !ok {
+		return false
+	}
+	return e2 == EEXIST
+}
+
 func IsNotExist(e error) bool {
 	e2, ok := e.(Error)
 	if !ok {
