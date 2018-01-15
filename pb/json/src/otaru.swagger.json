@@ -104,6 +104,43 @@
       }
     },
     "/api/v1/filesystem/file/{id}": {
+      "get": {
+        "operationId": "ReadFile",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbReadFileResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "length",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      },
       "put": {
         "operationId": "WriteFile",
         "responses": {
@@ -129,6 +166,30 @@
             "schema": {
               "$ref": "#/definitions/pbWriteFileRequest"
             }
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
+    "/api/v1/filesystem/findNode": {
+      "get": {
+        "operationId": "FindNodeFullPath",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbFindNodeFullPathResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -358,6 +419,15 @@
         }
       }
     },
+    "pbFindNodeFullPathResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
     "pbGetBlobstoreConfigResponse": {
       "type": "object",
       "properties": {
@@ -570,6 +640,15 @@
         },
         "location": {
           "type": "string"
+        }
+      }
+    },
+    "pbReadFileResponse": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "format": "byte"
         }
       }
     },

@@ -53,6 +53,24 @@ message CreateFileResponse {
   bool is_new_file = 2;
 }
 
+message FindNodeFullPathRequest {
+  string path = 1;
+}
+
+message FindNodeFullPathResponse {
+  uint64 id = 1;
+}
+
+message ReadFileRequest {
+  uint64 id = 1;
+  uint64 offset = 2;
+  uint32 length = 3;
+}
+
+message ReadFileResponse {
+  bytes body = 1;
+}
+
 message WriteFileRequest {
   uint64 id = 1;
   uint64 offset = 2;
@@ -69,12 +87,25 @@ service FileSystemService {
     };
   }
 
+  rpc FindNodeFullPath(FindNodeFullPathRequest) returns (FindNodeFullPathResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/filesystem/findNode"
+    };
+  }
+
   rpc CreateFile(CreateFileRequest) returns (CreateFileResponse) {
     option (google.api.http) = {
       post: "/api/v1/filesystem/file"
       body: "*"
     };
   }
+
+  rpc ReadFile(ReadFileRequest) returns (ReadFileResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/filesystem/file/{id}"
+    };
+  }
+
   rpc WriteFile(WriteFileRequest) returns (WriteFileResponse) {
     option (google.api.http) = {
       put: "/api/v1/filesystem/file/{id}"

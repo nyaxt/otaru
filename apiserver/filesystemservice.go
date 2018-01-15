@@ -15,6 +15,8 @@ import (
 	"github.com/nyaxt/otaru/util"
 )
 
+const MaxReadLen = 1024 * 1024
+
 type fileSystemService struct {
 	fs *filesystem.FileSystem
 }
@@ -59,6 +61,17 @@ func (svc *fileSystemService) ListDir(ctx context.Context, req *pb.ListDirReques
 	return &pb.ListDirResponse{Entry: es}, nil
 }
 
+func (svc *fileSystemService) FindNodeFullPath(ctx context.Context, req *pb.FindNodeFullPathRequest) (*pb.FindNodeFullPathResponse, error) {
+	id, err := svc.fs.FindNodeFullPath(req.Path)
+	if err != nil {
+		if util.IsNotExist(err) {
+			return nil, grpc.Errorf(codes.NotFound, "Specified path not found.")
+		}
+		return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("FindNodeFullPath failed: %v", err))
+	}
+	return &pb.FindNodeFullPathResponse{Id: uint64(id)}, nil
+}
+
 func (svc *fileSystemService) CreateFile(ctx context.Context, req *pb.CreateFileRequest) (*pb.CreateFileResponse, error) {
 	dirId := inodedb.ID(req.DirId)
 	permMode := uint16(req.PermMode & 0777)
@@ -96,6 +109,27 @@ func (svc *fileSystemService) CreateFile(ctx context.Context, req *pb.CreateFile
 	}
 
 	return &pb.CreateFileResponse{Id: uint64(id), IsNewFile: true}, nil
+}
+
+func (svc *fileSystemService) ReadFile(ctx context.Context, req *pb.ReadFileRequest) (*pb.ReadFileResponse, error) {
+	id := inodedb.ID(req.Id)
+
+	h, err := svc.fs.OpenFile(id, flags.O_RDONLY)
+	if err != nil {
+		return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("OpenFile failed: %v", err))
+	}
+	defer h.Close()
+
+	if req.Length > MaxReadLen {
+		req.Length = MaxReadLen
+	}
+	body := make([]byte, req.Length)
+	n, err := h.ReadAt(body, int64(req.Offset))
+	if err != nil {
+		return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("ReadAt failed: %v", err))
+	}
+
+	return &pb.ReadFileResponse{Body: body[:n]}, nil
 }
 
 func (svc *fileSystemService) WriteFile(ctx context.Context, req *pb.WriteFileRequest) (*pb.WriteFileResponse, error) {
