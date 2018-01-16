@@ -46,6 +46,7 @@ func Ls(ctx context.Context, cfg *CliConfig, args []string) {
 
 func Get(ctx context.Context, cfg *CliConfig, args []string) {
 	pathstr := args[1]
+	useHttpApi := true
 
 	p, err := opath.Parse(pathstr)
 	if err != nil {
@@ -53,41 +54,45 @@ func Get(ctx context.Context, cfg *CliConfig, args []string) {
 		return
 	}
 
-	conn, err := DialVhost(cfg, p.Vhost)
-	if err != nil {
-		logger.Criticalf(Log, "%v", err)
-		return
-	}
-	defer conn.Close()
-
-	fsc := pb.NewFileSystemServiceClient(conn)
-	resp, err := fsc.FindNodeFullPath(ctx, &pb.FindNodeFullPathRequest{Path: p.FsPath})
-	if err != nil {
-		logger.Criticalf(Log, "FindNodeFullPath failed: %v", err)
-		return
-	}
-	id := resp.Id
-	logger.Infof(Log, "Got id %d for path \"%s\"", id, p.FsPath)
-
-	w := os.Stdout // FIXME
-
-	offset := uint64(0)
-	for {
-		n := BufLen
-		resp, err := fsc.ReadFile(ctx, &pb.ReadFileRequest{Id: id, Offset: offset, Length: uint32(n)})
+	if useHttpApi {
+		logger.Warningf(Log, "needs impl!")
+	} else {
+		conn, err := DialVhost(cfg, p.Vhost)
 		if err != nil {
-			logger.Criticalf(Log, "ReadFile(id=%d, offset=%d, len=%d) failed: %v", id, offset, n, err)
+			logger.Criticalf(Log, "%v", err)
 			return
 		}
-		nr := len(resp.Body)
-		// logger.Debugf(Log, "ReadFile(id=%d, offset=%d, len=%d) -> len=%d", id, offset, n, nr)
-		if nr == 0 {
-			break
-		}
-		offset += uint64(nr)
+		defer conn.Close()
 
-		if _, err := w.Write(resp.Body); err != nil {
-			logger.Criticalf(Log, "Write(len=%d) err: %v", len(resp.Body), err)
+		fsc := pb.NewFileSystemServiceClient(conn)
+		resp, err := fsc.FindNodeFullPath(ctx, &pb.FindNodeFullPathRequest{Path: p.FsPath})
+		if err != nil {
+			logger.Criticalf(Log, "FindNodeFullPath failed: %v", err)
+			return
+		}
+		id := resp.Id
+		logger.Infof(Log, "Got id %d for path \"%s\"", id, p.FsPath)
+
+		w := os.Stdout // FIXME
+
+		offset := uint64(0)
+		for {
+			n := BufLen
+			resp, err := fsc.ReadFile(ctx, &pb.ReadFileRequest{Id: id, Offset: offset, Length: uint32(n)})
+			if err != nil {
+				logger.Criticalf(Log, "ReadFile(id=%d, offset=%d, len=%d) failed: %v", id, offset, n, err)
+				return
+			}
+			nr := len(resp.Body)
+			// logger.Debugf(Log, "ReadFile(id=%d, offset=%d, len=%d) -> len=%d", id, offset, n, nr)
+			if nr == 0 {
+				break
+			}
+			offset += uint64(nr)
+
+			if _, err := w.Write(resp.Body); err != nil {
+				logger.Criticalf(Log, "Write(len=%d) err: %v", len(resp.Body), err)
+			}
 		}
 	}
 }

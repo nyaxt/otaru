@@ -127,11 +127,22 @@ pathInput.addEventListener('change', () => {
     setBrowsefsPath(pathInput.value);
   }
 });
-upload.addEventListener('change', () => {
+upload.addEventListener('change', async () => {
   const files = upload.files;
   console.log('------') ;
   for (let file of files) {
     console.log(`name: ${file.name} size: ${file.size} type: ${file.type}`) ;
+    // FIXME sanitize file.name
+    const cfresp = await rpc('api/v1/filesystem/file', {
+      method: 'POST', 
+      body: {
+        dir_id: 0,
+        name: `${getBrowsefsPath()}/${file.name}`,
+        uid: 0, gid: 0, perm_mode: 0o644, modified_time: 0
+      }});
+    const id = cfresp.id;
+    console.dir(cfresp);
+    const uplresp = await rpc(`file/${id}`, {method: 'PUT', args:{ offset: 0 }, rawBody: file});
   }
 });
 contentSection('browsefs').addEventListener('hidden', () => {

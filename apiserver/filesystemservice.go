@@ -75,7 +75,12 @@ func (svc *fileSystemService) FindNodeFullPath(ctx context.Context, req *pb.Find
 func (svc *fileSystemService) CreateFile(ctx context.Context, req *pb.CreateFileRequest) (*pb.CreateFileResponse, error) {
 	dirId := inodedb.ID(req.DirId)
 	permMode := uint16(req.PermMode & 0777)
-	modifiedT := time.Unix(req.ModifiedTime, 0)
+	var modifiedT time.Time
+	if req.ModifiedTime > 0 {
+		modifiedT = time.Unix(req.ModifiedTime, 0)
+	} else {
+		modifiedT = time.Now()
+	}
 	if dirId == 0 {
 		// Fullpath mode.
 		fullpath := req.Name

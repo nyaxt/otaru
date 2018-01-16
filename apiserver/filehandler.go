@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
@@ -92,6 +93,29 @@ func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, id inode
 	http.ServeContent(w, r, filename, a.ModifiedT, c)
 }
 
+func (fh *fileHandler) servePut(w http.ResponseWriter, r *http.Request, id inodedb.ID, filename string) {
+	h, err := fh.fs.OpenFile(id, flags.O_WRONLY)
+	if err != nil {
+		logger.Debugf(mylog, "servePut(id: %v). OpenFile failed: %v", id, err)
+		http.Error(w, "Failed to open file", http.StatusInternalServerError)
+		return
+	}
+	defer h.Close()
+
+	// FIXME: parse offset
+	offset := int64(0)
+	nw, err := io.Copy(&blobstore.OffsetWriter{h, offset}, r.Body)
+	if err != nil {
+		logger.Debugf(mylog, "servePut(id: %v). io.Copy failed: %v", id, err)
+		http.Error(w, "Failed to write file", http.StatusInternalServerError)
+		return
+	}
+	logger.Debugf(mylog, "servePut(id: %v). written %d", id, nw)
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Write([]byte("\"ok\""))
+}
+
 func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// path: /inodeid/filename
 	args := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
@@ -115,6 +139,8 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "GET" || r.Method == "HEAD" {
 		fh.serveGet(w, r, id, filename)
+	} else if r.Method == "PUT" {
+		fh.servePut(w, r, id, filename)
 	} else {
 		http.Error(w, "Unsupported method", http.StatusBadRequest)
 		return

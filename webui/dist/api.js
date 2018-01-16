@@ -26,6 +26,9 @@ const rpc = async (endpoint, opts = {}) => {
     const jsonStr = JSON.stringify(opts['body']);
     fetchOpts.body = new Blob([jsonStr], {type: 'application/json'});
   }
+  if (opts['rawBody'] !== undefined) {
+    fetchOpts.body = opts['rawBody']; 
+  }
 
   const response = await window.fetch(url, fetchOpts);
   if (!response.ok) {
