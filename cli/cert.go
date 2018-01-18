@@ -1,16 +1,15 @@
 package cli
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-
-	"google.golang.org/grpc/credentials"
 
 	"github.com/nyaxt/otaru/logger"
 	x509util "github.com/nyaxt/otaru/util/x509"
 )
 
-func ClientTransportCredentialFromCertText(certtext []byte) (credentials.TransportCredentials, error) {
+func TLSConfigFromCertText(certtext []byte) (*tls.Config, error) {
 	certpool := x509.NewCertPool()
 	if !certpool.AppendCertsFromPEM(certtext) {
 		return nil, fmt.Errorf("certpool creation failure")
@@ -21,5 +20,5 @@ func ClientTransportCredentialFromCertText(certtext []byte) (credentials.Transpo
 	}
 	logger.Infof(Log, "Using server name \"%s\" for grpc loopback connection.", serverName)
 
-	return credentials.NewClientTLSFromCert(certpool, serverName), nil
+	return &tls.Config{ServerName: serverName, RootCAs: certpool}, nil
 }

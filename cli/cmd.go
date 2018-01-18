@@ -3,6 +3,9 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -47,6 +50,7 @@ func Ls(ctx context.Context, cfg *CliConfig, args []string) {
 func Get(ctx context.Context, cfg *CliConfig, args []string) {
 	pathstr := args[1]
 	useHttpApi := true
+	w := os.Stdout // FIXME
 
 	p, err := opath.Parse(pathstr)
 	if err != nil {
@@ -55,7 +59,49 @@ func Get(ctx context.Context, cfg *CliConfig, args []string) {
 	}
 
 	if useHttpApi {
-		logger.Warningf(Log, "needs impl!")
+		id := 20
+
+		ep, tc, err := ConnectionInfo(cfg, p.Vhost)
+		if err != nil {
+			logger.Criticalf(Log, "%v", err)
+			return
+		}
+		cli := &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: tc,
+			},
+		}
+		url := &url.URL{
+			Scheme: "https",
+			Host:   ep,
+			Path:   fmt.Sprintf("/file/%d/bin", id),
+		}
+		logger.Debugf(Log, "requrl %v", url.String())
+		req := &http.Request{
+			Method: "GET",
+			Header: map[string][]string{
+			// "Accept-Encoding": {"gzip"}, // FIXME
+			},
+			URL: url,
+		}
+		resp, err := cli.Do(req)
+		if err != nil {
+			logger.Criticalf(Log, "%v", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != 200 {
+			logger.Criticalf(Log, "server responded w/ status code %d", resp.StatusCode)
+			return
+		}
+
+		nw, err := io.Copy(w, resp.Body)
+		if err != nil {
+			logger.Criticalf(Log, "io copy %v", err)
+			return
+		}
+		logger.Debugf(Log, "Received %d bytes.", nw)
 	} else {
 		conn, err := DialVhost(cfg, p.Vhost)
 		if err != nil {
@@ -72,8 +118,6 @@ func Get(ctx context.Context, cfg *CliConfig, args []string) {
 		}
 		id := resp.Id
 		logger.Infof(Log, "Got id %d for path \"%s\"", id, p.FsPath)
-
-		w := os.Stdout // FIXME
 
 		offset := uint64(0)
 		for {

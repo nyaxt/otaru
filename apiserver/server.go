@@ -109,11 +109,12 @@ func serveSwagger(mux *http.ServeMux) {
 }
 
 func serveApiGateway(mux *http.ServeMux, opts *options, certtext []byte) error {
-	transcred, err := cli.ClientTransportCredentialFromCertText(certtext)
+	tc, err := cli.TLSConfigFromCertText(certtext)
 	if err != nil {
 		return err
 	}
-	gwdialopts := []grpc.DialOption{grpc.WithTransportCredentials(transcred)}
+	cred := credentials.NewTLS(tc)
+	gwdialopts := []grpc.DialOption{grpc.WithTransportCredentials(cred)}
 
 	ctx := context.Background()
 	gwmux := gwruntime.NewServeMux()

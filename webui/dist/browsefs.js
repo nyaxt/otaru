@@ -74,8 +74,12 @@ const triggerUpdate = async () => {
           } else if (colName === 'perm_mode') {
             val = val.toString(8);
           } else if (colName === 'uid') {
+            if (val === undefined)
+              val = 0;
             val = 'u'+val;
           } else if (colName === 'gid') {
+            if (val === undefined)
+              val = 0;
             val = 'g'+val;
           } else if (colName === 'size') {
             val = formatBlobSize(val);
