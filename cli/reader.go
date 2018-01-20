@@ -15,6 +15,8 @@ import (
 	"github.com/nyaxt/otaru/pb"
 )
 
+const GrpcChunkLen = 32 * 1024
+
 type httpReader struct {
 	body io.ReadCloser
 	left uint64
@@ -90,12 +92,13 @@ type grpcReader struct {
 
 var _ = io.ReadCloser(&grpcReader{})
 
-func newReaderGrpc(ctx context.Context, conn *grpc.ClientConn, id uint64) (io.ReadCloser, error) {
-	return &grpcReader{ctx: ctx, conn: conn, id: id, offset: 0}, nil
-}
-
 func (r *grpcReader) Read(p []byte) (int, error) {
 	fsc := pb.NewFileSystemServiceClient(r.conn)
+
+	if len(p) > GrpcChunkLen {
+		p = p[:GrpcChunkLen]
+	}
+
 	resp, err := fsc.ReadFile(r.ctx, &pb.ReadFileRequest{
 		Id:     r.id,
 		Offset: r.offset,
@@ -152,7 +155,7 @@ func NewReader(pathstr string, os ...Option) (io.ReadCloser, error) {
 	logger.Infof(Log, "Got id %d for path \"%s\"", id, p.FsPath)
 
 	if opts.forceGrpc {
-		return newReaderGrpc(opts.ctx, conn, id)
+		return &grpcReader{ctx: opts.ctx, conn: conn, id: id, offset: 0}, nil
 	} else {
 		conn.Close()
 		return newReaderHttp(ep, tc, id)

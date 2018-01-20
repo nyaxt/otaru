@@ -21,6 +21,10 @@ func WithCliConfig(cfg *CliConfig) Option {
 	return func(o *options) { o.cfg = cfg }
 }
 
+func WithContext(ctx context.Context) Option {
+	return func(o *options) { o.ctx = ctx }
+}
+
 func ForceGrpc() Option {
 	return func(o *options) { o.forceGrpc = true }
 }
