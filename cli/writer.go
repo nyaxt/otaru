@@ -2,8 +2,11 @@ package cli
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -70,14 +73,14 @@ func (w *httpWriter) Write(p []byte) (int, error) {
 	if perr != nil {
 		rerr := <-w.errC
 		if rerr != nil {
-			return rerr
+			return nw, rerr
 		}
-		return fmt.Errorf("httpWriter pipe write failed: %v", perr)
+		return nw, fmt.Errorf("httpWriter pipe write failed: %v", perr)
 	}
 	return nw, nil
 }
 
-func (w *grpcWriter) Close() error {
+func (w *httpWriter) Close() error {
 	w.pw.Close()
 	return <-w.errC
 }
@@ -165,6 +168,6 @@ func NewWriter(pathstr string, ofs ...Option) (io.WriteCloser, error) {
 		return &grpcWriter{ctx: opts.ctx, conn: conn, id: id, offset: 0}, nil
 	} else {
 		conn.Close()
-		return newWriterHttp(ep, tc, id), nil
+		return newWriterHttp(ep, tc, id)
 	}
 }
