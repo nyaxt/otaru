@@ -42,7 +42,7 @@ func Put(ctx context.Context, cfg *CliConfig, args []string) {
 	}
 	defer f.Close()
 
-	w, err := NewWriter(pathstr, WithCliConfig(cfg), WithContext(ctx), ForceGrpc())
+	w, err := NewWriter(pathstr, WithCliConfig(cfg), WithContext(ctx))
 	if err != nil {
 		logger.Criticalf(Log, "%v", err)
 		return

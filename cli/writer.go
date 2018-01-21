@@ -14,6 +14,74 @@ import (
 	"github.com/nyaxt/otaru/pb"
 )
 
+type httpWriter struct {
+	pw   io.WriteCloser
+	errC <-chan error
+}
+
+var _ = io.WriteCloser(&httpWriter{})
+
+func newWriterHttp(ep string, tc *tls.Config, id uint64) (io.WriteCloser, error) {
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create pipe: %v", err)
+	}
+
+	errC := make(chan error)
+	go func() {
+		defer pr.Close()
+		defer close(errC)
+		cli := &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: tc,
+			},
+		}
+		url := &url.URL{
+			Scheme: "https",
+			Host:   ep,
+			Path:   fmt.Sprintf("/file/%d/bin", id),
+		}
+		logger.Debugf(Log, "requrl %v", url.String())
+		req := &http.Request{
+			Method: "PUT",
+			Header: map[string][]string{
+			// "Accept-Encoding": {"gzip"}, // FIXME
+			},
+			URL:           url,
+			Body:          pr,
+			ContentLength: -1, // FIXME
+		}
+		resp, err := cli.Do(req)
+		if err != nil {
+			errC <- err
+			return
+		}
+		if resp.StatusCode != 200 {
+			errC <- fmt.Errorf("server responded w/ status code %d", resp.StatusCode)
+			return
+		}
+	}()
+
+	return &httpWriter{pw, errC}, nil
+}
+
+func (w *httpWriter) Write(p []byte) (int, error) {
+	nw, perr := w.pw.Write(p)
+	if perr != nil {
+		rerr := <-w.errC
+		if rerr != nil {
+			return rerr
+		}
+		return fmt.Errorf("httpWriter pipe write failed: %v", perr)
+	}
+	return nw, nil
+}
+
+func (w *grpcWriter) Close() error {
+	w.pw.Close()
+	return <-w.errC
+}
+
 type grpcWriter struct {
 	ctx    context.Context
 	conn   *grpc.ClientConn
@@ -97,7 +165,6 @@ func NewWriter(pathstr string, ofs ...Option) (io.WriteCloser, error) {
 		return &grpcWriter{ctx: opts.ctx, conn: conn, id: id, offset: 0}, nil
 	} else {
 		conn.Close()
-		// return newWriterHttp(ep, tc, id)
-		return nil, fmt.Errorf("FIXME")
+		return newWriterHttp(ep, tc, id), nil
 	}
 }
