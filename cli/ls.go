@@ -89,8 +89,6 @@ func Ls(ctx context.Context, cfg *CliConfig, args []string) {
 	}
 	for _, e := range resp.Entry {
 		if *flagL {
-			// drwxr-xr-x  7 kouhei kouhei   4096 Feb 12  2017 processing-3.3
-
 			fmt.Printf("%c%s%s%s %s %s %s %s %s\n",
 				typeToR(e.Type),
 				permTo3Letters(e.PermMode>>6),

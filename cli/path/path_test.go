@@ -10,10 +10,10 @@ func TestParse(t *testing.T) {
 		input    string
 		expected Path
 	}{
-		{"otaru://vhost/fuga/hoge.txt", Path{"vhost", "fuga/hoge.txt"}},
-		{"//vhost/fuga/hoge.txt", Path{"vhost", "fuga/hoge.txt"}},
-		{"otaru:/fuga/hoge.txt", Path{"default", "fuga/hoge.txt"}},
-		{"/1/2/3.txt", Path{"default", "1/2/3.txt"}},
+		{"otaru://vhost/fuga/hoge.txt", Path{"vhost", "/fuga/hoge.txt"}},
+		{"//vhost/fuga/hoge.txt", Path{"vhost", "/fuga/hoge.txt"}},
+		{"otaru:/fuga/hoge.txt", Path{"default", "/fuga/hoge.txt"}},
+		{"/1/2/3.txt", Path{"default", "/1/2/3.txt"}},
 	}
 
 	for _, tc := range testcases {
