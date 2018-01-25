@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"flag"
 	"io"
 	"os"
 
@@ -15,7 +16,10 @@ const (
 )
 
 func Get(ctx context.Context, cfg *CliConfig, args []string) {
-	pathstr := args[1]
+	fset := flag.NewFlagSet("get", flag.ExitOnError)
+	fset.Parse(args[1:])
+
+	pathstr := fset.Arg(0)
 	w := os.Stdout // FIXME
 
 	r, err := NewReader(pathstr, WithCliConfig(cfg), WithContext(ctx))
@@ -32,7 +36,10 @@ func Get(ctx context.Context, cfg *CliConfig, args []string) {
 }
 
 func Put(ctx context.Context, cfg *CliConfig, args []string) {
-	pathstr, localpathstr := args[1], args[2] // FIXME
+	fset := flag.NewFlagSet("put", flag.ExitOnError)
+	fset.Parse(args[1:])
+
+	pathstr, localpathstr := fset.Arg(0), fset.Arg(1)
 	// FIXME: pathstr may end in /, in which case should join(pathstr, base(localpathstr))
 
 	f, err := os.Open(localpathstr)
