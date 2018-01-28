@@ -33,6 +33,7 @@ const actionDefMap = {
 };
 const pathInput = $('.browsefs__path');
 const listTbody = $('.browsefs__list').lastChild;
+const upload = $('.browsefs__upload');
 
 const triggerUpdate = async () => {
   if (!isSectionSelected('browsefs'))
@@ -73,8 +74,12 @@ const triggerUpdate = async () => {
           } else if (colName === 'perm_mode') {
             val = val.toString(8);
           } else if (colName === 'uid') {
+            if (val === undefined)
+              val = 0;
             val = 'u'+val;
           } else if (colName === 'gid') {
+            if (val === undefined)
+              val = 0;
             val = 'g'+val;
           } else if (colName === 'size') {
             val = formatBlobSize(val);
@@ -124,6 +129,24 @@ pathInput.addEventListener('change', () => {
   const path = getBrowsefsPath();
   if (pathInput.value !== path) {
     setBrowsefsPath(pathInput.value);
+  }
+});
+upload.addEventListener('change', async () => {
+  const files = upload.files;
+  console.log('------') ;
+  for (let file of files) {
+    console.log(`name: ${file.name} size: ${file.size} type: ${file.type}`) ;
+    // FIXME sanitize file.name
+    const cfresp = await rpc('api/v1/filesystem/file', {
+      method: 'POST', 
+      body: {
+        dir_id: 0,
+        name: `${getBrowsefsPath()}/${file.name}`,
+        uid: 0, gid: 0, perm_mode: 0o644, modified_time: 0
+      }});
+    const id = cfresp.id;
+    console.dir(cfresp);
+    const uplresp = await rpc(`file/${id}`, {method: 'PUT', args:{ offset: 0 }, rawBody: file});
   }
 });
 contentSection('browsefs').addEventListener('hidden', () => {

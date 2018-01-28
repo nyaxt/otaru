@@ -25,14 +25,13 @@ _testmain.go
 *.test
 *.prof
 
-fuse/cli/cli
-
 .DS_Store
 
 dep.png
 out/*
 otaru-server
 otaru-mkfs
+otaru-cli
 *-fuzz.zip
 
 version/consts.go

@@ -8,6 +8,7 @@ import (
 
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -37,8 +38,26 @@ func (fs *FileSystem) FindNodeFullPath(fullpath string) (inodedb.ID, error) {
 	return id, nil
 }
 
-func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileMode) (*FileHandle, error) {
-	perm &= os.ModePerm
+func (fs *FileSystem) CreateFileFullPath(fullpath string, perm uint16, uid, gid uint32, modifiedT time.Time) (inodedb.ID, error) {
+	perm &= 0777
+
+	if len(fullpath) < 1 || fullpath[0] != '/' {
+		return 0, fmt.Errorf("Path must start with /, but given: %v", fullpath)
+	}
+
+	dirname := filepath.Dir(fullpath)
+	basename := filepath.Base(fullpath)
+
+	dirID, err := fs.FindNodeFullPath(dirname)
+	if err != nil {
+		return 0, err
+	}
+
+	return fs.CreateFile(dirID, basename, uint16(perm), uid, gid, modifiedT)
+}
+
+func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm uint16) (*FileHandle, error) {
+	perm &= 0777
 
 	if len(fullpath) < 1 || fullpath[0] != '/' {
 		return nil, fmt.Errorf("Path must start with /, but given: %v", fullpath)
@@ -71,7 +90,7 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileM
 	}
 
 	if id == 0 {
-		panic("inode id must != 0 here!")
+		logger.Panicf(fslog, "inode id must != 0 here, but got %v", id)
 	}
 
 	fh, err := fs.OpenFile(id, flags)
@@ -82,7 +101,7 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm os.FileM
 	return fh, nil
 }
 
-func (fs *FileSystem) WriteFile(fullpath string, content []byte, perm os.FileMode) error {
+func (fs *FileSystem) WriteFile(fullpath string, content []byte, perm uint16) error {
 	h, err := fs.OpenFileFullPath(fullpath, fl.O_RDWRCREATE, perm)
 	if err != nil {
 		return err

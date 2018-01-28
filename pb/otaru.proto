@@ -38,10 +38,78 @@ message ListDirResponse {
   repeated Entry entry = 1;
 }
 
+message CreateFileRequest {
+  // If |dir_id| == 0, then treat |name| as fullpath.
+  uint64 dir_id = 1;
+  string name = 2;
+  uint32 uid = 3;
+  uint32 gid = 4;
+  uint32 perm_mode = 5;
+  int64 modified_time = 6;
+}
+
+message CreateFileResponse {
+  uint64 id = 1;
+  bool is_new_file = 2;
+}
+
+message FindNodeFullPathRequest {
+  string path = 1;
+}
+
+message FindNodeFullPathResponse {
+  uint64 id = 1;
+}
+
+message ReadFileRequest {
+  uint64 id = 1;
+  uint64 offset = 2;
+  uint32 length = 3;
+}
+
+message ReadFileResponse {
+  bytes body = 1;
+}
+
+message WriteFileRequest {
+  uint64 id = 1;
+  uint64 offset = 2;
+  bytes body = 3;
+}
+
+message WriteFileResponse {
+}
+
 service FileSystemService {
   rpc ListDir(ListDirRequest) returns (ListDirResponse) {
     option (google.api.http) = {
       get: "/api/v1/filesystem/ls"
+    };
+  }
+
+  rpc FindNodeFullPath(FindNodeFullPathRequest) returns (FindNodeFullPathResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/filesystem/findNode"
+    };
+  }
+
+  rpc CreateFile(CreateFileRequest) returns (CreateFileResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/filesystem/file"
+      body: "*"
+    };
+  }
+
+  rpc ReadFile(ReadFileRequest) returns (ReadFileResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/filesystem/file/{id}"
+    };
+  }
+
+  rpc WriteFile(WriteFileRequest) returns (WriteFileResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/filesystem/file/{id}"
+      body: "*"
     };
   }
 }

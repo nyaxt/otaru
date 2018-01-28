@@ -77,6 +77,126 @@
         ]
       }
     },
+    "/api/v1/filesystem/file": {
+      "post": {
+        "operationId": "CreateFile",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbCreateFileResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbCreateFileRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
+    "/api/v1/filesystem/file/{id}": {
+      "get": {
+        "operationId": "ReadFile",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbReadFileResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "length",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      },
+      "put": {
+        "operationId": "WriteFile",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbWriteFileResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbWriteFileRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
+    "/api/v1/filesystem/findNode": {
+      "get": {
+        "operationId": "FindNodeFullPath",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbFindNodeFullPathResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
     "/api/v1/filesystem/ls": {
       "get": {
         "operationId": "ListDir",
@@ -257,6 +377,57 @@
     }
   },
   "definitions": {
+    "pbCreateFileRequest": {
+      "type": "object",
+      "properties": {
+        "dir_id": {
+          "type": "string",
+          "format": "uint64",
+          "description": "If |dir_id| == 0, then treat |name| as fullpath."
+        },
+        "name": {
+          "type": "string"
+        },
+        "uid": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "gid": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "perm_mode": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "modified_time": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "pbCreateFileResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "is_new_file": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
+    "pbFindNodeFullPathResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
     "pbGetBlobstoreConfigResponse": {
       "type": "object",
       "properties": {
@@ -472,6 +643,15 @@
         }
       }
     },
+    "pbReadFileResponse": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
     "pbReduceCacheRequest": {
       "type": "object",
       "properties": {
@@ -557,6 +737,26 @@
           "type": "string"
         }
       }
+    },
+    "pbWriteFileRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "offset": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "body": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "pbWriteFileResponse": {
+      "type": "object"
     }
   }
 }

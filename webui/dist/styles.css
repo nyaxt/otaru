@@ -1,7 +1,6 @@
 :root {
   --nav-height: 30px;
   --section-header-height: 35px;
-
   --main-fg-color: #ffcc66;
   --dark-fg-color: #ffa566;
   --light-fg-color: #fffcee;
@@ -29,12 +28,10 @@ body {
 
 .button {
   display: block;
-
   height: 23px;
   line-height: 23px;
-  width: 23px;
+  padding: 0 5px;
   border: 1px solid var(--dark-bg-color);
-
   font-size: 18px;
   text-decoration: none;
   text-align: center;
@@ -136,37 +133,34 @@ body {
 }
 
 .browsefs__header {
-  padding: 5px;
-  height: 25px;
-  line-height: 25px;
-  border-bottom: 1px solid var(--dark-bg-color);
-
-  display: flex;
 }
 
 .browsefs__parentdir {
-  display: block;
-
-  height: 23px;
-  line-height: 23px;
-  width: 23px;
-  border: 1px solid var(--dark-bg-color);
-
-  font-size: 18px;
-  text-decoration: none;
-  text-align: center;
-  color: black;
 }
 
 .browsefs__label {
   margin-left: 5px;
+  line-height: 25px;
+  height: 25px;
 }
 
 .browsefs__path {
-  flex-grow: 1; 
+  flex-grow: 1;
+  height: 25px;
+  box-sizing: border-box;
 }
 
 .browsefs__sort {
+  margin-left: 5px;
+  height: 25px;
+  box-sizing: border-box;
+}
+
+.browsefs__upload {
+  display: none;
+}
+
+.browsefs__label--upload {
   margin-left: 5px;
 }
 
