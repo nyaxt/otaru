@@ -55,7 +55,7 @@ const triggerUpdate = async () => {
     if (result['entry'] === undefined) {
       listTbody.classList.add('.browsefs__list--empty');
     } else {
-      const rows = result['entry'].sort(sortFunc);
+      const rows = result['listing'][0]['entry'].sort(sortFunc);
       for (let row of rows) {
         listTbody.classList.remove('.browsefs__list--empty');
 
