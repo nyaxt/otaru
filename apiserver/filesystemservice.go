@@ -22,43 +22,56 @@ type fileSystemService struct {
 }
 
 func (svc *fileSystemService) ListDir(ctx context.Context, req *pb.ListDirRequest) (*pb.ListDirResponse, error) {
-	id, err := svc.fs.FindNodeFullPath(req.Path)
-	if err != nil {
-		if util.IsNotExist(err) {
-			return nil, grpc.Errorf(codes.NotFound, "Specified path not found.")
-		}
-		return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("FindNodeFullPath failed: %v", err))
-	}
-
-	isDir, err := svc.fs.IsDir(id)
-	if err != nil {
-		return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("IsDir failed: %v", err))
-	}
-	if !isDir {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "ListDir target is non-dir.")
-	}
-
-	entriesMap, err := svc.fs.DirEntries(id)
-	es := make([]*pb.ListDirResponse_Entry, 0, len(entriesMap))
-	for name, cid := range entriesMap {
-		attr, err := svc.fs.Attr(cid)
+	ids := req.Id
+	if len(ids) == 0 {
+		id, err := svc.fs.FindNodeFullPath(req.Path)
 		if err != nil {
-			return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("Child node Attr(%d) failed: %v", cid, err))
+			if util.IsNotExist(err) {
+				return nil, grpc.Errorf(codes.NotFound, "Specified path not found.")
+			}
+			return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("FindNodeFullPath failed: %v", err))
+		}
+		ids = []uint64{uint64(id)}
+	}
+
+	ls := make([]*pb.ListDirResponse_Listing, 0, len(ids))
+	for _, nid := range ids {
+		id := inodedb.ID(nid)
+		isDir, err := svc.fs.IsDir(id)
+		if err != nil {
+			return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("IsDir(%d) failed: %v", id, err))
+		}
+		if !isDir {
+			return nil, grpc.Errorf(codes.FailedPrecondition, "ListDir target %d is non-dir.", id)
 		}
 
-		es = append(es, &pb.ListDirResponse_Entry{
-			Id:           uint64(cid),
-			Name:         name,
-			Type:         inodedb.TypeName(attr.Type),
-			Size:         attr.Size,
-			Uid:          attr.Uid,
-			Gid:          attr.Gid,
-			PermMode:     uint32(attr.PermMode),
-			ModifiedTime: attr.ModifiedT.Unix(),
+		entriesMap, err := svc.fs.DirEntries(id)
+		es := make([]*pb.INodeView, 0, len(entriesMap))
+		for name, cid := range entriesMap {
+			attr, err := svc.fs.Attr(cid)
+			if err != nil {
+				return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("Child node Attr(%d) failed: %v", cid, err))
+			}
+
+			es = append(es, &pb.INodeView{
+				Id:           uint64(cid),
+				Name:         name,
+				Type:         inodedb.TypeName(attr.Type),
+				Size:         attr.Size,
+				Uid:          attr.Uid,
+				Gid:          attr.Gid,
+				PermMode:     uint32(attr.PermMode),
+				ModifiedTime: attr.ModifiedT.Unix(),
+			})
+		}
+
+		ls = append(ls, &pb.ListDirResponse_Listing{
+			DirId: nid,
+			Entry: es,
 		})
 	}
 
-	return &pb.ListDirResponse{Entry: es}, nil
+	return &pb.ListDirResponse{Listing: ls}, nil
 }
 
 func (svc *fileSystemService) FindNodeFullPath(ctx context.Context, req *pb.FindNodeFullPathRequest) (*pb.FindNodeFullPathResponse, error) {

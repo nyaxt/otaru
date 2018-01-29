@@ -87,7 +87,11 @@ func Ls(ctx context.Context, cfg *CliConfig, args []string) {
 		logger.Criticalf(Log, "%v", err)
 		return
 	}
-	for _, e := range resp.Entry {
+	if len(resp.Listing) != 1 {
+		logger.Criticalf(Log, "Expected 1 listing, but got %d listings.", len(resp.Listing))
+	}
+	l := resp.Listing[0]
+	for _, e := range l.Entry {
 		if *flagL {
 			// drwxr-xr-x  7 kouhei kouhei   4096 Feb 12  2017 processing-3.3
 

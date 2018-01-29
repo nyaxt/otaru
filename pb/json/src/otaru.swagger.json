@@ -210,6 +210,17 @@
         },
         "parameters": [
           {
+            "name": "id",
+            "description": "If |len(id)| == 0, then query path.",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uint64"
+            }
+          },
+          {
             "name": "path",
             "in": "query",
             "required": false,
@@ -377,6 +388,21 @@
     }
   },
   "definitions": {
+    "ListDirResponseListing": {
+      "type": "object",
+      "properties": {
+        "dir_id": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "entry": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pbINodeView"
+          }
+        }
+      }
+    },
     "pbCreateFileRequest": {
       "type": "object",
       "properties": {
@@ -548,18 +574,7 @@
         }
       }
     },
-    "pbListDirResponse": {
-      "type": "object",
-      "properties": {
-        "entry": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/pbListDirResponseEntry"
-          }
-        }
-      }
-    },
-    "pbListDirResponseEntry": {
+    "pbINodeView": {
       "type": "object",
       "properties": {
         "id": {
@@ -591,6 +606,17 @@
         "modified_time": {
           "type": "string",
           "format": "int64"
+        }
+      }
+    },
+    "pbListDirResponse": {
+      "type": "object",
+      "properties": {
+        "listing": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ListDirResponseListing"
+          }
         }
       }
     },

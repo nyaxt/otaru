@@ -20,22 +20,28 @@ option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
 };
 
 message ListDirRequest {
-  string path = 1;
+  // If |len(id)| == 0, then query path.
+  repeated uint64 id = 1;
+  string path = 2;
+}
+
+message INodeView {
+  uint64 id = 1;
+  string name = 2;
+  string type = 3;
+  int64 size = 4;
+  uint32 uid = 5;
+  uint32 gid = 6;
+  uint32 perm_mode = 7;
+  int64 modified_time = 8;
 }
 
 message ListDirResponse {
-  message Entry {
-    uint64 id = 1;
-    string name = 2;
-    string type = 3;
-    int64 size = 4;
-    uint32 uid = 5;
-    uint32 gid = 6;
-    uint32 perm_mode = 7;
-    int64 modified_time = 8;
+  message Listing {
+    uint64 dir_id = 1;
+    repeated INodeView entry = 2;
   }
-
-  repeated Entry entry = 1;
+  repeated Listing listing = 1;
 }
 
 message CreateFileRequest {
