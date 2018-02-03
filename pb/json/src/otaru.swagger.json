@@ -77,6 +77,37 @@
         ]
       }
     },
+    "/api/v1/filesystem/attr/{id}": {
+      "get": {
+        "operationId": "Attr",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbAttrResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
     "/api/v1/filesystem/file": {
       "post": {
         "operationId": "CreateFile",
@@ -400,6 +431,14 @@
           "items": {
             "$ref": "#/definitions/pbINodeView"
           }
+        }
+      }
+    },
+    "pbAttrResponse": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "$ref": "#/definitions/pbINodeView"
         }
       }
     },

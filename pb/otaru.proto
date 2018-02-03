@@ -67,6 +67,16 @@ message FindNodeFullPathResponse {
   uint64 id = 1;
 }
 
+message AttrRequest {
+  // If |id| == 0, then query path.
+  uint64 id = 1;
+  string path = 2;
+}
+
+message AttrResponse {
+  INodeView entry = 1;
+}
+
 message ReadFileRequest {
   uint64 id = 1;
   uint64 offset = 2;
@@ -96,6 +106,12 @@ service FileSystemService {
   rpc FindNodeFullPath(FindNodeFullPathRequest) returns (FindNodeFullPathResponse) {
     option (google.api.http) = {
       get: "/api/v1/filesystem/findNode"
+    };
+  }
+
+  rpc Attr(AttrRequest) returns (AttrResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/filesystem/attr/{id}"
     };
   }
 

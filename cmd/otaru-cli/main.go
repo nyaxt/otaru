@@ -51,6 +51,9 @@ func main() {
 	case "ls":
 		cli.Ls(ctx, cfg, flag.Args())
 
+	case "attr":
+		cli.Attr(ctx, cfg, flag.Args())
+
 	case "get":
 		cli.Get(ctx, cfg, flag.Args())
 

@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"fmt"
+	"path"
 	"time"
 
 	"golang.org/x/net/context"
@@ -19,6 +20,19 @@ const MaxReadLen = 1024 * 1024
 
 type fileSystemService struct {
 	fs *filesystem.FileSystem
+}
+
+func attrToINodeView(id inodedb.ID, name string, a filesystem.Attr) *pb.INodeView {
+	return &pb.INodeView{
+		Id:           uint64(id),
+		Name:         name,
+		Type:         inodedb.TypeName(a.Type),
+		Size:         a.Size,
+		Uid:          a.Uid,
+		Gid:          a.Gid,
+		PermMode:     uint32(a.PermMode),
+		ModifiedTime: a.ModifiedT.Unix(),
+	}
 }
 
 func (svc *fileSystemService) ListDir(ctx context.Context, req *pb.ListDirRequest) (*pb.ListDirResponse, error) {
@@ -53,16 +67,8 @@ func (svc *fileSystemService) ListDir(ctx context.Context, req *pb.ListDirReques
 				return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("Child node Attr(%d) failed: %v", cid, err))
 			}
 
-			es = append(es, &pb.INodeView{
-				Id:           uint64(cid),
-				Name:         name,
-				Type:         inodedb.TypeName(attr.Type),
-				Size:         attr.Size,
-				Uid:          attr.Uid,
-				Gid:          attr.Gid,
-				PermMode:     uint32(attr.PermMode),
-				ModifiedTime: attr.ModifiedT.Unix(),
-			})
+			inv := attrToINodeView(cid, name, attr)
+			es = append(es, inv)
 		}
 
 		ls = append(ls, &pb.ListDirResponse_Listing{
@@ -83,6 +89,31 @@ func (svc *fileSystemService) FindNodeFullPath(ctx context.Context, req *pb.Find
 		return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("FindNodeFullPath failed: %v", err))
 	}
 	return &pb.FindNodeFullPathResponse{Id: uint64(id)}, nil
+}
+
+func (svc *fileSystemService) Attr(ctx context.Context, req *pb.AttrRequest) (*pb.AttrResponse, error) {
+	id := inodedb.ID(req.Id)
+	if id == 0 {
+		var err error
+		id, err = svc.fs.FindNodeFullPath(req.Path)
+		if err != nil {
+			if util.IsNotExist(err) {
+				return nil, grpc.Errorf(codes.NotFound, "Specified path not found.")
+			}
+			return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("FindNodeFullPath failed: %v", err))
+		}
+	}
+
+	attr, err := svc.fs.Attr(id)
+	if err != nil {
+		if util.IsNotExist(err) {
+			return nil, grpc.Errorf(codes.NotFound, "Specified path not found.")
+		}
+		return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("Attr(%d) failed: %v", id, err))
+	}
+
+	inv := attrToINodeView(id, path.Base(attr.OrigPath), attr)
+	return &pb.AttrResponse{Entry: inv}, nil
 }
 
 func (svc *fileSystemService) CreateFile(ctx context.Context, req *pb.CreateFileRequest) (*pb.CreateFileResponse, error) {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -61,6 +62,86 @@ func formatSize(n int64, h bool) string {
 
 func formatDate(n int64) string {
 	return time.Unix(n, 0).Format("Jan 2  2006")
+}
+
+func invToJson(e *pb.INodeView) []byte {
+	permModeStr := fmt.Sprintf("%s%s%s",
+		permTo3Letters(e.PermMode>>6),
+		permTo3Letters(e.PermMode>>3),
+		permTo3Letters(e.PermMode>>0))
+	eobj := struct {
+		Id           uint64    `json:"id"`
+		Type         string    `json:"type"`
+		Name         string    `json:"name"`
+		Uid          uint32    `json:"uid"`
+		Gid          uint32    `json:"gid"`
+		PermMode     uint32    `json:"perm_mode"`
+		PermModeStr  string    `json:"perm_mode_str"`
+		ModifiedTime time.Time `json:"modified_time"`
+	}{
+		e.Id, e.Type, e.Name, e.Uid, e.Gid,
+		e.PermMode, permModeStr,
+		time.Unix(e.ModifiedTime, 0),
+	}
+	j, err := json.Marshal(eobj)
+	if err != nil {
+		log.Panicf("json.Marshal failure: %v", err)
+	}
+	return j
+}
+
+func Attr(ctx context.Context, cfg *CliConfig, args []string) {
+	fset := flag.NewFlagSet("attr", flag.ExitOnError)
+	fset.Usage = func() {
+		fmt.Printf("Usage of %s attr:\n", os.Args[0])
+		fmt.Printf(" %s attr OTARU_PATH [nodeid]\n", os.Args[0])
+		fset.PrintDefaults()
+	}
+	fset.Parse(args[1:])
+
+	if fset.NArg() < 1 || 2 < fset.NArg() {
+		logger.Criticalf(Log, "Invalid number of arguments")
+		fset.Usage()
+		return
+	}
+	pathstr := fset.Arg(0)
+
+	id := uint64(0)
+	if fset.NArg() == 2 {
+		var err error
+		id, err = strconv.ParseUint(fset.Arg(1), 10, 64)
+		if err != nil {
+			logger.Criticalf(Log, "Failed to parse id from \"%s\"", fset.Arg(1))
+			fset.Usage()
+			return
+		}
+	}
+
+	p, err := opath.Parse(pathstr)
+	if err != nil {
+		logger.Criticalf(Log, "%v", err)
+		return
+	}
+
+	conn, err := DialGrpcVhost(cfg, p.Vhost)
+	if err != nil {
+		logger.Criticalf(Log, "%v", err)
+		return
+	}
+	defer conn.Close()
+
+	fsc := pb.NewFileSystemServiceClient(conn)
+	resp, err := fsc.Attr(ctx, &pb.AttrRequest{Id: id, Path: p.FsPath})
+	if err != nil {
+		logger.Criticalf(Log, "%v", err)
+		return
+	}
+	j := invToJson(resp.Entry)
+	if _, err := os.Stdout.Write(j); err != nil {
+		logger.Criticalf(Log, "failed to Write: %v", err)
+		return
+	}
+	fmt.Printf("\n")
 }
 
 func Ls(ctx context.Context, cfg *CliConfig, args []string) {
@@ -123,29 +204,7 @@ func Ls(ctx context.Context, cfg *CliConfig, args []string) {
 		}
 		for i, e := range l.Entry {
 			if *flagJson {
-				permModeStr := fmt.Sprintf("%s%s%s",
-					permTo3Letters(e.PermMode>>6),
-					permTo3Letters(e.PermMode>>3),
-					permTo3Letters(e.PermMode>>0))
-				eobj := struct {
-					Id           uint64    `json:"id"`
-					Type         string    `json:"type"`
-					Name         string    `json:"name"`
-					Uid          uint32    `json:"uid"`
-					Gid          uint32    `json:"gid"`
-					PermMode     uint32    `json:"perm_mode"`
-					PermModeStr  string    `json:"perm_mode_str"`
-					ModifiedTime time.Time `json:"modified_time"`
-				}{
-					e.Id, e.Type, e.Name, e.Uid, e.Gid,
-					e.PermMode, permModeStr,
-					time.Unix(e.ModifiedTime, 0),
-				}
-				j, err := json.Marshal(eobj)
-				if err != nil {
-					logger.Criticalf(Log, "failed to format json: %v", err)
-					return
-				}
+				j := invToJson(e)
 				if _, err := os.Stdout.Write(j); err != nil {
 					logger.Criticalf(Log, "failed to Write: %v", err)
 					return

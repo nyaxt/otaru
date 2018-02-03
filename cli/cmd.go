@@ -13,17 +13,13 @@ import (
 
 var Log = logger.Registry().Category("cli")
 
-const (
-	BufLen = 32 * 1024
-)
-
 func Get(ctx context.Context, cfg *CliConfig, args []string) {
 	fset := flag.NewFlagSet("get", flag.ExitOnError)
 	flagO := fset.String("o", "", "destination file path")
 	flagC := fset.String("C", "", "destination dir path")
 	fset.Usage = func() {
 		fmt.Printf("Usage of %s get:\n", os.Args[0])
-		fmt.Printf(" %s get [OTARU_PATH]...\n", os.Args[0])
+		fmt.Printf(" %s get OTARU_PATH...\n", os.Args[0])
 		fset.PrintDefaults()
 	}
 	fset.Parse(args[1:])
@@ -95,7 +91,7 @@ func Put(ctx context.Context, cfg *CliConfig, args []string) {
 	fset := flag.NewFlagSet("put", flag.ExitOnError)
 	fset.Usage = func() {
 		fmt.Printf("Usage of %s put:\n", os.Args[0])
-		fmt.Printf(" %s put [OTARU_PATH] [LOCAL_PATH]\n", os.Args[0])
+		fmt.Printf(" %s put OTARU_PATH LOCAL_PATH\n", os.Args[0])
 		fset.PrintDefaults()
 	}
 	fset.Parse(args[1:])
