@@ -2,8 +2,10 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -65,6 +67,7 @@ func Ls(ctx context.Context, cfg *CliConfig, args []string) {
 	fset := flag.NewFlagSet("ls", flag.ExitOnError)
 	flagL := fset.Bool("l", false, "use a long listing format")
 	flagH := fset.Bool("h", false, "print human readable sizes (e.g., 1K 234M 2G)")
+	flagJson := fset.Bool("json", false, "format output using json")
 	fset.Parse(args[1:])
 
 	if fset.NArg() == 0 {
@@ -79,6 +82,10 @@ func Ls(ctx context.Context, cfg *CliConfig, args []string) {
 		}
 	}()
 	var connectedVhost string
+	if _, err := os.Stdout.WriteString("{\n"); err != nil {
+		logger.Criticalf(Log, "failed to Write: %v", err)
+		return
+	}
 	for _, s := range fset.Args() {
 		logger.Debugf(Log, "pathstr: %s", s)
 		p, err := opath.Parse(s)
@@ -111,8 +118,45 @@ func Ls(ctx context.Context, cfg *CliConfig, args []string) {
 			logger.Criticalf(Log, "Expected 1 listing, but got %d listings.", len(resp.Listing))
 		}
 		l := resp.Listing[0]
-		for _, e := range l.Entry {
-			if *flagL {
+		if *flagJson {
+			fmt.Printf("\"%s\": [\n", s)
+		}
+		for i, e := range l.Entry {
+			if *flagJson {
+				permModeStr := fmt.Sprintf("%s%s%s",
+					permTo3Letters(e.PermMode>>6),
+					permTo3Letters(e.PermMode>>3),
+					permTo3Letters(e.PermMode>>0))
+				eobj := struct {
+					Id           uint64    `json:"id"`
+					Type         string    `json:"type"`
+					Name         string    `json:"name"`
+					Uid          uint32    `json:"uid"`
+					Gid          uint32    `json:"gid"`
+					PermMode     uint32    `json:"perm_mode"`
+					PermModeStr  string    `json:"perm_mode_str"`
+					ModifiedTime time.Time `json:"modified_time"`
+				}{
+					e.Id, e.Type, e.Name, e.Uid, e.Gid,
+					e.PermMode, permModeStr,
+					time.Unix(e.ModifiedTime, 0),
+				}
+				j, err := json.Marshal(eobj)
+				if err != nil {
+					logger.Criticalf(Log, "failed to format json: %v", err)
+					return
+				}
+				if _, err := os.Stdout.Write(j); err != nil {
+					logger.Criticalf(Log, "failed to Write: %v", err)
+					return
+				}
+				if i != len(l.Entry)-1 {
+					if _, err := os.Stdout.WriteString(",\n"); err != nil {
+						logger.Criticalf(Log, "failed to Write: %v", err)
+						return
+					}
+				}
+			} else if *flagL {
 				fmt.Printf("%c%s%s%s %s %s %s %s %s\n",
 					typeToR(e.Type),
 					permTo3Letters(e.PermMode>>6),
@@ -126,6 +170,18 @@ func Ls(ctx context.Context, cfg *CliConfig, args []string) {
 			} else {
 				fmt.Printf("%s\n", e.Name)
 			}
+		}
+		if *flagJson {
+			if _, err := os.Stdout.WriteString("]\n"); err != nil {
+				logger.Criticalf(Log, "failed to Write: %v", err)
+				return
+			}
+		}
+	}
+	if *flagJson {
+		if _, err := os.Stdout.WriteString("}\n"); err != nil {
+			logger.Criticalf(Log, "failed to Write: %v", err)
+			return
 		}
 	}
 }
