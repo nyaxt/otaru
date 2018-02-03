@@ -49,7 +49,7 @@ func advance(st *State, p *Path, s string) (string, error) {
 			return s, fmt.Errorf("parser: Expected vhost/path, but got \"%s\"", s)
 		}
 		*st = BeforeFsPath
-		p.Vhost, s = s[:i], s[i+1:]
+		p.Vhost, s = s[:i], s[i:]
 		return s, nil
 
 	case BeforeFsPath:
