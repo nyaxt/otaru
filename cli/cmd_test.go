@@ -50,7 +50,9 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestBasic(t *testing.T) {
+func withApiServer(t *testing.T, f func()) {
+	t.Helper()
+
 	fs := tu.TestFileSystem()
 
 	otarudir := os.Getenv("OTARUDIR")
@@ -75,33 +77,51 @@ func TestBasic(t *testing.T) {
 	// FIXME: wait until Serve to actually start accepting conns
 	time.Sleep(100 * time.Millisecond)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	if err := cli.Put(ctx, cfg, []string{"put", filepath.Join(testdir, "hello.txt"), "/hello.txt"}); err != nil {
-		t.Errorf("cli.Put failed: %v", err)
-	}
-
-	getpath := filepath.Join(testdir, "hello_get.txt")
-	if err := cli.Get(ctx, cfg, []string{"get", "-o", getpath, "/hello.txt"}); err != nil {
-		t.Errorf("cli.Get failed: %v", err)
-	}
-	b, err := ioutil.ReadFile(getpath)
-	if err != nil {
-		t.Errorf("ioutil.ReadAll(getpath): %v", err)
-	}
-	if !bytes.Equal(b, tu.HelloWorld) {
-		t.Errorf("PRead content != PWrite content: %v", b)
-	}
-
-	var buf bytes.Buffer
-	if err := cli.Ls(ctx, &buf, cfg, []string{"ls"}); err != nil {
-		t.Errorf("cli.Ls failed: %v", err)
-	}
-	if string(buf.Bytes()) != "hello.txt\n" {
-		t.Errorf("ls unexpectedly returned: %s", string(buf.Bytes()))
-	}
+	f()
 
 	close(closeC)
 	<-joinC
+}
+
+func TestBasic(t *testing.T) {
+	withApiServer(t, func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		if err := cli.Put(ctx, cfg, []string{"put", filepath.Join(testdir, "hello.txt"), "/hello.txt"}); err != nil {
+			t.Errorf("cli.Put failed: %v", err)
+		}
+
+		getpath := filepath.Join(testdir, "hello_get.txt")
+		if err := cli.Get(ctx, cfg, []string{"get", "-o", getpath, "/hello.txt"}); err != nil {
+			t.Errorf("cli.Get failed: %v", err)
+		}
+		b, err := ioutil.ReadFile(getpath)
+		if err != nil {
+			t.Errorf("ioutil.ReadAll(getpath): %v", err)
+		}
+		if !bytes.Equal(b, tu.HelloWorld) {
+			t.Errorf("PRead content != PWrite content: %v", b)
+		}
+
+		var buf bytes.Buffer
+		if err := cli.Ls(ctx, &buf, cfg, []string{"ls"}); err != nil {
+			t.Errorf("cli.Ls failed: %v", err)
+		}
+		if string(buf.Bytes()) != "hello.txt\n" {
+			t.Errorf("ls unexpectedly returned: %s", string(buf.Bytes()))
+		}
+	})
+}
+
+func TestPutVariations(t *testing.T) {
+	withApiServer(t, func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		if err := cli.Put(ctx, cfg, []string{"put", filepath.Join(testdir, "hello.txt"), "/hello.txt"}); err != nil {
+			t.Errorf("cli.Put failed: %v", err)
+		}
+		// FIXME: more tests
+	})
 }
