@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -90,7 +91,7 @@ func invToJson(e *pb.INodeView) []byte {
 	return j
 }
 
-func Attr(ctx context.Context, cfg *CliConfig, args []string) {
+func Attr(ctx context.Context, cfg *CliConfig, args []string) error {
 	fset := flag.NewFlagSet("attr", flag.ExitOnError)
 	fset.Usage = func() {
 		fmt.Printf("Usage of %s attr:\n", os.Args[0])
@@ -100,9 +101,8 @@ func Attr(ctx context.Context, cfg *CliConfig, args []string) {
 	fset.Parse(args[1:])
 
 	if fset.NArg() < 1 || 2 < fset.NArg() {
-		logger.Criticalf(Log, "Invalid number of arguments")
 		fset.Usage()
-		return
+		return fmt.Errorf("Invalid number of arguments")
 	}
 	pathstr := fset.Arg(0)
 
@@ -111,49 +111,45 @@ func Attr(ctx context.Context, cfg *CliConfig, args []string) {
 		var err error
 		id, err = strconv.ParseUint(fset.Arg(1), 10, 64)
 		if err != nil {
-			logger.Criticalf(Log, "Failed to parse id from \"%s\"", fset.Arg(1))
 			fset.Usage()
-			return
+			return fmt.Errorf("Failed to parse id from \"%s\"", fset.Arg(1))
 		}
 	}
 
 	p, err := opath.Parse(pathstr)
 	if err != nil {
-		logger.Criticalf(Log, "%v", err)
-		return
+		return fmt.Errorf("%v", err)
 	}
 
 	conn, err := DialGrpcVhost(cfg, p.Vhost)
 	if err != nil {
-		logger.Criticalf(Log, "%v", err)
-		return
+		return fmt.Errorf("%v", err)
 	}
 	defer conn.Close()
 
 	fsc := pb.NewFileSystemServiceClient(conn)
 	resp, err := fsc.Attr(ctx, &pb.AttrRequest{Id: id, Path: p.FsPath})
 	if err != nil {
-		logger.Criticalf(Log, "%v", err)
-		return
+		return fmt.Errorf("%v", err)
 	}
 	j := invToJson(resp.Entry)
 	if _, err := os.Stdout.Write(j); err != nil {
-		logger.Criticalf(Log, "failed to Write: %v", err)
-		return
+		return fmt.Errorf("failed to Write: %v", err)
 	}
 	fmt.Printf("\n")
+	return nil
 }
 
-func Ls(ctx context.Context, cfg *CliConfig, args []string) {
+func Ls(ctx context.Context, w io.Writer, cfg *CliConfig, args []string) error {
 	fset := flag.NewFlagSet("ls", flag.ExitOnError)
 	flagL := fset.Bool("l", false, "use a long listing format")
 	flagH := fset.Bool("h", false, "print human readable sizes (e.g., 1K 234M 2G)")
 	flagJson := fset.Bool("json", false, "format output using json")
 	fset.Parse(args[1:])
 
+	paths := fset.Args()
 	if fset.NArg() == 0 {
-		logger.Criticalf(Log, "No path given.")
-		return
+		paths = []string{"/"}
 	}
 
 	var conn *grpc.ClientConn
@@ -163,16 +159,16 @@ func Ls(ctx context.Context, cfg *CliConfig, args []string) {
 		}
 	}()
 	var connectedVhost string
-	if _, err := os.Stdout.WriteString("{\n"); err != nil {
-		logger.Criticalf(Log, "failed to Write: %v", err)
-		return
+	if *flagJson {
+		if _, err := w.Write([]byte("{\n")); err != nil {
+			return fmt.Errorf("failed to Write: %v", err)
+		}
 	}
-	for _, s := range fset.Args() {
+	for _, s := range paths {
 		logger.Debugf(Log, "pathstr: %s", s)
 		p, err := opath.Parse(s)
 		if err != nil {
-			logger.Criticalf(Log, "Failed to parse: \"%s\". err: %v", s, err)
-			return
+			return fmt.Errorf("Failed to parse: \"%s\". err: %v", s, err)
 		}
 
 		if connectedVhost != p.Vhost {
@@ -183,8 +179,7 @@ func Ls(ctx context.Context, cfg *CliConfig, args []string) {
 
 			conn, err = DialGrpcVhost(cfg, p.Vhost)
 			if err != nil {
-				logger.Criticalf(Log, "%v", err)
-				return
+				return fmt.Errorf("%v", err)
 			}
 			connectedVhost = p.Vhost
 		}
@@ -192,31 +187,28 @@ func Ls(ctx context.Context, cfg *CliConfig, args []string) {
 		fsc := pb.NewFileSystemServiceClient(conn)
 		resp, err := fsc.ListDir(ctx, &pb.ListDirRequest{Path: p.FsPath})
 		if err != nil {
-			logger.Criticalf(Log, "%v", err)
-			return
+			return fmt.Errorf("%v", err)
 		}
 		if len(resp.Listing) != 1 {
-			logger.Criticalf(Log, "Expected 1 listing, but got %d listings.", len(resp.Listing))
+			return fmt.Errorf("Expected 1 listing, but got %d listings.", len(resp.Listing))
 		}
 		l := resp.Listing[0]
 		if *flagJson {
-			fmt.Printf("\"%s\": [\n", s)
+			fmt.Fprintf(w, "\"%s\": [\n", s)
 		}
 		for i, e := range l.Entry {
 			if *flagJson {
 				j := invToJson(e)
-				if _, err := os.Stdout.Write(j); err != nil {
-					logger.Criticalf(Log, "failed to Write: %v", err)
-					return
+				if _, err := w.Write(j); err != nil {
+					return fmt.Errorf("failed to Write: %v", err)
 				}
 				if i != len(l.Entry)-1 {
-					if _, err := os.Stdout.WriteString(",\n"); err != nil {
-						logger.Criticalf(Log, "failed to Write: %v", err)
-						return
+					if _, err := w.Write([]byte(",\n")); err != nil {
+						return fmt.Errorf("failed to Write: %v", err)
 					}
 				}
 			} else if *flagL {
-				fmt.Printf("%c%s%s%s %s %s %s %s %s\n",
+				fmt.Fprintf(w, "%c%s%s%s %s %s %s %s %s\n",
 					typeToR(e.Type),
 					permTo3Letters(e.PermMode>>6),
 					permTo3Letters(e.PermMode>>3),
@@ -227,20 +219,19 @@ func Ls(ctx context.Context, cfg *CliConfig, args []string) {
 					formatDate(e.ModifiedTime),
 					e.Name)
 			} else {
-				fmt.Printf("%s\n", e.Name)
+				fmt.Fprintf(w, "%s\n", e.Name)
 			}
 		}
 		if *flagJson {
-			if _, err := os.Stdout.WriteString("]\n"); err != nil {
-				logger.Criticalf(Log, "failed to Write: %v", err)
-				return
+			if _, err := w.Write([]byte("]\n")); err != nil {
+				return fmt.Errorf("failed to Write: %v", err)
 			}
 		}
 	}
 	if *flagJson {
-		if _, err := os.Stdout.WriteString("}\n"); err != nil {
-			logger.Criticalf(Log, "failed to Write: %v", err)
-			return
+		if _, err := w.Write([]byte("}\n")); err != nil {
+			return fmt.Errorf("failed to Write: %v", err)
 		}
 	}
+	return nil
 }

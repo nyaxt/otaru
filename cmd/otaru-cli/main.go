@@ -47,28 +47,24 @@ func main() {
 	}
 
 	ctx := context.Background() // FIXME
+
 	switch flag.Arg(0) {
 	case "ls":
-		cli.Ls(ctx, cfg, flag.Args())
-
+		err = cli.Ls(ctx, os.Stdout, cfg, flag.Args())
 	case "attr":
-		cli.Attr(ctx, cfg, flag.Args())
-
+		err = cli.Attr(ctx, cfg, flag.Args())
 	case "get":
-		if err := cli.Get(ctx, cfg, flag.Args()); err != nil {
-			logger.Criticalf(cli.Log, "%v", err)
-			os.Exit(1)
-		}
-
+		err = cli.Get(ctx, cfg, flag.Args())
 	case "put":
-		if err := cli.Put(ctx, cfg, flag.Args()); err != nil {
-			logger.Criticalf(cli.Log, "%v", err)
-			os.Exit(1)
-		}
+		err = cli.Put(ctx, cfg, flag.Args())
 
 	default:
 		logger.Infof(cli.Log, "Unknown cmd: %v", flag.Arg(0))
 		Usage()
 		os.Exit(2)
+	}
+	if err != nil {
+		logger.Criticalf(cli.Log, "%v", err)
+		os.Exit(1)
 	}
 }
