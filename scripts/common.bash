@@ -103,12 +103,12 @@ function otaru::gcloud_setup() {
 function otaru::gen_self_signed_cert() {
 	echo "*** cfssl version"
 	cfssl version || {
-		echo "cfssl not installed. Please install via go get -u https://github.com/cloudflare/cfssl"
+		echo "cfssl not installed. Please install via go get -v -u github.com/cloudflare/cfssl/cmd/..."
 		exit 1
 	}
 	echo "*** cfssljson version"
 	cfssljson -version || {
-		echo "cfssljson not installed. Please install via go get -u https://github.com/cloudflare/cfsslversion"
+		echo "cfssljson not installed. Please install via go get -v -u github.com/cloudflare/cfssl/cmd/..."
 		exit 1
 	}
 	echo
