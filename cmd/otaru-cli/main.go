@@ -55,10 +55,16 @@ func main() {
 		cli.Attr(ctx, cfg, flag.Args())
 
 	case "get":
-		cli.Get(ctx, cfg, flag.Args())
+		if err := cli.Get(ctx, cfg, flag.Args()); err != nil {
+			logger.Criticalf(cli.Log, "%v", err)
+			os.Exit(1)
+		}
 
 	case "put":
-		cli.Put(ctx, cfg, flag.Args())
+		if err := cli.Put(ctx, cfg, flag.Args()); err != nil {
+			logger.Criticalf(cli.Log, "%v", err)
+			os.Exit(1)
+		}
 
 	default:
 		logger.Infof(cli.Log, "Unknown cmd: %v", flag.Arg(0))
