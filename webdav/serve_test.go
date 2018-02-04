@@ -1,9 +1,7 @@
-package webdav
+package webdav_test
 
 import (
 	"bytes"
-	"crypto/tls"
-	"crypto/x509"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -13,6 +11,7 @@ import (
 	"github.com/bobziuchkovski/digest"
 
 	tu "github.com/nyaxt/otaru/testutils"
+	. "github.com/nyaxt/otaru/webdav"
 )
 
 func init() { tu.EnsureLogger() }
@@ -65,17 +64,6 @@ func TestServe_TLS(t *testing.T) {
 	certFile := path.Join(otarudir, "cert.pem")
 	keyFile := path.Join(otarudir, "cert-key.pem")
 
-	certtext, err := ioutil.ReadFile(certFile)
-	if err != nil {
-		t.Errorf("cert file read: %v", err)
-		return
-	}
-	certpool := x509.NewCertPool()
-	if !certpool.AppendCertsFromPEM(certtext) {
-		t.Errorf("certpool creation failure")
-		return
-	}
-
 	fs := tu.TestFileSystem()
 	if err := fs.WriteFile("/foo.txt", tu.HelloWorld, 0644); err != nil {
 		t.Errorf("WriteFile: %v", err)
@@ -96,12 +84,10 @@ func TestServe_TLS(t *testing.T) {
 		joinC <- struct{}{}
 	}()
 
-	c := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs: certpool,
-			},
-		},
+	c, err := tu.TLSHTTPClient(certFile)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
 	}
 
 	resp, err := c.Get("https://" + testListenAddr + "/foo.txt")

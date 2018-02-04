@@ -179,9 +179,11 @@ func Serve(opt ...Option) error {
 	if err != nil {
 		return fmt.Errorf("Failed to listen \"%s\": %v", opts.listenAddr, err)
 	}
+	closed := false
 	if opts.closeC != nil {
 		go func() {
 			<-opts.closeC
+			closed = true
 			lis.Close()
 		}()
 	}
@@ -196,5 +198,12 @@ func Serve(opt ...Option) error {
 		},
 	}
 
-	return httpServer.Serve(tls.NewListener(lis, httpServer.TLSConfig))
+	if err := httpServer.Serve(tls.NewListener(lis, httpServer.TLSConfig)); err != nil {
+		if closed {
+			// Suppress "use of closed network connection" error if we intentionally closed the listener.
+			return nil
+		}
+		return err
+	}
+	return nil
 }
