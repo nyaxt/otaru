@@ -146,21 +146,22 @@ func NewWriter(pathstr string, ofs ...Option) (io.WriteCloser, error) {
 
 	fsc := pb.NewFileSystemServiceClient(conn)
 
-	resp, err := fsc.CreateFile(opts.ctx, &pb.CreateFileRequest{
+	resp, err := fsc.Create(opts.ctx, &pb.CreateRequest{
 		DirId:        0, // Fullpath mode
 		Name:         p.FsPath,
 		Uid:          uint32(os.Geteuid()),
 		Gid:          uint32(os.Getegid()),
 		PermMode:     uint32(0644), // FIXME
 		ModifiedTime: time.Now().Unix(),
+		Type:         pb.INodeType_FILE,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("CreateFile: %v", err)
+		return nil, fmt.Errorf("Create: %v", err)
 	}
 
 	id := resp.Id
 	logger.Infof(Log, "Target file \"%s\" inode id: %v", p.FsPath, id)
-	if !resp.IsNewFile {
+	if !resp.IsNew {
 		logger.Infof(Log, "Target file \"%s\" already exists. Overwriting.", p.FsPath)
 	}
 

@@ -116,7 +116,7 @@ func (svc *fileSystemService) Attr(ctx context.Context, req *pb.AttrRequest) (*p
 	return &pb.AttrResponse{Entry: inv}, nil
 }
 
-func (svc *fileSystemService) CreateFile(ctx context.Context, req *pb.CreateFileRequest) (*pb.CreateFileResponse, error) {
+func (svc *fileSystemService) Create(ctx context.Context, req *pb.CreateRequest) (*pb.CreateResponse, error) {
 	dirId := inodedb.ID(req.DirId)
 	permMode := uint16(req.PermMode & 0777)
 	var modifiedT time.Time
@@ -128,20 +128,37 @@ func (svc *fileSystemService) CreateFile(ctx context.Context, req *pb.CreateFile
 	if dirId == 0 {
 		// Fullpath mode.
 		fullpath := req.Name
-		id, err := svc.fs.CreateFileFullPath(fullpath, permMode, req.Uid, req.Gid, modifiedT)
+		var id inodedb.ID
+		var err error
+		if req.Type == pb.INodeType_FILE {
+			id, err = svc.fs.CreateFileFullPath(fullpath, permMode, req.Uid, req.Gid, modifiedT)
+		} else if req.Type == pb.INodeType_DIR {
+			id, err = svc.fs.CreateDirFullPath(fullpath, permMode, req.Uid, req.Gid, modifiedT)
+		} else {
+			return nil, grpc.Errorf(codes.InvalidArgument, "invalid Type %d given.", req.Type)
+		}
 		if err != nil {
 			if util.IsExist(err) {
 				id, err := svc.fs.FindNodeFullPath(fullpath)
 				if err != nil {
 					return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("FindNodeFullPath for existing file failed: %v", err))
 				}
-				return &pb.CreateFileResponse{Id: uint64(id), IsNewFile: false}, nil
+				return &pb.CreateResponse{Id: uint64(id), IsNew: false}, nil
 			}
 			return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("CreateFileFullPath failed: %v", err))
 		}
-		return &pb.CreateFileResponse{Id: uint64(id), IsNewFile: true}, nil
+		return &pb.CreateResponse{Id: uint64(id), IsNew: true}, nil
 	}
-	id, err := svc.fs.CreateFile(dirId, req.Name, permMode, req.Uid, req.Gid, modifiedT)
+
+	var id inodedb.ID
+	var err error
+	if req.Type == pb.INodeType_FILE {
+		id, err = svc.fs.CreateFile(dirId, req.Name, permMode, req.Uid, req.Gid, modifiedT)
+	} else if req.Type == pb.INodeType_DIR {
+		id, err = svc.fs.CreateDir(dirId, req.Name, permMode, req.Uid, req.Gid, modifiedT)
+	} else {
+		return nil, grpc.Errorf(codes.InvalidArgument, "invalid Type %d given.", req.Type)
+	}
 	if err != nil {
 		if util.IsExist(err) {
 			entriesMap, err := svc.fs.DirEntries(dirId)
@@ -152,12 +169,12 @@ func (svc *fileSystemService) CreateFile(ctx context.Context, req *pb.CreateFile
 			if !ok {
 				return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("Existing file's parent dir doesn't have the existing file !??"))
 			}
-			return &pb.CreateFileResponse{Id: uint64(id), IsNewFile: false}, nil
+			return &pb.CreateResponse{Id: uint64(id), IsNew: false}, nil
 		}
 		return nil, grpc.Errorf(codes.Internal, fmt.Sprintf("CreateFile failed: %v", err))
 	}
 
-	return &pb.CreateFileResponse{Id: uint64(id), IsNewFile: true}, nil
+	return &pb.CreateResponse{Id: uint64(id), IsNew: true}, nil
 }
 
 func (svc *fileSystemService) ReadFile(ctx context.Context, req *pb.ReadFileRequest) (*pb.ReadFileResponse, error) {

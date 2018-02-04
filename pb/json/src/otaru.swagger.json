@@ -108,32 +108,6 @@
         ]
       }
     },
-    "/api/v1/filesystem/file": {
-      "post": {
-        "operationId": "CreateFile",
-        "responses": {
-          "200": {
-            "description": "",
-            "schema": {
-              "$ref": "#/definitions/pbCreateFileResponse"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/pbCreateFileRequest"
-            }
-          }
-        ],
-        "tags": [
-          "FileSystemService"
-        ]
-      }
-    },
     "/api/v1/filesystem/file/{id}": {
       "get": {
         "operationId": "ReadFile",
@@ -256,6 +230,32 @@
             "in": "query",
             "required": false,
             "type": "string"
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
+    "/api/v1/filesystem/node": {
+      "post": {
+        "operationId": "Create",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbCreateResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbCreateRequest"
+            }
           }
         ],
         "tags": [
@@ -442,7 +442,7 @@
         }
       }
     },
-    "pbCreateFileRequest": {
+    "pbCreateRequest": {
       "type": "object",
       "properties": {
         "dir_id": {
@@ -468,17 +468,20 @@
         "modified_time": {
           "type": "string",
           "format": "int64"
+        },
+        "type": {
+          "$ref": "#/definitions/pbINodeType"
         }
       }
     },
-    "pbCreateFileResponse": {
+    "pbCreateResponse": {
       "type": "object",
       "properties": {
         "id": {
           "type": "string",
           "format": "uint64"
         },
-        "is_new_file": {
+        "is_new": {
           "type": "boolean",
           "format": "boolean"
         }
@@ -612,6 +615,14 @@
           "format": "int64"
         }
       }
+    },
+    "pbINodeType": {
+      "type": "string",
+      "enum": [
+        "FILE",
+        "DIR"
+      ],
+      "default": "FILE"
     },
     "pbINodeView": {
       "type": "object",

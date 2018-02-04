@@ -111,17 +111,13 @@ func (fs *FileSystem) WriteFile(fullpath string, content []byte, perm uint16) er
 	return h.PWrite(content, 0)
 }
 
-func (fs *FileSystem) CreateDirFullPath(fullpath string, permmode os.FileMode) error {
+func (fs *FileSystem) CreateDirFullPath(fullpath string, perm uint16, uid, gid uint32, modifiedT time.Time) (inodedb.ID, error) {
 	parent := filepath.Dir(fullpath)
 	id, err := fs.FindNodeFullPath(parent)
 	if err != nil {
-		return fmt.Errorf("Failed to find parent \"%s\": %v", parent, err)
+		return 0, fmt.Errorf("Failed to find parent \"%s\": %v", parent, err)
 	}
 
 	name := filepath.Base(fullpath)
-	_, err = fs.CreateDir(id, name, uint16(permmode), 0, 0, time.Now())
-	if err != nil {
-		return fmt.Errorf("CreateDir err: %v", err)
-	}
-	return nil
+	return fs.CreateDir(id, name, perm, uid, gid, modifiedT)
 }

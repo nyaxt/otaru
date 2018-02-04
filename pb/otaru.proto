@@ -25,10 +25,15 @@ message ListDirRequest {
   string path = 2;
 }
 
+enum INodeType {
+  FILE = 0;
+  DIR = 1;
+}
+
 message INodeView {
   uint64 id = 1;
   string name = 2;
-  string type = 3;
+  string type = 3; // FIXME: change this to INodeType
   int64 size = 4;
   uint32 uid = 5;
   uint32 gid = 6;
@@ -44,7 +49,7 @@ message ListDirResponse {
   repeated Listing listing = 1;
 }
 
-message CreateFileRequest {
+message CreateRequest {
   // If |dir_id| == 0, then treat |name| as fullpath.
   uint64 dir_id = 1;
   string name = 2;
@@ -52,11 +57,12 @@ message CreateFileRequest {
   uint32 gid = 4;
   uint32 perm_mode = 5;
   int64 modified_time = 6;
+  INodeType type = 7;
 }
 
-message CreateFileResponse {
+message CreateResponse {
   uint64 id = 1;
-  bool is_new_file = 2;
+  bool is_new = 2;
 }
 
 message FindNodeFullPathRequest {
@@ -115,9 +121,9 @@ service FileSystemService {
     };
   }
 
-  rpc CreateFile(CreateFileRequest) returns (CreateFileResponse) {
+  rpc Create(CreateRequest) returns (CreateResponse) {
     option (google.api.http) = {
-      post: "/api/v1/filesystem/file"
+      post: "/api/v1/filesystem/node"
       body: "*"
     };
   }

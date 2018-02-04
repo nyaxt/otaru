@@ -568,7 +568,7 @@ func TestServe_ReadOnly(t *testing.T) {
 		t.Errorf("WriteFile: %v", err)
 		return
 	}
-	if err := wfs.CreateDirFullPath("/dir", 0755); err != nil {
+	if _, err := wfs.CreateDirFullPath("/dir", 0755, 1000, 1000, time.Now()); err != nil {
 		t.Errorf("CreateDirFullPath: %v", err)
 		return
 	}
