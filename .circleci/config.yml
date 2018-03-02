@@ -1,0 +1,16 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/nyaxt/otaru
+    parallelism: 1
+    shell: /bin/bash --login
+    docker:
+    - image: circleci/buildpack-deps:curl
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run: docker info
+    - run: if [[ ! -d ./otaru-testconf ]]; then echo $TESTCONFTGZ | base64 -d | tar xzf - ; fi
+    - run: OTARUDIR=./otaru-testconf scripts/update_version.bash
+    - run: docker build -t otaru .
+    - run: docker run -e "OTARUDIR=/otaru-testconf" -e "SKIP_FUSE_TEST=1" -v `pwd`/otaru-testconf:/otaru-testconf otaru go test ./...
