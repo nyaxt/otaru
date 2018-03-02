@@ -26,13 +26,13 @@ func TestServe_Basic(t *testing.T) {
 		t.Errorf("WriteFile: %v", err)
 	}
 
-	apiCloseC := make(chan struct{})
+	closeC := make(chan struct{})
 	joinC := make(chan struct{})
 	go func() {
 		err := Serve(
 			FileSystem(fs),
 			ListenAddr(testListenAddr),
-			CloseChannel(apiCloseC),
+			CloseChannel(closeC),
 		)
 		if err != nil {
 			t.Errorf("Serve failed: %v", err)
@@ -55,8 +55,11 @@ func TestServe_Basic(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	close(apiCloseC)
+	close(closeC)
 	<-joinC
+
+	// hack: ensure listener socket close before proceeding
+	time.Sleep(100 * time.Millisecond)
 }
 
 func TestServe_TLS(t *testing.T) {
@@ -69,14 +72,14 @@ func TestServe_TLS(t *testing.T) {
 		t.Errorf("WriteFile: %v", err)
 	}
 
-	apiCloseC := make(chan struct{})
+	closeC := make(chan struct{})
 	joinC := make(chan struct{})
 	go func() {
 		err := Serve(
 			FileSystem(fs),
 			X509KeyPair(certFile, keyFile),
 			ListenAddr(testListenAddr),
-			CloseChannel(apiCloseC),
+			CloseChannel(closeC),
 		)
 		if err != nil {
 			t.Errorf("Serve failed: %v", err)
@@ -105,8 +108,11 @@ func TestServe_TLS(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	close(apiCloseC)
+	close(closeC)
 	<-joinC
+
+	// hack: ensure listener socket close before proceeding
+	time.Sleep(100 * time.Millisecond)
 }
 
 func TestServe_Htdigest(t *testing.T) {
@@ -134,14 +140,14 @@ func TestServe_Htdigest(t *testing.T) {
 		t.Errorf("WriteFile: %v", err)
 	}
 
-	apiCloseC := make(chan struct{})
+	closeC := make(chan struct{})
 	joinC := make(chan struct{})
 	go func() {
 		err := Serve(
 			FileSystem(fs),
 			ListenAddr(testListenAddr),
 			DigestAuth("otaru webdav", htdigestFilePath),
-			CloseChannel(apiCloseC),
+			CloseChannel(closeC),
 		)
 		if err != nil {
 			t.Errorf("Serve failed: %v", err)
@@ -191,6 +197,9 @@ func TestServe_Htdigest(t *testing.T) {
 		t.Errorf("Unauthorized data read!: %v", cont)
 	}
 
-	close(apiCloseC)
+	close(closeC)
 	<-joinC
+
+	// hack: ensure listener socket close before proceeding
+	time.Sleep(100 * time.Millisecond)
 }
