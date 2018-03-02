@@ -14,6 +14,6 @@ jobs:
     - run: OTARUDIR=./otaru-testconf scripts/update_version.bash
     - run: docker build -t otaru .
     - run: docker create -e "OTARUDIR=/otaru-testconf" -e "SKIP_FUSE_TEST=1" -v /otaru-testconf --name otaru-w-testconf otaru go test ./...
-    - run: docker cp `pwd`/otaru-testconf/* otaru-w-testconf:/otaru-testconf
+    - run: docker cp `pwd`/otaru-testconf/. otaru-w-testconf:/otaru-testconf
     - run: docker start -a otaru-w-testconf
     - run: docker rm otaru-w-testconf
