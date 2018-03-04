@@ -31,6 +31,8 @@ func ConnectionInfo(cfg *CliConfig, vhost string) (string, *tls.Config, error) {
 		if err != nil {
 			return "", nil, err
 		}
+	} else if h.OverrideServerName != "" {
+		tc = &tls.Config{ServerName: h.OverrideServerName}
 	} else {
 		logger.Debugf(Log, "No server cert expectation given.")
 		tc = &tls.Config{}

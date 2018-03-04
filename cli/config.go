@@ -16,8 +16,9 @@ type CliConfig struct {
 }
 
 type Host struct {
-	ApiEndpoint      string
-	ExpectedCertFile string
+	ApiEndpoint        string
+	ExpectedCertFile   string
+	OverrideServerName string
 
 	//ClientCertFile   string
 }
