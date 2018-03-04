@@ -3,12 +3,12 @@ jobenv: &jobenv
   working_directory: ~/nyaxt/otaru
   parallelism: 1
   shell: /bin/bash --login
-  docker:
-  - image: circleci/buildpack-deps:curl
 
 jobs:
   build:
     <<: *jobenv
+    docker:
+    - image: circleci/buildpack-deps:curl
     steps:
       - checkout
       - setup_remote_docker
@@ -20,8 +20,9 @@ jobs:
       - run: docker cp `pwd`/otaru-testconf/. otaru-w-testconf:/otaru-testconf
       - run: docker start -a otaru-w-testconf
       - run: mkdir -p /tmp/workspace/otaru-bin
-      - run: docker cp otaru-w-testconf:/out/. /tmp/workspace/otaru-bin/
       - run: docker rm otaru-w-testconf
+      - run: docker run -v /out --name otaru-cp otaru
+      - run: docker cp otaru-cp:/out/. /tmp/workspace/otaru-bin/
       - run: /tmp/workspace/otaru-bin/otaru-server -version || true
       - persist_to_workspace:
           root: /tmp/workspace
@@ -29,6 +30,8 @@ jobs:
             - otaru-bin
   deploy:
     <<: *jobenv
+    docker:
+    - image: google/cloud-sdk
     steps:
       - attach_workspace:
           at: /tmp/workspace
