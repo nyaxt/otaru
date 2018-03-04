@@ -77,7 +77,7 @@ func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, id inode
 	if filename == "" {
 		filename = filepath.Base(a.OrigPath)
 		if filename == "" {
-			filename = fmt.Sprintf("%u.bin", id)
+			filename = fmt.Sprintf("%d.bin", id)
 		}
 	}
 

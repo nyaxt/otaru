@@ -104,7 +104,7 @@ func fusetestCommon(t *testing.T, fs *filesystem.FileSystem, f func(mountpoint s
 func assertFileContents(t *testing.T, fullpath string, content []byte) {
 	b, err := ioutil.ReadFile(fullpath)
 	if err != nil {
-		t.Errorf("Failed to read file \"%v\": %v", err)
+		t.Errorf("Failed to read file \"%v\": %v", fullpath, err)
 	}
 	if !bytes.Equal(b, content) {
 		t.Errorf("content mismatch file \"%v\"", fullpath)

@@ -1,4 +1,3 @@
-// +build gofuzz
 package filesystem
 
 import (

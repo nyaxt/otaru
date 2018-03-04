@@ -84,7 +84,7 @@ func NewFileBlobStore(base string, flags int) (*FileBlobStore, error) {
 		}
 	}
 	if !fi.Mode().IsDir() {
-		return nil, fmt.Errorf("Specified base \"%s\" is not a directory")
+		return nil, fmt.Errorf("Specified base \"%s\" is not a directory", base)
 	}
 
 	fbs := &FileBlobStore{
