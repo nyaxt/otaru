@@ -42,7 +42,7 @@ jobs:
       - run: gsutil cp /tmp/workspace/otaru-bin.tar.gz gs://otaru-release/
 workflows:
   version: 2
-  build_and_test:
+  build_and_deploy:
     jobs:
       - build
       - deploy:
