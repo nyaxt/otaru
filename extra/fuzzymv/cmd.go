@@ -7,7 +7,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/schollz/closestmatch"
+	"github.com/auxesis/closestmatch"
 	"google.golang.org/grpc"
 
 	"github.com/nyaxt/otaru/cli"
@@ -18,11 +18,10 @@ import (
 type CacheEntry struct {
 	Id       uint64
 	FullPath string
-	Type     pb.INodeType
 	Depth    int
 }
 
-var RootCE = &CacheEntry{Id: 1, FullPath: "", Type: pb.INodeType_DIR, Depth: 0}
+var RootCE = &CacheEntry{Id: 1, FullPath: "", Depth: 0}
 
 type Cache struct {
 	entries []*CacheEntry
@@ -59,17 +58,20 @@ func populateCache(ctx context.Context, c *Cache, conn *grpc.ClientConn, maxDept
 		for _, l := range resp.Listing {
 			parent := id2ce[l.DirId]
 			for _, e := range l.Entry {
+				if e.Type != pb.INodeType_DIR {
+					continue
+				}
+
 				ce := &CacheEntry{
 					Id:       e.Id,
 					FullPath: fmt.Sprintf("%s/%s", parent.FullPath, e.Name),
-					Type:     e.Type,
 					Depth:    parent.Depth + 1,
 				}
 
 				// logger.Debugf(mylog, "append %+v", ce)
 
 				c.entries = append(c.entries, ce)
-				if ce.Depth < maxDepth && e.Type == pb.INodeType_DIR {
+				if ce.Depth < maxDepth {
 					dirs = append(dirs, ce)
 				}
 			}
@@ -116,13 +118,17 @@ func Update(ctx context.Context, cfg *cli.CliConfig, args []string) error {
 		return c.entries[i].FullPath < c.entries[j].FullPath
 	})
 	logger.Infof(mylog, "%d entries", len(c.entries))
-	fullpaths := make([]string, 0, len(c.entries))
-	for _, ce := range c.entries {
-		fullpaths = append(fullpaths, ce.FullPath)
+	cmap := make(map[string]interface{})
+	for i, ce := range c.entries {
+		cmap[ce.FullPath] = i
 	}
-	cm := closestmatch.New(fullpaths, []int{2})
+	cm := closestmatch.New(cmap, []int{2})
 	logger.Infof(mylog, "cm init done")
-	fmt.Println(cm.ClosestN(fset.Arg(1), 3))
+	matches := cm.ClosestN(fset.Arg(1), 3)
+	for _, m := range matches {
+		i := m.Data.(int)
+		logger.Infof(mylog, "match: %v score: %d", c.entries[i], m.Score)
+	}
 
 	return nil
 }
