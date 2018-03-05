@@ -20,11 +20,11 @@ import (
 	"github.com/nyaxt/otaru/util"
 )
 
-func typeToR(t string) rune {
+func typeToR(t pb.INodeType) rune {
 	switch t {
-	case "file":
+	case pb.INodeType_FILE:
 		return '-'
-	case "dir":
+	case pb.INodeType_DIR:
 		return 'd'
 	default:
 		return '?'
@@ -80,7 +80,7 @@ func invToJson(e *pb.INodeView) []byte {
 		PermModeStr  string    `json:"perm_mode_str"`
 		ModifiedTime time.Time `json:"modified_time"`
 	}{
-		e.Id, e.Type, e.Name, e.Uid, e.Gid,
+		e.Id, e.Type.String(), e.Name, e.Uid, e.Gid,
 		e.PermMode, permModeStr,
 		time.Unix(e.ModifiedTime, 0),
 	}

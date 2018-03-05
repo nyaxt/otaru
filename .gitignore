@@ -32,6 +32,8 @@ out/*
 otaru-server
 otaru-mkfs
 otaru-cli
+otaru-fuzzymv
+otaru-globallock
 *-fuzz.zip
 
 version/consts.go

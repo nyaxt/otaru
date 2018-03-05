@@ -13,6 +13,8 @@ import (
 
 type CliConfig struct {
 	Host map[string]*Host
+
+	FuzzyMvCacheDir string
 }
 
 type Host struct {
@@ -36,7 +38,9 @@ func NewConfig(configdir string) (*CliConfig, error) {
 		return nil, fmt.Errorf("Failed to read config file: %v", err)
 	}
 
-	cfg := CliConfig{}
+	cfg := CliConfig{
+		FuzzyMvCacheDir: path.Join(configdir, "fuzzymvcache"),
+	}
 	if err := toml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("Failed to parse config file: %v", err)
 	}

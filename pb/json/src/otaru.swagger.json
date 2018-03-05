@@ -635,7 +635,7 @@
           "type": "string"
         },
         "type": {
-          "type": "string"
+          "$ref": "#/definitions/pbINodeType"
         },
         "size": {
           "type": "string",
