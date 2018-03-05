@@ -1,10 +1,13 @@
 package fuzzymv
 
 import (
+	"compress/gzip"
 	"context"
+	"encoding/gob"
 	"flag"
 	"fmt"
 	"os"
+	"path"
 	"sort"
 
 	"github.com/auxesis/closestmatch"
@@ -24,7 +27,8 @@ type CacheEntry struct {
 var RootCE = &CacheEntry{Id: 1, FullPath: "", Depth: 0}
 
 type Cache struct {
-	entries []*CacheEntry
+	Entries []*CacheEntry
+	CM      *closestmatch.ClosestMatch
 }
 
 const ListDirMaxIds = 10
@@ -70,7 +74,7 @@ func populateCache(ctx context.Context, c *Cache, conn *grpc.ClientConn, maxDept
 
 				// logger.Debugf(mylog, "append %+v", ce)
 
-				c.entries = append(c.entries, ce)
+				c.Entries = append(c.Entries, ce)
 				if ce.Depth < maxDepth {
 					dirs = append(dirs, ce)
 				}
@@ -91,12 +95,10 @@ func Update(ctx context.Context, cfg *cli.CliConfig, args []string) error {
 	}
 	fset.Parse(args[1:])
 
-	/*
-		if fset.NArg() != 1 {
-			fset.Usage()
-			return fmt.Errorf("Invalid number of arguments.")
-		}
-	*/
+	if fset.NArg() != 1 {
+		fset.Usage()
+		return fmt.Errorf("Invalid number of arguments.")
+	}
 	vhost := fset.Arg(0)
 
 	c := &Cache{}
@@ -114,21 +116,40 @@ func Update(ctx context.Context, cfg *cli.CliConfig, args []string) error {
 	if err := populateCache(ctx, c, conn, *flagMaxDepth); err != nil {
 		return err
 	}
-	sort.Slice(c.entries, func(i, j int) bool {
-		return c.entries[i].FullPath < c.entries[j].FullPath
+	sort.Slice(c.Entries, func(i, j int) bool {
+		return c.Entries[i].FullPath < c.Entries[j].FullPath
 	})
-	logger.Infof(mylog, "%d entries", len(c.entries))
+	logger.Infof(mylog, "%d Entries", len(c.Entries))
 	cmap := make(map[string]interface{})
-	for i, ce := range c.entries {
+	for i, ce := range c.Entries {
 		cmap[ce.FullPath] = i
 	}
-	cm := closestmatch.New(cmap, []int{2})
+	c.CM = closestmatch.New(cmap, []int{2})
 	logger.Infof(mylog, "cm init done")
-	matches := cm.ClosestN(fset.Arg(1), 3)
-	for _, m := range matches {
-		i := m.Data.(int)
-		logger.Infof(mylog, "match: %v score: %d", c.entries[i], m.Score)
+
+	if err := os.MkdirAll(cfg.FuzzyMvCacheDir, os.ModePerm); err != nil {
+		return fmt.Errorf("mkdir(%s): %v", cfg.FuzzyMvCacheDir, err)
 	}
+	cachepath := path.Join(cfg.FuzzyMvCacheDir, fmt.Sprintf("%v.cache", vhost))
+	f, err := os.OpenFile(cachepath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("OpenFile: %v", err)
+	}
+	defer f.Close()
+	w := gzip.NewWriter(f)
+	defer w.Close()
+	e := gob.NewEncoder(w)
+	if err := e.Encode(c); err != nil {
+		return fmt.Errorf("gob encode: %v", err)
+	}
+
+	/*
+		matches := cm.ClosestN(fset.Arg(1), 3)
+		for _, m := range matches {
+			i := m.Data.(int)
+			logger.Infof(mylog, "match: %v score: %d", c.Entries[i], m.Score)
+		}
+	*/
 
 	return nil
 }
