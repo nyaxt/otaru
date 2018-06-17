@@ -12,6 +12,7 @@ import (
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/util"
 )
@@ -22,11 +23,23 @@ type fileSystemService struct {
 	fs *filesystem.FileSystem
 }
 
+func type2pb(t inodedb.Type) pb.INodeType {
+	switch t {
+	case inodedb.FileNodeT:
+		return pb.INodeType_FILE
+	case inodedb.DirNodeT:
+		return pb.INodeType_DIR
+	default:
+		logger.Panicf(mylog, "unknown inodedb.Type(%v)", t)
+		return pb.INodeType_FILE
+	}
+}
+
 func attrToINodeView(id inodedb.ID, name string, a filesystem.Attr) *pb.INodeView {
 	return &pb.INodeView{
 		Id:           uint64(id),
 		Name:         name,
-		Type:         inodedb.TypeName(a.Type),
+		Type:         type2pb(a.Type),
 		Size:         a.Size,
 		Uid:          a.Uid,
 		Gid:          a.Gid,
