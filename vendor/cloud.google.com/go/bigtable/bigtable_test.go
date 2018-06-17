@@ -1,5 +1,5 @@
 /*
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2015 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ import (
 	"cloud.google.com/go/internal/testutil"
 
 	"golang.org/x/net/context"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc"
 )
 
 func TestPrefix(t *testing.T) {
@@ -51,6 +53,29 @@ func TestPrefix(t *testing.T) {
 		if tc.succ != "" && r.limit != tc.succ {
 			t.Errorf("PrefixRange(%q) got limit %q, want %q", tc.prefix, r.limit, tc.succ)
 		}
+	}
+}
+
+func TestApplyErrors(t *testing.T) {
+	ctx := context.Background()
+	table := &Table{
+		c: &Client{
+			project:  "P",
+			instance: "I",
+		},
+		table: "t",
+	}
+	f := ColumnFilter("C")
+	m := NewMutation()
+	m.DeleteRow()
+	// Test nested conditional mutations.
+	cm := NewCondMutation(f, NewCondMutation(f, m, nil), nil)
+	if err := table.Apply(ctx, "x", cm); err == nil {
+		t.Error("got nil, want error")
+	}
+	cm = NewCondMutation(f, nil, NewCondMutation(f, m, nil))
+	if err := table.Apply(ctx, "x", cm); err == nil {
+		t.Error("got nil, want error")
 	}
 }
 
@@ -121,7 +146,7 @@ func TestClientIntegration(t *testing.T) {
 	for row, ss := range initialData {
 		mut := NewMutation()
 		for _, name := range ss {
-			mut.Set("follows", name, 0, []byte("1"))
+			mut.Set("follows", name, 1000, []byte("1"))
 		}
 		if err := tbl.Apply(ctx, row, mut); err != nil {
 			t.Errorf("Mutating row %q: %v", row, err)
@@ -129,14 +154,15 @@ func TestClientIntegration(t *testing.T) {
 	}
 	checkpoint("inserted initial data")
 
-	if err := adminClient.WaitForReplication(ctx, table); err != nil {
-		t.Errorf("Waiting for replication for table %q: %v", table, err)
-	}
-	checkpoint("waited for replication")
+	// TODO(igorbernstein): re-enable this when ready
+	//if err := adminClient.WaitForReplication(ctx, table); err != nil {
+	//	t.Errorf("Waiting for replication for table %q: %v", table, err)
+	//}
+	//checkpoint("waited for replication")
 
 	// Do a conditional mutation with a complex filter.
 	mutTrue := NewMutation()
-	mutTrue.Set("follows", "wmckinley", 0, []byte("1"))
+	mutTrue.Set("follows", "wmckinley", 1000, []byte("1"))
 	filter := ChainFilters(ColumnFilter("gwash[iz].*"), ValueFilter("."))
 	mut := NewCondMutation(filter, mutTrue, nil)
 	if err := tbl.Apply(ctx, "tjefferson", mut); err != nil {
@@ -160,8 +186,8 @@ func TestClientIntegration(t *testing.T) {
 	}
 	wantRow := Row{
 		"follows": []ReadItem{
-			{Row: "jadams", Column: "follows:gwashington", Value: []byte("1")},
-			{Row: "jadams", Column: "follows:tjefferson", Value: []byte("1")},
+			{Row: "jadams", Column: "follows:gwashington", Timestamp: 1000, Value: []byte("1")},
+			{Row: "jadams", Column: "follows:tjefferson", Timestamp: 1000, Value: []byte("1")},
 		},
 	}
 	if !testutil.Equal(row, wantRow) {
@@ -492,7 +518,7 @@ func TestClientIntegration(t *testing.T) {
 	}
 	const numVersions = 4
 	mut = NewMutation()
-	for i := 0; i < numVersions; i++ {
+	for i := 1; i < numVersions; i++ {
 		// Timestamps are used in thousands because the server
 		// only permits that granularity.
 		mut.Set("ts", "col", Timestamp(i*1000), []byte(fmt.Sprintf("val-%d", i)))
@@ -510,11 +536,9 @@ func TestClientIntegration(t *testing.T) {
 		{Row: "testrow", Column: "ts:col", Timestamp: 3000, Value: []byte("val-3")},
 		{Row: "testrow", Column: "ts:col", Timestamp: 2000, Value: []byte("val-2")},
 		{Row: "testrow", Column: "ts:col", Timestamp: 1000, Value: []byte("val-1")},
-		{Row: "testrow", Column: "ts:col", Timestamp: 0, Value: []byte("val-0")},
 		{Row: "testrow", Column: "ts:col2", Timestamp: 3000, Value: []byte("val-3")},
 		{Row: "testrow", Column: "ts:col2", Timestamp: 2000, Value: []byte("val-2")},
 		{Row: "testrow", Column: "ts:col2", Timestamp: 1000, Value: []byte("val-1")},
-		{Row: "testrow", Column: "ts:col2", Timestamp: 0, Value: []byte("val-0")},
 	}}
 	if !testutil.Equal(r, wantRow) {
 		t.Errorf("Cell with multiple versions,\n got %v\nwant %v", r, wantRow)
@@ -551,11 +575,9 @@ func TestClientIntegration(t *testing.T) {
 		t.Fatalf("Reading row: %v", err)
 	}
 	wantRow = Row{"ts": []ReadItem{
-		{Row: "testrow", Column: "ts:col", Timestamp: 0, Value: []byte("val-0")},
 		{Row: "testrow", Column: "ts:col2", Timestamp: 3000, Value: []byte("val-3")},
 		{Row: "testrow", Column: "ts:col2", Timestamp: 2000, Value: []byte("val-2")},
 		{Row: "testrow", Column: "ts:col2", Timestamp: 1000, Value: []byte("val-1")},
-		{Row: "testrow", Column: "ts:col2", Timestamp: 0, Value: []byte("val-0")},
 	}}
 	if !testutil.Equal(r, wantRow) {
 		t.Errorf("Cell with multiple versions and CellsPerRowOffsetFilter(3),\n got %v\nwant %v", r, wantRow)
@@ -648,9 +670,9 @@ func TestClientIntegration(t *testing.T) {
 	}
 
 	mut = NewMutation()
-	mut.Set("status", "start", 0, []byte("1"))
-	mut.Set("status", "end", 0, []byte("2"))
-	mut.Set("ts", "col", 0, []byte("3"))
+	mut.Set("status", "start", 2000, []byte("2"))
+	mut.Set("status", "end", 3000, []byte("3"))
+	mut.Set("ts", "col", 1000, []byte("1"))
 	if err := tbl.Apply(ctx, "row1", mut); err != nil {
 		t.Errorf("Mutating row: %v", err)
 	}
@@ -670,7 +692,7 @@ func TestClientIntegration(t *testing.T) {
 		t.Fatalf("Reading row: %v", err)
 	}
 	wantRow = Row{"ts": []ReadItem{
-		{Row: "row1", Column: "ts:col", Timestamp: 0, Value: []byte("3")},
+		{Row: "row1", Column: "ts:col", Timestamp: 1000, Value: []byte("1")},
 	}}
 	if !testutil.Equal(r, wantRow) {
 		t.Errorf("column family was not deleted.\n got %v\n want %v", r, wantRow)
@@ -683,11 +705,11 @@ func TestClientIntegration(t *testing.T) {
 	}
 	wantRow = Row{
 		"ts": []ReadItem{
-			{Row: "row2", Column: "ts:col", Timestamp: 0, Value: []byte("3")},
+			{Row: "row2", Column: "ts:col", Timestamp: 1000, Value: []byte("1")},
 		},
 		"status": []ReadItem{
-			{Row: "row2", Column: "status:end", Timestamp: 0, Value: []byte("2")},
-			{Row: "row2", Column: "status:start", Timestamp: 0, Value: []byte("1")},
+			{Row: "row2", Column: "status:end", Timestamp: 3000, Value: []byte("3")},
+			{Row: "row2", Column: "status:start", Timestamp: 2000, Value: []byte("2")},
 		},
 	}
 	if !testutil.Equal(r, wantRow) {
@@ -697,9 +719,9 @@ func TestClientIntegration(t *testing.T) {
 
 	// Check DeleteCellsInColumn
 	mut = NewMutation()
-	mut.Set("status", "start", 0, []byte("1"))
-	mut.Set("status", "middle", 0, []byte("2"))
-	mut.Set("status", "end", 0, []byte("3"))
+	mut.Set("status", "start", 2000, []byte("2"))
+	mut.Set("status", "middle", 3000, []byte("3"))
+	mut.Set("status", "end", 1000, []byte("1"))
 	if err := tbl.Apply(ctx, "row3", mut); err != nil {
 		t.Errorf("Mutating row: %v", err)
 	}
@@ -714,8 +736,8 @@ func TestClientIntegration(t *testing.T) {
 	}
 	wantRow = Row{
 		"status": []ReadItem{
-			{Row: "row3", Column: "status:end", Timestamp: 0, Value: []byte("3")},
-			{Row: "row3", Column: "status:start", Timestamp: 0, Value: []byte("1")},
+			{Row: "row3", Column: "status:end", Timestamp: 1000, Value: []byte("1")},
+			{Row: "row3", Column: "status:start", Timestamp: 2000, Value: []byte("2")},
 		},
 	}
 	if !testutil.Equal(r, wantRow) {
@@ -732,7 +754,7 @@ func TestClientIntegration(t *testing.T) {
 	}
 	wantRow = Row{
 		"status": []ReadItem{
-			{Row: "row3", Column: "status:end", Timestamp: 0, Value: []byte("3")},
+			{Row: "row3", Column: "status:end", Timestamp: 1000, Value: []byte("1")},
 		},
 	}
 	if !testutil.Equal(r, wantRow) {
@@ -752,7 +774,7 @@ func TestClientIntegration(t *testing.T) {
 	}
 	// Add same cell after delete
 	mut = NewMutation()
-	mut.Set("status", "end", 0, []byte("3"))
+	mut.Set("status", "end", 1000, []byte("1"))
 	if err := tbl.Apply(ctx, "row3", mut); err != nil {
 		t.Errorf("Mutating row: %v", err)
 	}
@@ -783,7 +805,7 @@ func TestClientIntegration(t *testing.T) {
 			case 30 <= r && r < 100:
 				// Do a write.
 				mut := NewMutation()
-				mut.Set("ts", "col", 0, []byte("data"))
+				mut.Set("ts", "col", 1000, []byte("data"))
 				if err := tbl.Apply(ctx, "testrow", mut); err != nil {
 					t.Errorf("Concurrent write: %v", err)
 				}
@@ -798,7 +820,7 @@ func TestClientIntegration(t *testing.T) {
 	nonsense := []byte("lorem ipsum dolor sit amet, ")
 	fill(bigBytes, nonsense)
 	mut = NewMutation()
-	mut.Set("ts", "col", 0, bigBytes)
+	mut.Set("ts", "col", 1000, bigBytes)
 	if err := tbl.Apply(ctx, "bigrow", mut); err != nil {
 		t.Errorf("Big write: %v", err)
 	}
@@ -807,7 +829,7 @@ func TestClientIntegration(t *testing.T) {
 		t.Errorf("Big read: %v", err)
 	}
 	wantRow = Row{"ts": []ReadItem{
-		{Row: "bigrow", Column: "ts:col", Value: bigBytes},
+		{Row: "bigrow", Column: "ts:col", Timestamp: 1000, Value: bigBytes},
 	}}
 	if !testutil.Equal(r, wantRow) {
 		t.Errorf("Big read returned incorrect bytes: %v", r)
@@ -818,7 +840,7 @@ func TestClientIntegration(t *testing.T) {
 	sem := make(chan int, 50) // do up to 50 mutations at a time.
 	for i := 0; i < 1000; i++ {
 		mut := NewMutation()
-		mut.Set("ts", "big-scan", 0, medBytes)
+		mut.Set("ts", "big-scan", 1000, medBytes)
 		row := fmt.Sprintf("row-%d", i)
 		wg.Add(1)
 		go func() {
@@ -872,7 +894,7 @@ func TestClientIntegration(t *testing.T) {
 	for row, ss := range bulkData {
 		mut := NewMutation()
 		for _, name := range ss {
-			mut.Set("bulk", name, 0, []byte("1"))
+			mut.Set("bulk", name, 1000, []byte("1"))
 		}
 		rowKeys = append(rowKeys, row)
 		muts = append(muts, mut)
@@ -894,7 +916,7 @@ func TestClientIntegration(t *testing.T) {
 		}
 		var wantItems []ReadItem
 		for _, val := range ss {
-			wantItems = append(wantItems, ReadItem{Row: rowKey, Column: "bulk:" + val, Value: []byte("1")})
+			wantItems = append(wantItems, ReadItem{Row: rowKey, Column: "bulk:" + val, Timestamp: 1000, Value: []byte("1")})
 		}
 		wantRow := Row{"bulk": wantItems}
 		if !testutil.Equal(row, wantRow) {
@@ -920,6 +942,103 @@ func TestClientIntegration(t *testing.T) {
 	}
 }
 
+type requestCountingInterceptor struct {
+	grpc.ClientStream
+	requestCallback func()
+}
+
+func (i *requestCountingInterceptor) SendMsg(m interface{}) error {
+	i.requestCallback()
+	return i.ClientStream.SendMsg(m)
+}
+
+func (i *requestCountingInterceptor) RecvMsg(m interface{}) error {
+	return i.ClientStream.RecvMsg(m)
+}
+
+func requestCallback(callback func()) func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+		clientStream, err := streamer(ctx, desc, cc, method, opts...)
+		return &requestCountingInterceptor{
+			ClientStream:    clientStream,
+			requestCallback: callback,
+		}, err
+	}
+}
+
+// TestReadRowsInvalidRowSet verifies that the client doesn't send ReadRows() requests with invalid RowSets.
+func TestReadRowsInvalidRowSet(t *testing.T) {
+	testEnv, err := NewEmulatedEnv(IntegrationTestConfig{})
+	if err != nil {
+		t.Fatalf("NewEmulatedEnv failed: %v", err)
+	}
+	var requestCount int
+	incrementRequestCount := func() { requestCount++ }
+	conn, err := grpc.Dial(testEnv.server.Addr, grpc.WithInsecure(), grpc.WithBlock(),
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(100<<20), grpc.MaxCallRecvMsgSize(100<<20)),
+		grpc.WithStreamInterceptor(requestCallback(incrementRequestCount)),
+	)
+	if err != nil {
+		t.Fatalf("grpc.Dial failed: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	adminClient, err := NewAdminClient(ctx, testEnv.config.Project, testEnv.config.Instance, option.WithGRPCConn(conn))
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+	defer adminClient.Close()
+	if err := adminClient.CreateTable(ctx, testEnv.config.Table); err != nil {
+		t.Fatalf("CreateTable(%v) failed: %v", testEnv.config.Table, err)
+	}
+	client, err := NewClient(ctx, testEnv.config.Project, testEnv.config.Instance, option.WithGRPCConn(conn))
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+	defer client.Close()
+	table := client.Open(testEnv.config.Table)
+	tests := []struct {
+		rr    RowSet
+		valid bool
+	}{
+		{
+			rr:    RowRange{},
+			valid: true,
+		},
+		{
+			rr:    RowRange{start: "b"},
+			valid: true,
+		},
+		{
+			rr:    RowRange{start: "b", limit: "c"},
+			valid: true,
+		},
+		{
+			rr:    RowRange{start: "b", limit: "a"},
+			valid: false,
+		},
+		{
+			rr:    RowList{"a"},
+			valid: true,
+		},
+		{
+			rr:    RowList{},
+			valid: false,
+		},
+	}
+	for _, test := range tests {
+		requestCount = 0
+		err = table.ReadRows(ctx, test.rr, func(r Row) bool { return true })
+		if err != nil {
+			t.Fatalf("ReadRows(%v) failed: %v", test.rr, err)
+		}
+		requestValid := requestCount != 0
+		if requestValid != test.valid {
+			t.Errorf("%s: got %v, want %v", test.rr, requestValid, test.valid)
+		}
+	}
+}
+
 func formatReadItem(ri ReadItem) string {
 	// Use the column qualifier only to make the test data briefer.
 	col := ri.Column[strings.Index(ri.Column, ":")+1:]
@@ -939,4 +1058,102 @@ func clearTimestamps(r Row) {
 			ris[i].Timestamp = 0
 		}
 	}
+}
+
+func TestSampleRowKeys(t *testing.T) {
+	start := time.Now()
+	lastCheckpoint := start
+	checkpoint := func(s string) {
+		n := time.Now()
+		t.Logf("[%s] %v since start, %v since last checkpoint", s, n.Sub(start), n.Sub(lastCheckpoint))
+		lastCheckpoint = n
+	}
+	ctx := context.Background()
+	client, adminClient, table, err := doSetup(ctx)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer client.Close()
+	defer adminClient.Close()
+	tbl := client.Open(table)
+	// Delete the table at the end of the test.
+	// Do this even before creating the table so that if this is running
+	// against production and CreateTable fails there's a chance of cleaning it up.
+	defer adminClient.DeleteTable(ctx, table)
+
+	// Insert some data.
+	initialData := map[string][]string{
+		"wmckinley11":   {"tjefferson11"},
+		"gwashington77": {"jadams77"},
+		"tjefferson0":   {"gwashington0", "jadams0"},
+	}
+
+	for row, ss := range initialData {
+		mut := NewMutation()
+		for _, name := range ss {
+			mut.Set("follows", name, 1000, []byte("1"))
+		}
+		if err := tbl.Apply(ctx, row, mut); err != nil {
+			t.Errorf("Mutating row %q: %v", row, err)
+		}
+	}
+	checkpoint("inserted initial data")
+	sampleKeys, err := tbl.SampleRowKeys(context.Background())
+	if err != nil {
+		t.Errorf("%s: %v", "SampleRowKeys:", err)
+	}
+	if len(sampleKeys) == 0 {
+		t.Error("SampleRowKeys length 0")
+	}
+	checkpoint("tested SampleRowKeys.")
+}
+
+func doSetup(ctx context.Context) (*Client, *AdminClient, string, error) {
+	start := time.Now()
+	lastCheckpoint := start
+	checkpoint := func(s string) {
+		n := time.Now()
+		fmt.Printf("[%s] %v since start, %v since last checkpoint", s, n.Sub(start), n.Sub(lastCheckpoint))
+		lastCheckpoint = n
+	}
+
+	testEnv, err := NewIntegrationEnv()
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("IntegrationEnv: %v", err)
+	}
+
+	var timeout time.Duration
+	if testEnv.Config().UseProd {
+		timeout = 10 * time.Minute
+		fmt.Printf("Running test against production")
+	} else {
+		timeout = 1 * time.Minute
+		fmt.Printf("bttest.Server running on %s", testEnv.Config().AdminEndpoint)
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	client, err := testEnv.NewClient()
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("Client: %v", err)
+	}
+	checkpoint("dialed Client")
+
+	adminClient, err := testEnv.NewAdminClient()
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("AdminClient: %v", err)
+	}
+	checkpoint("dialed AdminClient")
+
+	table := testEnv.Config().Table
+	if err := adminClient.CreateTable(ctx, table); err != nil {
+		return nil, nil, "", fmt.Errorf("Creating table: %v", err)
+	}
+	checkpoint("created table")
+	if err := adminClient.CreateColumnFamily(ctx, table, "follows"); err != nil {
+		return nil, nil, "", fmt.Errorf("Creating column family: %v", err)
+	}
+	checkpoint(`created "follows" column family`)
+
+	return client, adminClient, table, nil
 }

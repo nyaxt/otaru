@@ -1,10 +1,10 @@
-// Copyright 2017, Google LLC All rights reserved.
+// Copyright 2018 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -87,6 +87,8 @@ func defaultInstanceAdminCallOptions() *InstanceAdminCallOptions {
 }
 
 // InstanceAdminClient is a client for interacting with Cloud Spanner Instance Admin API.
+//
+// Methods, except Close, may be called concurrently. However, fields must not be modified concurrently with method calls.
 type InstanceAdminClient struct {
 	// The connection to the service.
 	conn *grpc.ClientConn
@@ -173,34 +175,6 @@ func (c *InstanceAdminClient) setGoogleClientInfo(keyval ...string) {
 	kv := append([]string{"gl-go", version.Go()}, keyval...)
 	kv = append(kv, "gapic", version.Repo, "gax", gax.Version, "grpc", grpc.Version)
 	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
-}
-
-// InstanceAdminProjectPath returns the path for the project resource.
-func InstanceAdminProjectPath(project string) string {
-	return "" +
-		"projects/" +
-		project +
-		""
-}
-
-// InstanceAdminInstanceConfigPath returns the path for the instance config resource.
-func InstanceAdminInstanceConfigPath(project, instanceConfig string) string {
-	return "" +
-		"projects/" +
-		project +
-		"/instanceConfigs/" +
-		instanceConfig +
-		""
-}
-
-// InstanceAdminInstancePath returns the path for the instance resource.
-func InstanceAdminInstancePath(project, instance string) string {
-	return "" +
-		"projects/" +
-		project +
-		"/instances/" +
-		instance +
-		""
 }
 
 // ListInstanceConfigs lists the supported instance configurations for a given project.

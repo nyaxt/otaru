@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Google Inc. All Rights Reserved.
+Copyright 2017 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,12 +20,12 @@ import (
 	"container/heap"
 	"container/list"
 	"fmt"
+	"log"
 	"math/rand"
 	"strings"
 	"sync"
 	"time"
 
-	log "github.com/golang/glog"
 	"golang.org/x/net/context"
 
 	sppb "google.golang.org/genproto/googleapis/spanner/v1"
@@ -266,8 +266,8 @@ func (s *session) destroy(isExpire bool) bool {
 		_, e := s.client.DeleteSession(ctx, &sppb.DeleteSessionRequest{Name: s.getID()})
 		return e
 	})
-	if err != nil && log.V(2) {
-		log.Warningf("Failed to delete session %v. Error: %v", s.getID(), err)
+	if err != nil {
+		log.Printf("Failed to delete session %v. Error: %v", s.getID(), err)
 	}
 	return true
 }
@@ -310,6 +310,8 @@ type SessionPoolConfig struct {
 	HealthCheckInterval time.Duration
 	// healthCheckSampleInterval is how often the health checker samples live session (for use in maintaining session pool size). Defaults to 1 min.
 	healthCheckSampleInterval time.Duration
+	// sessionLabels for the sessions created in the session pool.
+	sessionLabels map[string]string
 }
 
 // errNoRPCGetter returns error for SessionPoolConfig missing getRPCClient method.
@@ -318,9 +320,9 @@ func errNoRPCGetter() error {
 }
 
 // errMinOpenedGTMapOpened returns error for SessionPoolConfig.MaxOpened < SessionPoolConfig.MinOpened when SessionPoolConfig.MaxOpened is set.
-func errMinOpenedGTMaxOpened(spc *SessionPoolConfig) error {
+func errMinOpenedGTMaxOpened(maxOpened, minOpened uint64) error {
 	return spannerErrorf(codes.InvalidArgument,
-		"require SessionPoolConfig.MaxOpened >= SessionPoolConfig.MinOpened, got %v and %v", spc.MaxOpened, spc.MinOpened)
+		"require SessionPoolConfig.MaxOpened >= SessionPoolConfig.MinOpened, got %v and %v", maxOpened, minOpened)
 }
 
 // validate verifies that the SessionPoolConfig is good for use.
@@ -329,7 +331,7 @@ func (spc *SessionPoolConfig) validate() error {
 		return errNoRPCGetter()
 	}
 	if spc.MinOpened > spc.MaxOpened && spc.MaxOpened > 0 {
-		return errMinOpenedGTMaxOpened(spc)
+		return errMinOpenedGTMaxOpened(spc.MaxOpened, spc.MinOpened)
 	}
 	return nil
 }
@@ -443,6 +445,7 @@ func (p *sessionPool) shouldPrepareWrite() bool {
 }
 
 func (p *sessionPool) createSession(ctx context.Context) (*session, error) {
+	tracePrintf(ctx, nil, "Creating a new session")
 	doneCreate := func(done bool) {
 		p.mu.Lock()
 		if !done {
@@ -462,7 +465,10 @@ func (p *sessionPool) createSession(ctx context.Context) (*session, error) {
 	}
 	var s *session
 	err = runRetryable(ctx, func(ctx context.Context) error {
-		sid, e := sc.CreateSession(ctx, &sppb.CreateSessionRequest{Database: p.db})
+		sid, e := sc.CreateSession(ctx, &sppb.CreateSessionRequest{
+			Database: p.db,
+			Session:  &sppb.Session{Labels: p.sessionLabels},
+		})
 		if e != nil {
 			return e
 		}
@@ -496,6 +502,7 @@ func (p *sessionPool) isHealthy(s *session) bool {
 // take returns a cached session if there are available ones; if there isn't any, it tries to allocate a new one.
 // Session returned by take should be used for read operations.
 func (p *sessionPool) take(ctx context.Context) (*sessionHandle, error) {
+	tracePrintf(ctx, nil, "Acquiring a read-only session")
 	ctx = contextWithOutgoingMetadata(ctx, p.md)
 	for {
 		var (
@@ -511,8 +518,12 @@ func (p *sessionPool) take(ctx context.Context) (*sessionHandle, error) {
 		if p.idleList.Len() > 0 {
 			// Idle sessions are available, get one from the top of the idle list.
 			s = p.idleList.Remove(p.idleList.Front()).(*session)
+			tracePrintf(ctx, map[string]interface{}{"sessionID": s.getID()},
+				"Acquired read-only session")
 		} else if p.idleWriteList.Len() > 0 {
 			s = p.idleWriteList.Remove(p.idleWriteList.Front()).(*session)
+			tracePrintf(ctx, map[string]interface{}{"sessionID": s.getID()},
+				"Acquired read-write session")
 		}
 		if s != nil {
 			s.setIdleList(nil)
@@ -529,8 +540,10 @@ func (p *sessionPool) take(ctx context.Context) (*sessionHandle, error) {
 		if (p.MaxOpened > 0 && p.numOpened >= p.MaxOpened) || (p.MaxBurst > 0 && p.createReqs >= p.MaxBurst) {
 			mayGetSession := p.mayGetSession
 			p.mu.Unlock()
+			tracePrintf(ctx, nil, "Waiting for read-only session to become available")
 			select {
 			case <-ctx.Done():
+				tracePrintf(ctx, nil, "Context done waiting for session")
 				return nil, errGetSessionTimeout()
 			case <-mayGetSession:
 			}
@@ -541,8 +554,11 @@ func (p *sessionPool) take(ctx context.Context) (*sessionHandle, error) {
 		p.createReqs++
 		p.mu.Unlock()
 		if s, err = p.createSession(ctx); err != nil {
+			tracePrintf(ctx, nil, "Error creating session: %v", err)
 			return nil, toSpannerError(err)
 		}
+		tracePrintf(ctx, map[string]interface{}{"sessionID": s.getID()},
+			"Created session")
 		return &sessionHandle{session: s}, nil
 	}
 }
@@ -550,6 +566,7 @@ func (p *sessionPool) take(ctx context.Context) (*sessionHandle, error) {
 // takeWriteSession returns a write prepared cached session if there are available ones; if there isn't any, it tries to allocate a new one.
 // Session returned should be used for read write transactions.
 func (p *sessionPool) takeWriteSession(ctx context.Context) (*sessionHandle, error) {
+	tracePrintf(ctx, nil, "Acquiring a read-write session")
 	ctx = contextWithOutgoingMetadata(ctx, p.md)
 	for {
 		var (
@@ -565,8 +582,10 @@ func (p *sessionPool) takeWriteSession(ctx context.Context) (*sessionHandle, err
 		if p.idleWriteList.Len() > 0 {
 			// Idle sessions are available, get one from the top of the idle list.
 			s = p.idleWriteList.Remove(p.idleWriteList.Front()).(*session)
+			tracePrintf(ctx, map[string]interface{}{"sessionID": s.getID()}, "Acquired read-write session")
 		} else if p.idleList.Len() > 0 {
 			s = p.idleList.Remove(p.idleList.Front()).(*session)
+			tracePrintf(ctx, map[string]interface{}{"sessionID": s.getID()}, "Acquired read-only session")
 		}
 		if s != nil {
 			s.setIdleList(nil)
@@ -582,8 +601,10 @@ func (p *sessionPool) takeWriteSession(ctx context.Context) (*sessionHandle, err
 			if (p.MaxOpened > 0 && p.numOpened >= p.MaxOpened) || (p.MaxBurst > 0 && p.createReqs >= p.MaxBurst) {
 				mayGetSession := p.mayGetSession
 				p.mu.Unlock()
+				tracePrintf(ctx, nil, "Waiting for read-write session to become available")
 				select {
 				case <-ctx.Done():
+					tracePrintf(ctx, nil, "Context done waiting for session")
 					return nil, errGetSessionTimeout()
 				case <-mayGetSession:
 				}
@@ -595,12 +616,17 @@ func (p *sessionPool) takeWriteSession(ctx context.Context) (*sessionHandle, err
 			p.createReqs++
 			p.mu.Unlock()
 			if s, err = p.createSession(ctx); err != nil {
+				tracePrintf(ctx, nil, "Error creating session: %v", err)
 				return nil, toSpannerError(err)
 			}
+			tracePrintf(ctx, map[string]interface{}{"sessionID": s.getID()},
+				"Created session")
 		}
 		if !s.isWritePrepared() {
 			if err = s.prepareForWrite(ctx); err != nil {
 				s.recycle()
+				tracePrintf(ctx, map[string]interface{}{"sessionID": s.getID()},
+					"Error preparing session for write")
 				return nil, toSpannerError(err)
 			}
 		}
@@ -879,7 +905,7 @@ func (hc *healthChecker) worker(i int) {
 			cancel()
 			if err != nil {
 				// Skip handling prepare error, session can be prepared in next cycle
-				log.Warningf("Failed to prepare session, error: %v", toSpannerError(err))
+				log.Printf("Failed to prepare session, error: %v", toSpannerError(err))
 			}
 			hc.pool.recycle(ws)
 			hc.pool.mu.Lock()
@@ -948,13 +974,13 @@ func (hc *healthChecker) maintainer() {
 				err error
 			)
 			if s, err = p.createSession(ctx); err != nil {
-				log.Warningf("Failed to create session, error: %v", toSpannerError(err))
+				log.Printf("Failed to create session, error: %v", toSpannerError(err))
 				continue
 			}
 			if shouldPrepareWrite {
 				if err = s.prepareForWrite(ctx); err != nil {
 					p.recycle(s)
-					log.Warningf("Failed to prepare session, error: %v", toSpannerError(err))
+					log.Printf("Failed to prepare session, error: %v", toSpannerError(err))
 					continue
 				}
 			}
@@ -1046,7 +1072,7 @@ func shouldDropSession(err error) bool {
 	}
 	// If a Cloud Spanner can no longer locate the session (for example, if session is garbage collected), then caller
 	// should not try to return the session back into the session pool.
-	// TODO: once gRPC can return auxilary error information, stop parsing the error message.
+	// TODO: once gRPC can return auxiliary error information, stop parsing the error message.
 	if ErrCode(err) == codes.NotFound && strings.Contains(ErrDesc(err), "Session not found:") {
 		return true
 	}

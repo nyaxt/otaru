@@ -39,10 +39,6 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/gorilla/mux"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/naoina/toml"
 
 [[constraint]]

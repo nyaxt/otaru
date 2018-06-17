@@ -1047,6 +1047,11 @@ type LogEntry struct {
 	// never return any results.
 	LogName string `json:"logName,omitempty"`
 
+	// Metadata: Output only. Additional metadata about the monitored
+	// resource. Only k8s_container, k8s_pod, and k8s_node
+	// MonitoredResources have this field populated.
+	Metadata *MonitoredResourceMetadata `json:"metadata,omitempty"`
+
 	// Operation: Optional. Information about an operation associated with
 	// the log entry, if applicable.
 	Operation *LogEntryOperation `json:"operation,omitempty"`
@@ -1060,10 +1065,10 @@ type LogEntry struct {
 	// Stackdriver Logging.
 	ReceiveTimestamp string `json:"receiveTimestamp,omitempty"`
 
-	// Resource: Required. The monitored resource associated with this log
-	// entry. Example: a log entry that reports a database error would be
-	// associated with the monitored resource designating the particular
-	// database that reported the error.
+	// Resource: Required. The primary monitored resource associated with
+	// this log entry. Example: a log entry that reports a database error
+	// would be associated with the monitored resource designating the
+	// particular database that reported the error.
 	Resource *MonitoredResource `json:"resource,omitempty"`
 
 	// Severity: Optional. The severity of the log entry. The default value
@@ -1101,10 +1106,14 @@ type LogEntry struct {
 	// Timestamp: Optional. The time the event described by the log entry
 	// occurred. This time is used to compute the log entry's age and to
 	// enforce the logs retention period. If this field is omitted in a new
-	// log entry, then Stackdriver Logging assigns it the current
-	// time.Incoming log entries should have timestamps that are no more
-	// than the logs retention period in the past, and no more than 24 hours
-	// in the future. See the entries.write API method for more information.
+	// log entry, then Stackdriver Logging assigns it the current time.
+	// Timestamps have nanosecond accuracy, but trailing zeros in the
+	// fractional seconds might be omitted when the timestamp is
+	// displayed.Incoming log entries should have timestamps that are no
+	// more than the logs retention period in the past, and no more than 24
+	// hours in the future. Log entries outside those time boundaries will
+	// not be available when calling entries.list, but those log entries can
+	// still be exported with LogSinks.
 	Timestamp string `json:"timestamp,omitempty"`
 
 	// Trace: Optional. Resource name of the trace associated with the log
@@ -1240,10 +1249,8 @@ type LogExclusion struct {
 	// entries to be excluded. By using the sample function, you can exclude
 	// less than 100% of the matching log entries. For example, the
 	// following filter matches 99% of low-severity log entries from load
-	// balancers:
-	// "resource.type=http_load_balancer severity<ERROR sample(insertId,
-	// 0.99)"
-	//
+	// balancers:"resource.type=http_load_balancer severity<ERROR
+	// sample(insertId, 0.99)"
 	Filter string `json:"filter,omitempty"`
 
 	// Name: Required. A client-assigned identifier, such as
@@ -1640,15 +1647,14 @@ type MetricDescriptor struct {
 	// Ki kibi (2**10)
 	// Mi mebi (2**20)
 	// Gi gibi (2**30)
-	// Ti tebi (2**40)GrammarThe grammar includes the dimensionless unit 1,
-	// such as 1/s.The grammar also includes these connectors:
+	// Ti tebi (2**40)GrammarThe grammar also includes these connectors:
 	// / division (as an infix operator, e.g. 1/s).
 	// . multiplication (as an infix operator, e.g. GBy.d)The grammar for a
 	// unit is as follows:
 	// Expression = Component { "." Component } { "/" Component }
 	// ;
 	//
-	// Component = [ PREFIX ] UNIT [ Annotation ]
+	// Component = ( [ PREFIX ] UNIT | "%" ) [ Annotation ]
 	//           | Annotation
 	//           | "1"
 	//           ;
@@ -1660,6 +1666,9 @@ type MetricDescriptor struct {
 	// By{transmitted}/s == By/s.
 	// NAME is a sequence of non-blank printable ASCII characters not
 	// containing '{' or '}'.
+	// 1 represents dimensionless value 1, such as in 1/s.
+	// % represents dimensionless value 1/100, and annotates values giving
+	// a percentage.
 	Unit string `json:"unit,omitempty"`
 
 	// ValueType: Whether the measurement is an integer, a floating-point
@@ -1807,6 +1816,52 @@ type MonitoredResourceDescriptor struct {
 
 func (s *MonitoredResourceDescriptor) MarshalJSON() ([]byte, error) {
 	type NoMethod MonitoredResourceDescriptor
+	raw := NoMethod(*s)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
+}
+
+// MonitoredResourceMetadata: Auxiliary metadata for a MonitoredResource
+// object. MonitoredResource objects contain the minimum set of
+// information to uniquely identify a monitored resource instance. There
+// is some other useful auxiliary metadata. Google Stackdriver
+// Monitoring & Logging uses an ingestion pipeline to extract metadata
+// for cloud resources of all types , and stores the metadata in this
+// message.
+type MonitoredResourceMetadata struct {
+	// SystemLabels: Output only. Values for predefined system metadata
+	// labels. System labels are a kind of metadata extracted by Google
+	// Stackdriver. Stackdriver determines what system labels are useful and
+	// how to obtain their values. Some examples: "machine_image", "vpc",
+	// "subnet_id", "security_group", "name", etc. System label values can
+	// be only strings, Boolean values, or a list of strings. For example:
+	// { "name": "my-test-instance",
+	//   "security_group": ["a", "b", "c"],
+	//   "spot_instance": false }
+	//
+	SystemLabels googleapi.RawMessage `json:"systemLabels,omitempty"`
+
+	// UserLabels: Output only. A map of user-defined metadata labels.
+	UserLabels map[string]string `json:"userLabels,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "SystemLabels") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "SystemLabels") to include
+	// in API requests with the JSON null value. By default, fields with
+	// empty values are omitted from API requests. However, any field with
+	// an empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
+}
+
+func (s *MonitoredResourceMetadata) MarshalJSON() ([]byte, error) {
+	type NoMethod MonitoredResourceMetadata
 	raw := NoMethod(*s)
 	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
@@ -2048,6 +2103,12 @@ func (s *SourceReference) MarshalJSON() ([]byte, error) {
 
 // WriteLogEntriesRequest: The parameters to WriteLogEntries.
 type WriteLogEntriesRequest struct {
+	// DryRun: Optional. If true, the request should expect normal response,
+	// but the entries won't be persisted nor exported. Useful for checking
+	// whether the logging API endpoints are working properly before sending
+	// valuable data.
+	DryRun bool `json:"dryRun,omitempty"`
+
 	// Entries: Required. The log entries to send to Stackdriver Logging.
 	// The order of log entries in this list does not matter. Values
 	// supplied in this method's log_name, resource, and labels fields are
@@ -2060,11 +2121,12 @@ type WriteLogEntriesRequest struct {
 	// entries earlier in the list will sort before the entries later in the
 	// list. See the entries.list method.Log entries with timestamps that
 	// are more than the logs retention period in the past or more than 24
-	// hours in the future might be discarded. Discarding does not return an
-	// error.To improve throughput and to avoid exceeding the quota limit
-	// for calls to entries.write, you should try to include several log
-	// entries in this list, rather than calling this method for each
-	// individual log entry.
+	// hours in the future will not be available when calling entries.list.
+	// However, those log entries can still be exported with LogSinks.To
+	// improve throughput and to avoid exceeding the quota limit for calls
+	// to entries.write, you should try to include several log entries in
+	// this list, rather than calling this method for each individual log
+	// entry.
 	Entries []*LogEntry `json:"entries,omitempty"`
 
 	// Labels: Optional. Default labels that are added to the labels field
@@ -2106,7 +2168,7 @@ type WriteLogEntriesRequest struct {
 	// See LogEntry.
 	Resource *MonitoredResource `json:"resource,omitempty"`
 
-	// ForceSendFields is a list of field names (e.g. "Entries") to
+	// ForceSendFields is a list of field names (e.g. "DryRun") to
 	// unconditionally include in API requests. By default, fields with
 	// empty values are omitted from API requests. However, any non-pointer,
 	// non-interface field appearing in ForceSendFields will be sent to the
@@ -2114,8 +2176,8 @@ type WriteLogEntriesRequest struct {
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
 
-	// NullFields is a list of field names (e.g. "Entries") to include in
-	// API requests with the JSON null value. By default, fields with empty
+	// NullFields is a list of field names (e.g. "DryRun") to include in API
+	// requests with the JSON null value. By default, fields with empty
 	// values are omitted from API requests. However, any field with an
 	// empty value appearing in NullFields will be sent to the server as
 	// null. It is an error if a field in this list has a non-empty value.
@@ -4353,11 +4415,13 @@ type EntriesWriteCall struct {
 	header_                http.Header
 }
 
-// Write: Log entry resourcesWrites log entries to Stackdriver Logging.
-// This API method is the only way to send log entries to Stackdriver
-// Logging. This method is used, directly or indirectly, by the
-// Stackdriver Logging agent (fluentd) and all logging libraries
-// configured to use Stackdriver Logging.
+// Write: Writes log entries to Stackdriver Logging. This API method is
+// the only way to send log entries to Stackdriver Logging. This method
+// is used, directly or indirectly, by the Stackdriver Logging agent
+// (fluentd) and all logging libraries configured to use Stackdriver
+// Logging. A single request may contain log entries for a maximum of
+// 1000 different resources (projects, organizations, billing accounts
+// or folders)
 func (r *EntriesService) Write(writelogentriesrequest *WriteLogEntriesRequest) *EntriesWriteCall {
 	c := &EntriesWriteCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.writelogentriesrequest = writelogentriesrequest
@@ -4447,7 +4511,7 @@ func (c *EntriesWriteCall) Do(opts ...googleapi.CallOption) (*WriteLogEntriesRes
 	}
 	return ret, nil
 	// {
-	//   "description": "Log entry resourcesWrites log entries to Stackdriver Logging. This API method is the only way to send log entries to Stackdriver Logging. This method is used, directly or indirectly, by the Stackdriver Logging agent (fluentd) and all logging libraries configured to use Stackdriver Logging.",
+	//   "description": "Writes log entries to Stackdriver Logging. This API method is the only way to send log entries to Stackdriver Logging. This method is used, directly or indirectly, by the Stackdriver Logging agent (fluentd) and all logging libraries configured to use Stackdriver Logging. A single request may contain log entries for a maximum of 1000 different resources (projects, organizations, billing accounts or folders)",
 	//   "flatPath": "v2/entries:write",
 	//   "httpMethod": "POST",
 	//   "id": "logging.entries.write",

@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2017 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,16 @@
 
 package spanner
 
-import "google.golang.org/api/option"
+import "golang.org/x/net/context"
 
 // OpenCensus only supports go 1.8 and higher.
 
-func openCensusOptions() []option.ClientOption { return nil }
+func traceStartSpan(ctx context.Context, _ string) context.Context {
+	return ctx
+}
+
+func traceEndSpan(context.Context, error) {
+}
+
+func tracePrintf(context.Context, map[string]interface{}, string, ...interface{}) {
+}
