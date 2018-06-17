@@ -1,5 +1,5 @@
 package version
 
-const GIT_COMMIT = "a7e05e588f953b238c15edc3808ba992d363c0f9"
-const BUILD_HOST = "lion.home.nyaxtstep.com"
-const BUILD_TIME = 1484972482
+const GIT_COMMIT = "4ec919f5e427b924261b8af752488d43fde6883e"
+const BUILD_HOST = "caracal-ws.feline.nyaxtstep.com"
+const BUILD_TIME = 1529212717

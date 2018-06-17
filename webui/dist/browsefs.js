@@ -8,7 +8,9 @@ const reTime = /_time$/;
 const sortFuncMap = {
   'name': (a, b) => {
     if (a['type'] != b['type']) {
-      return a['type'].charCodeAt() - b['type'].charCodeAt();
+      const atype = a['type'] || "FILE";
+      const btype = b['type'] || "FILE";
+      return atype.charCodeAt() - btype.charCodeAt();
     }
     return a['name'].localeCompare(b['name']);
   },
@@ -16,7 +18,7 @@ const sortFuncMap = {
   'time_desc': (a, b) => b['modified_time'] - a['modified_time'],
 };
 const actionDefMap = {
-  'dir': {
+  'DIR': {
     labels: ['→'],
     action: entry => {
       const curr = getBrowsefsPath();
@@ -24,7 +26,7 @@ const actionDefMap = {
       setBrowsefsPath(next);
     },
   },
-  'file': {
+  'FILE': {
     labels: ['DL'],
     action: entry => {
       downloadFile(entry['id'], entry['name'])
@@ -52,10 +54,11 @@ const triggerUpdate = async () => {
     const sortSel = $('.browsefs__sort').value;
     const sortFunc = sortFuncMap[sortSel];
 
-    if (result['entry'] === undefined) {
+    const entries = result['listing'][0]['entry'];
+    if (entries === undefined) {
       listTbody.classList.add('.browsefs__list--empty');
     } else {
-      const rows = result['listing'][0]['entry'].sort(sortFunc);
+      const rows = entries.sort(sortFunc);
       for (let row of rows) {
         listTbody.classList.remove('.browsefs__list--empty');
 
@@ -70,7 +73,10 @@ const triggerUpdate = async () => {
 
           let val = row[colName];
           if (colName === 'type') {
-            val = val[0];
+            if (val === undefined)
+              val = 'FILE';
+
+            val = val.toLowerCase()[0];
           } else if (colName === 'perm_mode') {
             val = val.toString(8);
           } else if (colName === 'uid') {
@@ -91,7 +97,7 @@ const triggerUpdate = async () => {
 
           cell.textContent = val;
           if (colName === 'name') {
-            const actionDef = actionDefMap[row.type] || {labels: []};
+            const actionDef = actionDefMap[row.type || 'FILE'] || {labels: []};
 
             for (let l of actionDef.labels) {
               const span = document.createElement('span');
