@@ -37,3 +37,6 @@ otaru-globallock
 *-fuzz.zip
 
 version/consts.go
+
+doc/testca/*.pem
+doc/testca/*.csr
