@@ -143,13 +143,49 @@ func Update(ctx context.Context, cfg *cli.CliConfig, args []string) error {
 		return fmt.Errorf("gob encode: %v", err)
 	}
 
-	/*
-		matches := cm.ClosestN(fset.Arg(1), 3)
-		for _, m := range matches {
-			i := m.Data.(int)
-			logger.Infof(mylog, "match: %v score: %d", c.Entries[i], m.Score)
-		}
-	*/
+	return nil
+}
+
+func Search(ctx context.Context, cfg *cli.CliConfig, args []string) error {
+	fset := flag.NewFlagSet("search", flag.ExitOnError)
+	fset.Usage = func() {
+		fmt.Printf("Usage of %s search:\n", os.Args[0])
+		fmt.Printf(" %s search OTARU_VHOST keyword\n", os.Args[0])
+		fset.PrintDefaults()
+	}
+	fset.Parse(args[1:])
+
+	if fset.NArg() != 2 {
+		fset.Usage()
+		return fmt.Errorf("Invalid number of arguments.")
+	}
+	vhost := fset.Arg(0)
+
+	c := &Cache{}
+
+	cachepath := path.Join(cfg.FuzzyMvCacheDir, fmt.Sprintf("%v.cache", vhost))
+	f, err := os.Open(cachepath)
+	if err != nil {
+		return fmt.Errorf("Open: %v", err)
+	}
+	defer f.Close()
+	r, err := gzip.NewReader(f)
+	if err != nil {
+		return fmt.Errorf("gzip.NewReader: %v", err)
+	}
+	defer r.Close()
+	d := gob.NewDecoder(r)
+	if err := d.Decode(c); err != nil {
+		return fmt.Errorf("gob decode: %v", err)
+	}
+
+	keyword := fset.Arg(1)
+	logger.Infof(mylog, "keyword: %q len(ent) %v", keyword, len(c.Entries))
+	matches := c.CM.ClosestN(keyword, 3)
+	for _, m := range matches {
+		i := m.Data.(int)
+		logger.Infof(mylog, "match: %v score: %d", c.Entries[i], m.Score)
+	}
 
 	return nil
 }

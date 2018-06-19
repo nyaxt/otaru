@@ -21,6 +21,7 @@ var (
 func Usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "  %s [options] update otaru://vhost\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s [options] search otaru://vhost keyword\n", os.Args[0])
 	flag.PrintDefaults()
 }
 
@@ -50,6 +51,9 @@ func main() {
 	switch flag.Arg(0) {
 	case "update":
 		err = fuzzymv.Update(ctx, cfg, flag.Args())
+
+	case "search":
+		err = fuzzymv.Search(ctx, cfg, flag.Args())
 
 	default:
 		logger.Infof(cli.Log, "Unknown cmd: %v", flag.Arg(0))
