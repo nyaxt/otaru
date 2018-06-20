@@ -3,14 +3,16 @@ package fuzzymv
 import (
 	"compress/gzip"
 	"context"
-	"encoding/gob"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path"
 	"sort"
+	"strings"
 
-	"github.com/auxesis/closestmatch"
+	"github.com/lithammer/fuzzysearch/fuzzy"
+	"golang.org/x/text/width"
 	"google.golang.org/grpc"
 
 	"github.com/nyaxt/otaru/cli"
@@ -19,19 +21,28 @@ import (
 )
 
 type CacheEntry struct {
-	Id       uint64
-	FullPath string
-	Depth    int
+	Id       uint64 `json:"id"`
+	FullPath string `json:"full_path"`
+	Depth    int    `json:"depth"`
 }
 
 var RootCE = &CacheEntry{Id: 1, FullPath: "", Depth: 0}
 
 type Cache struct {
 	Entries []*CacheEntry
-	CM      *closestmatch.ClosestMatch
 }
 
 const ListDirMaxIds = 10
+
+func openCacheFile(cfg *cli.CliConfig, vhost string, flag int) (*os.File, error) {
+	if flag != os.O_RDONLY {
+		if err := os.MkdirAll(cfg.FuzzyMvCacheDir, os.ModePerm); err != nil {
+			return nil, fmt.Errorf("mkdir(%s): %v", cfg.FuzzyMvCacheDir, err)
+		}
+	}
+	cachepath := path.Join(cfg.FuzzyMvCacheDir, fmt.Sprintf("%v.cache.gz", vhost))
+	return os.OpenFile(cachepath, flag, 0644)
+}
 
 func populateCache(ctx context.Context, c *Cache, conn *grpc.ClientConn, maxDepth int) error {
 	dirs := []*CacheEntry{RootCE}
@@ -124,33 +135,37 @@ func Update(ctx context.Context, cfg *cli.CliConfig, args []string) error {
 	for i, ce := range c.Entries {
 		cmap[ce.FullPath] = i
 	}
-	c.CM = closestmatch.New(cmap, []int{2})
-	logger.Infof(mylog, "cm init done")
 
-	if err := os.MkdirAll(cfg.FuzzyMvCacheDir, os.ModePerm); err != nil {
-		return fmt.Errorf("mkdir(%s): %v", cfg.FuzzyMvCacheDir, err)
-	}
-	cachepath := path.Join(cfg.FuzzyMvCacheDir, fmt.Sprintf("%v.cache", vhost))
-	f, err := os.OpenFile(cachepath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	f, err := openCacheFile(cfg, vhost, os.O_RDWR|os.O_TRUNC|os.O_CREATE)
 	if err != nil {
 		return fmt.Errorf("OpenFile: %v", err)
 	}
 	defer f.Close()
 	w := gzip.NewWriter(f)
 	defer w.Close()
-	e := gob.NewEncoder(w)
+	e := json.NewEncoder(w)
 	if err := e.Encode(c); err != nil {
-		return fmt.Errorf("gob encode: %v", err)
+		return fmt.Errorf("json encode: %v", err)
 	}
 
 	return nil
 }
 
+type Match struct {
+	*CacheEntry
+	Dist int
+}
+
+func fold(s string) string {
+	return width.Fold.String(strings.ToLower(s))
+}
+
 func Search(ctx context.Context, cfg *cli.CliConfig, args []string) error {
 	fset := flag.NewFlagSet("search", flag.ExitOnError)
+	flagNumCandidates := fset.Int("n", 10, "number of candidates to show.")
 	fset.Usage = func() {
 		fmt.Printf("Usage of %s search:\n", os.Args[0])
-		fmt.Printf(" %s search OTARU_VHOST keyword\n", os.Args[0])
+		fmt.Printf(" %s search OTARU_VHOST kw\n", os.Args[0])
 		fset.PrintDefaults()
 	}
 	fset.Parse(args[1:])
@@ -163,10 +178,9 @@ func Search(ctx context.Context, cfg *cli.CliConfig, args []string) error {
 
 	c := &Cache{}
 
-	cachepath := path.Join(cfg.FuzzyMvCacheDir, fmt.Sprintf("%v.cache", vhost))
-	f, err := os.Open(cachepath)
+	f, err := openCacheFile(cfg, vhost, os.O_RDONLY)
 	if err != nil {
-		return fmt.Errorf("Open: %v", err)
+		return fmt.Errorf("openCacheFile: %v", err)
 	}
 	defer f.Close()
 	r, err := gzip.NewReader(f)
@@ -174,17 +188,34 @@ func Search(ctx context.Context, cfg *cli.CliConfig, args []string) error {
 		return fmt.Errorf("gzip.NewReader: %v", err)
 	}
 	defer r.Close()
-	d := gob.NewDecoder(r)
+	d := json.NewDecoder(r)
 	if err := d.Decode(c); err != nil {
-		return fmt.Errorf("gob decode: %v", err)
+		return fmt.Errorf("json decode: %v", err)
 	}
 
-	keyword := fset.Arg(1)
-	logger.Infof(mylog, "keyword: %q len(ent) %v", keyword, len(c.Entries))
-	matches := c.CM.ClosestN(keyword, 3)
+	kw := fset.Arg(1)
+	kwfold := fold(kw)
+	logger.Infof(mylog, "kw: %q -> %q len(ent) %v", kw, kwfold, len(c.Entries))
+
+	matches := []Match{}
+	for _, e := range c.Entries {
+		target := fold(path.Base(e.FullPath))
+		dist := fuzzy.RankMatch(kwfold, target)
+
+		//logger.Infof(mylog, "Dist %d Fullpath %v", dist, e.FullPath)
+		if dist > 0 && dist < 30 {
+			matches = append(matches, Match{e, dist})
+		}
+	}
+
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].Dist < matches[j].Dist
+	})
+	if len(matches) > *flagNumCandidates {
+		matches = matches[:*flagNumCandidates]
+	}
 	for _, m := range matches {
-		i := m.Data.(int)
-		logger.Infof(mylog, "match: %v score: %d", c.Entries[i], m.Score)
+		logger.Infof(mylog, "dist %d entry: %v", m.Dist, m.CacheEntry.FullPath)
 	}
 
 	return nil
