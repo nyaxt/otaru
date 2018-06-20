@@ -1,4 +1,4 @@
-package apiserver
+package otaruapiserver
 
 import (
 	"fmt"
@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/flags"
@@ -147,8 +148,9 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func InstallFileHandler(fs *filesystem.FileSystem) Option {
-	return func(o *options) {
-		o.fileHandler = &fileHandler{fs}
-	}
+func InstallFileHandler(fs *filesystem.FileSystem) apiserver.Option {
+	return apiserver.AddMuxHook(func(mux *http.ServeMux) {
+		filePrefix := "/file/"
+		mux.Handle(filePrefix, http.StripPrefix(filePrefix, &fileHandler{fs}))
+	})
 }

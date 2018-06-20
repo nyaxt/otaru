@@ -22,13 +22,12 @@ import (
 	"github.com/nyaxt/otaru/webui/swaggerui"
 )
 
-var mylog = logger.Registry().Category("apiserver")
-var accesslog = logger.Registry().Category("http-apiserver")
-
 type serviceRegistryEntry struct {
 	registerServiceServer func(*grpc.Server)
 	registerProxy         func(ctx context.Context, mux *gwruntime.ServeMux, endpoint string, opts []grpc.DialOption) error
 }
+
+type MuxHook func(mux *http.ServeMux)
 
 type options struct {
 	listenAddr string
@@ -39,6 +38,8 @@ type options struct {
 	defaultHandler  http.Handler
 	fileHandler     http.Handler
 	serviceRegistry []serviceRegistryEntry
+	accesslogger    logger.Logger
+	muxhooks        []MuxHook
 	closeC          <-chan struct{}
 }
 
@@ -50,6 +51,7 @@ var defaultOptions = options{
 	}),
 	fileHandler:     nil,
 	serviceRegistry: []serviceRegistryEntry{},
+	accesslogger:    logger.Registry().Category("http-apiserver"),
 }
 
 type Option func(*options)
@@ -75,6 +77,24 @@ func CloseChannel(c <-chan struct{}) Option {
 
 func CORSAllowedOrigins(allowedOrigins []string) Option {
 	return func(o *options) { o.allowedOrigins = allowedOrigins }
+}
+
+func RegisterService(
+	registerServiceServer func(*grpc.Server),
+	registerProxy func(ctx context.Context, mux *gwruntime.ServeMux, endpoint string, opts []grpc.DialOption) error,
+) Option {
+	return func(o *options) {
+		o.serviceRegistry = append(o.serviceRegistry,
+			serviceRegistryEntry{registerServiceServer, registerProxy})
+	}
+}
+
+func AccessLogger(l logger.Logger) Option {
+	return func(o *options) { o.accesslogger = l }
+}
+
+func AddMuxHook(h MuxHook) Option {
+	return func(o *options) { o.muxhooks = append(o.muxhooks, h) }
 }
 
 // grpcHttpMux, serveSwagger, and Serve functions based on code from:
@@ -167,9 +187,8 @@ func Serve(opt ...Option) error {
 	if err := serveApiGateway(mux, &opts, certtext); err != nil {
 		return err
 	}
-	if opts.fileHandler != nil {
-		filePrefix := "/file/"
-		mux.Handle(filePrefix, http.StripPrefix(filePrefix, opts.fileHandler))
+	for _, hook := range opts.muxhooks {
+		hook(mux)
 	}
 	serveSwagger(mux)
 
@@ -188,7 +207,7 @@ func Serve(opt ...Option) error {
 		}()
 	}
 
-	httpHandler := logger.HttpHandler(accesslog, logger.Info, c.Handler(mux))
+	httpHandler := logger.HttpHandler(opts.accesslogger, logger.Info, c.Handler(mux))
 	httpServer := &http.Server{
 		Addr:    opts.listenAddr,
 		Handler: grpcHttpMux(grpcServer, httpHandler),

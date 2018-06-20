@@ -13,6 +13,7 @@ import (
 
 	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/cli"
+	"github.com/nyaxt/otaru/otaruapiserver"
 	tu "github.com/nyaxt/otaru/testutils"
 )
 
@@ -65,8 +66,8 @@ func withApiServer(t *testing.T, f func()) {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testListenAddr),
 			apiserver.X509KeyPair(certFile, keyFile),
-			apiserver.InstallFileSystemService(fs),
-			apiserver.InstallFileHandler(fs),
+			otaruapiserver.InstallFileSystemService(fs),
+			otaruapiserver.InstallFileHandler(fs),
 			apiserver.CloseChannel(closeC),
 		); err != nil {
 			t.Errorf("Serve failed: %v", err)

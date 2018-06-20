@@ -1,4 +1,4 @@
-package apiserver
+package otaruapiserver
 
 import (
 	"math"
@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
+	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
 	"github.com/nyaxt/otaru/flags"
@@ -79,17 +80,13 @@ func (svc *blobstoreService) ReduceCache(ctx context.Context, req *pb.ReduceCach
 	return &pb.ReduceCacheResponse{Success: true, ErrorMessage: "ok"}, nil
 }
 
-func InstallBlobstoreService(s *scheduler.Scheduler, bbs blobstore.BlobStore, cbs *cachedblobstore.CachedBlobStore) Option {
+func InstallBlobstoreService(s *scheduler.Scheduler, bbs blobstore.BlobStore, cbs *cachedblobstore.CachedBlobStore) apiserver.Option {
 	svc := &blobstoreService{
 		s: s, bbs: bbs, cbs: cbs,
 	}
 
-	return func(o *options) {
-		o.serviceRegistry = append(o.serviceRegistry, serviceRegistryEntry{
-			registerServiceServer: func(s *grpc.Server) {
-				pb.RegisterBlobstoreServiceServer(s, svc)
-			},
-			registerProxy: pb.RegisterBlobstoreServiceHandlerFromEndpoint,
-		})
-	}
+	return apiserver.RegisterService(
+		func(s *grpc.Server) { pb.RegisterBlobstoreServiceServer(s, svc) },
+		pb.RegisterBlobstoreServiceHandlerFromEndpoint,
+	)
 }

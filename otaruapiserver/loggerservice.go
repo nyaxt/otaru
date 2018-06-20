@@ -1,10 +1,11 @@
-package apiserver
+package otaruapiserver
 
 import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
+	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/logger/logbuf"
 	"github.com/nyaxt/otaru/pb"
@@ -63,16 +64,12 @@ func (s *loggerService) GetLatestLogEntryId(ctx context.Context, req *pb.GetLate
 
 const MaxEntries = 10000
 
-func InstallLoggerService() Option {
+func InstallLoggerService() apiserver.Option {
 	lbuf := logbuf.New(MaxEntries)
 	logger.Registry().AddOutput(lbuf)
 
-	return func(o *options) {
-		o.serviceRegistry = append(o.serviceRegistry, serviceRegistryEntry{
-			registerServiceServer: func(s *grpc.Server) {
-				pb.RegisterLoggerServiceServer(s, &loggerService{lbuf})
-			},
-			registerProxy: pb.RegisterLoggerServiceHandlerFromEndpoint,
-		})
-	}
+	return apiserver.RegisterService(
+		func(s *grpc.Server) { pb.RegisterLoggerServiceServer(s, &loggerService{lbuf}) },
+		pb.RegisterLoggerServiceHandlerFromEndpoint,
+	)
 }

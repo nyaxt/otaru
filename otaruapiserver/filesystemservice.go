@@ -1,4 +1,4 @@
-package apiserver
+package otaruapiserver
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
+	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
@@ -228,15 +229,11 @@ func (svc *fileSystemService) WriteFile(ctx context.Context, req *pb.WriteFileRe
 	return &pb.WriteFileResponse{}, nil
 }
 
-func InstallFileSystemService(fs *filesystem.FileSystem) Option {
+func InstallFileSystemService(fs *filesystem.FileSystem) apiserver.Option {
 	svc := &fileSystemService{fs}
 
-	return func(o *options) {
-		o.serviceRegistry = append(o.serviceRegistry, serviceRegistryEntry{
-			registerServiceServer: func(s *grpc.Server) {
-				pb.RegisterFileSystemServiceServer(s, svc)
-			},
-			registerProxy: pb.RegisterFileSystemServiceHandlerFromEndpoint,
-		})
-	}
+	return apiserver.RegisterService(
+		func(s *grpc.Server) { pb.RegisterFileSystemServiceServer(s, svc) },
+		pb.RegisterFileSystemServiceHandlerFromEndpoint,
+	)
 }

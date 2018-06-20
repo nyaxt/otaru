@@ -1,4 +1,4 @@
-package apiserver
+package otaruapiserver
 
 import (
 	"os"
@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
+	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/util/countfds"
 	"github.com/nyaxt/otaru/version"
@@ -51,13 +52,9 @@ func (*systemService) GetVersion(ctx context.Context, in *pb.GetVersionRequest) 
 	}, nil
 }
 
-func InstallSystemService() Option {
-	return func(o *options) {
-		o.serviceRegistry = append(o.serviceRegistry, serviceRegistryEntry{
-			registerServiceServer: func(s *grpc.Server) {
-				pb.RegisterSystemInfoServiceServer(s, &systemService{})
-			},
-			registerProxy: pb.RegisterSystemInfoServiceHandlerFromEndpoint,
-		})
-	}
+func InstallSystemService() apiserver.Option {
+	return apiserver.RegisterService(
+		func(s *grpc.Server) { pb.RegisterSystemInfoServiceServer(s, &systemService{}) },
+		pb.RegisterSystemInfoServiceHandlerFromEndpoint,
+	)
 }

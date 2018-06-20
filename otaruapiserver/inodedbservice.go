@@ -1,10 +1,11 @@
-package apiserver
+package otaruapiserver
 
 import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
+	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/pb"
 )
@@ -30,13 +31,9 @@ func (svc *inodedbService) GetINodeDBStats(ctx context.Context, req *pb.GetINode
 	}, nil
 }
 
-func InstallINodeDBService(h inodedb.DBHandler) Option {
-	return func(o *options) {
-		o.serviceRegistry = append(o.serviceRegistry, serviceRegistryEntry{
-			registerServiceServer: func(s *grpc.Server) {
-				pb.RegisterINodeDBServiceServer(s, &inodedbService{h})
-			},
-			registerProxy: pb.RegisterINodeDBServiceHandlerFromEndpoint,
-		})
-	}
+func InstallINodeDBService(h inodedb.DBHandler) apiserver.Option {
+	return apiserver.RegisterService(
+		func(s *grpc.Server) { pb.RegisterINodeDBServiceServer(s, &inodedbService{h}) },
+		pb.RegisterINodeDBServiceHandlerFromEndpoint,
+	)
 }

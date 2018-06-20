@@ -3,6 +3,7 @@ package facade
 import (
 	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/otaruapiserver"
 )
 
 func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) []apiserver.Option {
@@ -10,12 +11,12 @@ func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) []apiserver.Option {
 		apiserver.ListenAddr(cfg.ListenAddr),
 		apiserver.X509KeyPair(cfg.CertFile, cfg.KeyFile),
 		apiserver.CORSAllowedOrigins(cfg.CORSAllowedOrigins),
-		apiserver.InstallBlobstoreService(o.S, o.DefaultBS, o.CBS),
-		apiserver.InstallFileHandler(o.FS),
-		apiserver.InstallFileSystemService(o.FS),
-		apiserver.InstallINodeDBService(o.IDBS),
-		apiserver.InstallLoggerService(),
-		apiserver.InstallSystemService(),
+		otaruapiserver.InstallBlobstoreService(o.S, o.DefaultBS, o.CBS),
+		otaruapiserver.InstallFileHandler(o.FS),
+		otaruapiserver.InstallFileSystemService(o.FS),
+		otaruapiserver.InstallINodeDBService(o.IDBS),
+		otaruapiserver.InstallLoggerService(),
+		otaruapiserver.InstallSystemService(),
 	}
 	if cfg.WebUIRootPath != "" {
 		logger.Infof(mylog, "Overriding embedded WebUI and serving WebUI at %s", cfg.WebUIRootPath)
