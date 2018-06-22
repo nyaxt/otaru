@@ -14,6 +14,7 @@ import (
 type CliConfig struct {
 	Host map[string]*Host
 
+	Fe              FeConfig
 	FuzzyMvCacheDir string
 }
 
@@ -23,6 +24,13 @@ type Host struct {
 	OverrideServerName string
 
 	//ClientCertFile   string
+}
+
+type FeConfig struct {
+	ListenAddr string
+
+	CertFile string
+	KeyFile  string
 }
 
 func NewConfig(configdir string) (*CliConfig, error) {
@@ -38,17 +46,22 @@ func NewConfig(configdir string) (*CliConfig, error) {
 		return nil, fmt.Errorf("Failed to read config file: %v", err)
 	}
 
+	possibleCertFile := path.Join(configdir, "cert.pem")
+	if util.IsRegular(possibleCertFile) != nil {
+		possibleCertFile = ""
+	}
 	cfg := CliConfig{
 		FuzzyMvCacheDir: path.Join(configdir, "fuzzymvcache"),
+		Fe: FeConfig{
+			ListenAddr: ":10247",
+			CertFile:   possibleCertFile,
+			KeyFile:    path.Join(configdir, "cert-key.pem"),
+		},
 	}
 	if err := toml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("Failed to parse config file: %v", err)
 	}
 
-	possibleCertFile := path.Join(configdir, "cert.pem")
-	if util.IsRegular(possibleCertFile) != nil {
-		possibleCertFile = ""
-	}
 	for _, h := range cfg.Host {
 		h.ExpectedCertFile = os.ExpandEnv(h.ExpectedCertFile)
 		if h.ExpectedCertFile == "" {
