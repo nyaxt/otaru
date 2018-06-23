@@ -1,0 +1,838 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Otaru API",
+    "version": "1.0",
+    "contact": {
+      "name": "Otaru project",
+      "url": "https://github.com/nyaxt/otaru",
+      "email": "ueno@nyaxtstep.com"
+    }
+  },
+  "schemes": [
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/blobstore/config": {
+      "get": {
+        "operationId": "GetConfig",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbGetBlobstoreConfigResponse"
+            }
+          }
+        },
+        "tags": [
+          "BlobstoreService"
+        ]
+      }
+    },
+    "/api/v1/blobstore/entries": {
+      "get": {
+        "operationId": "GetEntries",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbGetEntriesResponse"
+            }
+          }
+        },
+        "tags": [
+          "BlobstoreService"
+        ]
+      }
+    },
+    "/api/v1/blobstore/reduce_cache": {
+      "post": {
+        "operationId": "ReduceCache",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbReduceCacheResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbReduceCacheRequest"
+            }
+          }
+        ],
+        "tags": [
+          "BlobstoreService"
+        ]
+      }
+    },
+    "/api/v1/filesystem/attr/{id}": {
+      "get": {
+        "operationId": "Attr",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbAttrResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
+    "/api/v1/filesystem/file/{id}": {
+      "get": {
+        "operationId": "ReadFile",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbReadFileResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "length",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      },
+      "put": {
+        "operationId": "WriteFile",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbWriteFileResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbWriteFileRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
+    "/api/v1/filesystem/findNode": {
+      "get": {
+        "operationId": "FindNodeFullPath",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbFindNodeFullPathResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
+    "/api/v1/filesystem/ls": {
+      "get": {
+        "operationId": "ListDir",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbListDirResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "If |len(id)| == 0, then query path.",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uint64"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
+    "/api/v1/filesystem/node": {
+      "post": {
+        "operationId": "Create",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbCreateResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbCreateRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
+    "/api/v1/inodedb/stats": {
+      "get": {
+        "operationId": "GetINodeDBStats",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbGetINodeDBStatsResponse"
+            }
+          }
+        },
+        "tags": [
+          "INodeDBService"
+        ]
+      }
+    },
+    "/api/v1/logger/categories": {
+      "get": {
+        "operationId": "GetCategories",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbGetCategoriesResponse"
+            }
+          }
+        },
+        "tags": [
+          "LoggerService"
+        ]
+      }
+    },
+    "/api/v1/logger/category/{category}": {
+      "post": {
+        "operationId": "SetCategory",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbSetCategoryResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "tags": [
+          "LoggerService"
+        ]
+      }
+    },
+    "/api/v1/logger/latest_log_entry_id": {
+      "get": {
+        "operationId": "GetLatestLogEntryId",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbGetLatestLogEntryIdResponse"
+            }
+          }
+        },
+        "tags": [
+          "LoggerService"
+        ]
+      }
+    },
+    "/api/v1/logger/logs": {
+      "get": {
+        "operationId": "QueryLogs",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbQueryLogsResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "min_id",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "LoggerService"
+        ]
+      }
+    },
+    "/api/v1/system/info": {
+      "get": {
+        "operationId": "GetSystemInfo",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbSystemInfoResponse"
+            }
+          }
+        },
+        "tags": [
+          "SystemInfoService"
+        ]
+      }
+    },
+    "/api/v1/system/version": {
+      "get": {
+        "operationId": "GetVersion",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbVersionResponse"
+            }
+          }
+        },
+        "tags": [
+          "SystemInfoService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "ListDirResponseListing": {
+      "type": "object",
+      "properties": {
+        "dir_id": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "entry": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pbINodeView"
+          }
+        }
+      }
+    },
+    "pbAttrResponse": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "$ref": "#/definitions/pbINodeView"
+        }
+      }
+    },
+    "pbCreateRequest": {
+      "type": "object",
+      "properties": {
+        "dir_id": {
+          "type": "string",
+          "format": "uint64",
+          "description": "If |dir_id| == 0, then treat |name| as fullpath."
+        },
+        "name": {
+          "type": "string"
+        },
+        "uid": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "gid": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "perm_mode": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "modified_time": {
+          "type": "string",
+          "format": "int64"
+        },
+        "type": {
+          "$ref": "#/definitions/pbINodeType"
+        }
+      }
+    },
+    "pbCreateResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "is_new": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
+    "pbFindNodeFullPathResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "pbGetBlobstoreConfigResponse": {
+      "type": "object",
+      "properties": {
+        "backend_impl_name": {
+          "type": "string"
+        },
+        "backend_flags": {
+          "type": "string"
+        },
+        "cache_impl_name": {
+          "type": "string"
+        },
+        "cache_flags": {
+          "type": "string"
+        }
+      }
+    },
+    "pbGetCategoriesResponse": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pbLoggerCategory"
+          }
+        }
+      }
+    },
+    "pbGetEntriesResponse": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pbGetEntriesResponseEntry"
+          }
+        }
+      }
+    },
+    "pbGetEntriesResponseEntry": {
+      "type": "object",
+      "properties": {
+        "blob_path": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "blob_len": {
+          "type": "string",
+          "format": "int64"
+        },
+        "valid_len": {
+          "type": "string",
+          "format": "int64"
+        },
+        "sync_count": {
+          "type": "string",
+          "format": "int64"
+        },
+        "last_used": {
+          "type": "string",
+          "format": "int64"
+        },
+        "last_write": {
+          "type": "string",
+          "format": "int64"
+        },
+        "last_sync": {
+          "type": "string",
+          "format": "int64"
+        },
+        "number_of_writer_handles": {
+          "type": "string",
+          "format": "int64"
+        },
+        "number_of_handles": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "pbGetINodeDBStatsResponse": {
+      "type": "object",
+      "properties": {
+        "last_sync": {
+          "type": "string",
+          "format": "int64"
+        },
+        "last_tx": {
+          "type": "string",
+          "format": "int64"
+        },
+        "last_id": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "version": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "last_ticket": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "number_of_node_locks": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "pbGetLatestLogEntryIdResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "pbINodeType": {
+      "type": "string",
+      "enum": [
+        "FILE",
+        "DIR"
+      ],
+      "default": "FILE"
+    },
+    "pbINodeView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/pbINodeType"
+        },
+        "size": {
+          "type": "string",
+          "format": "int64"
+        },
+        "uid": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "gid": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "perm_mode": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "modified_time": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "pbListDirResponse": {
+      "type": "object",
+      "properties": {
+        "listing": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ListDirResponseListing"
+          }
+        }
+      }
+    },
+    "pbLoggerCategory": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "level": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "pbQueryLogsResponse": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pbQueryLogsResponseEntry"
+          }
+        }
+      }
+    },
+    "pbQueryLogsResponseEntry": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "log": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "level": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "time": {
+          "type": "string",
+          "format": "int64"
+        },
+        "location": {
+          "type": "string"
+        }
+      }
+    },
+    "pbReadFileResponse": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "pbReduceCacheRequest": {
+      "type": "object",
+      "properties": {
+        "dry_run": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "desired_size": {
+          "type": "string"
+        }
+      }
+    },
+    "pbReduceCacheResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "error_message": {
+          "type": "string"
+        }
+      }
+    },
+    "pbSetCategoryResponse": {
+      "type": "object"
+    },
+    "pbSystemInfoResponse": {
+      "type": "object",
+      "properties": {
+        "go_version": {
+          "type": "string"
+        },
+        "os": {
+          "type": "string"
+        },
+        "arch": {
+          "type": "string"
+        },
+        "num_goroutine": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "pid": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "uid": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "mem_alloc": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "mem_sys": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "num_gc": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "num_fds": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "pbVersionResponse": {
+      "type": "object",
+      "properties": {
+        "git_commit": {
+          "type": "string"
+        },
+        "build_host": {
+          "type": "string"
+        },
+        "build_time": {
+          "type": "string"
+        }
+      }
+    },
+    "pbWriteFileRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "offset": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "body": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "pbWriteFileResponse": {
+      "type": "object"
+    }
+  }
+}

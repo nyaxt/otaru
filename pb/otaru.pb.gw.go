@@ -101,7 +101,7 @@ func request_FileSystemService_Create_0(ctx context.Context, marshaler runtime.M
 	var protoReq CreateRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -149,7 +149,7 @@ func request_FileSystemService_WriteFile_0(ctx context.Context, marshaler runtim
 	var protoReq WriteFileRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -198,7 +198,7 @@ func request_BlobstoreService_ReduceCache_0(ctx context.Context, marshaler runti
 	var protoReq ReduceCacheRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -229,7 +229,7 @@ func request_LoggerService_SetCategory_0(ctx context.Context, marshaler runtime.
 	var protoReq SetCategoryRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Level); err != nil {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Level); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -310,14 +310,14 @@ func RegisterFileSystemServiceHandlerFromEndpoint(ctx context.Context, mux *runt
 	defer func() {
 		if err != nil {
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 			return
 		}
 		go func() {
 			<-ctx.Done()
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 		}()
 	}()
@@ -331,8 +331,8 @@ func RegisterFileSystemServiceHandler(ctx context.Context, mux *runtime.ServeMux
 	return RegisterFileSystemServiceHandlerClient(ctx, mux, NewFileSystemServiceClient(conn))
 }
 
-// RegisterFileSystemServiceHandler registers the http handlers for service FileSystemService to "mux".
-// The handlers forward requests to the grpc endpoint over the given implementation of "FileSystemServiceClient".
+// RegisterFileSystemServiceHandlerClient registers the http handlers for service FileSystemService
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "FileSystemServiceClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "FileSystemServiceClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "FileSystemServiceClient" to call the correct interceptors.
@@ -553,14 +553,14 @@ func RegisterBlobstoreServiceHandlerFromEndpoint(ctx context.Context, mux *runti
 	defer func() {
 		if err != nil {
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 			return
 		}
 		go func() {
 			<-ctx.Done()
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 		}()
 	}()
@@ -574,8 +574,8 @@ func RegisterBlobstoreServiceHandler(ctx context.Context, mux *runtime.ServeMux,
 	return RegisterBlobstoreServiceHandlerClient(ctx, mux, NewBlobstoreServiceClient(conn))
 }
 
-// RegisterBlobstoreServiceHandler registers the http handlers for service BlobstoreService to "mux".
-// The handlers forward requests to the grpc endpoint over the given implementation of "BlobstoreServiceClient".
+// RegisterBlobstoreServiceHandlerClient registers the http handlers for service BlobstoreService
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "BlobstoreServiceClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "BlobstoreServiceClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "BlobstoreServiceClient" to call the correct interceptors.
@@ -697,14 +697,14 @@ func RegisterINodeDBServiceHandlerFromEndpoint(ctx context.Context, mux *runtime
 	defer func() {
 		if err != nil {
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 			return
 		}
 		go func() {
 			<-ctx.Done()
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 		}()
 	}()
@@ -718,8 +718,8 @@ func RegisterINodeDBServiceHandler(ctx context.Context, mux *runtime.ServeMux, c
 	return RegisterINodeDBServiceHandlerClient(ctx, mux, NewINodeDBServiceClient(conn))
 }
 
-// RegisterINodeDBServiceHandler registers the http handlers for service INodeDBService to "mux".
-// The handlers forward requests to the grpc endpoint over the given implementation of "INodeDBServiceClient".
+// RegisterINodeDBServiceHandlerClient registers the http handlers for service INodeDBService
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "INodeDBServiceClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "INodeDBServiceClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "INodeDBServiceClient" to call the correct interceptors.
@@ -775,14 +775,14 @@ func RegisterLoggerServiceHandlerFromEndpoint(ctx context.Context, mux *runtime.
 	defer func() {
 		if err != nil {
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 			return
 		}
 		go func() {
 			<-ctx.Done()
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 		}()
 	}()
@@ -796,8 +796,8 @@ func RegisterLoggerServiceHandler(ctx context.Context, mux *runtime.ServeMux, co
 	return RegisterLoggerServiceHandlerClient(ctx, mux, NewLoggerServiceClient(conn))
 }
 
-// RegisterLoggerServiceHandler registers the http handlers for service LoggerService to "mux".
-// The handlers forward requests to the grpc endpoint over the given implementation of "LoggerServiceClient".
+// RegisterLoggerServiceHandlerClient registers the http handlers for service LoggerService
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "LoggerServiceClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "LoggerServiceClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "LoggerServiceClient" to call the correct interceptors.
@@ -952,14 +952,14 @@ func RegisterSystemInfoServiceHandlerFromEndpoint(ctx context.Context, mux *runt
 	defer func() {
 		if err != nil {
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 			return
 		}
 		go func() {
 			<-ctx.Done()
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 		}()
 	}()
@@ -973,8 +973,8 @@ func RegisterSystemInfoServiceHandler(ctx context.Context, mux *runtime.ServeMux
 	return RegisterSystemInfoServiceHandlerClient(ctx, mux, NewSystemInfoServiceClient(conn))
 }
 
-// RegisterSystemInfoServiceHandler registers the http handlers for service SystemInfoService to "mux".
-// The handlers forward requests to the grpc endpoint over the given implementation of "SystemInfoServiceClient".
+// RegisterSystemInfoServiceHandlerClient registers the http handlers for service SystemInfoService
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "SystemInfoServiceClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "SystemInfoServiceClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "SystemInfoServiceClient" to call the correct interceptors.

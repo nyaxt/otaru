@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<title>Otaru WebUI: Initializing</title>
+<link rel="stylesheet" href="styles.css">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<body>
+<nav class="nav">
+  <h1 class="nav__item nav__item--logo">Otaru</h1>
+  <a class="nav__item nav__tab nav__tab--browsefs" href="#browsefs">browse fs</a>
+  <a class="nav__item nav__tab" href="#inodedbstats">inodedb stats</a>
+  <a class="nav__item nav__tab" href="#blobstore">blobstore</a>
+  <a class="nav__item nav__tab" href="#logview">logview</a>
+  <a class="nav__item nav__tab" href="#loglevel">loglevel</a>
+  <a class="nav__item nav__tab" href="#settings">settings</a>
+</nav>
+<section class="section section--hasheader section--browsefs">
+  <div class="section__header browsefs__header">
+    <a class="button browsefs__parentdir" href="#">↑</a>
+    <label class="browsefs__label" for="browsefs-path">Path: </label>
+    <input class="browsefs__path" type="text" id="browsefs-path">
+    <select class="browsefs__sort">
+      <option value="name" selected>Name</option> 
+      <option value="time_asc">Time ↓</option> 
+      <option value="time_desc">Time ↑</option> 
+    </select>
+    <input class="browsefs__upload" type="file" id="browsefs-upload" multiple>
+    <label class="button browsefs__label--upload" for="browsefs-upload">Upload</label>
+  </div>
+  <table class="content__table browsefs__list"><tbody>
+  </tbody></table>
+</section>
+<section class="section section--hasheader section--logview">
+  <div class="section__header logview__header">
+    <a class="button logview__refresh" href="#">↺</a>
+  </div>
+  <a class="logview__more">load more …</a>
+  <div class="logview__list"></div>
+</section>
+<section class="section section--loglevel">
+  <div class="kvview loglevel--list">
+    <div class="kvview__item">
+      <span class="kvview__label">filesystem:</span>
+      <div class="kvview__value loglevel__level" id="loglevel-filesystem">
+        <input type="radio" class="loglevel__radio" name="loglevel-filesystem" id="loglevel-filesystem-0" value="0"><label class="loglevel__label" for="loglevel-filesystem-0">Debug</label>
+        <input type="radio" class="loglevel__radio" name="loglevel-filesystem" id="loglevel-filesystem-1" value="1"><label class="loglevel__label" for="loglevel-filesystem-1">Info</label>
+        <input type="radio" class="loglevel__radio" name="loglevel-filesystem" id="loglevel-filesystem-2" value="2"><label class="loglevel__label" for="loglevel-filesystem-2">Warning</label>
+        <input type="radio" class="loglevel__radio" name="loglevel-filesystem" id="loglevel-filesystem-3" value="3"><label class="loglevel__label" for="loglevel-filesystem-3">Critical</label>
+      </select>
+    </div>
+  </div>
+</section>
+<section class="section section--blobstore">
+  <div class="kvview">
+    <div class="kvview__item">
+      <span class="kvview__label">Backend:</span>
+      <span class="kvview__value" id="blobstore-backend_impl_name">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Backend Flags:</span>
+      <span class="kvview__value" id="blobstore-backend_flags">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Cache:</span>
+      <span class="kvview__value" id="blobstore-cache_impl_name">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Cache Flags:</span>
+      <span class="kvview__value" id="blobstore-cache_flags">-</span>
+    </div>
+  </div>
+</section>
+<section class="section section--inodedbstats">
+  <div class="kvview">
+    <div class="kvview__item">
+      <span class="kvview__label">Last Sync:</span>
+      <span class="kvview__value" id="inodedbstats-last_sync">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Last Tx:</span>
+      <span class="kvview__value" id="inodedbstats-last_tx">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Last ID:</span>
+      <span class="kvview__value" id="inodedbstats-last_id">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Version:</span>
+      <span class="kvview__value" id="inodedbstats-version">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Last Ticket:</span>
+      <span class="kvview__value" id="inodedbstats-last_ticket">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Number of Node Locks:</span>
+      <span class="kvview__value" id="inodedbstats-number_of_node_locks">-</span>
+    </div>
+  </div>
+</section>
+<section class="section section--settings">
+  <div class="kvview">
+    <div class="kvview__item">
+      <label class="kvview__label" for="apiprefix">Otaru API Server: </label>
+      <input class="kvview__value" type="text" id="apiprefix">
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Go version:</span>
+      <span class="kvview__value" id="settings-go_version">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">OS:</span>
+      <span class="kvview__value" id="settings-os">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Arch:</span>
+      <span class="kvview__value" id="settings-arch">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label"># Goroutines:</span>
+      <span class="kvview__value" id="settings-num_goroutine">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Hostname:</span>
+      <span class="kvview__value" id="settings-hostname">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Pid:</span>
+      <span class="kvview__value" id="settings-pid">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Uid:</span>
+      <span class="kvview__value" id="settings-uid">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Mem allocated:</span>
+      <span class="kvview__value" id="settings-mem_alloc">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">Mem system committed:</span>
+      <span class="kvview__value" id="settings-mem_sys">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label">GC count:</span>
+      <span class="kvview__value" id="settings-num_gc">-</span>
+    </div>
+    <div class="kvview__item">
+      <span class="kvview__label"># FDs:</span>
+      <span class="kvview__value" id="settings-num_fds">-</span>
+    </div>
+  </div>
+</section>
+<script type="module" src="./app.js"></script>
