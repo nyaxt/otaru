@@ -2,8 +2,10 @@ package facade
 
 import (
 	"github.com/nyaxt/otaru/apiserver"
+	"github.com/nyaxt/otaru/assets/webui"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/otaruapiserver"
+	"github.com/nyaxt/otaru/pb/json"
 )
 
 func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) []apiserver.Option {
@@ -11,6 +13,8 @@ func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) []apiserver.Option {
 		apiserver.ListenAddr(cfg.ListenAddr),
 		apiserver.X509KeyPair(cfg.CertFile, cfg.KeyFile),
 		apiserver.CORSAllowedOrigins(cfg.CORSAllowedOrigins),
+		apiserver.SetWebUI(webui.Assets),
+		apiserver.SetSwaggerJson(json.Assets, "/otaru.swagger.json"),
 		otaruapiserver.InstallBlobstoreService(o.S, o.DefaultBS, o.CBS),
 		otaruapiserver.InstallFileHandler(o.FS),
 		otaruapiserver.InstallFileSystemService(o.FS),

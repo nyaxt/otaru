@@ -8,18 +8,15 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/elazarl/go-bindata-assetfs"
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/rs/cors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
+	"github.com/nyaxt/otaru/assets/swaggerui"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/logger"
-	sjson "github.com/nyaxt/otaru/pb/json"
-	"github.com/nyaxt/otaru/webui"
-	"github.com/nyaxt/otaru/webui/swaggerui"
 )
 
 type serviceRegistryEntry struct {
@@ -44,11 +41,7 @@ type options struct {
 }
 
 var defaultOptions = options{
-	defaultHandler: http.FileServer(&assetfs.AssetFS{
-		Asset:     webui.Asset,
-		AssetDir:  webui.AssetDir,
-		AssetInfo: webui.AssetInfo,
-	}),
+	defaultHandler:  nil,
 	fileHandler:     nil,
 	serviceRegistry: []serviceRegistryEntry{},
 	accesslogger:    logger.Registry().Category("http-apiserver"),
@@ -67,8 +60,21 @@ func X509KeyPair(certFile, keyFile string) Option {
 	}
 }
 
+func SetWebUI(fs http.FileSystem) Option {
+	return func(o *options) { o.defaultHandler = http.FileServer(fs) }
+}
+
 func OverrideWebUI(rootPath string) Option {
-	return func(o *options) { o.defaultHandler = http.FileServer(http.Dir(rootPath)) }
+	return SetWebUI(http.Dir(rootPath))
+}
+
+func SetSwaggerJson(fs http.FileSystem, path string) Option {
+	return AddMuxHook(func(mux *http.ServeMux) {
+		mux.HandleFunc("/otaru.swagger.json", func(w http.ResponseWriter, r *http.Request) {
+			r.URL.Path = path
+			http.FileServer(fs).ServeHTTP(w, r)
+		})
+	})
 }
 
 func CloseChannel(c <-chan struct{}) Option {
@@ -111,21 +117,9 @@ func grpcHttpMux(grpcServer *grpc.Server, httpHandler http.Handler) http.Handler
 }
 
 func serveSwagger(mux *http.ServeMux) {
-	uisrv := http.FileServer(
-		&assetfs.AssetFS{
-			Asset:     swaggerui.Asset,
-			AssetDir:  swaggerui.AssetDir,
-			AssetInfo: swaggerui.AssetInfo,
-		})
+	uisrv := http.FileServer(swaggerui.Assets)
 	prefix := "/swagger/"
 	mux.Handle(prefix, http.StripPrefix(prefix, uisrv))
-
-	mux.Handle("/otaru.swagger.json", http.FileServer(
-		&assetfs.AssetFS{
-			Asset:     sjson.Asset,
-			AssetDir:  sjson.AssetDir,
-			AssetInfo: sjson.AssetInfo,
-		}))
 }
 
 func serveApiGateway(mux *http.ServeMux, opts *options, certtext []byte) error {
@@ -179,7 +173,9 @@ func Serve(opt ...Option) error {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/", opts.defaultHandler)
+	if opts.defaultHandler != nil {
+		mux.Handle("/", opts.defaultHandler)
+	}
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte("ok\n"))

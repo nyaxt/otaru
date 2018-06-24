@@ -1,0 +1,40 @@
+syntax = "proto3";
+package pb;
+
+import "google/api/annotations.proto";
+import "protoc-gen-swagger/options/annotations.proto";
+
+option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
+  info: {
+    title: "Otaru-fe API";
+    version: "1.0";
+    contact: {
+      name: "Otaru project";
+      url: "https://github.com/nyaxt/otaru";
+      email: "ueno@nyaxtstep.com";
+    };
+  };
+  schemes: HTTPS;
+  consumes: "application/json";
+  produces: "application/json";
+};
+
+message ListHostsRequest {
+}
+
+message HostInfo {
+  uint32 id = 1;
+  string name = 2;
+}
+
+message ListHostsResponse {
+  repeated HostInfo host = 1;
+}
+
+service FeService {
+  rpc ListHosts(ListHostsRequest) returns (ListHostsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/fe/hosts"
+    };
+  }
+}

@@ -7,7 +7,7 @@ import (
 
 	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/cli"
-	"github.com/nyaxt/otaru/extra/fe"
+	fe_apiserver "github.com/nyaxt/otaru/extra/fe/apiserver"
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/version"
@@ -25,7 +25,7 @@ func Usage() {
 }
 
 func serve(cfg *cli.CliConfig) error {
-	opts := fe.BuildApiServerOptions(cfg)
+	opts := fe_apiserver.BuildApiServerOptions(cfg)
 	return apiserver.Serve(opts...)
 }
 
