@@ -11,29 +11,26 @@ import (
 )
 
 type feService struct {
-	his []*pb.HostInfo
+	hnames []string
 }
 
 func (s *feService) ListHosts(ctx context.Context, req *pb.ListHostsRequest) (*pb.ListHostsResponse, error) {
-	return &pb.ListHostsResponse{Host: s.his}, nil
+	return &pb.ListHostsResponse{Host: s.hnames}, nil
 }
 
-func genHostInfos(cfg *cli.CliConfig) []*pb.HostInfo {
-	his := make([]*pb.HostInfo, 0, len(cfg.Host))
+func genHostNames(cfg *cli.CliConfig) []string {
+	hnames := make([]string, 0, len(cfg.Host))
 	id := uint32(0)
 	for name, _ := range cfg.Host {
-		his = append(his, &pb.HostInfo{
-			Id:   id,
-			Name: name,
-		})
+		hnames = append(hnames, name)
 		id++
 	}
-	return his
+	return hnames
 }
 
 func InstallFeService(cfg *cli.CliConfig) apiserver.Option {
 	fes := &feService{
-		his: genHostInfos(cfg),
+		hnames: genHostNames(cfg),
 	}
 
 	return apiserver.RegisterService(

@@ -37,25 +37,13 @@
     }
   },
   "definitions": {
-    "pbHostInfo": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "integer",
-          "format": "int64"
-        },
-        "name": {
-          "type": "string"
-        }
-      }
-    },
     "pbListHostsResponse": {
       "type": "object",
       "properties": {
         "host": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/pbHostInfo"
+            "type": "string"
           }
         }
       }

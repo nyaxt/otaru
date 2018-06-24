@@ -33,7 +33,6 @@ type options struct {
 
 	allowedOrigins  []string
 	defaultHandler  http.Handler
-	fileHandler     http.Handler
 	serviceRegistry []serviceRegistryEntry
 	accesslogger    logger.Logger
 	muxhooks        []MuxHook
@@ -42,7 +41,6 @@ type options struct {
 
 var defaultOptions = options{
 	defaultHandler:  nil,
-	fileHandler:     nil,
 	serviceRegistry: []serviceRegistryEntry{},
 	accesslogger:    logger.Registry().Category("http-apiserver"),
 }

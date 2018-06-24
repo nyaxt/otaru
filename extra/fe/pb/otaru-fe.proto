@@ -22,13 +22,8 @@ option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
 message ListHostsRequest {
 }
 
-message HostInfo {
-  uint32 id = 1;
-  string name = 2;
-}
-
 message ListHostsResponse {
-  repeated HostInfo host = 1;
+  repeated string host = 1;
 }
 
 service FeService {
