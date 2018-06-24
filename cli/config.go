@@ -27,7 +27,8 @@ type Host struct {
 }
 
 type FeConfig struct {
-	ListenAddr string
+	ListenAddr    string
+	WebUIRootPath string `toml:"webui_root_path"`
 
 	CertFile string
 	KeyFile  string

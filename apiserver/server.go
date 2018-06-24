@@ -32,7 +32,6 @@ type options struct {
 	keyFile    string
 
 	allowedOrigins  []string
-	defaultHandler  http.Handler
 	serviceRegistry []serviceRegistryEntry
 	accesslogger    logger.Logger
 	muxhooks        []MuxHook
@@ -40,7 +39,6 @@ type options struct {
 }
 
 var defaultOptions = options{
-	defaultHandler:  nil,
 	serviceRegistry: []serviceRegistryEntry{},
 	accesslogger:    logger.Registry().Category("http-apiserver"),
 }
@@ -58,12 +56,19 @@ func X509KeyPair(certFile, keyFile string) Option {
 	}
 }
 
-func SetWebUI(fs http.FileSystem) Option {
-	return func(o *options) { o.defaultHandler = http.FileServer(fs) }
+func AddMuxHook(h MuxHook) Option {
+	return func(o *options) { o.muxhooks = append(o.muxhooks, h) }
 }
 
-func OverrideWebUI(rootPath string) Option {
-	return SetWebUI(http.Dir(rootPath))
+func SetWebUI(fs http.FileSystem, indexpath string) Option {
+	return AddMuxHook(func(mux *http.ServeMux) {
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/" {
+				r.URL.Path = indexpath
+			}
+			http.FileServer(fs).ServeHTTP(w, r)
+		})
+	})
 }
 
 func SetSwaggerJson(fs http.FileSystem, path string) Option {
@@ -95,10 +100,6 @@ func RegisterService(
 
 func AccessLogger(l logger.Logger) Option {
 	return func(o *options) { o.accesslogger = l }
-}
-
-func AddMuxHook(h MuxHook) Option {
-	return func(o *options) { o.muxhooks = append(o.muxhooks, h) }
 }
 
 // grpcHttpMux, serveSwagger, and Serve functions based on code from:
@@ -171,9 +172,6 @@ func Serve(opt ...Option) error {
 	}
 
 	mux := http.NewServeMux()
-	if opts.defaultHandler != nil {
-		mux.Handle("/", opts.defaultHandler)
-	}
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte("ok\n"))
