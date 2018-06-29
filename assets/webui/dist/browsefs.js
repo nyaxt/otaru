@@ -37,6 +37,31 @@ const pathInput = $('.browsefs__path');
 const listTbody = $('.browsefs__list').lastChild;
 const upload = $('.browsefs__upload');
 
+var staticHostList = null;
+const getHostList = async () => {
+  if (staticHostList !== null) {
+    return staticHostList;
+  }
+
+  const result = await rpc('api/v1/fe/hosts');
+  return result['host'];
+};
+
+const reOtaruPath = /^\/\/([\w\[\]]+)(\/.*)$/
+const lsPath = async (opath) => {
+  const m = opath.match(reOtaruPath);
+  if (!m) {
+    throw new Error(`Invalid otaru path: ${opath}`)
+  }
+  const host = m[1];
+  const path = m[2];
+
+  const ep = (host === '[noproxy]') ? 'api/v1/filesystem/ls' :
+    `proxy/${host}/api/v1/filesystem/ls`;
+
+  return await rpc(ep, {args: {path: path}});
+};
+
 const triggerUpdate = async () => {
   if (!isSectionSelected('browsefs'))
     return;
@@ -46,81 +71,115 @@ const triggerUpdate = async () => {
     pathInput.value = path;
   }
 
+  removeAllChildNodes(listTbody);
   try {
-    const result = await rpc('api/v1/filesystem/ls', {args: {path: path}});
+    if (path === "//") {
+      const hosts = await getHostList();
 
-    removeAllChildNodes(listTbody);
-
-    const sortSel = $('.browsefs__sort').value;
-    const sortFunc = sortFuncMap[sortSel];
-
-    const entries = result['listing'][0]['entry'];
-    if (entries === undefined) {
-      listTbody.classList.add('.browsefs__list--empty');
-    } else {
-      const rows = entries.sort(sortFunc);
-      for (let row of rows) {
-        listTbody.classList.remove('.browsefs__list--empty');
-
+      for (let host of hosts) {
         var tr = document.createElement('tr');
         tr.classList.add('browsefs__entry');
         listTbody.appendChild(tr);
 
-        for (let colName of colNames) {
-          var cell = document.createElement('td');
-          cell.classList.add('browsefs__cell');
-          cell.classList.add(`browsefs__cell--${colName}`);
+        var cell = document.createElement('td');
+        cell.classList.add('browsefs__cell');
+        cell.classList.add('browsefs__cell--name');
+        cell.textContent = host;
 
-          let val = row[colName];
-          if (colName === 'type') {
-            if (val === undefined)
-              val = 'FILE';
+        const span = document.createElement('span');
+        span.classList.add('browsefs__action');
+        span.textContent = '→';
+        cell.appendChild(span);
 
-            val = val.toLowerCase()[0];
-          } else if (colName === 'perm_mode') {
-            val = val.toString(8);
-          } else if (colName === 'uid') {
-            if (val === undefined)
-              val = 0;
-            val = 'u'+val;
-          } else if (colName === 'gid') {
-            if (val === undefined)
-              val = 0;
-            val = 'g'+val;
-          } else if (colName === 'size') {
-            val = formatBlobSize(val);
-          } else if (colName.match(reTime)) {
-            val = formatTimestamp(new Date(val*1000));
-          }
-          if (val === undefined)
-            val = '-';
+        tr.addEventListener('click', (ev) => {
+          const next = `//${host}/`;
+          setBrowsefsPath(next);
+        });
 
-          cell.textContent = val;
-          if (colName === 'name') {
-            const actionDef = actionDefMap[row.type || 'FILE'] || {labels: []};
+        tr.appendChild(cell);
+      }
+    } else {
+      const result = await lsPath(path);
+      const entries = result['listing'][0]['entry'];
 
-            for (let l of actionDef.labels) {
-              const span = document.createElement('span');
-              span.classList.add('browsefs__action');
-              span.textContent = l;
-              cell.appendChild(span);
+      const sortSel = $('.browsefs__sort').value;
+      const sortFunc = sortFuncMap[sortSel];
+
+      if (entries === undefined) {
+        listTbody.classList.add('.browsefs__list--empty');
+      } else {
+        listTbody.classList.remove('.browsefs__list--empty');
+
+        const rows = entries.sort(sortFunc);
+        for (let row of rows) {
+          var tr = document.createElement('tr');
+          tr.classList.add('browsefs__entry');
+          listTbody.appendChild(tr);
+
+          for (let colName of colNames) {
+            var cell = document.createElement('td');
+            cell.classList.add('browsefs__cell');
+            cell.classList.add(`browsefs__cell--${colName}`);
+
+            let val = row[colName];
+            if (colName === 'type') {
+              if (val === undefined)
+                val = 'FILE';
+
+              val = val.toLowerCase()[0];
+            } else if (colName === 'perm_mode') {
+              val = val.toString(8);
+            } else if (colName === 'uid') {
+              if (val === undefined)
+                val = 0;
+              val = 'u'+val;
+            } else if (colName === 'gid') {
+              if (val === undefined)
+                val = 0;
+              val = 'g'+val;
+            } else if (colName === 'size') {
+              val = formatBlobSize(val);
+            } else if (colName.match(reTime)) {
+              val = formatTimestamp(new Date(val*1000));
             }
-            const action = actionDef.action;
-            if (action !== undefined) {
-              tr.addEventListener('click', (ev) => {
-                actionDef.action(row);
-              });
-            }
-          }
+            if (val === undefined)
+              val = '-';
 
-          tr.appendChild(cell);
+            cell.textContent = val;
+            if (colName === 'name') {
+              const actionDef = actionDefMap[row.type || 'FILE'] || {labels: []};
+
+              for (let l of actionDef.labels) {
+                const span = document.createElement('span');
+                span.classList.add('browsefs__action');
+                span.textContent = l;
+                cell.appendChild(span);
+              }
+              const action = actionDef.action;
+              if (action !== undefined) {
+                tr.addEventListener('click', (ev) => {
+                  actionDef.action(row);
+                });
+              }
+            }
+
+            tr.appendChild(cell);
+          }
         }
       }
     }
   } catch (e) {
-    console.log(e);
+    listTbody.classList.remove('.browsefs__list--empty');
+
+    var tr = document.createElement('tr');
+    tr.classList.add('browsefs__entry');
+    tr.classList.add('browsefs__error');
+    listTbody.appendChild(tr);
+
+    tr.textContent = e.message;
   }
 }
+
 contentSection('browsefs').addEventListener('shown', triggerUpdate);
 $('.browsefs__sort').addEventListener('change', triggerUpdate);
 $('.browsefs__parentdir').addEventListener('click', ev => {
@@ -129,7 +188,7 @@ $('.browsefs__parentdir').addEventListener('click', ev => {
   if (next !== curr)
     setBrowsefsPath(next);
 
-  ev.preventDefault(); 
+  ev.preventDefault();
 });
 pathInput.addEventListener('change', () => {
   const path = getBrowsefsPath();
@@ -144,7 +203,7 @@ upload.addEventListener('change', async () => {
     console.log(`name: ${file.name} size: ${file.size} type: ${file.type}`) ;
     // FIXME sanitize file.name
     const cfresp = await rpc('api/v1/filesystem/file', {
-      method: 'POST', 
+      method: 'POST',
       body: {
         dir_id: 0,
         name: `${getBrowsefsPath()}/${file.name}`,
@@ -158,3 +217,5 @@ upload.addEventListener('change', async () => {
 contentSection('browsefs').addEventListener('hidden', () => {
   removeAllChildNodes(listTbody);
 });
+
+export {staticHostList};

@@ -45,6 +45,7 @@ func (ap *apiproxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			TLSClientConfig: tc,
 		},
 	}
+	// FIXMEFIXMEFIXME: need to pass query params too.
 	url := &url.URL{
 		Scheme: "https",
 		Host:   ep,

@@ -39,7 +39,7 @@ func newReaderHttp(ep string, tc *tls.Config, id uint64) (io.ReadCloser, error) 
 	req := &http.Request{
 		Method: "GET",
 		Header: map[string][]string{
-		// "Accept-Encoding": {"gzip"}, // FIXME
+			// "Accept-Encoding": {"gzip"}, // FIXME
 		},
 		URL: url,
 	}

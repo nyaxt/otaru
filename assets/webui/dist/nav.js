@@ -1,16 +1,15 @@
 import {$, $$} from './domhelper.js';
 
-const validContents = [
-  'browsefs',
-  'blobstore',
-  'inodedbstats',
-  'logview',
-  'loglevel',
-  'settings',
-];
+const reContentHash = /^#([\w-]+)$/;
+
+const validContents = [];
+$$(".nav__tab").forEach(tab => {
+  const contentId = tab.getAttribute('href').match(reContentHash)[1];
+  validContents.push(contentId);
+});
 
 let currContentId = '';
-let currBrowsefsPath = '/';
+let currBrowsefsPath = '//';
 
 const updateContentIfNeeded = (opts) => {
   let refreshNeeded = false;
@@ -50,7 +49,7 @@ $$(".nav__tab").forEach(tabA => {
   tabA.addEventListener("click", ev => {
     ev.preventDefault();
 
-    const newContentId = tabA.getAttribute('href').match(/^#(\w+)$/)[1];
+    const newContentId = tabA.getAttribute('href').match(reContentHash)[1];
     
     updateContentIfNeeded({contentId: newContentId});
     return false; 
