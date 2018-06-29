@@ -45,15 +45,23 @@ func (ap *apiproxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			TLSClientConfig: tc,
 		},
 	}
-	// FIXMEFIXMEFIXME: need to pass query params too.
 	url := &url.URL{
-		Scheme: "https",
-		Host:   ep,
-		Path:   tgtpath,
+		Scheme:   "https",
+		Host:     ep,
+		Path:     tgtpath,
+		RawQuery: r.URL.RawQuery,
 	}
 	logger.Debugf(mylog, "URL: %v", url)
 
-	preq := &http.Request{Method: "GET", Header: make(http.Header), URL: url}
+	// FIXME: filter tgtpath
+	// FIXME: add forwarded-for
+
+	preq := &http.Request{
+		Method: r.Method,
+		Header: make(http.Header),
+		URL:    url,
+		Body:   r.Body,
+	}
 	copyHeader(preq.Header, r.Header)
 
 	presp, err := cli.Do(preq)
