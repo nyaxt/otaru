@@ -52,8 +52,11 @@ const fillRemoteContent = async (endpoint, prefix, fillKeys) => {
   }
 };
 
-const downloadFile = (id, filename) => {
-  const url = new URL(`file/${id}/${encodeURIComponent(filename)}`, apiprefix);
+const downloadFile = (host, id, filename) => {
+  const ep = (host === '[noproxy]') ?
+    `file/${id}/${encodeURIComponent(filename)}` :
+    `proxy/${host}/file/${id}/${encodeURIComponent(filename)}`;
+  const url = new URL(ep, apiprefix);
   window.location = url;
 }
 

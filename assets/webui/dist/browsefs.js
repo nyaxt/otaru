@@ -28,8 +28,8 @@ const actionDefMap = {
   },
   'FILE': {
     labels: ['DL'],
-    action: entry => {
-      downloadFile(entry['id'], entry['name'])
+    action: (entry, host) => {
+      downloadFile(host, entry['id'], entry['name'])
     },
   },
 };
@@ -48,14 +48,17 @@ const getHostList = async () => {
 };
 
 const reOtaruPath = /^\/\/([\w\[\]]+)(\/.*)$/
-const lsPath = async (opath) => {
+const parseOtaruPath = (opath) => {
   const m = opath.match(reOtaruPath);
   if (!m) {
     throw new Error(`Invalid otaru path: ${opath}`)
   }
   const host = m[1];
   const path = m[2];
+  return {host, path};
+}
 
+const lsPath = async (host, path) => {
   const ep = (host === '[noproxy]') ? 'api/v1/filesystem/ls' :
     `proxy/${host}/api/v1/filesystem/ls`;
 
@@ -66,14 +69,14 @@ const triggerUpdate = async () => {
   if (!isSectionSelected('browsefs'))
     return;
 
-  const path = getBrowsefsPath();
-  if (pathInput.value !== path) {
-    pathInput.value = path;
+  const opath = getBrowsefsPath();
+  if (pathInput.value !== opath) {
+    pathInput.value = opath;
   }
 
   removeAllChildNodes(listTbody);
   try {
-    if (path === "//") {
+    if (opath === "//") {
       const hosts = await getHostList();
 
       for (let host of hosts) {
@@ -99,7 +102,8 @@ const triggerUpdate = async () => {
         tr.appendChild(cell);
       }
     } else {
-      const result = await lsPath(path);
+      const {host, path} = parseOtaruPath(opath);
+      const result = await lsPath(host, path);
       const entries = result['listing'][0]['entry'];
 
       const sortSel = $('.browsefs__sort').value;
@@ -158,7 +162,7 @@ const triggerUpdate = async () => {
               const action = actionDef.action;
               if (action !== undefined) {
                 tr.addEventListener('click', (ev) => {
-                  actionDef.action(row);
+                  actionDef.action(row, host);
                 });
               }
             }
