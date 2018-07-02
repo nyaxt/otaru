@@ -1,6 +1,6 @@
 const formatBlobSize = val => {
   if (val === undefined) {
-    return '';
+    return '0B';
   } else if (val > 1024 * 1024 * 1024) {
     return (val / (1024 * 1024 * 1024)).toPrecision(2) + 'GiB';
   } else if (val > 1024 * 1024) {

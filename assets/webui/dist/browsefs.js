@@ -33,6 +33,47 @@ const actionDefMap = {
     },
   },
 };
+
+const innerHTMLSource =
+  `<div class="section__header browsefs__header">
+    <a class="button browsefs__parentdir" href="#">↑</a>
+    <label class="browsefs__label" for="browsefs-path">Path: </label>
+    <input class="browsefs__path" type="text" id="browsefs-path">
+    <select class="browsefs__sort">
+      <option value="name" selected>Name</option>
+      <option value="time_asc">Time ↓</option>
+      <option value="time_desc">Time ↑</option>
+    </select>
+    <input class="browsefs__upload" type="file" id="browsefs-upload" multiple>
+    <label class="button browsefs__label--upload" for="browsefs-upload">Upload</label>
+  </div>
+  <table class="content__table browsefs__list"><tbody>
+  </tbody></table>`;
+
+class BrowseFS extends HTMLElement {
+  constructor() {
+    super();
+
+
+  }
+
+  connectedCallback() {
+    this.innerHTML = innerHTMLSource;
+
+    this.pathInput_ = this.querySelector('.browsefs__path');
+    this.listTBody_ = this.querySelector('.browsefs__list').lastChild;
+    this.upload_ = this.querySelector('.browsefs__upload');
+
+    this.pathInput_.addEventListener('change', () => {
+      const path = getBrowsefsPath();
+      if (this.pathInput_.value !== path) {
+        setBrowsefsPath(this.pathInput_.value);
+      }
+    });
+  }
+}
+window.customElements.define("browse-fs", BrowseFS);
+
 const pathInput = $('.browsefs__path');
 const listTbody = $('.browsefs__list').lastChild;
 const upload = $('.browsefs__upload');
@@ -63,6 +104,33 @@ const lsPath = async (host, path) => {
     `proxy/${host}/api/v1/filesystem/ls`;
 
   return await rpc(ep, {args: {path: path}});
+};
+
+const formatVal = (type, val)=> {
+  if (type === 'type') {
+    if (val === undefined)
+      val = 'FILE';
+
+    return val.toLowerCase()[0];
+  } else if (type === 'perm_mode') {
+    return val.toString(8);
+  } else if (type === 'uid') {
+    if (val === undefined)
+      val = 0;
+    return 'u'+val;
+  } else if (type === 'gid') {
+    if (val === undefined)
+      val = 0;
+    return 'g'+val;
+  } else if (type === 'size') {
+    return formatBlobSize(val);
+  } else if (type.match(reTime)) {
+    return formatTimestamp(new Date(val*1000));
+  }
+
+  if (val === undefined)
+    return '-';
+  return val;
 };
 
 const triggerUpdate = async () => {
@@ -125,31 +193,7 @@ const triggerUpdate = async () => {
             cell.classList.add('browsefs__cell');
             cell.classList.add(`browsefs__cell--${colName}`);
 
-            let val = row[colName];
-            if (colName === 'type') {
-              if (val === undefined)
-                val = 'FILE';
-
-              val = val.toLowerCase()[0];
-            } else if (colName === 'perm_mode') {
-              val = val.toString(8);
-            } else if (colName === 'uid') {
-              if (val === undefined)
-                val = 0;
-              val = 'u'+val;
-            } else if (colName === 'gid') {
-              if (val === undefined)
-                val = 0;
-              val = 'g'+val;
-            } else if (colName === 'size') {
-              val = formatBlobSize(val);
-            } else if (colName.match(reTime)) {
-              val = formatTimestamp(new Date(val*1000));
-            }
-            if (val === undefined)
-              val = '-';
-
-            cell.textContent = val;
+            cell.textContent = formatVal(colName, row[colName]);
             if (colName === 'name') {
               const actionDef = actionDefMap[row.type || 'FILE'] || {labels: []};
 
@@ -193,12 +237,6 @@ $('.browsefs__parentdir').addEventListener('click', ev => {
     setBrowsefsPath(next);
 
   ev.preventDefault();
-});
-pathInput.addEventListener('change', () => {
-  const path = getBrowsefsPath();
-  if (pathInput.value !== path) {
-    setBrowsefsPath(pathInput.value);
-  }
 });
 upload.addEventListener('change', async () => {
   const files = upload.files;
