@@ -20,15 +20,15 @@ const sortFuncMap = {
 const actionDefMap = {
   'DIR': {
     labels: ['→'],
-    action: entry => {
-      const curr = getBrowsefsPath();
+    action: (browsefs, entry) => {
+      const curr = browsefs.path;
       const next = curr.replace(/\/?$/, '/') + entry.name;
-      setBrowsefsPath(next);
+      browsefs.path = next;
     },
   },
   'FILE': {
     labels: ['DL'],
-    action: (entry, host) => {
+    action: (browsefs, entry, host) => {
       downloadFile(host, entry['id'], entry['name'])
     },
   },
@@ -54,7 +54,15 @@ class BrowseFS extends HTMLElement {
   constructor() {
     super();
 
-     
+
+  }
+
+  get path() {
+    return getBrowsefsPath();
+  }
+
+  set path(val) {
+    setBrowsefsPath(val);
   }
 
   connectedCallback() {
@@ -67,21 +75,21 @@ class BrowseFS extends HTMLElement {
     this.upload_ = this.querySelector('.browsefs__upload');
 
     this.parentDirBtn_.addEventListener('click', ev => {
-      const curr = getBrowsefsPath();
+      const curr = this.path;
       const next = curr.replace(/[^\/]+\/?$/, '');
       if (next !== curr)
-        setBrowsefsPath(next);
+        this.path = next;
 
       ev.preventDefault();
     });
     this.pathInput_.addEventListener('change', () => {
-      const path = getBrowsefsPath();
+      const path = this.path;
       if (this.pathInput_.value !== path) {
-        setBrowsefsPath(this.pathInput_.value);
+        this.path = this.pathInput_.value;
       }
     });
     this.sortSelect_.addEventListener('change', () => {
-      this.triggerUpdate(); 
+      this.triggerUpdate();
     });
     this.upload_.addEventListener('change', async () => {
       const files = this.upload_.files;
@@ -93,7 +101,7 @@ class BrowseFS extends HTMLElement {
           method: 'POST',
           body: {
             dir_id: 0,
-            name: `${getBrowsefsPath()}/${file.name}`,
+            name: `${this.path}/${file.name}`,
             uid: 0, gid: 0, perm_mode: 0o644, modified_time: 0
           }});
         const id = cfresp.id;
@@ -111,7 +119,7 @@ class BrowseFS extends HTMLElement {
     if (!isSectionSelected('browsefs'))
       return;
 
-    const opath = getBrowsefsPath();
+    const opath = this.path;
     if (this.pathInput_.value !== opath) {
       this.pathInput_.value = opath;
     }
@@ -138,7 +146,7 @@ class BrowseFS extends HTMLElement {
 
           tr.addEventListener('click', (ev) => {
             const next = `//${host}/`;
-            setBrowsefsPath(next);
+            this.path = next;
           });
 
           tr.appendChild(cell);
@@ -180,7 +188,7 @@ class BrowseFS extends HTMLElement {
                 const action = actionDef.action;
                 if (action !== undefined) {
                   tr.addEventListener('click', (ev) => {
-                    actionDef.action(row, host);
+                    actionDef.action(this, row, host);
                   });
                 }
               }
