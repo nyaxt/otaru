@@ -87,6 +87,15 @@ body {
   margin-top: calc(var(--nav-height) + var(--section-header-height));
 }
 
+.section--split {
+  display: flex;
+  flex-direction: row;
+}
+
+.section--split > .split--rightpane {
+  flex-grow: 1;
+}
+
 .section__header {
   display: flex;
 
@@ -100,6 +109,16 @@ body {
   width: 100%;
   background-color: var(--main-bg-color);
   border-bottom: 1px solid var(--dark-bg-color);
+}
+
+.splitbar {
+  min-width: 5px;
+  background-color: var(--dark-bg-color);
+  cursor: ew-resize;
+}
+
+.drag_parent > * {
+  user-select: none;
 }
 
 .content__table {

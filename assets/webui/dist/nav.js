@@ -40,11 +40,6 @@ const updateContentIfNeeded = (opts) => {
   }
 };
 
-const getBrowsefsPath = () => currBrowsefsPath;
-const setBrowsefsPath = newPath => {
-  updateContentIfNeeded({currBrowsefsPath: newPath});
-};
-
 $$(".nav__tab").forEach(tabA => {
   tabA.addEventListener("click", ev => {
     ev.preventDefault();
@@ -94,7 +89,9 @@ const showContent = (pushHistory = false) => {
   $$(".section").forEach(section => {
     if (section.classList.contains(sectionNeedle)) {
       section.classList.add("section--selected");
-      section.dispatchEvent(new Event('shown'));
+      const e = new Event('shown');
+      e.browsefsPath = currBrowsefsPath;
+      section.dispatchEvent(e);
     } else {
       section.classList.remove("section--selected");
       section.dispatchEvent(new Event('hidden'));
@@ -109,4 +106,4 @@ window.addEventListener("DOMContentLoaded", () => {
   updateContentIfNeeded({fromHash: true});
 }, {oneshot: true});
 
-export {contentSection, isSectionSelected, getBrowsefsPath, setBrowsefsPath};
+export {contentSection, isSectionSelected, updateContentIfNeeded};

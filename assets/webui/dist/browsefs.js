@@ -1,4 +1,3 @@
-import {contentSection, isSectionSelected, getBrowsefsPath, setBrowsefsPath} from './nav.js';
 import {$, $$, removeAllChildNodes} from './domhelper.js';
 import {rpc, downloadFile} from './api.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
@@ -54,15 +53,26 @@ class BrowseFS extends HTMLElement {
   constructor() {
     super();
 
-
+    this.path_ = '//';
+    this.inflightUpdate_ = false;
   }
 
   get path() {
-    return getBrowsefsPath();
+    return this.path_;
   }
 
   set path(val) {
-    setBrowsefsPath(val);
+    if (this.path_ == val)
+      return;
+
+    const e = new Event('pathChanged');
+    e.oldPath = this.path_;
+    e.newPath = val;
+
+    this.path_ = val;
+
+    this.dispatchEvent(e);
+    this.triggerUpdate();
   }
 
   connectedCallback() {
@@ -116,9 +126,20 @@ class BrowseFS extends HTMLElement {
   }
 
   async triggerUpdate() {
-    if (!isSectionSelected('browsefs'))
+    if (this.inflightUpdate_)
       return;
 
+    this.inflightUpdate_ = true;
+    for (;;) {
+      const updatePath = this.path;
+      await this.triggerUpdateLocked_();
+      if (updatePath == this.path)
+        break;
+    }
+    this.inflightUpdate_ = false;
+  }
+
+  async triggerUpdateLocked_() {
     const opath = this.path;
     if (this.pathInput_.value !== opath) {
       this.pathInput_.value = opath;
@@ -266,12 +287,5 @@ const formatVal = (type, val)=> {
     return '-';
   return val;
 };
-
-contentSection('browsefs').addEventListener('shown', () => {
-  $("browse-fs").triggerUpdate();
-});
-contentSection('browsefs').addEventListener('hidden', () => {
-  return $("browse-fs").clear();
-});
 
 export {staticHostList};
