@@ -46,8 +46,9 @@ const innerHTMLSource =
     <input class="browsefs__upload" type="file" id="browsefs-upload" multiple>
     <label class="button browsefs__label--upload" for="browsefs-upload">Upload</label>
   </div>
-  <table class="content__table browsefs__list"><tbody>
-  </tbody></table>`;
+  <div class="browsefs__scroll">
+    <table class="content__table browsefs__list"><tbody></tbody></table>
+  </div>`;
 
 class BrowseFS extends HTMLElement {
   constructor() {

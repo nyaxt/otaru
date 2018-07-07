@@ -17,8 +17,21 @@ body, div, p, span, input, h1, table, tbody, th, tr, td {
   padding: 0;
 }
 
+html {
+  margin: 0;
+  padding: 0;
+
+  width: 100%;
+  height: 100%;
+}
+
 body {
   background-color: var(--main-bg-color);
+  display: flex;
+  flex-direction: column;
+
+  width: 100%;
+  height: 100%;
 }
 
 * {
@@ -39,10 +52,9 @@ body {
 }
 
 .nav {
-  position: fixed;
-  top: 0;
   width: 100%;
   height: var(--nav-height);
+  flex-shrink: 0;
 
   display: flex; 
   color: var(--main-fg-color);
@@ -74,13 +86,12 @@ body {
 
 .section {
   display: none;
-  
-  margin-top: var(--nav-height);
-  height: 100%;
 }
 
 .section--selected {
   display: block;
+
+  flex-grow: 1;
 }
 
 .section--hasheader {
@@ -98,9 +109,6 @@ body {
 
 .section__header {
   display: flex;
-
-  position: fixed;
-  top: var(--nav-height);
 
   box-sizing: border-box;
   padding: 5px;
@@ -151,7 +159,14 @@ body {
   flex-grow: 1;
 }
 
+browse-fs {
+  display: flex;
+  flex-direction: column;
+}
+
 .browsefs__header {
+  flex-grow: 0;
+  flex-shrink: 0;
 }
 
 .browsefs__parentdir {
@@ -181,6 +196,11 @@ body {
 
 .browsefs__label--upload {
   margin-left: 5px;
+}
+
+.browsefs__scroll {
+  flex-grow: 1;
+  overflow-y: scroll;
 }
 
 .browsefs__entry {
