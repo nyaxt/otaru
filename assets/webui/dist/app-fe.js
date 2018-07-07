@@ -24,10 +24,12 @@ splitbar.addEventListener('mousedown', md => {
   const offX = pn.offsetLeft;
   const offW = pn.offsetWidth;
   const leftpane = pn.querySelector('.split--leftpane');
+  const rightpane = pn.querySelector('.split--rightpane');
 
   const mmhandler = mm => {
     const l = (event.pageX - offX) / offW;
-    leftpane.style.minWidth = `${l * 100}%`;
+    leftpane.style.width = `${l * 100}%`;
+    rightpane.style.width =`${(1.0 - l) * 100}%`;
   };
   const muhandler = mu => {
     pn.removeEventListener('mousemove', mmhandler);
