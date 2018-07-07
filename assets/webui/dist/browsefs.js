@@ -54,8 +54,8 @@ class BrowseFS extends HTMLElement {
   constructor() {
     super();
 
-    this.path_ = '//';
     this.inflightUpdate_ = false;
+    this.path_ = '//';
   }
 
   get path() {
@@ -119,6 +119,9 @@ class BrowseFS extends HTMLElement {
         console.dir(cfresp);
         const uplresp = await rpc(`file/${id}`, {method: 'PUT', args:{ offset: 0 }, rawBody: file});
       }
+    });
+    window.addEventListener("DOMContentLoaded", () => {
+      this.triggerUpdate();
     });
   }
 
