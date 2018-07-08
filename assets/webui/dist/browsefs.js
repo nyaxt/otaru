@@ -115,18 +115,13 @@ class BrowseFS extends HTMLElement {
     this.cursorIndex = -1;
   }
 
-  setCursorIndexBounded(c) {
-    if (c < 0) {
-      c = 0;
-    } else if (this.numEntries_ <= c) {
-      c = this.numEntries_ - 1;
-    }
-
-    this.cursorIndex = c;
-  }
-
   get cursorRow() {
     return this.cursorRow_;
+  }
+
+  get numVisibleRows() {
+    let divRect = this.scrollDiv_.getBoundingClientRect();
+    return Math.floor(divRect.height / kRowHeight);
   }
 
   get query() {
@@ -376,7 +371,7 @@ class BrowseFS extends HTMLElement {
     if (cr) {
       cr.classList.add(kCursorClass);
 
-      let crRect = cr.getBoundingClientRect()
+      let crRect = cr.getBoundingClientRect();
       let divRect = this.scrollDiv_.getBoundingClientRect();
 
       if (crRect.bottom > divRect.bottom) {
@@ -384,8 +379,6 @@ class BrowseFS extends HTMLElement {
       } else if (crRect.top < divRect.top) {
         cr.scrollIntoView({block: 'start'});
       }
-    }
-    if (cr) {
     }
   }
 

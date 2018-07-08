@@ -48,20 +48,29 @@ window.addEventListener('DOMContentLoaded', () => {
   let focusfs = leftfs;
   focusfs.cursorIndex = 0;
 
+  document.addEventListener('keydown', e => {
+    if (e.key === 'PageDown') {
+      focusfs.cursorIndex = focusfs.cursorIndex + focusfs.numVisibleRows;
+    } else if (e.key === 'PageUp') {
+      focusfs.cursorIndex = Math.max(focusfs.cursorIndex - focusfs.numVisibleRows, 0);
+    } else {
+      // console.log(`keydown ${e.key}`);
+    }
+  });
   document.addEventListener('keypress', e => {
     if (e.target instanceof HTMLInputElement)
       return true;
 
     if (e.key === 'j') {
-      focusfs.setCursorIndexBounded(focusfs.cursorIndex + 1);
+      focusfs.cursorIndex = focusfs.cursorIndex + 1; 
     } else if (e.key === 'k') {
-      focusfs.setCursorIndexBounded(Math.max(focusfs.cursorIndex - 1, 0));
+      focusfs.cursorIndex = Math.max(focusfs.cursorIndex - 1, 0);
     } else if (e.key === 'l') {
-      rightfs.setCursorIndexBounded(leftfs.cursorIndex);
+      rightfs.cursorIndex = leftfs.cursorIndex;
       leftfs.clearCursor();
       focusfs = rightfs;
     } else if (e.key === 'h') {
-      leftfs.setCursorIndexBounded(rightfs.cursorIndex);
+      leftfs.cursorIndex = rightfs.cursorIndex;
       rightfs.clearCursor();
       focusfs = leftfs;
     } else if (e.key === ' ') {
