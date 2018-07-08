@@ -288,6 +288,8 @@ browse-fs.filtered .browsefs__entry--match {
 }
 
 .browsefs__cell--name {
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .browsefs__action {

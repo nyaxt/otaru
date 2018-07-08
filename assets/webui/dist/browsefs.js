@@ -5,6 +5,7 @@ import {formatBlobSize, formatTimestamp} from './format.js';
 const kCursorClass = 'browsefs__entry--cursor';
 const kMatchClass = 'browsefs__entry--match';
 const kFilterUpdateDelayMs = 500;
+const kRowHeight = 30;
 
 const colNames = ['type', 'name', 'size', 'uid', 'gid', 'perm_mode', 'modified_time'];
 const reTime = /_time$/;
@@ -90,6 +91,9 @@ class BrowseFS extends HTMLElement {
 
     this.path_ = val;
     this.query = null;
+    if (this.cursorIndex_ >= 0) {
+      this.cursorIndex_ = 0;
+    }
 
     this.dispatchEvent(e);
     this.triggerUpdate();
@@ -164,6 +168,7 @@ class BrowseFS extends HTMLElement {
     this.listTBody_ = this.querySelector('.browsefs__list').lastChild;
     this.upload_ = this.querySelector('.browsefs__upload');
     this.queryInput_ = this.querySelector('.browsefs__query');
+    this.scrollDiv_ = this.querySelector('.browsefs__scroll');
 
     this.parentDirBtn_.addEventListener('click', ev => {
       this.navigateParent();
@@ -366,9 +371,22 @@ class BrowseFS extends HTMLElement {
       return;
     }
 
-    this.cursorRow_ = visibleTrs[this.cursorIndex_];
-    if (this.cursorRow_)
-      this.cursorRow_.classList.add(kCursorClass);
+    let cr = visibleTrs[this.cursorIndex_];
+    this.cursorRow_ = cr;
+    if (cr) {
+      cr.classList.add(kCursorClass);
+
+      let crRect = cr.getBoundingClientRect()
+      let divRect = this.scrollDiv_.getBoundingClientRect();
+
+      if (crRect.bottom > divRect.bottom) {
+        cr.scrollIntoView({block: 'end'});
+      } else if (crRect.top < divRect.top) {
+        cr.scrollIntoView({block: 'start'});
+      }
+    }
+    if (cr) {
+    }
   }
 
   restartFilterTimer_() {
