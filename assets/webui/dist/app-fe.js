@@ -62,7 +62,7 @@ window.addEventListener('DOMContentLoaded', () => {
       return true;
 
     if (e.key === 'j') {
-      focusfs.cursorIndex = focusfs.cursorIndex + 1; 
+      focusfs.cursorIndex = focusfs.cursorIndex + 1;
     } else if (e.key === 'k') {
       focusfs.cursorIndex = Math.max(focusfs.cursorIndex - 1, 0);
     } else if (e.key === 'l') {
@@ -73,14 +73,20 @@ window.addEventListener('DOMContentLoaded', () => {
       leftfs.cursorIndex = rightfs.cursorIndex;
       rightfs.clearCursor();
       focusfs = leftfs;
+    } else if (e.key === 'x') {
+      let cr = focusfs.cursorRow;
+      if (cr)
+        cr.toggleSelection();
     } else if (e.key === ' ') {
       let cr = focusfs.cursorRow;
       if (cr)
-        cr.toggleSelection(); 
+        cr.toggleSelection();
+
+      focusfs.cursorIndex = focusfs.cursorIndex + 1;
     } else if (e.key === 'Enter') {
       let cr = focusfs.cursorRow;
       if (cr)
-        cr.triggerAction(); 
+        cr.triggerAction();
     } else if (e.key === 'u') {
       focusfs.navigateParent();
     } else if (e.key === '?') {
@@ -91,7 +97,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   document.addEventListener('keyup', e => {
     if (e.key === 'Escape') {
-      focusfs.query = null; 
+      focusfs.query = null;
     }
     return false;
   });
