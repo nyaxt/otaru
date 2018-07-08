@@ -3,6 +3,8 @@ import {rpc, downloadFile} from './api.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
 
 const kCursorClass = 'browsefs__entry--cursor';
+const kMatchClass = 'browsefs__entry--match';
+const kFilterUpdateDelayMs = 500;
 
 const colNames = ['type', 'name', 'size', 'uid', 'gid', 'perm_mode', 'modified_time'];
 const reTime = /_time$/;
@@ -55,6 +57,10 @@ const innerHTMLSource =
     <input class="browsefs__upload" type="file" id="browsefs-upload" multiple>
     <label class="button browsefs__label--upload" for="browsefs-upload">Upload</label>
   </div>
+  <div class="section__header browsefs__header browsefs__header--query">
+    <label class="browsefs__label" for="browsefs-query">Query: </label>
+    <input class="browsefs__query" type="text" id="browsefs-query" tabindex="1">
+  </div>
   <div class="browsefs__scroll">
     <table class="content__table browsefs__list"><tbody></tbody></table>
   </div>`;
@@ -67,6 +73,7 @@ class BrowseFS extends HTMLElement {
     this.path_ = '//';
     this.cursorIndex_ = -1;
     this.numEntries_ = 0;
+    this.query_ = null;
   }
 
   get path() {
@@ -82,6 +89,7 @@ class BrowseFS extends HTMLElement {
     e.newPath = val;
 
     this.path_ = val;
+    this.query = null;
 
     this.dispatchEvent(e);
     this.triggerUpdate();
@@ -100,10 +108,10 @@ class BrowseFS extends HTMLElement {
   }
 
   clearCursor() {
-    this.cursorIndex = -1; 
+    this.cursorIndex = -1;
   }
 
-  setCursorIndexBounded(c) { 
+  setCursorIndexBounded(c) {
     if (c < 0) {
       c = 0;
     } else if (this.numEntries_ <= c) {
@@ -114,7 +122,27 @@ class BrowseFS extends HTMLElement {
   }
 
   get cursorRow() {
-    return this.listTBody_.querySelector(`tr:nth-child(${this.cursorIndex_ + 1})`);
+    return this.cursorRow_;
+  }
+
+  get query() {
+    return query_;
+  }
+
+  set query(val) {
+    this.query_ = val;
+    window.setTimeout(() => {
+      if (this.query_ === null) {
+        this.classList.remove('filtered');
+        return;
+      }
+
+      this.classList.add('filtered');
+      this.queryInput_.value = val;
+      this.queryInput_.focus();
+
+      this.restartFilterTimer_();
+    }, 0);
   }
 
   navigateParent() {
@@ -135,6 +163,7 @@ class BrowseFS extends HTMLElement {
     this.sortSelect_ = this.querySelector('.browsefs__sort');
     this.listTBody_ = this.querySelector('.browsefs__list').lastChild;
     this.upload_ = this.querySelector('.browsefs__upload');
+    this.queryInput_ = this.querySelector('.browsefs__query');
 
     this.parentDirBtn_.addEventListener('click', ev => {
       this.navigateParent();
@@ -168,6 +197,29 @@ class BrowseFS extends HTMLElement {
         const uplresp = await rpc(`file/${id}`, {method: 'PUT', args:{ offset: 0 }, rawBody: file});
       }
     });
+    const onquerykey = (e) => {
+      if (e.type === 'keypress' && e.key === 'Enter') {
+        let cr = this.cursorRow;
+        if (cr)
+          cr.triggerAction();
+
+        return true;
+      }
+
+      this.query_ = this.queryInput_.value;
+      this.restartFilterTimer_();
+      return false;
+    };
+    this.queryInput_.addEventListener('keypress', onquerykey);
+    this.queryInput_.addEventListener('keyup', onquerykey);
+    this.queryInput_.addEventListener('keydown', kd => {
+      if (kd.key === 'Tab') {
+        kd.preventDefault();
+        this.queryInput_.blur();
+        return true;
+      }
+      return false;
+    });
     window.addEventListener("DOMContentLoaded", () => {
       this.triggerUpdate();
     });
@@ -194,6 +246,7 @@ class BrowseFS extends HTMLElement {
   appendRow_(row, host) {
     let tr = document.createElement('tr');
     tr.classList.add('browsefs__entry');
+    tr.data = row;
     this.listTBody_.appendChild(tr);
 
     tr.toggleSelection = () => {
@@ -253,7 +306,7 @@ class BrowseFS extends HTMLElement {
         for (let host of hosts) {
           this.appendRow_({
             type: 'HOST',
-            name: host, 
+            name: host,
           }, null);
         }
         this.numEntries_ = hosts.length;
@@ -292,16 +345,55 @@ class BrowseFS extends HTMLElement {
   }
 
   updateCursor() {
-    for (var tr of this.listTBody_.querySelectorAll("tr")) {
+    let visibleTrs;
+    if (this.query_ === null) {
+      visibleTrs = this.listTBody_.querySelectorAll("tr");
+    } else {
+      visibleTrs = this.listTBody_.querySelectorAll(`.${kMatchClass}`);
+    }
+
+    for (var tr of visibleTrs) {
       tr.classList.remove(kCursorClass);
     }
-    
+
     if (this.cursorIndex_ < 0)
       return;
 
-    let trC = this.cursorRow;
-    if (trC)
-      trC.classList.add(kCursorClass);
+    if (this.cursorIndex_ >= visibleTrs.length) {
+      this.cursorIndex_ = visibleTrs.length - 1;
+    } else if (this.cursorIndex < 0) {
+      this.cursorRow_ = null;
+      return;
+    }
+
+    this.cursorRow_ = visibleTrs[this.cursorIndex_];
+    if (this.cursorRow_)
+      this.cursorRow_.classList.add(kCursorClass);
+  }
+
+  restartFilterTimer_() {
+    if (this.filterTimer_ !== undefined) {
+      window.clearTimeout(this.filterTimer_);
+    }
+    this.filterTimer_ = window.setTimeout(() => this.onFilterTimer_(), kFilterUpdateDelayMs);
+  }
+
+  onFilterTimer_() {
+    if (this.query_ === null)
+      return;
+
+    let filterRe = new RegExp(this.query_);
+
+    for (let tr of this.listTBody_.querySelectorAll("tr")) {
+      let match = tr.data.name.match(filterRe);
+      if (!match) {
+        tr.classList.remove(kMatchClass);
+        continue;
+      }
+      tr.classList.add(kMatchClass);
+    }
+    this.cursorIndex_ = 0;
+    this.updateCursor();
   }
 }
 window.customElements.define("browse-fs", BrowseFS);
@@ -334,7 +426,7 @@ const lsPath = async (host, path) => {
   return await rpc(ep, {args: {path: path}});
 };
 
-const formatVal = (type, val)=> {
+const formatVal = (type, val) => {
   if (type === 'type') {
     if (val === undefined)
       val = 'FILE';

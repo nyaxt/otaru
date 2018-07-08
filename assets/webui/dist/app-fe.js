@@ -55,7 +55,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'j') {
       focusfs.setCursorIndexBounded(focusfs.cursorIndex + 1);
     } else if (e.key === 'k') {
-      focusfs.setCursorIndexBounded(focusfs.cursorIndex - 1);
+      focusfs.setCursorIndexBounded(Math.max(focusfs.cursorIndex - 1, 0));
     } else if (e.key === 'l') {
       rightfs.setCursorIndexBounded(leftfs.cursorIndex);
       leftfs.clearCursor();
@@ -74,8 +74,16 @@ window.addEventListener('DOMContentLoaded', () => {
         cr.triggerAction(); 
     } else if (e.key === 'u') {
       focusfs.navigateParent();
+    } else if (e.key === '?') {
+      focusfs.query = '';
     } else {
       console.log(`keypress ${e.key}`);
     }
+  });
+  document.addEventListener('keyup', e => {
+    if (e.key === 'Escape') {
+      focusfs.query = null; 
+    }
+    return false;
   });
 });

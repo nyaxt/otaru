@@ -21,7 +21,7 @@ const updateContentIfNeeded = (opts) => {
     let m = window.location.hash.match(/^#(\w+)(\/.*)?$/);
     if (m) {
       newContentId = m[1];
-      newBrowsefsPath = m[2];
+      newBrowsefsPath = decodeURI(m[2]);
     }
   }
 
