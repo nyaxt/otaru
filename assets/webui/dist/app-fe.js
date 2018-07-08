@@ -3,7 +3,8 @@ import {fillRemoteContent} from './api.js';
 import {$} from './domhelper.js';
 import './browsefs.js';
 
-const rightfs = $("browse-fs");
+const leftfs = $("#leftfs");
+const rightfs = $("#rightfs");
 
 contentSection('browsefs').addEventListener('shown', e => {
   if (e.browsefsPath !== undefined)
@@ -41,4 +42,40 @@ splitbar.addEventListener('mousedown', md => {
   pn.addEventListener('mouseup', muhandler);
   pn.addEventListener('selectstart', noophandler);
   pn.classList.add('drag_parent');
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  let focusfs = leftfs;
+  focusfs.cursorIndex = 0;
+
+  document.addEventListener('keypress', e => {
+    if (e.target instanceof HTMLInputElement)
+      return true;
+
+    if (e.key === 'j') {
+      focusfs.setCursorIndexBounded(focusfs.cursorIndex + 1);
+    } else if (e.key === 'k') {
+      focusfs.setCursorIndexBounded(focusfs.cursorIndex - 1);
+    } else if (e.key === 'l') {
+      rightfs.setCursorIndexBounded(leftfs.cursorIndex);
+      leftfs.clearCursor();
+      focusfs = rightfs;
+    } else if (e.key === 'h') {
+      leftfs.setCursorIndexBounded(rightfs.cursorIndex);
+      rightfs.clearCursor();
+      focusfs = leftfs;
+    } else if (e.key === ' ') {
+      let cr = focusfs.cursorRow;
+      if (cr)
+        cr.toggleSelection(); 
+    } else if (e.key === 'Enter') {
+      let cr = focusfs.cursorRow;
+      if (cr)
+        cr.triggerAction(); 
+    } else if (e.key === 'u') {
+      focusfs.navigateParent();
+    } else {
+      console.log(`keypress ${e.key}`);
+    }
+  });
 });

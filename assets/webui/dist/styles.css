@@ -3,6 +3,7 @@
   --section-header-height: 35px;
   --main-fg-color: #ffcc66;
   --dark-fg-color: #ffa566;
+  --darklight-fg-color: #ffd2b2;
   --light-fg-color: #fffcee;
   --comp-color: #a6ffed;
   --comp-dark-color: #3dcc87;
@@ -98,7 +99,7 @@ body {
   margin-top: calc(var(--nav-height) + var(--section-header-height));
 }
 
-.section--split {
+.section--selected.section--split {
   display: flex;
   flex-direction: row;
 }
@@ -210,11 +211,25 @@ browse-fs {
   background-color: var(--light-fg-color);
 }
 
+.browsefs__entry--cursor {
+  /* Material Icon keyboard_arrow_right: https://github.com/google/material-design-icons */
+  background: url('data:image/svg+xml;utf8,<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="24px" height="24px" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve"><path d="M8.59,16.59L13.17,12L8.59,7.41L10,6l6,6l-6,6L8.59,16.59z"/><path fill="none" d="M0,0h24v24H0V0z"/></svg>') no-repeat left -5px center;
+}
+
+.browsefs__entry--selected {
+  background-color: var(--dark-fg-color);
+}
+
+.browsefs__entry--selected:hover {
+  background-color: var(--darklight-fg-color);
+}
+
 .browsefs__cell {
   padding: 5px;
 }
 
 .browsefs__cell--type {
+  padding-left: 13px;
   width: 8px;
 }
 

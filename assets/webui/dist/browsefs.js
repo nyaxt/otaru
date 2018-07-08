@@ -2,6 +2,8 @@ import {$, $$, removeAllChildNodes} from './domhelper.js';
 import {rpc, downloadFile} from './api.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
 
+const kCursorClass = 'browsefs__entry--cursor';
+
 const colNames = ['type', 'name', 'size', 'uid', 'gid', 'perm_mode', 'modified_time'];
 const reTime = /_time$/;
 const sortFuncMap = {
@@ -17,6 +19,13 @@ const sortFuncMap = {
   'time_desc': (a, b) => b['modified_time'] - a['modified_time'],
 };
 const actionDefMap = {
+  'HOST': {
+    labels: ['→'],
+    action: (browsefs, entry) => {
+      const next = `//${entry.name}/`;
+      browsefs.path = next;
+    },
+  },
   'DIR': {
     labels: ['→'],
     action: (browsefs, entry) => {
@@ -56,6 +65,8 @@ class BrowseFS extends HTMLElement {
 
     this.inflightUpdate_ = false;
     this.path_ = '//';
+    this.cursorIndex_ = -1;
+    this.numEntries_ = 0;
   }
 
   get path() {
@@ -76,6 +87,46 @@ class BrowseFS extends HTMLElement {
     this.triggerUpdate();
   }
 
+  get cursorIndex() {
+    return this.cursorIndex_;
+  }
+
+  set cursorIndex(val) {
+    if (this.cursorIndex_ == val)
+      return;
+
+    this.cursorIndex_ = val;
+    this.updateCursor();
+  }
+
+  clearCursor() {
+    this.cursorIndex = -1; 
+  }
+
+  setCursorIndexBounded(c) { 
+    if (c < 0) {
+      c = 0;
+    } else if (this.numEntries_ <= c) {
+      c = this.numEntries_ - 1;
+    }
+
+    this.cursorIndex = c;
+  }
+
+  get cursorRow() {
+    return this.listTBody_.querySelector(`tr:nth-child(${this.cursorIndex_ + 1})`);
+  }
+
+  navigateParent() {
+    if (this.cursorIndex_ > 0)
+      this.cursorIndex_ = 0;
+
+    const curr = this.path;
+    const next = curr.replace(/[^\/]+\/?$/, '');
+    if (next !== curr)
+      this.path = next;
+  }
+
   connectedCallback() {
     this.innerHTML = innerHTMLSource;
 
@@ -86,10 +137,7 @@ class BrowseFS extends HTMLElement {
     this.upload_ = this.querySelector('.browsefs__upload');
 
     this.parentDirBtn_.addEventListener('click', ev => {
-      const curr = this.path;
-      const next = curr.replace(/[^\/]+\/?$/, '');
-      if (next !== curr)
-        this.path = next;
+      this.navigateParent();
 
       ev.preventDefault();
     });
@@ -143,6 +191,54 @@ class BrowseFS extends HTMLElement {
     this.inflightUpdate_ = false;
   }
 
+  appendRow_(row, host) {
+    let tr = document.createElement('tr');
+    tr.classList.add('browsefs__entry');
+    this.listTBody_.appendChild(tr);
+
+    tr.toggleSelection = () => {
+      tr.classList.toggle('browsefs__entry--selected');
+    };
+
+    for (let colName of colNames) {
+      var cell = document.createElement('td');
+      cell.classList.add('browsefs__cell');
+      cell.classList.add(`browsefs__cell--${colName}`);
+
+      cell.textContent = formatVal(colName, row[colName]);
+      if (colName === 'name') {
+        const actionDef = actionDefMap[row.type || 'FILE'] || {labels: []};
+        tr.triggerAction = () => { actionDef.action(this, row, host); };
+
+        for (let l of actionDef.labels) {
+          const span = document.createElement('span');
+          span.classList.add('browsefs__action');
+          span.textContent = l;
+          cell.appendChild(span);
+        }
+        const action = actionDef.action;
+        if (action !== undefined) {
+          let cancelClick = false;
+          tr.addEventListener('click', (ev) => {
+            cancelClick = false;
+            window.setTimeout(() => {
+              if (cancelClick)
+                return;
+
+              tr.toggleSelection();
+            }, 200);
+          });
+          tr.addEventListener('dblclick', (ev) => {
+            cancelClick = true;
+            tr.triggerAction();
+          });
+        }
+      }
+
+      tr.appendChild(cell);
+    }
+  }
+
   async triggerUpdateLocked_() {
     const opath = this.path;
     if (this.pathInput_.value !== opath) {
@@ -155,27 +251,12 @@ class BrowseFS extends HTMLElement {
         const hosts = await getHostList();
 
         for (let host of hosts) {
-          var tr = document.createElement('tr');
-          tr.classList.add('browsefs__entry');
-          this.listTBody_.appendChild(tr);
-
-          var cell = document.createElement('td');
-          cell.classList.add('browsefs__cell');
-          cell.classList.add('browsefs__cell--name');
-          cell.textContent = host;
-
-          const span = document.createElement('span');
-          span.classList.add('browsefs__action');
-          span.textContent = '→';
-          cell.appendChild(span);
-
-          tr.addEventListener('click', (ev) => {
-            const next = `//${host}/`;
-            this.path = next;
-          });
-
-          tr.appendChild(cell);
+          this.appendRow_({
+            type: 'HOST',
+            name: host, 
+          }, null);
         }
+        this.numEntries_ = hosts.length;
       } else {
         const {host, path} = parseOtaruPath(opath);
         const result = await lsPath(host, path);
@@ -186,41 +267,15 @@ class BrowseFS extends HTMLElement {
 
         if (entries === undefined) {
           this.listTBody_.classList.add('.browsefs__list--empty');
+          this.numEntries_ = 0;
         } else {
           this.listTBody_.classList.remove('.browsefs__list--empty');
 
           const rows = entries.sort(sortFunc);
           for (let row of rows) {
-            var tr = document.createElement('tr');
-            tr.classList.add('browsefs__entry');
-            this.listTBody_.appendChild(tr);
-
-            for (let colName of colNames) {
-              var cell = document.createElement('td');
-              cell.classList.add('browsefs__cell');
-              cell.classList.add(`browsefs__cell--${colName}`);
-
-              cell.textContent = formatVal(colName, row[colName]);
-              if (colName === 'name') {
-                const actionDef = actionDefMap[row.type || 'FILE'] || {labels: []};
-
-                for (let l of actionDef.labels) {
-                  const span = document.createElement('span');
-                  span.classList.add('browsefs__action');
-                  span.textContent = l;
-                  cell.appendChild(span);
-                }
-                const action = actionDef.action;
-                if (action !== undefined) {
-                  tr.addEventListener('click', (ev) => {
-                    actionDef.action(this, row, host);
-                  });
-                }
-              }
-
-              tr.appendChild(cell);
-            }
+            this.appendRow_(row, host);
           }
+          this.numEntries_ = entries.length;
         }
       }
     } catch (e) {
@@ -233,6 +288,20 @@ class BrowseFS extends HTMLElement {
 
       tr.textContent = e.message;
     }
+    this.updateCursor();
+  }
+
+  updateCursor() {
+    for (var tr of this.listTBody_.querySelectorAll("tr")) {
+      tr.classList.remove(kCursorClass);
+    }
+    
+    if (this.cursorIndex_ < 0)
+      return;
+
+    let trC = this.cursorRow;
+    if (trC)
+      trC.classList.add(kCursorClass);
   }
 }
 window.customElements.define("browse-fs", BrowseFS);
@@ -272,6 +341,9 @@ const formatVal = (type, val)=> {
 
     return val.toLowerCase()[0];
   } else if (type === 'perm_mode') {
+    if (val === undefined)
+      val = '000';
+
     return val.toString(8);
   } else if (type === 'uid') {
     if (val === undefined)
@@ -284,6 +356,9 @@ const formatVal = (type, val)=> {
   } else if (type === 'size') {
     return formatBlobSize(val);
   } else if (type.match(reTime)) {
+    if (val === undefined)
+      return '--/--/--';
+
     return formatTimestamp(new Date(val*1000));
   }
 
