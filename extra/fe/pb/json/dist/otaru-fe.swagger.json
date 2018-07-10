@@ -34,9 +34,64 @@
           "FeService"
         ]
       }
+    },
+    "/api/v1/fe/ls_local": {
+      "get": {
+        "operationId": "ListLocalDir",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbListLocalDirResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "FeService"
+        ]
+      }
     }
   },
   "definitions": {
+    "pbFileInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/pbINodeType"
+        },
+        "size": {
+          "type": "string",
+          "format": "int64"
+        },
+        "perm_mode": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "modified_time": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "pbINodeType": {
+      "type": "string",
+      "enum": [
+        "FILE",
+        "DIR"
+      ],
+      "default": "FILE"
+    },
     "pbListHostsResponse": {
       "type": "object",
       "properties": {
@@ -44,6 +99,17 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "pbListLocalDirResponse": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pbFileInfo"
           }
         }
       }

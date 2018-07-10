@@ -4,7 +4,7 @@ cd `dirname $0`
 GOPATH=${GOPATH:-$HOME/go}
 
 protofiles=( otaru-fe.proto )
-protocflags="-I${GOPATH}/src -I."
+protocflags="-I${GOPATH}/src -I. -I../../../pb"
 protocflags="${protocflags} -I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway"
 protocflags="${protocflags} -I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis"
 protoc ${protocflags} \
@@ -16,4 +16,4 @@ protoc ${protocflags} \
 protoc ${protocflags} \
   --swagger_out=logtostderr=true:./json/dist \
   ${protofiles[*]}
-go generate .
+go generate ./...

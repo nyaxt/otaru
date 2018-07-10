@@ -53,9 +53,15 @@ const fillRemoteContent = async (endpoint, prefix, fillKeys) => {
 };
 
 const downloadFile = (host, id, filename) => {
-  const ep = (host === '[noproxy]') ?
-    `file/${id}/${encodeURIComponent(filename)}` :
-    `proxy/${host}/file/${id}/${encodeURIComponent(filename)}`;
+  var ep;
+  if (host === '[noproxy]') {
+    ep = `file/${id}/${encodeURIComponent(filename)}`;
+  } else if (host === '[local]') {
+    throw "attempt to download local file";
+  } else {
+    ep = `proxy/${host}/file/${id}/${encodeURIComponent(filename)}`;
+  }
+
   const url = new URL(ep, apiprefix);
   window.location = url;
 }

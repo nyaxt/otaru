@@ -1,6 +1,7 @@
 syntax = "proto3";
 package pb;
 
+import "otaru.proto";
 import "google/api/annotations.proto";
 import "protoc-gen-swagger/options/annotations.proto";
 
@@ -26,10 +27,32 @@ message ListHostsResponse {
   repeated string host = 1;
 }
 
+message FileInfo {
+  string name = 1;
+  INodeType type = 2;
+  int64 size = 3;
+  uint32 perm_mode = 4;
+  int64 modified_time = 5;
+}
+
+message ListLocalDirRequest {
+  string path = 1;
+}
+
+message ListLocalDirResponse {
+  repeated FileInfo entry = 1;
+}
+
 service FeService {
   rpc ListHosts(ListHostsRequest) returns (ListHostsResponse) {
     option (google.api.http) = {
       get: "/api/v1/fe/hosts"
+    };
+  }
+
+  rpc ListLocalDir(ListLocalDirRequest) returns (ListLocalDirResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/fe/ls_local"
     };
   }
 }

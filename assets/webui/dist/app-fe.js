@@ -6,6 +6,8 @@ import './browsefs.js';
 const leftfs = $("#leftfs");
 const rightfs = $("#rightfs");
 
+leftfs.path = '//[local]/';
+
 contentSection('browsefs').addEventListener('shown', e => {
   if (e.browsefsPath !== undefined)
     rightfs.path = e.browsefsPath;

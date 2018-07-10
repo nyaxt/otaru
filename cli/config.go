@@ -32,6 +32,8 @@ type FeConfig struct {
 
 	CertFile string
 	KeyFile  string
+
+	LocalRootPath string
 }
 
 func NewConfig(configdir string) (*CliConfig, error) {

@@ -313,7 +313,7 @@ class BrowseFS extends HTMLElement {
       } else {
         const {host, path} = parseOtaruPath(opath);
         const result = await lsPath(host, path);
-        const entries = result['listing'][0]['entry'];
+        const entries = result['entry'] || result['listing'][0]['entry'];
 
         const sortSel = $('.browsefs__sort').value;
         const sortFunc = sortFuncMap[sortSel];
@@ -430,11 +430,17 @@ const parseOtaruPath = (opath) => {
   return {host, path};
 }
 
-const lsPath = async (host, path) => {
-  const ep = (host === '[noproxy]') ? 'api/v1/filesystem/ls' :
-    `proxy/${host}/api/v1/filesystem/ls`;
+const lsEndpoint = (host) => {
+  if (host === '[noproxy]')
+    return 'api/v1/filesystem/ls';
+  else if (host === '[local]')
+    return 'api/v1/fe/ls_local';
 
-  return await rpc(ep, {args: {path: path}});
+  return `proxy/${host}/api/v1/filesystem/ls`;
+};
+
+const lsPath = async (host, path) => {
+  return await rpc(lsEndpoint(host), {args: {path: path}});
 };
 
 const formatVal = (type, val) => {

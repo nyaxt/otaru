@@ -1,5 +1,6 @@
 syntax = "proto3";
 package pb;
+option go_package = "github.com/nyaxt/otaru/pb";
 
 import "google/api/annotations.proto";
 import "protoc-gen-swagger/options/annotations.proto";
