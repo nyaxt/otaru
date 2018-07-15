@@ -167,6 +167,10 @@ browse-fs {
   flex-direction: column;
 }
 
+browse-fs.modal {
+  background-color: var(--dark-bg-color);
+}
+
 .browsefs__header {
   flex-grow: 0;
   flex-shrink: 0;
@@ -179,6 +183,15 @@ browse-fs {
 browse-fs.filtered .browsefs__header--query {
   display: flex;
   background-color: var(--comp-dark-color);
+}
+
+.browsefs__header--rename {
+  display: none;
+}
+
+browse-fs.modal .browsefs__header--rename {
+  display: flex;
+  background-color: var(--main-bg-color);
 }
 
 .browsefs__parentdir {
@@ -210,7 +223,7 @@ browse-fs.filtered .browsefs__header--query {
   margin-left: 5px;
 }
 
-.browsefs__query {
+.browsefs__text {
   flex-grow: 1;
   height: 25px;
   box-sizing: border-box;
@@ -225,11 +238,19 @@ browse-fs.filtered .browsefs__list {
   background-color: var(--comp-light-color);
 }
 
+browse-fs.modal .browsefs__list {
+  color: var(--main-fg-color);
+}
+
 .browsefs__entry {
 }
 
 .browsefs__entry:hover {
   background-color: var(--light-fg-color);
+}
+
+browse-fs.modal .browsefs__entry:hover {
+  background-color: var(--dark-bg-color);
 }
 
 .browsefs__entry--cursor {

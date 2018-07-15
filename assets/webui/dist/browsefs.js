@@ -4,6 +4,8 @@ import {formatBlobSize, formatTimestamp} from './format.js';
 
 const kCursorClass = 'browsefs__entry--cursor';
 const kMatchClass = 'browsefs__entry--match';
+const kSelectedClass = 'browsefs__entry--selected';
+
 const kFilterUpdateDelayMs = 500;
 const kRowHeight = 30;
 
@@ -60,7 +62,11 @@ const innerHTMLSource =
   </div>
   <div class="section__header browsefs__header browsefs__header--query">
     <label class="browsefs__label" for="browsefs-query">Query: </label>
-    <input class="browsefs__query" type="text" id="browsefs-query" tabindex="1">
+    <input class="browsefs__text browsefs__query" type="text" id="browsefs-query" tabindex="1">
+  </div>
+  <div class="section__header browsefs__header browsefs__header--rename">
+    <label class="browsefs__label" for="browsefs-rename">Rename: </label>
+    <input class="browsefs__text browsefs__rename" type="text" id="browsefs-rename" tabindex="1">
   </div>
   <div class="browsefs__scroll">
     <table class="content__table browsefs__list"><tbody></tbody></table>
@@ -163,6 +169,7 @@ class BrowseFS extends HTMLElement {
     this.listTBody_ = this.querySelector('.browsefs__list').lastChild;
     this.upload_ = this.querySelector('.browsefs__upload');
     this.queryInput_ = this.querySelector('.browsefs__query');
+    this.renameInput_ = this.querySelector('.browsefs__rename');
     this.scrollDiv_ = this.querySelector('.browsefs__scroll');
 
     this.parentDirBtn_.addEventListener('click', ev => {
@@ -197,21 +204,6 @@ class BrowseFS extends HTMLElement {
         const uplresp = await rpc(`file/${id}`, {method: 'PUT', args:{ offset: 0 }, rawBody: file});
       }
     });
-    const onquerykey = (e) => {
-      if (e.type === 'keypress' && e.key === 'Enter') {
-        let cr = this.cursorRow;
-        if (cr)
-          cr.triggerAction();
-
-        return true;
-      }
-
-      this.query_ = this.queryInput_.value;
-      this.restartFilterTimer_();
-      return false;
-    };
-    this.queryInput_.addEventListener('keypress', onquerykey);
-    this.queryInput_.addEventListener('keyup', onquerykey);
     this.queryInput_.addEventListener('keydown', kd => {
       if (kd.key === 'Tab') {
         kd.preventDefault();
@@ -220,6 +212,56 @@ class BrowseFS extends HTMLElement {
       }
       return false;
     });
+    const onquerykeypressup = (e) => {
+      if (e.type === 'keypress' && e.key === 'Enter') {
+        let cr = this.cursorRow;
+        if (cr)
+          cr.triggerAction();
+
+        return true;
+      }
+      if (e.key === 'Escape') {
+        this.query = null;
+        return true;
+      }
+
+      this.query_ = this.queryInput_.value;
+      this.restartFilterTimer_();
+      return false;
+    };
+    this.queryInput_.addEventListener('keypress', onquerykeypressup);
+    this.queryInput_.addEventListener('keyup', onquerykeypressup);
+
+    this.renameInput_.addEventListener('keydown', kd => {
+      if (kd.key === 'Tab') {
+        kd.preventDefault();
+        this.renameInput_.blur();
+        return true;
+      }
+      return false;
+    });
+    this.renameInput_.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        this.executeRename();
+
+        if (this.getSelectedRows_().length == 1) {
+          this.cursorRow.toggleSelection();
+        }
+        this.closeRenameDialog();
+        return false;
+      }
+
+      return false;
+    });
+    this.renameInput_.addEventListener('keyup', (e) => {
+      if (e.key === 'Escape') {
+        console.log("rename escape");
+        this.closeRenameDialog();
+        return false;
+      }
+      return true;
+    });
+
     window.addEventListener("DOMContentLoaded", () => {
       this.triggerUpdate();
     });
@@ -250,7 +292,7 @@ class BrowseFS extends HTMLElement {
     this.listTBody_.appendChild(tr);
 
     tr.toggleSelection = () => {
-      tr.classList.toggle('browsefs__entry--selected');
+      tr.classList.toggle(kSelectedClass);
     };
 
     for (let colName of colNames) {
@@ -344,29 +386,31 @@ class BrowseFS extends HTMLElement {
     this.updateCursor();
   }
 
-  updateCursor() {
-    let visibleTrs;
-    if (this.query_ === null) {
-      visibleTrs = this.listTBody_.querySelectorAll("tr");
-    } else {
-      visibleTrs = this.listTBody_.querySelectorAll(`.${kMatchClass}`);
+  getVisibleRows_(extrasel = '') {
+    if (this.query_ !== null) {
+      return this.listTBody_.querySelectorAll(`tr.${kMatchClass}${extrasel}`);
     }
+    return this.listTBody_.querySelectorAll(`tr${extrasel}`);
+  }
 
-    for (var tr of visibleTrs) {
+  updateCursor() {
+    let visibleRows = this.getVisibleRows_();
+
+    for (var tr of visibleRows) {
       tr.classList.remove(kCursorClass);
     }
 
     if (this.cursorIndex_ < 0)
       return;
 
-    if (this.cursorIndex_ >= visibleTrs.length) {
-      this.cursorIndex_ = visibleTrs.length - 1;
+    if (this.cursorIndex_ >= visibleRows.length) {
+      this.cursorIndex_ = visibleRows.length - 1;
     } else if (this.cursorIndex < 0) {
       this.cursorRow_ = null;
       return;
     }
 
-    let cr = visibleTrs[this.cursorIndex_];
+    let cr = visibleRows[this.cursorIndex_];
     this.cursorRow_ = cr;
     if (cr) {
       cr.classList.add(kCursorClass);
@@ -393,7 +437,10 @@ class BrowseFS extends HTMLElement {
     if (this.query_ === null)
       return;
 
-    let filterRe = new RegExp(this.query_);
+    let query = this.query_;
+    if (query === '')
+      query = '.';
+    let filterRe = new RegExp(query);
 
     for (let tr of this.listTBody_.querySelectorAll("tr")) {
       let match = tr.data.name.match(filterRe);
@@ -405,6 +452,42 @@ class BrowseFS extends HTMLElement {
     }
     this.cursorIndex_ = 0;
     this.updateCursor();
+  }
+
+  getSelectedRows_() {
+    return this.getVisibleRows_(`.${kSelectedClass}`);
+  }
+
+  openRenameDialog() {
+    let selectedRows = this.getSelectedRows_();
+    if (selectedRows.length == 0) {
+      if (this.cursorRow === null) {
+        console.log("tried to open rename dialog, but no row.");
+        return;
+      }
+      this.cursorRow.toggleSelection();
+      selectedRows = this.getSelectedRows_();
+    }
+
+    if (selectedRows.length > 1) {
+      throw "FIXME: impl"; 
+    }
+
+    this.classList.add('modal');
+    this.renameInput_.value = selectedRows[0].data.name;
+    window.setTimeout(() => {
+      this.renameInput_.focus();
+    }, 10);
+  }
+
+  executeRename() {
+    // this.renameInput_.value 
+    // const result = await rpc('api/v1/fe/hosts');
+  }
+
+  closeRenameDialog() {
+    this.renameInput_.blur();
+    this.classList.remove('modal');
   }
 }
 window.customElements.define("browse-fs", BrowseFS);

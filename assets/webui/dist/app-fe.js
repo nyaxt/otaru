@@ -75,6 +75,10 @@ window.addEventListener('DOMContentLoaded', () => {
       leftfs.cursorIndex = rightfs.cursorIndex;
       rightfs.clearCursor();
       focusfs = leftfs;
+    } else if (e.key === 'r') {
+      focusfs.openRenameDialog();
+    } else if (e.key === 'p') {
+      console.dir(focusfs.getSelectedRows_());
     } else if (e.key === 'x') {
       let cr = focusfs.cursorRow;
       if (cr)
@@ -96,11 +100,5 @@ window.addEventListener('DOMContentLoaded', () => {
     } else {
       console.log(`keypress ${e.key}`);
     }
-  });
-  document.addEventListener('keyup', e => {
-    if (e.key === 'Escape') {
-      focusfs.query = null;
-    }
-    return false;
   });
 });
