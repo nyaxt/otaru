@@ -35,7 +35,7 @@
         ]
       }
     },
-    "/api/v1/fe/ls_local": {
+    "/api/v1/fe/local/ls": {
       "get": {
         "operationId": "ListLocalDir",
         "responses": {
@@ -54,6 +54,22 @@
             "type": "string"
           }
         ],
+        "tags": [
+          "FeService"
+        ]
+      }
+    },
+    "/api/v1/fe/local/mv": {
+      "post": {
+        "operationId": "MoveLocal",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbMoveLocalResponse"
+            }
+          }
+        },
         "tags": [
           "FeService"
         ]
@@ -113,6 +129,9 @@
           }
         }
       }
+    },
+    "pbMoveLocalResponse": {
+      "type": "object"
     }
   }
 }

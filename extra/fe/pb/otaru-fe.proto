@@ -43,6 +43,14 @@ message ListLocalDirResponse {
   repeated FileInfo entry = 1;
 }
 
+message MoveLocalRequest {
+  string path_src = 1;
+  string path_dest = 2;
+}
+
+message MoveLocalResponse {
+}
+
 service FeService {
   rpc ListHosts(ListHostsRequest) returns (ListHostsResponse) {
     option (google.api.http) = {
@@ -52,7 +60,13 @@ service FeService {
 
   rpc ListLocalDir(ListLocalDirRequest) returns (ListLocalDirResponse) {
     option (google.api.http) = {
-      get: "/api/v1/fe/ls_local"
+      get: "/api/v1/fe/local/ls"
+    };
+  }
+
+  rpc MoveLocal(MoveLocalRequest) returns (MoveLocalResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/fe/local/mv"
     };
   }
 }

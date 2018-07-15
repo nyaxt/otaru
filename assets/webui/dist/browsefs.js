@@ -1,5 +1,5 @@
 import {$, $$, removeAllChildNodes} from './domhelper.js';
-import {rpc, downloadFile} from './api.js';
+import {rpc, downloadFile, parseOtaruPath, fsLs, fsMv} from './api.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
 
 const kCursorClass = 'browsefs__entry--cursor';
@@ -354,7 +354,7 @@ class BrowseFS extends HTMLElement {
         this.numEntries_ = hosts.length;
       } else {
         const {host, path} = parseOtaruPath(opath);
-        const result = await lsPath(host, path);
+        const result = await fsLs(host, path);
         const entries = result['entry'] || result['listing'][0]['entry'];
 
         const sortSel = $('.browsefs__sort').value;
@@ -480,8 +480,12 @@ class BrowseFS extends HTMLElement {
     }, 10);
   }
 
-  executeRename() {
-    // this.renameInput_.value 
+  async executeRename() {
+    let pathSrc = this.path + this.getSelectedRows_()[0].data.name;
+    let pathDest = this.path + this.renameInput_.value;
+
+    const result = await fsMv(pathSrc, pathDest);
+    console.dir(result);
     // const result = await rpc('api/v1/fe/hosts');
   }
 
@@ -500,30 +504,6 @@ const getHostList = async () => {
 
   const result = await rpc('api/v1/fe/hosts');
   return result['host'];
-};
-
-const reOtaruPath = /^\/\/([\w\[\]]+)(\/.*)$/
-const parseOtaruPath = (opath) => {
-  const m = opath.match(reOtaruPath);
-  if (!m) {
-    throw new Error(`Invalid otaru path: ${opath}`)
-  }
-  const host = m[1];
-  const path = m[2];
-  return {host, path};
-}
-
-const lsEndpoint = (host) => {
-  if (host === '[noproxy]')
-    return 'api/v1/filesystem/ls';
-  else if (host === '[local]')
-    return 'api/v1/fe/ls_local';
-
-  return `proxy/${host}/api/v1/filesystem/ls`;
-};
-
-const lsPath = async (host, path) => {
-  return await rpc(lsEndpoint(host), {args: {path: path}});
 };
 
 const formatVal = (type, val) => {

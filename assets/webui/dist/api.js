@@ -52,6 +52,44 @@ const fillRemoteContent = async (endpoint, prefix, fillKeys) => {
   }
 };
 
+const fsopEndpoint = (op, host) => {
+  if (host === '[noproxy]')
+    return `api/v1/filesystem/${op}`;
+  else if (host === '[local]')
+    return `api/v1/fe/local/${op}`;
+
+  return `proxy/${host}/api/v1/filesystem/${op}`;
+};
+
+const reOtaruPath = /^\/\/([\w\[\]]+)(\/.*)$/
+const parseOtaruPath = (opath) => {
+  const m = opath.match(reOtaruPath);
+  if (!m) {
+    throw new Error(`Invalid otaru path: ${opath}`)
+  }
+  const host = m[1];
+  const path = m[2];
+  return {host, path};
+}
+
+const fsLs = async (host, path) => {
+  return await rpc(fsopEndpoint('ls', host), {args: {path: path}});
+};
+
+const fsMv = async (src, dest) => {
+  const {host: hostSrc, path: pathSrc} = parseOtaruPath(src);
+  const {host: hostDest, path: pathDest} = parseOtaruPath(dest);
+
+  if (hostSrc != hostDest) {
+    throw new Error(`Unimplemented: src host ${hostSrc} != dest host ${hostDest}`);
+  }
+
+  return await rpc (fsopEndpoint('mv', hostSrc), {
+    method: 'POST',
+    body: {pathSrc: pathSrc, pathDest: pathDest},
+  });
+}
+
 const downloadFile = (host, id, filename) => {
   var ep;
   if (host === '[noproxy]') {
@@ -66,4 +104,4 @@ const downloadFile = (host, id, filename) => {
   window.location = url;
 }
 
-export {rpc, fillRemoteContent, downloadFile};
+export {rpc, fillRemoteContent, downloadFile, parseOtaruPath, fsLs, fsMv};
