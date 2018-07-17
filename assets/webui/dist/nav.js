@@ -21,7 +21,7 @@ const updateContentIfNeeded = (opts) => {
     let m = window.location.hash.match(/^#(\w+)(\/.*)?$/);
     if (m) {
       newContentId = m[1];
-      newBrowsefsPath = decodeURI(m[2]);
+      newBrowsefsPath = m[2] ? decodeURI(m[2]) : undefined;
     }
   }
 
@@ -29,7 +29,7 @@ const updateContentIfNeeded = (opts) => {
     currContentId = newContentId;
     refreshNeeded = true;
   }
-  if (newBrowsefsPath !== undefined && newBrowsefsPath !== currContentId) {
+  if (newBrowsefsPath !== undefined && newBrowsefsPath !== currBrowsefsPath) {
     currBrowsefsPath = newBrowsefsPath;
     refreshNeeded = true;
   }

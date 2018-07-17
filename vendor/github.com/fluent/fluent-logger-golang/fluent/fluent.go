@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"os"
 	"reflect"
 	"strconv"
 	"sync"
@@ -22,9 +21,8 @@ const (
 	defaultPort                   = 24224
 	defaultTimeout                = 3 * time.Second
 	defaultWriteTimeout           = time.Duration(0) // Write() will not time out
-	defaultBufferLimit            = 8 * 1024
+	defaultBufferLimit            = 8 * 1024 * 1024
 	defaultRetryWait              = 500
-	defaultMaxRetryWait           = 60000
 	defaultMaxRetry               = 13
 	defaultReconnectWaitIncreRate = 1.5
 	// Default sub-second precision value to false since it is only compatible
@@ -42,12 +40,9 @@ type Config struct {
 	BufferLimit      int           `json:"buffer_limit"`
 	RetryWait        int           `json:"retry_wait"`
 	MaxRetry         int           `json:"max_retry"`
-	MaxRetryWait     int           `json:"max_retry_wait"`
 	TagPrefix        string        `json:"tag_prefix"`
-	Async            bool          `json:"async"`
-	// Deprecated: Use Async instead
-	AsyncConnect  bool `json:"async_connect"`
-	MarshalAsJSON bool `json:"marshal_as_json"`
+	AsyncConnect     bool          `json:"async_connect"`
+	MarshalAsJSON    bool          `json:"marshal_as_json"`
 
 	// Sub-second precision timestamps are only possible for those using fluentd
 	// v0.14+ and serializing their messages with msgpack.
@@ -57,11 +52,12 @@ type Config struct {
 type Fluent struct {
 	Config
 
-	pending chan []byte
-	wg      sync.WaitGroup
+	mubuff  sync.Mutex
+	pending []byte
 
-	muconn sync.Mutex
-	conn   net.Conn
+	muconn       sync.Mutex
+	conn         net.Conn
+	reconnecting bool
 }
 
 // New creates a new Logger.
@@ -93,22 +89,11 @@ func New(config Config) (f *Fluent, err error) {
 	if config.MaxRetry == 0 {
 		config.MaxRetry = defaultMaxRetry
 	}
-	if config.MaxRetryWait == 0 {
-		config.MaxRetryWait = defaultMaxRetryWait
-	}
 	if config.AsyncConnect {
-		fmt.Fprintf(os.Stderr, "fluent#New: AsyncConnect is now deprecated, please use Async instead")
-		config.Async = config.Async || config.AsyncConnect
-	}
-	if config.Async {
-		f = &Fluent{
-			Config:  config,
-			pending: make(chan []byte, config.BufferLimit),
-		}
-		f.wg.Add(1)
-		go f.run()
+		f = &Fluent{Config: config, reconnecting: true}
+		go f.reconnect()
 	} else {
-		f = &Fluent{Config: config}
+		f = &Fluent{Config: config, reconnecting: false}
 		err = f.connect()
 	}
 	return
@@ -202,11 +187,14 @@ func (f *Fluent) PostRawData(data []byte) {
 }
 
 func (f *Fluent) postRawData(data []byte) error {
-	if f.Config.Async {
-		return f.appendBuffer(data)
+	if err := f.appendBuffer(data); err != nil {
+		return err
 	}
-	// Synchronous write
-	return f.write(data)
+	if err := f.send(); err != nil {
+		f.close()
+		return err
+	}
+	return nil
 }
 
 // For sending forward protocol adopted JSON
@@ -239,11 +227,10 @@ func (f *Fluent) EncodeData(tag string, tm time.Time, message interface{}) (data
 	return
 }
 
-// Close closes the connection, waiting for pending logs to be sent
+// Close closes the connection.
 func (f *Fluent) Close() (err error) {
-	if f.Config.Async {
-		close(f.pending)
-		f.wg.Wait()
+	if len(f.pending) > 0 {
+		err = f.send()
 	}
 	f.close()
 	return
@@ -251,11 +238,12 @@ func (f *Fluent) Close() (err error) {
 
 // appendBuffer appends data to buffer with lock.
 func (f *Fluent) appendBuffer(data []byte) error {
-	select {
-	case f.pending <- data:
-	default:
-		return fmt.Errorf("fluent#appendBuffer: Buffer full, limit %v", f.Config.BufferLimit)
+	f.mubuff.Lock()
+	defer f.mubuff.Unlock()
+	if len(f.pending)+len(data) > f.Config.BufferLimit {
+		return errors.New(fmt.Sprintf("fluent#appendBuffer: Buffer full, limit %v", f.Config.BufferLimit))
 	}
+	f.pending = append(f.pending, data...)
 	return nil
 }
 
@@ -271,6 +259,8 @@ func (f *Fluent) close() {
 
 // connect establishes a new connection using the specified transport.
 func (f *Fluent) connect() (err error) {
+	f.muconn.Lock()
+	defer f.muconn.Unlock()
 
 	switch f.Config.FluentNetwork {
 	case "tcp":
@@ -280,63 +270,63 @@ func (f *Fluent) connect() (err error) {
 	default:
 		err = net.UnknownNetworkError(f.Config.FluentNetwork)
 	}
-	return err
-}
 
-func (f *Fluent) run() {
-	for {
-		select {
-		case entry, ok := <-f.pending:
-			if !ok {
-				f.wg.Done()
-				return
-			}
-			err := f.write(entry)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "[%s] Unable to send logs to fluentd, reconnecting...\n", time.Now().Format(time.RFC3339))
-			}
-		}
+	if err == nil {
+		f.reconnecting = false
 	}
+	return
 }
 
 func e(x, y float64) int {
 	return int(math.Pow(x, y))
 }
 
-func (f *Fluent) write(data []byte) error {
-
-	for i := 0; i < f.Config.MaxRetry; i++ {
-
-		// Connect if needed
-		f.muconn.Lock()
-		if f.conn == nil {
-			err := f.connect()
-			if err != nil {
-				f.muconn.Unlock()
-				waitTime := f.Config.RetryWait * e(defaultReconnectWaitIncreRate, float64(i-1))
-				if waitTime > f.Config.MaxRetryWait {
-					waitTime = f.Config.MaxRetryWait
-				}
-				time.Sleep(time.Duration(waitTime) * time.Millisecond)
-				continue
-			}
+func (f *Fluent) reconnect() {
+	for i := 0; ; i++ {
+		err := f.connect()
+		if err == nil {
+			f.send()
+			return
 		}
-		f.muconn.Unlock()
+		if i == f.Config.MaxRetry {
+			// TODO: What we can do when connection failed MaxRetry times?
+			panic("fluent#reconnect: failed to reconnect!")
+		}
+		waitTime := f.Config.RetryWait * e(defaultReconnectWaitIncreRate, float64(i-1))
+		time.Sleep(time.Duration(waitTime) * time.Millisecond)
+	}
+}
 
-		// We're connected, write data
+func (f *Fluent) send() error {
+	f.muconn.Lock()
+	defer f.muconn.Unlock()
+
+	if f.conn == nil {
+		if f.reconnecting == false {
+			f.reconnecting = true
+			go f.reconnect()
+		}
+		return errors.New("fluent#send: can't send logs, client is reconnecting")
+	}
+
+	f.mubuff.Lock()
+	defer f.mubuff.Unlock()
+
+	var err error
+	if len(f.pending) > 0 {
 		t := f.Config.WriteTimeout
 		if time.Duration(0) < t {
 			f.conn.SetWriteDeadline(time.Now().Add(t))
 		} else {
 			f.conn.SetWriteDeadline(time.Time{})
 		}
-		_, err := f.conn.Write(data)
+		_, err = f.conn.Write(f.pending)
 		if err != nil {
-			f.close()
+			f.conn.Close()
+			f.conn = nil
 		} else {
-			return err
+			f.pending = f.pending[:0]
 		}
 	}
-
-	return fmt.Errorf("fluent#write: failed to reconnect, max retry: %v", f.Config.MaxRetry)
+	return err
 }

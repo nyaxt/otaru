@@ -54,15 +54,11 @@ func request_FeService_ListLocalDir_0(ctx context.Context, marshaler runtime.Mar
 
 }
 
-var (
-	filter_FeService_MoveLocal_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
-)
-
 func request_FeService_MoveLocal_0(ctx context.Context, marshaler runtime.Marshaler, client FeServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq MoveLocalRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_FeService_MoveLocal_0); err != nil {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 

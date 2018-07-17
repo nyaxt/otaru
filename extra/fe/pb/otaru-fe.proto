@@ -67,6 +67,7 @@ service FeService {
   rpc MoveLocal(MoveLocalRequest) returns (MoveLocalResponse) {
     option (google.api.http) = {
       post: "/api/v1/fe/local/mv"
+      body: "*"
     };
   }
 }

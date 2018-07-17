@@ -70,6 +70,16 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbMoveLocalRequest"
+            }
+          }
+        ],
         "tags": [
           "FeService"
         ]
@@ -127,6 +137,17 @@
           "items": {
             "$ref": "#/definitions/pbFileInfo"
           }
+        }
+      }
+    },
+    "pbMoveLocalRequest": {
+      "type": "object",
+      "properties": {
+        "path_src": {
+          "type": "string"
+        },
+        "path_dest": {
+          "type": "string"
         }
       }
     },

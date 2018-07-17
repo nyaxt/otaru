@@ -8,12 +8,15 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/rs/cors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
+	apiserver_logger "github.com/nyaxt/otaru/apiserver/logger"
 	"github.com/nyaxt/otaru/assets/swaggerui"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/logger"
@@ -166,7 +169,15 @@ func Serve(opt ...Option) error {
 	}
 
 	grpcCredentials := credentials.NewServerTLSFromCert(&cert)
-	grpcServer := grpc.NewServer(grpc.Creds(grpcCredentials))
+	grpcServer := grpc.NewServer(
+		grpc.Creds(grpcCredentials),
+		grpc_middleware.WithUnaryServerChain(
+			grpc_ctxtags.UnaryServerInterceptor(
+				grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.TagBasedRequestFieldExtractor("log_fields")),
+			),
+			apiserver_logger.UnaryServerInterceptor(),
+		),
+	)
 	for _, e := range opts.serviceRegistry {
 		e.registerServiceServer(grpcServer)
 	}

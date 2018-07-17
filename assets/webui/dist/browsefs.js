@@ -9,6 +9,8 @@ const kSelectedClass = 'browsefs__entry--selected';
 const kFilterUpdateDelayMs = 500;
 const kRowHeight = 30;
 
+const reValidFileName = /^[^\/]+$/;
+
 const colNames = ['type', 'name', 'size', 'uid', 'gid', 'perm_mode', 'modified_time'];
 const reTime = /_time$/;
 const sortFuncMap = {
@@ -243,11 +245,6 @@ class BrowseFS extends HTMLElement {
     this.renameInput_.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         this.executeRename();
-
-        if (this.getSelectedRows_().length == 1) {
-          this.cursorRow.toggleSelection();
-        }
-        this.closeRenameDialog();
         return false;
       }
 
@@ -481,12 +478,20 @@ class BrowseFS extends HTMLElement {
   }
 
   async executeRename() {
+    let newFileName = this.renameInput_.value;
+    if (!newFileName.match(reValidFileName)) {
+      throw new Error("New filename is not valid.");
+    }
+
     let pathSrc = this.path + this.getSelectedRows_()[0].data.name;
-    let pathDest = this.path + this.renameInput_.value;
+    let pathDest = this.path + newFileName;
 
     const result = await fsMv(pathSrc, pathDest);
-    console.dir(result);
-    // const result = await rpc('api/v1/fe/hosts');
+
+    if (this.getSelectedRows_().length == 1) {
+      this.cursorRow.toggleSelection();
+    }
+    this.closeRenameDialog();
   }
 
   closeRenameDialog() {

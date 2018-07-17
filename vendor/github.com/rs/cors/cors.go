@@ -159,11 +159,6 @@ func New(options Options) *Cors {
 		c.allowedMethods = convert(options.AllowedMethods, strings.ToUpper)
 	}
 
-	if c.allowedOriginsAll && c.allowCredentials {
-		// See https://github.com/rs/cors/issues/55
-		log.Print("[cors] WARNING: unsafe configuration: AllowOrigin * and AllowCredientials true combined")
-	}
-
 	return c
 }
 
@@ -179,7 +174,7 @@ func AllowAll() *Cors {
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"},
 		AllowedHeaders:   []string{"*"},
-		AllowCredentials: false,
+		AllowCredentials: true,
 	})
 }
 
