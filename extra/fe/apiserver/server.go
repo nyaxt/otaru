@@ -7,6 +7,7 @@ import (
 	"github.com/nyaxt/otaru/assets/webui"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/extra/fe/pb/json"
+	"github.com/nyaxt/otaru/extra/fe/preview"
 	"github.com/nyaxt/otaru/logger"
 )
 
@@ -28,6 +29,7 @@ func BuildApiServerOptions(cfg *cli.CliConfig) []apiserver.Option {
 		apiserver.X509KeyPair(cfg.Fe.CertFile, cfg.Fe.KeyFile),
 		apiserver.SetSwaggerJson(json.Assets, "/otaru-fe.swagger.json"),
 		apiserver.SetWebUI(webuifs, "/index.otaru-fe.html"),
+		preview.Install(cfg),
 		InstallFeService(cfg),
 		InstallProxyHandler(cfg),
 	}

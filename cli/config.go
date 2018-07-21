@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -8,14 +9,19 @@ import (
 
 	"github.com/naoina/toml"
 
+	opath "github.com/nyaxt/otaru/cli/path"
 	"github.com/nyaxt/otaru/util"
 )
+
+var ErrNoLocalPathDefined = errors.New("No local root path is defined.")
 
 type CliConfig struct {
 	Host map[string]*Host
 
 	Fe              FeConfig
 	FuzzyMvCacheDir string
+
+	LocalRootPath string
 }
 
 type Host struct {
@@ -32,8 +38,6 @@ type FeConfig struct {
 
 	CertFile string
 	KeyFile  string
-
-	LocalRootPath string
 }
 
 func NewConfig(configdir string) (*CliConfig, error) {
@@ -73,4 +77,11 @@ func NewConfig(configdir string) (*CliConfig, error) {
 	}
 
 	return &cfg, nil
+}
+
+func (cfg *CliConfig) ResolveLocalPath(relpath string) (string, error) {
+	if cfg.LocalRootPath == "" {
+		return "", ErrNoLocalPathDefined
+	}
+	return opath.ResolveLocalPath(cfg.LocalRootPath, relpath), nil
 }

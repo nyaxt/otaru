@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 
 	"google.golang.org/grpc"
 
@@ -19,12 +21,18 @@ const GrpcChunkLen = 32 * 1024
 
 type httpReader struct {
 	body io.ReadCloser
-	left uint64
+	size int64
+	left int64
 }
 
-var _ = io.ReadCloser(&httpReader{})
+type Reader interface {
+	io.ReadCloser
+	Size() int64
+}
 
-func newReaderHttp(ep string, tc *tls.Config, id uint64) (io.ReadCloser, error) {
+var _ = Reader(&httpReader{})
+
+func newReaderHttp(ep string, tc *tls.Config, id uint64) (Reader, error) {
 	cli := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: tc,
@@ -52,9 +60,17 @@ func newReaderHttp(ep string, tc *tls.Config, id uint64) (io.ReadCloser, error) 
 		return nil, fmt.Errorf("server responded w/ status code %d", resp.StatusCode)
 	}
 
+	clstr := resp.Header.Get("Content-Length")
+	cl, err := strconv.ParseInt(clstr, 10, 64)
+	if err != nil {
+		resp.Body.Close()
+		return nil, fmt.Errorf("server responded w/ invalid Content-Length header: %q", clstr)
+	}
+
 	return &httpReader{
 		body: resp.Body,
-		left: 0, // FIXME
+		size: cl,
+		left: cl,
 	}, nil
 }
 
@@ -64,7 +80,7 @@ func (r *httpReader) Read(p []byte) (int, error) {
 		return n, err
 	}
 
-	if r.left < uint64(n) {
+	if r.left < int64(n) {
 		// Receiving more data than we expected at first.
 		// This indicates that the source file may have been appended since started reading.
 		return n, nil
@@ -75,7 +91,7 @@ func (r *httpReader) Read(p []byte) (int, error) {
 			return 0, fmt.Errorf("Unexpected end of HTTP response body. Expected to have %d bytes more", r.left)
 		}
 	}
-	r.left -= uint64(n)
+	r.left -= int64(n)
 	return n, nil
 }
 
@@ -83,14 +99,19 @@ func (r *httpReader) Close() error {
 	return r.body.Close()
 }
 
+func (r *httpReader) Size() int64 {
+	return r.size
+}
+
 type grpcReader struct {
 	ctx    context.Context
 	conn   *grpc.ClientConn
 	id     uint64
+	size   int64
 	offset uint64
 }
 
-var _ = io.ReadCloser(&grpcReader{})
+var _ = Reader(&grpcReader{})
 
 func (r *grpcReader) Read(p []byte) (int, error) {
 	fsc := pb.NewFileSystemServiceClient(r.conn)
@@ -126,15 +147,54 @@ func (r *grpcReader) Close() error {
 	return r.conn.Close()
 }
 
-func NewReader(pathstr string, os ...Option) (io.ReadCloser, error) {
+func (r *grpcReader) Size() int64 {
+	return r.size
+}
+
+type fileReader os.File
+
+var _ = Reader((*fileReader)(nil))
+
+func (r *fileReader) Read(p []byte) (int, error) {
+	return (*os.File)(r).Read(p)
+}
+func (r *fileReader) Close() error {
+	return (*os.File)(r).Close()
+}
+
+func (r *fileReader) Size() int64 {
+	var osf *os.File
+	osf = (*os.File)(r)
+
+	fi, err := osf.Stat()
+	if err != nil {
+		return -1
+	}
+	return fi.Size()
+}
+
+func NewReader(pathstr string, options ...Option) (Reader, error) {
 	opts := defaultOptions
-	for _, o := range os {
+	for _, o := range options {
 		o(&opts)
 	}
 
 	p, err := opath.Parse(pathstr)
 	if err != nil {
 		return nil, err
+	}
+
+	if p.Vhost == opath.VhostLocal {
+		lpath, err := opts.cfg.ResolveLocalPath(p.FsPath)
+		if err != nil {
+			return nil, err
+		}
+
+		f, err := os.Open(lpath)
+		if err != nil {
+			return nil, err
+		}
+		return (*fileReader)(f), nil
 	}
 
 	ep, tc, err := ConnectionInfo(opts.cfg, p.Vhost)
@@ -155,7 +215,13 @@ func NewReader(pathstr string, os ...Option) (io.ReadCloser, error) {
 	logger.Infof(Log, "Got id %d for path \"%s\"", id, p.FsPath)
 
 	if opts.forceGrpc {
-		return &grpcReader{ctx: opts.ctx, conn: conn, id: id, offset: 0}, nil
+		respA, err := fsc.Attr(opts.ctx, &pb.AttrRequest{Id: resp.Id})
+		if err != nil {
+			return nil, fmt.Errorf("Attr failed: %v", err)
+		}
+		size := respA.Entry.Size
+
+		return &grpcReader{ctx: opts.ctx, conn: conn, id: id, size: size, offset: 0}, nil
 	} else {
 		conn.Close()
 		return newReaderHttp(ep, tc, id)

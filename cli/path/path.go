@@ -24,6 +24,7 @@ const (
 )
 
 const OtaruScheme = "otaru:"
+const VhostLocal = "[local]"
 
 func advance(st *State, p *Path, s string) (string, error) {
 	switch *st {

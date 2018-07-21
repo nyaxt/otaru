@@ -3,7 +3,6 @@ package apiserver
 import (
 	"io/ioutil"
 	"os"
-	"path/filepath"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -11,30 +10,26 @@ import (
 
 	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/cli"
+	opath "github.com/nyaxt/otaru/cli/path"
 	"github.com/nyaxt/otaru/extra/fe/pb"
 	"github.com/nyaxt/otaru/logger"
 	otarupb "github.com/nyaxt/otaru/pb"
 )
 
 type feService struct {
-	hnames        []string
-	localRootPath string
+	cfg    *cli.CliConfig
+	hnames []string
 }
 
 func (s *feService) ListHosts(ctx context.Context, req *pb.ListHostsRequest) (*pb.ListHostsResponse, error) {
 	return &pb.ListHostsResponse{Host: s.hnames}, nil
 }
 
-func (s *feService) realPath(apiPath string) string {
-	return filepath.Join(s.localRootPath, filepath.Clean("/"+apiPath))
-}
-
 func (s *feService) ListLocalDir(ctx context.Context, req *pb.ListLocalDirRequest) (*pb.ListLocalDirResponse, error) {
-	if s.localRootPath == "" {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Local filesystem operations disabled.")
+	path, err := s.cfg.ResolveLocalPath(req.Path)
+	if err != nil {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Failed to resolve local path: %v", err)
 	}
-
-	path := s.realPath(req.Path)
 
 	fis, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -60,17 +55,18 @@ func (s *feService) ListLocalDir(ctx context.Context, req *pb.ListLocalDirReques
 }
 
 func (s *feService) MoveLocal(ctx context.Context, req *pb.MoveLocalRequest) (*pb.MoveLocalResponse, error) {
-	if s.localRootPath == "" {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Local filesystem operations disabled.")
+	pathSrc, err := s.cfg.ResolveLocalPath(req.PathSrc)
+	if err != nil {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Failed to resolve local path: %v", err)
 	}
-
-	pathSrc := s.realPath(req.PathSrc)
-	pathDest := s.realPath(req.PathDest)
+	pathDest, err := s.cfg.ResolveLocalPath(req.PathDest)
+	if err != nil {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Failed to resolve local path: %v", err)
+	}
 
 	logger.Infof(mylog, "MoveLocal %q -> %q", pathSrc, pathDest)
 
-	_, err := os.Stat(pathSrc)
-	if err != nil {
+	if _, err = os.Stat(pathSrc); err != nil {
 		if os.IsNotExist(err) {
 			return nil, grpc.Errorf(codes.FailedPrecondition, "Source path doesn't exist.")
 		}
@@ -99,16 +95,16 @@ func genHostNames(cfg *cli.CliConfig) []string {
 		hnames = append(hnames, name)
 		id++
 	}
-	if cfg.Fe.LocalRootPath != "" {
-		hnames = append(hnames, "[local]")
+	if cfg.LocalRootPath != "" {
+		hnames = append(hnames, opath.VhostLocal)
 	}
 	return hnames
 }
 
 func InstallFeService(cfg *cli.CliConfig) apiserver.Option {
 	fes := &feService{
-		hnames:        genHostNames(cfg),
-		localRootPath: filepath.Clean(cfg.Fe.LocalRootPath),
+		cfg:    cfg,
+		hnames: genHostNames(cfg),
 	}
 
 	return apiserver.RegisterService(

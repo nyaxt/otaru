@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
+	"strings"
 )
 
 var flagInput = flag.String("i", "", "input zip")
@@ -35,6 +37,10 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("Failed to open zip reader: %v", err)
 	}
+	sort.Slice(z.File, func(i, j int) bool {
+		n, m := z.File[i].Name, z.File[j].Name
+		return strings.Compare(n, m) < 0
+	})
 	for _, e := range z.File {
 		log.Printf("FileName: %v", e.Name)
 	}
