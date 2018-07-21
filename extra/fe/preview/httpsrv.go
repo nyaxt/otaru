@@ -1,12 +1,11 @@
 package preview
 
 import (
-	"archive/zip"
-	"bytes"
-	"encoding/json"
+	"context"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"path"
 	"strconv"
 
 	"github.com/nyaxt/otaru/apiserver"
@@ -14,34 +13,15 @@ import (
 	"github.com/nyaxt/otaru/logger"
 )
 
+const MaxArchiveSize = 256 * 1024 * 1024 // 256MiB
+const MaxPreviewSize = 8 * 1024 * 1024   // 8MiB
+const MaxTextPreviewSize = 32 * 1024     // 32KiB
+
 var mylog = logger.Registry().Category("fe-preview")
 
 type server struct {
 	cfg *cli.CliConfig
-}
-
-type jentry struct {
-	Name string
-	Size float64
-}
-
-func listEntries(w http.ResponseWriter, z *zip.Reader) error {
-	jes := make([]jentry, 0, len(z.File))
-	for _, f := range z.File {
-		jes = append(jes, jentry{Name: f.Name, Size: float64(f.UncompressedSize64)})
-	}
-
-	bs, err := json.Marshal(jes)
-	if err != nil {
-		return err
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(w)
-	if err := enc.Encode(jes); err != nil {
-		return err
-	}
-	return nil
+	zp  *zipPreviewer
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -57,50 +37,54 @@ func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		idx = -1
 	}
 
-	r, err := cli.NewReader(opath, cli.WithCliConfig(s.cfg), cli.WithContext(req.Context()))
-	if err != nil {
-		http.Error(w, "Failed to start read of given opath.", http.StatusInternalServerError)
-		logger.Warningf(mylog, "cli.NewReader(opath: %q). err: %v", opath, err)
-		return
-	}
+	ctx := req.Context()
 
-	ra, ok := r.(io.ReaderAt)
-	if ok {
-		defer r.Close()
-	} else {
-		bs, err := ioutil.ReadAll(r)
-		if err != nil {
-			http.Error(w, "Failed to ReadAll", http.StatusInternalServerError)
-			logger.Warningf(mylog, "ioutil.ReadAll err: ", err)
+	ext := path.Ext(opath)
+	switch ext {
+	case ".zip":
+		if err := s.zp.Serve(ctx, opath, idx, w); err != nil {
+			logger.Warningf(mylog, "zip preview failed: %v", err)
+			http.Error(w, "zip preview failed", http.StatusInternalServerError)
 			return
 		}
-		r.Close()
-		ra = bytes.NewReader(bs)
-	}
 
-	size := r.Size()
-	// FIXME: if size >
-
-	z, err := zip.NewReader(ra, size)
-	if err != nil {
-		return fmt.Errorf("Failed to open zip reader: %v", err)
-	}
-	sort.Slice(z.File, func(i, j int) bool {
-		n, m := z.File[i].Name, z.File[j].Name
-		return strings.Compare(n, m) < 0
-	})
-
-	if idx < 0 {
-		if err := listEntries(w, z); err != nil {
-			http.Error(w, "Failed to generate entries list")
+	case ".txt", ".json", ".c", ".h", ".md":
+		if err := s.dumpAsText(ctx, opath, w); err != nil {
+			logger.Warningf(mylog, "text preview failed: %v", err)
+			http.Error(w, "text preview failed", http.StatusInternalServerError)
+			return
 		}
-		return
+
+	default:
+		http.Error(w, fmt.Sprintf("no preview for %q", ext), http.StatusUnsupportedMediaType)
 	}
-	http.Error(w, "FIXME", http.StatusInternalServerError)
+}
+
+func (s *server) dumpAsText(ctx context.Context, opath string, w http.ResponseWriter) error {
+	r, err := cli.NewReader(opath, cli.WithCliConfig(s.cfg), cli.WithContext(ctx))
+	if err != nil {
+		return fmt.Errorf("Failed to start read of given opath %q. err: %v", opath, err)
+	}
+	defer r.Close()
+
+	if r.Size() > MaxTextPreviewSize {
+		return fmt.Errorf("File too large for text preview.")
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	if _, err := io.Copy(w, r); err != nil {
+		return err
+	}
+	return nil
 }
 
 func Install(cfg *cli.CliConfig) apiserver.Option {
+	s := &server{
+		cfg: cfg,
+		zp:  &zipPreviewer{cfg},
+	}
+
 	return apiserver.AddMuxHook(func(mux *http.ServeMux) {
-		mux.Handle("/preview", &server{cfg})
+		mux.Handle("/preview", s)
 	})
 }

@@ -151,22 +151,12 @@ func (r *grpcReader) Size() int64 {
 	return r.size
 }
 
-type fileReader os.File
+type fileReader struct{ *os.File }
 
-var _ = Reader((*fileReader)(nil))
+var _ = Reader(fileReader{})
 
-func (r *fileReader) Read(p []byte) (int, error) {
-	return (*os.File)(r).Read(p)
-}
-func (r *fileReader) Close() error {
-	return (*os.File)(r).Close()
-}
-
-func (r *fileReader) Size() int64 {
-	var osf *os.File
-	osf = (*os.File)(r)
-
-	fi, err := osf.Stat()
+func (r fileReader) Size() int64 {
+	fi, err := r.File.Stat()
 	if err != nil {
 		return -1
 	}
@@ -194,7 +184,7 @@ func NewReader(pathstr string, options ...Option) (Reader, error) {
 		if err != nil {
 			return nil, err
 		}
-		return (*fileReader)(f), nil
+		return fileReader{f}, nil
 	}
 
 	ep, tc, err := ConnectionInfo(opts.cfg, p.Vhost)
