@@ -2,11 +2,11 @@ const formatBlobSize = val => {
   if (val === undefined) {
     return '0B';
   } else if (val > 1024 * 1024 * 1024) {
-    return (val / (1024 * 1024 * 1024)).toPrecision(2) + 'GiB';
+    return (val / (1024 * 1024 * 1024)).toFixed(2) + 'GiB';
   } else if (val > 1024 * 1024) {
-    return (val / (1024 * 1024)).toPrecision(2) + 'MiB';
+    return (val / (1024 * 1024)).toFixed(2) + 'MiB';
   } else if (val > 1024) {
-    return (val / 1024).toPrecision(2) + 'KiB';
+    return (val / 1024).toFixed(2) + 'KiB';
   } else {
     return val + 'B';
   }

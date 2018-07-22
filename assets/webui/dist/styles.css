@@ -20,6 +20,10 @@ body, div, p, span, input, h1, table, tbody, th, tr, td {
   padding: 0;
 }
 
+pre {
+  margin: 10px;
+}
+
 html {
   margin: 0;
   padding: 0;
@@ -52,6 +56,7 @@ body {
   text-decoration: none;
   text-align: center;
   color: black;
+  user-select: none;
 }
 
 .nav {
@@ -136,6 +141,91 @@ body {
   table-layout: fixed;
   border-collapse: collapse;
   width: 100%;
+}
+
+.content__entry {
+}
+
+.content__entry:hover {
+  background-color: var(--light-fg-color);
+}
+
+.content__entry--cursor {
+  /* Material Icon keyboard_arrow_right: https://github.com/google/material-design-icons */
+  background: url('data:image/svg+xml;utf8,<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="24px" height="24px" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve"><path d="M8.59,16.59L13.17,12L8.59,7.41L10,6l6,6l-6,6L8.59,16.59z"/><path fill="none" d="M0,0h24v24H0V0z"/></svg>') no-repeat left -5px center;
+}
+
+.content__cell {
+  padding: 5px;
+}
+
+.preview {
+  z-index: 100;
+  position: absolute;
+
+  top: var(--nav-height);
+  height: calc(100% - 22px - var(--nav-height));
+  width: calc(100% - 22px);
+  margin: 10px;
+  border: 1px solid var(--dark-bg-color);
+  box-shadow: 1px 1px 2px 1px rgba(153,153,153,1);
+  background-color: var(--light-fg-color);
+}
+
+.preview__header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  height: 30px;
+  width: 100%;
+  background-color: var(--darklight-fg-color);
+}
+
+.preview__title {
+  padding: 3px;
+  flex-grow: 1;
+
+  font-weight: bold;
+}
+
+.preview__close {
+  margin-right: 3px;
+}
+
+.preview__content {
+  height: calc(100% - 30px);
+
+  overflow: auto;
+}
+
+.preview__imgcont {
+  height: calc(100% - 30px);
+}
+
+.preview__img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: scale-down;
+  /* margin-left: auto; */
+  /* margin-right: auto; */
+  margin: auto;
+}
+
+.preview__entry:hover {
+  background-color: var(--comp-color);
+}
+
+.preview__cell--name {
+  padding-left: 15px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.preview__cell--size {
+  text-align: right;
+  width: 85px;
 }
 
 .kvview {
@@ -246,16 +336,10 @@ browse-fs.modal .browsefs__list {
 }
 
 .browsefs__entry:hover {
-  background-color: var(--light-fg-color);
 }
 
 browse-fs.modal .browsefs__entry:hover {
   background-color: var(--dark-bg-color);
-}
-
-.browsefs__entry--cursor {
-  /* Material Icon keyboard_arrow_right: https://github.com/google/material-design-icons */
-  background: url('data:image/svg+xml;utf8,<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="24px" height="24px" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve"><path d="M8.59,16.59L13.17,12L8.59,7.41L10,6l6,6l-6,6L8.59,16.59z"/><path fill="none" d="M0,0h24v24H0V0z"/></svg>') no-repeat left -5px center;
 }
 
 .browsefs__entry--selected {
@@ -275,7 +359,6 @@ browse-fs.filtered .browsefs__entry--match {
 }
 
 .browsefs__cell {
-  padding: 5px;
 }
 
 .browsefs__cell--type {
@@ -434,4 +517,8 @@ browse-fs.filtered .browsefs__entry--match {
   .browsefs__cell--uid { display: none; }
   .browsefs__cell--gid { display: none; }
   .browsefs__cell--perm_mode { display: none; }
+}
+
+.hidden {
+  display: none;
 }

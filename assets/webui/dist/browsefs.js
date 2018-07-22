@@ -2,7 +2,7 @@ import {$, $$, removeAllChildNodes} from './domhelper.js';
 import {rpc, downloadFile, parseOtaruPath, fsLs, fsMv} from './api.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
 
-const kCursorClass = 'browsefs__entry--cursor';
+const kCursorClass = 'content__entry--cursor';
 const kMatchClass = 'browsefs__entry--match';
 const kSelectedClass = 'browsefs__entry--selected';
 
@@ -284,8 +284,10 @@ class BrowseFS extends HTMLElement {
 
   appendRow_(row, host) {
     let tr = document.createElement('tr');
+    tr.classList.add('content__entry');
     tr.classList.add('browsefs__entry');
     tr.data = row;
+    tr.opath = `${this.path}/${row.name}`;
     this.listTBody_.appendChild(tr);
 
     tr.toggleSelection = () => {
@@ -293,7 +295,8 @@ class BrowseFS extends HTMLElement {
     };
 
     for (let colName of colNames) {
-      var cell = document.createElement('td');
+      let cell = document.createElement('td');
+      cell.classList.add('content__cell');
       cell.classList.add('browsefs__cell');
       cell.classList.add(`browsefs__cell--${colName}`);
 
@@ -373,7 +376,7 @@ class BrowseFS extends HTMLElement {
     } catch (e) {
       this.listTBody_.classList.remove('.browsefs__list--empty');
 
-      var tr = document.createElement('tr');
+      let tr = document.createElement('tr');
       tr.classList.add('browsefs__entry');
       tr.classList.add('browsefs__error');
       this.listTBody_.appendChild(tr);
@@ -393,7 +396,7 @@ class BrowseFS extends HTMLElement {
   updateCursor() {
     let visibleRows = this.getVisibleRows_();
 
-    for (var tr of visibleRows) {
+    for (let tr of visibleRows) {
       tr.classList.remove(kCursorClass);
     }
 
@@ -501,7 +504,7 @@ class BrowseFS extends HTMLElement {
 }
 window.customElements.define("browse-fs", BrowseFS);
 
-var staticHostList = null;
+let staticHostList = null;
 const getHostList = async () => {
   if (staticHostList !== null) {
     return staticHostList;

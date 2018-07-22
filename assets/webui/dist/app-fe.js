@@ -2,6 +2,7 @@ import {contentSection, updateContentIfNeeded} from './nav.js';
 import {fillRemoteContent} from './api.js';
 import {$} from './domhelper.js';
 import './browsefs.js';
+import {preview} from './preview.js';
 
 const leftfs = $("#leftfs");
 const rightfs = $("#rightfs");
@@ -56,15 +57,26 @@ window.addEventListener('DOMContentLoaded', () => {
     } else if (e.key === 'PageUp') {
       focusfs.cursorIndex = Math.max(focusfs.cursorIndex - focusfs.numVisibleRows, 0);
     } else {
-      // console.log(`keydown ${e.key}`);
+      console.log(`keydown ${e.key}`);
     }
   });
   document.addEventListener('keypress', e => {
     if (e.target instanceof HTMLInputElement)
       return true;
 
+    if (preview.isOpen) {
+      if (e.key === 'j') {
+        ++ preview.cursorIndex;
+      } else if (e.key === 'k') {
+        preview.cursorIndex = Math.max(preview.cursorIndex - 1, 0);
+      } else if (e.key === 'Enter') {
+        preview.toggleView();
+      }
+      return false;
+    }
+
     if (e.key === 'j') {
-      focusfs.cursorIndex = focusfs.cursorIndex + 1;
+      ++ focusfs.cursorIndex;
     } else if (e.key === 'k') {
       focusfs.cursorIndex = Math.max(focusfs.cursorIndex - 1, 0);
     } else if (e.key === 'l') {
@@ -78,7 +90,9 @@ window.addEventListener('DOMContentLoaded', () => {
     } else if (e.key === 'r') {
       focusfs.openRenameDialog();
     } else if (e.key === 'p') {
-      console.dir(focusfs.getSelectedRows_());
+      let cr = focusfs.cursorRow;
+      if (cr)
+        preview.open(cr.opath);
     } else if (e.key === 'x') {
       let cr = focusfs.cursorRow;
       if (cr)
@@ -99,6 +113,14 @@ window.addEventListener('DOMContentLoaded', () => {
       focusfs.query = '';
     } else {
       console.log(`keypress ${e.key}`);
+    }
+  });
+  document.addEventListener('keyup', e => {
+    if (e.key === 'Escape') {
+      if (preview.isOpen)
+        preview.close();
+    } else {
+      console.log(`keyup ${e.key}`);
     }
   });
 });

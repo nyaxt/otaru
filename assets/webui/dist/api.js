@@ -9,13 +9,20 @@ let apiprefix = `${window.document.location.origin}/`;
   });
 })();
 
-const propagateKeys = ['method'];
-const rpc = async (endpoint, opts = {}) => {
+const rpcUrl = (endpoint, opts = {}) => {
   const url = new URL(endpoint, apiprefix);
+
   const args = opts['args'] || {};
   for (let k in args) {
     url.searchParams.set(k, args[k]);
   }
+
+  return url;
+};
+
+const propagateKeys = ['method'];
+const rpc = async (endpoint, opts = {}) => {
+  const url = rpcUrl(endpoint, opts);
 
   const fetchOpts = {mode: 'cors', cache: 'reload'}
   for (let k of propagateKeys) {
@@ -30,11 +37,18 @@ const rpc = async (endpoint, opts = {}) => {
     fetchOpts.body = opts['rawBody']; 
   }
 
-  const response = await window.fetch(url, fetchOpts);
-  if (!response.ok) {
-    throw new Error(`fetch failed: ${response.status}`);
+  const resp = await window.fetch(url, fetchOpts);
+  if (!resp.ok) {
+    throw new Error(`fetch failed: ${resp.status}`);
   }
-  return await response.json();
+  const ctype = resp.headers.get('Content-Type');
+  if (ctype === "application/json") {
+    return await resp.json();
+  } else if (ctype === "text/plain") {
+    return await resp.text(); 
+  } else {
+    throw new Error(`fetch resp unknown ctype "${ctype}"`);
+  }
 };
 
 const fillRemoteContent = async (endpoint, prefix, fillKeys) => {
@@ -90,6 +104,14 @@ const fsMv = async (src, dest) => {
   });
 }
 
+const previewFileUrl = (opath, idx) => {
+  return rpcUrl('preview', {args: {opath: opath, i: idx}});
+};
+
+const previewFile = async (opath) => {
+  return await rpc('preview', {args: {opath: opath}});
+};
+
 const downloadFile = (host, id, filename) => {
   var ep;
   if (host === '[noproxy]') {
@@ -104,4 +126,13 @@ const downloadFile = (host, id, filename) => {
   window.location = url;
 }
 
-export {rpc, fillRemoteContent, downloadFile, parseOtaruPath, fsLs, fsMv};
+export {
+  downloadFile,
+  fillRemoteContent,
+  fsLs,
+  fsMv,
+  parseOtaruPath,
+  previewFile,
+  previewFileUrl,
+  rpc,
+};
