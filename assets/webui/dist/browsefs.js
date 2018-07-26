@@ -1,6 +1,7 @@
 import {$, $$, removeAllChildNodes} from './domhelper.js';
 import {rpc, downloadFile, parseOtaruPath, fsLs, fsMv} from './api.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
+import {findLongestCommonSubStr} from './commonsubstr.js';
 
 const kCursorClass = 'content__entry--cursor';
 const kMatchClass = 'browsefs__entry--match';
@@ -459,7 +460,7 @@ class BrowseFS extends HTMLElement {
   }
 
   openRenameDialog() {
-    let selectedRows = this.getSelectedRows_();
+    const selectedRows = this.getSelectedRows_();
     if (selectedRows.length == 0) {
       if (this.cursorRow === null) {
         console.log("tried to open rename dialog, but no row.");
@@ -467,14 +468,40 @@ class BrowseFS extends HTMLElement {
       }
       this.cursorRow.toggleSelection();
       selectedRows = this.getSelectedRows_();
-    }
+    } else if (selectedRows.length == 1) {
+      this.renameInput_.value = selectedRows[0].data.name;
+    } else {
+      const names = Array.from(selectedRows).map(r => r.data.name);
+      const lcss = findLongestCommonSubStr(names);
+      this.renameInput_.value = lcss;
 
-    if (selectedRows.length > 1) {
-      throw "FIXME: impl"; 
+      for (let r of selectedRows) {
+        const tdName = r.querySelector('td.browsefs__cell--name');
+        // FIXME: actionDef
+        removeAllChildNodes(tdName);
+
+        let name = r.data.name;
+        for (;;) {
+          let i = name.indexOf(lcss);
+          if (i < 0) {
+            break;
+          }
+
+          const nohl = name.substr(0, i);
+          tdName.appendChild(document.createTextNode(nohl));
+
+          const spanHl = document.createElement('span');
+          spanHl.classList.add('.browsefs__highlight');
+          spanHl.textContent = lcss;
+          tdName.appendChild(spanHl);
+
+          name = name.substr(i + lcss.length);
+        }
+        tdName.appendChild(document.createTextNode(name);
+      }
     }
 
     this.classList.add('modal');
-    this.renameInput_.value = selectedRows[0].data.name;
     window.setTimeout(() => {
       this.renameInput_.focus();
     }, 10);

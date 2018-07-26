@@ -29,11 +29,12 @@ _testmain.go
 
 dep.png
 out/*
-otaru-server
-otaru-mkfs
 otaru-cli
+otaru-fe
 otaru-fuzzymv
 otaru-globallock
+otaru-mkfs
+otaru-server
 *-fuzz.zip
 
 version/consts.go

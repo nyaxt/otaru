@@ -396,6 +396,11 @@ browse-fs.filtered .browsefs__entry--match {
   text-overflow: ellipsis;
 }
 
+.browsefs__highlight {
+  background-color: var(--comp-dark-color);
+  color: #000;
+}
+
 .browsefs__action {
   display: none;
 }
