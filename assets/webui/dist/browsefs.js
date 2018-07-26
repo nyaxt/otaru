@@ -49,6 +49,9 @@ const actionDefMap = {
     },
   },
 };
+const getActionDef = (data) => {
+  return actionDefMap[data.type || 'FILE'] || {labels: []};
+};
 
 const innerHTMLSource =
   `<div class="section__header browsefs__header">
@@ -294,6 +297,24 @@ class BrowseFS extends HTMLElement {
     tr.toggleSelection = () => {
       tr.classList.toggle(kSelectedClass);
     };
+    const actionDef = getActionDef(row);
+    tr.triggerAction = () => {
+      actionDef.action(this, data, host);
+    };
+    let cancelClick = false;
+    tr.addEventListener('click', (ev) => {
+      cancelClick = false;
+      window.setTimeout(() => {
+        if (cancelClick)
+          return;
+
+        tr.toggleSelection();
+      }, 200);
+    });
+    tr.addEventListener('dblclick', (ev) => {
+      cancelClick = true;
+      tr.triggerAction();
+    });
 
     for (let colName of colNames) {
       let cell = document.createElement('td');
@@ -301,37 +322,43 @@ class BrowseFS extends HTMLElement {
       cell.classList.add('browsefs__cell');
       cell.classList.add(`browsefs__cell--${colName}`);
 
-      cell.textContent = formatVal(colName, row[colName]);
       if (colName === 'name') {
-        const actionDef = actionDefMap[row.type || 'FILE'] || {labels: []};
-        tr.triggerAction = () => { actionDef.action(this, row, host); };
-
-        for (let l of actionDef.labels) {
-          const span = document.createElement('span');
-          span.classList.add('browsefs__action');
-          span.textContent = l;
-          cell.appendChild(span);
-        }
-        const action = actionDef.action;
-        if (action !== undefined) {
-          let cancelClick = false;
-          tr.addEventListener('click', (ev) => {
-            cancelClick = false;
-            window.setTimeout(() => {
-              if (cancelClick)
-                return;
-
-              tr.toggleSelection();
-            }, 200);
-          });
-          tr.addEventListener('dblclick', (ev) => {
-            cancelClick = true;
-            tr.triggerAction();
-          });
-        }
+        this.populateNameCell_(cell, row);
+      } else {
+        cell.textContent = formatVal(colName, row[colName]);
       }
 
       tr.appendChild(cell);
+    }
+  }
+
+  populateNameCell_(cell, data, highlight = null) {
+    let name = data.name;
+    if (highlight) {
+      for (;;) {
+        let i = name.indexOf(highlight);
+        if (i < 0) {
+          break;
+        }
+
+        const nohl = name.substr(0, i);
+        cell.appendChild(document.createTextNode(nohl));
+
+        const spanHl = document.createElement('span');
+        spanHl.classList.add('browsefs__highlight');
+        spanHl.textContent = highlight;
+        cell.appendChild(spanHl);
+
+        name = name.substr(i + highlight.length);
+      }
+    }
+    cell.appendChild(document.createTextNode(name));
+
+    for (let l of getActionDef(data).labels) {
+      const span = document.createElement('span');
+      span.classList.add('browsefs__action');
+      span.textContent = l;
+      cell.appendChild(span);
     }
   }
 
@@ -473,32 +500,12 @@ class BrowseFS extends HTMLElement {
     } else {
       const names = Array.from(selectedRows).map(r => r.data.name);
       const lcss = findLongestCommonSubStr(names);
-      this.renameInput_.value = lcss;
-
-      for (let r of selectedRows) {
-        const tdName = r.querySelector('td.browsefs__cell--name');
-        // FIXME: actionDef
-        removeAllChildNodes(tdName);
-
-        let name = r.data.name;
-        for (;;) {
-          let i = name.indexOf(lcss);
-          if (i < 0) {
-            break;
-          }
-
-          const nohl = name.substr(0, i);
-          tdName.appendChild(document.createTextNode(nohl));
-
-          const spanHl = document.createElement('span');
-          spanHl.classList.add('.browsefs__highlight');
-          spanHl.textContent = lcss;
-          tdName.appendChild(spanHl);
-
-          name = name.substr(i + lcss.length);
-        }
-        tdName.appendChild(document.createTextNode(name);
+      if (lcss.length == 0) {
+        alert("no common substr found.");
+        return;
       }
+      this.renameInput_.value = lcss;
+      this.updateNameHighlight_(lcss);
     }
 
     this.classList.add('modal');
@@ -525,8 +532,18 @@ class BrowseFS extends HTMLElement {
   }
 
   closeRenameDialog() {
+    this.updateNameHighlight_(null);
+
     this.renameInput_.blur();
     this.classList.remove('modal');
+  }
+
+  updateNameHighlight_(highlight) {
+    for (let r of this.getSelectedRows_()) {
+      const tdName = r.querySelector('td.browsefs__cell--name');
+      removeAllChildNodes(tdName);
+      this.populateNameCell_(tdName, r.data, highlight);
+    }
   }
 }
 window.customElements.define("browse-fs", BrowseFS);

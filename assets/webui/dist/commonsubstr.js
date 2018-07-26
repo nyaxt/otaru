@@ -25,7 +25,6 @@ function findCommonSubStrs2(a, b) {
       substrs.push(a.substr(i, best[i]));
     }   
   }
-  console.log(substrs);
   return substrs;
 }
 
@@ -33,7 +32,7 @@ function findCommonSubStrs(ss) {
   if (ss.length < 2)
     return ss;
 
-  const substrs = findCommonSubStrs2(ss[0], ss[1]);
+  let substrs = findCommonSubStrs2(ss[0], ss[1]);
   for (let i = 2; i < ss.length; ++ i) {
     let newsubstrs = [];
     for (let s of substrs) {
