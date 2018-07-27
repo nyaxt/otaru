@@ -98,6 +98,7 @@ const fsMv = async (src, dest) => {
     throw new Error(`Unimplemented: src host ${hostSrc} != dest host ${hostDest}`);
   }
 
+  console.log(`mv "${pathSrc}" -> "${pathDest}"`);
   return await rpc (fsopEndpoint('mv', hostSrc), {
     method: 'POST',
     body: {pathSrc: pathSrc, pathDest: pathDest},

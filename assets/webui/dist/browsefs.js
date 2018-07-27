@@ -87,6 +87,7 @@ class BrowseFS extends HTMLElement {
     this.cursorIndex_ = -1;
     this.numEntries_ = 0;
     this.query_ = null;
+    this.renameBefore_ = null;
   }
 
   get path() {
@@ -496,7 +497,7 @@ class BrowseFS extends HTMLElement {
       this.cursorRow.toggleSelection();
       selectedRows = this.getSelectedRows_();
     } else if (selectedRows.length == 1) {
-      this.renameInput_.value = selectedRows[0].data.name;
+      this.renameBefore_ = selectedRows[0].data.name;
     } else {
       const names = Array.from(selectedRows).map(r => r.data.name);
       const lcss = findLongestCommonSubStr(names);
@@ -504,28 +505,36 @@ class BrowseFS extends HTMLElement {
         alert("no common substr found.");
         return;
       }
-      this.renameInput_.value = lcss;
+      this.renameBefore_ = lcss;
       this.updateNameHighlight_(lcss);
     }
 
     this.classList.add('modal');
+    this.renameInput_.value = this.renameBefore_;
+    this.renameInput_.disabled = false;
     window.setTimeout(() => {
       this.renameInput_.focus();
     }, 10);
   }
 
   async executeRename() {
-    let newFileName = this.renameInput_.value;
-    if (!newFileName.match(reValidFileName)) {
-      throw new Error("New filename is not valid.");
+    this.renameInput_.disabled = true;
+    const renameAfter = this.renameInput_.value;
+
+    const selectedRows = this.getSelectedRows_();
+    for (let r of selectedRows) {
+      const newFileName = r.data.name.replace(this.renameBefore_, renameAfter);
+      if (!newFileName.match(reValidFileName)) {
+        throw new Error(`New filename "${newFileName}" is not valid.`);
+      }
+      let pathSrc = this.path + selectedRows[0].data.name;
+      let pathDest = this.path + newFileName;
+
+      const result = await fsMv(pathSrc, pathDest);
+      r.data.name = newFileName;
     }
 
-    let pathSrc = this.path + this.getSelectedRows_()[0].data.name;
-    let pathDest = this.path + newFileName;
-
-    const result = await fsMv(pathSrc, pathDest);
-
-    if (this.getSelectedRows_().length == 1) {
+    if (selectedRows.length === 1) {
       this.cursorRow.toggleSelection();
     }
     this.closeRenameDialog();
