@@ -275,11 +275,11 @@ browse-fs.filtered .browsefs__header--query {
   background-color: var(--comp-dark-color);
 }
 
-.browsefs__header--rename {
+.browsefs__header--prompt {
   display: none;
 }
 
-browse-fs.modal .browsefs__header--rename {
+browse-fs.modal .browsefs__header--prompt {
   display: flex;
   background-color: var(--main-bg-color);
 }

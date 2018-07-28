@@ -88,7 +88,9 @@ window.addEventListener('DOMContentLoaded', () => {
       rightfs.clearCursor();
       focusfs = leftfs;
     } else if (e.key === 'r') {
-      focusfs.openRenameDialog();
+      focusfs.openRenamePrompt();
+    } else if (e.key === 'd') {
+      focusfs.openMkdirPrompt();
     } else if (e.key === 'p') {
       let cr = focusfs.cursorRow;
       if (cr)

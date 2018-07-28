@@ -3,6 +3,8 @@ import {rpc, downloadFile, parseOtaruPath, fsLs, fsMv} from './api.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
 import {findLongestCommonSubStr} from './commonsubstr.js';
 
+const kPromptCancelled = Symbol('prompt cancelled.');
+
 const kCursorClass = 'content__entry--cursor';
 const kMatchClass = 'browsefs__entry--match';
 const kSelectedClass = 'browsefs__entry--selected';
@@ -11,6 +13,7 @@ const kFilterUpdateDelayMs = 500;
 const kRowHeight = 30;
 
 const reValidFileName = /^[^\/]+$/;
+
 
 const colNames = ['type', 'name', 'size', 'uid', 'gid', 'perm_mode', 'modified_time'];
 const reTime = /_time$/;
@@ -70,9 +73,9 @@ const innerHTMLSource =
     <label class="browsefs__label" for="browsefs-query">Query: </label>
     <input class="browsefs__text browsefs__query" type="text" id="browsefs-query" tabindex="1">
   </div>
-  <div class="section__header browsefs__header browsefs__header--rename">
-    <label class="browsefs__label" for="browsefs-rename">Rename: </label>
-    <input class="browsefs__text browsefs__rename" type="text" id="browsefs-rename" tabindex="1">
+  <div class="section__header browsefs__header browsefs__header--prompt">
+    <label class="browsefs__label browsefs__promptlabel" for="browsefs-prompt">prompt: </label>
+    <input class="browsefs__text browsefs__prompt" type="text" id="browsefs-prompt" tabindex="2">
   </div>
   <div class="browsefs__scroll">
     <table class="content__table browsefs__list"><tbody></tbody></table>
@@ -84,6 +87,7 @@ class BrowseFS extends HTMLElement {
 
     this.inflightUpdate_ = false;
     this.path_ = '//';
+    this.cursorRow_ = null;
     this.cursorIndex_ = -1;
     this.numEntries_ = 0;
     this.query_ = null;
@@ -176,7 +180,8 @@ class BrowseFS extends HTMLElement {
     this.listTBody_ = this.querySelector('.browsefs__list').lastChild;
     this.upload_ = this.querySelector('.browsefs__upload');
     this.queryInput_ = this.querySelector('.browsefs__query');
-    this.renameInput_ = this.querySelector('.browsefs__rename');
+    this.promptLabel_ = this.querySelector('.browsefs__promptlabel');
+    this.promptInput_ = this.querySelector('.browsefs__prompt');
     this.scrollDiv_ = this.querySelector('.browsefs__scroll');
 
     this.parentDirBtn_.addEventListener('click', ev => {
@@ -239,26 +244,25 @@ class BrowseFS extends HTMLElement {
     this.queryInput_.addEventListener('keypress', onquerykeypressup);
     this.queryInput_.addEventListener('keyup', onquerykeypressup);
 
-    this.renameInput_.addEventListener('keydown', kd => {
+    this.promptInput_.addEventListener('keydown', kd => {
       if (kd.key === 'Tab') {
         kd.preventDefault();
-        this.renameInput_.blur();
-        return true;
+        this.onExitPrompt_(false);
+        return false;
       }
       return false;
     });
-    this.renameInput_.addEventListener('keypress', (e) => {
+    this.promptInput_.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
-        this.executeRename();
+        this.onExitPrompt_(true);
         return false;
       }
 
       return false;
     });
-    this.renameInput_.addEventListener('keyup', (e) => {
+    this.promptInput_.addEventListener('keyup', (e) => {
       if (e.key === 'Escape') {
-        console.log("rename escape");
-        this.closeRenameDialog();
+        this.onExitPrompt_(false);
         return false;
       }
       return true;
@@ -487,16 +491,18 @@ class BrowseFS extends HTMLElement {
     return this.getVisibleRows_(`.${kSelectedClass}`);
   }
 
-  openRenameDialog() {
-    const selectedRows = this.getSelectedRows_();
+  async openRenamePrompt() {
+    let selectedRows = this.getSelectedRows_();
     if (selectedRows.length == 0) {
       if (this.cursorRow === null) {
-        console.log("tried to open rename dialog, but no row.");
+        console.log("tried to open rename dialog, but no row selected.");
         return;
       }
       this.cursorRow.toggleSelection();
       selectedRows = this.getSelectedRows_();
-    } else if (selectedRows.length == 1) {
+    }
+    
+    if (selectedRows.length == 1) {
       this.renameBefore_ = selectedRows[0].data.name;
     } else {
       const names = Array.from(selectedRows).map(r => r.data.name);
@@ -509,42 +515,34 @@ class BrowseFS extends HTMLElement {
       this.updateNameHighlight_(lcss);
     }
 
-    this.classList.add('modal');
-    this.renameInput_.value = this.renameBefore_;
-    this.renameInput_.disabled = false;
-    window.setTimeout(() => {
-      this.renameInput_.focus();
-    }, 10);
-  }
+    try {
+      const renameAfter = await this.openPrompt_("Rename: ", this.renameBefore_);
+      
+      for (let r of selectedRows) {
+        const oldFileName = r.data.name;
+        const newFileName = oldFileName.replace(this.renameBefore_, renameAfter);
+        if (!newFileName.match(reValidFileName)) {
+          throw new Error(`New filename "${newFileName}" is not valid.`);
+        }
+        let pathSrc = this.path + oldFileName;
+        let pathDest = this.path + newFileName;
 
-  async executeRename() {
-    this.renameInput_.disabled = true;
-    const renameAfter = this.renameInput_.value;
-
-    const selectedRows = this.getSelectedRows_();
-    for (let r of selectedRows) {
-      const newFileName = r.data.name.replace(this.renameBefore_, renameAfter);
-      if (!newFileName.match(reValidFileName)) {
-        throw new Error(`New filename "${newFileName}" is not valid.`);
+        const result = await fsMv(pathSrc, pathDest);
+        r.data.name = newFileName;
       }
-      let pathSrc = this.path + selectedRows[0].data.name;
-      let pathDest = this.path + newFileName;
 
-      const result = await fsMv(pathSrc, pathDest);
-      r.data.name = newFileName;
+      if (selectedRows.length === 1) {
+        this.cursorRow.toggleSelection();
+      }
+    } catch(e) {
+      if (e === kPromptCancelled) {
+        console.log(`rename cancelled.`); 
+      } else {
+        console.log(`rename failed: ${e}`); 
+      }
     }
-
-    if (selectedRows.length === 1) {
-      this.cursorRow.toggleSelection();
-    }
-    this.closeRenameDialog();
-  }
-
-  closeRenameDialog() {
     this.updateNameHighlight_(null);
-
-    this.renameInput_.blur();
-    this.classList.remove('modal');
+    this.closePrompt_();
   }
 
   updateNameHighlight_(highlight) {
@@ -553,6 +551,40 @@ class BrowseFS extends HTMLElement {
       removeAllChildNodes(tdName);
       this.populateNameCell_(tdName, r.data, highlight);
     }
+  }
+
+  async openMkdirPrompt() {
+    await this.openPrompt_("Mkdir: ", "");
+  }
+
+  openPrompt_(labelText, initValue) {
+    this.promptLabel_.textContent = labelText;
+    this.promptInput_.value = initValue;
+    this.promptInput_.disabled = false;
+    this.classList.add('modal');
+    window.requestAnimationFrame(() => {
+      this.promptInput_.focus();
+    });
+
+    return new Promise((resolve, reject) => {
+      this.onExitPrompt_ = (success) => {
+        this.promptInput_.disabled = true;
+
+        if (!success) {
+          this.closePrompt_();
+          reject(kPromptCancelled);
+          return;
+        }
+
+        resolve(this.promptInput_.value);
+      };
+    });
+  }
+
+  closePrompt_() {
+    this.promptLabel_.textContent = "Prompt: ";
+    this.promptInput_.blur();
+    this.classList.remove('modal');
   }
 }
 window.customElements.define("browse-fs", BrowseFS);
