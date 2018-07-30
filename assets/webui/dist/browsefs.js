@@ -1,5 +1,5 @@
 import {$, $$, removeAllChildNodes} from './domhelper.js';
-import {rpc, downloadFile, parseOtaruPath, fsLs, fsMv} from './api.js';
+import {rpc, downloadFile, parseOtaruPath, fsLs, fsMv, fsMkdir} from './api.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
 import {findLongestCommonSubStr} from './commonsubstr.js';
 
@@ -89,7 +89,6 @@ class BrowseFS extends HTMLElement {
     this.path_ = '//';
     this.cursorRow_ = null;
     this.cursorIndex_ = -1;
-    this.numEntries_ = 0;
     this.query_ = null;
     this.renameBefore_ = null;
   }
@@ -304,7 +303,7 @@ class BrowseFS extends HTMLElement {
     };
     const actionDef = getActionDef(row);
     tr.triggerAction = () => {
-      actionDef.action(this, data, host);
+      actionDef.action(this, row, host);
     };
     let cancelClick = false;
     tr.addEventListener('click', (ev) => {
@@ -322,7 +321,7 @@ class BrowseFS extends HTMLElement {
     });
 
     for (let colName of colNames) {
-      let cell = document.createElement('td');
+      const cell = document.createElement('td');
       cell.classList.add('content__cell');
       cell.classList.add('browsefs__cell');
       cell.classList.add(`browsefs__cell--${colName}`);
@@ -338,10 +337,10 @@ class BrowseFS extends HTMLElement {
   }
 
   populateNameCell_(cell, data, highlight = null) {
-    let name = data.name;
+    const name = data.name;
     if (highlight) {
       for (;;) {
-        let i = name.indexOf(highlight);
+        const i = name.indexOf(highlight);
         if (i < 0) {
           break;
         }
@@ -384,18 +383,26 @@ class BrowseFS extends HTMLElement {
             name: host,
           }, null);
         }
-        this.numEntries_ = hosts.length;
       } else {
         const {host, path} = parseOtaruPath(opath);
-        const result = await fsLs(host, path);
-        const entries = result['entry'] || result['listing'][0]['entry'];
+        const entries = await fsLs(host, path);
 
         const sortSel = $('.browsefs__sort').value;
         const sortFunc = sortFuncMap[sortSel];
 
-        if (entries === undefined) {
+        if (entries.length === 0) {
           this.listTBody_.classList.add('.browsefs__list--empty');
-          this.numEntries_ = 0;
+
+          const tr = document.createElement('tr');
+          tr.classList.add('content__entry');
+          tr.classList.add('browsefs__entry');
+          this.listTBody_.appendChild(tr);
+
+          const cell = document.createElement('td');
+          cell.classList.add('content__cell');
+          cell.classList.add('browsefs__cell');
+          cell.textContent = '<no entries>';
+          tr.appendChild(cell);
         } else {
           this.listTBody_.classList.remove('.browsefs__list--empty');
 
@@ -403,13 +410,12 @@ class BrowseFS extends HTMLElement {
           for (let row of rows) {
             this.appendRow_(row, host);
           }
-          this.numEntries_ = entries.length;
         }
       }
     } catch (e) {
       this.listTBody_.classList.remove('.browsefs__list--empty');
 
-      let tr = document.createElement('tr');
+      const tr = document.createElement('tr');
       tr.classList.add('browsefs__entry');
       tr.classList.add('browsefs__error');
       this.listTBody_.appendChild(tr);
@@ -427,7 +433,7 @@ class BrowseFS extends HTMLElement {
   }
 
   updateCursor() {
-    let visibleRows = this.getVisibleRows_();
+    const visibleRows = this.getVisibleRows_();
 
     for (let tr of visibleRows) {
       tr.classList.remove(kCursorClass);
@@ -443,13 +449,13 @@ class BrowseFS extends HTMLElement {
       return;
     }
 
-    let cr = visibleRows[this.cursorIndex_];
+    const cr = visibleRows[this.cursorIndex_];
     this.cursorRow_ = cr;
     if (cr) {
       cr.classList.add(kCursorClass);
 
-      let crRect = cr.getBoundingClientRect();
-      let divRect = this.scrollDiv_.getBoundingClientRect();
+      const crRect = cr.getBoundingClientRect();
+      const divRect = this.scrollDiv_.getBoundingClientRect();
 
       if (crRect.bottom > divRect.bottom) {
         cr.scrollIntoView({block: 'end'});
@@ -470,13 +476,13 @@ class BrowseFS extends HTMLElement {
     if (this.query_ === null)
       return;
 
-    let query = this.query_;
+    const query = this.query_;
     if (query === '')
       query = '.';
-    let filterRe = new RegExp(query);
+    const filterRe = new RegExp(query);
 
     for (let tr of this.listTBody_.querySelectorAll("tr")) {
-      let match = tr.data.name.match(filterRe);
+      const match = tr.data.name.match(filterRe);
       if (!match) {
         tr.classList.remove(kMatchClass);
         continue;
@@ -524,8 +530,8 @@ class BrowseFS extends HTMLElement {
         if (!newFileName.match(reValidFileName)) {
           throw new Error(`New filename "${newFileName}" is not valid.`);
         }
-        let pathSrc = this.path + oldFileName;
-        let pathDest = this.path + newFileName;
+        const pathSrc = this.path + oldFileName;
+        const pathDest = this.path + newFileName;
 
         const result = await fsMv(pathSrc, pathDest);
         r.data.name = newFileName;
@@ -554,7 +560,19 @@ class BrowseFS extends HTMLElement {
   }
 
   async openMkdirPrompt() {
-    await this.openPrompt_("Mkdir: ", "");
+    try {
+      const dirname = await this.openPrompt_("Mkdir: ", "");
+
+      const result = await fsMkdir(this.path + dirname);
+      this.triggerUpdate();
+    } catch(e) {
+      if (e === kPromptCancelled) {
+        console.log(`mkdir cancelled.`); 
+      } else {
+        console.log(`mkdir failed: ${e}`); 
+      }
+    }
+    this.closePrompt_();
   }
 
   openPrompt_(labelText, initValue) {

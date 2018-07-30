@@ -87,8 +87,24 @@ const parseOtaruPath = (opath) => {
 }
 
 const fsLs = async (host, path) => {
-  return await rpc(fsopEndpoint('ls', host), {args: {path: path}});
+  const result = await rpc(fsopEndpoint('ls', host), {args: {path: path}});
+  if (result['entry'])
+    return result['entry'];
+
+  if (result['listing'])
+    return result['listing'][0]['entry'];
+
+  return [];
 };
+
+const fsMkdir = async (opath) => {
+  const {host, path} = parseOtaruPath(opath);
+  return await rpc(fsopEndpoint('mkdir', host), {
+    method: 'POST',
+    body: {path: path}
+  });
+};
+
 
 const fsMv = async (src, dest) => {
   const {host: hostSrc, path: pathSrc} = parseOtaruPath(src);
@@ -103,7 +119,7 @@ const fsMv = async (src, dest) => {
     method: 'POST',
     body: {pathSrc: pathSrc, pathDest: pathDest},
   });
-}
+};
 
 const previewFileUrl = (opath, idx) => {
   return rpcUrl('preview', {args: {opath: opath, i: idx}});
@@ -131,6 +147,7 @@ export {
   downloadFile,
   fillRemoteContent,
   fsLs,
+  fsMkdir,
   fsMv,
   parseOtaruPath,
   previewFile,

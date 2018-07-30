@@ -59,6 +59,32 @@
         ]
       }
     },
+    "/api/v1/fe/local/mkdir": {
+      "post": {
+        "operationId": "MkdirLocal",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbMkdirLocalResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbMkdirLocalRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FeService"
+        ]
+      }
+    },
     "/api/v1/fe/local/mv": {
       "post": {
         "operationId": "MoveLocal",
@@ -139,6 +165,17 @@
           }
         }
       }
+    },
+    "pbMkdirLocalRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "pbMkdirLocalResponse": {
+      "type": "object"
     },
     "pbMoveLocalRequest": {
       "type": "object",

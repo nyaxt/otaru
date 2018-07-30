@@ -54,6 +54,28 @@ func (s *feService) ListLocalDir(ctx context.Context, req *pb.ListLocalDirReques
 	return &pb.ListLocalDirResponse{Entry: es}, nil
 }
 
+func (s *feService) MkdirLocal(ctx context.Context, req *pb.MkdirLocalRequest) (*pb.MkdirLocalResponse, error) {
+	path, err := s.cfg.ResolveLocalPath(req.Path)
+	if err != nil {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Failed to resolve local path: %v", err)
+	}
+
+	logger.Infof(mylog, "Mkdir %q", path)
+	_, err = os.Stat(path)
+	if err == nil {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Destination path already exists.")
+	}
+	if !os.IsNotExist(err) {
+		return nil, grpc.Errorf(codes.Internal, "Error Stat()ing destination path: %v", err)
+	}
+
+	if err := os.Mkdir(path, 0755); err != nil {
+		return nil, grpc.Errorf(codes.Internal, "Error os.Mkdir(): %v", err)
+	}
+
+	return &pb.MkdirLocalResponse{}, nil
+}
+
 func (s *feService) MoveLocal(ctx context.Context, req *pb.MoveLocalRequest) (*pb.MoveLocalResponse, error) {
 	pathSrc, err := s.cfg.ResolveLocalPath(req.PathSrc)
 	if err != nil {
@@ -81,9 +103,9 @@ func (s *feService) MoveLocal(ctx context.Context, req *pb.MoveLocalRequest) (*p
 		return nil, grpc.Errorf(codes.Internal, "Error Stat()ing destination path: %v", err)
 	}
 
-	// if err := os.Rename(pathSrc, pathDest); err != nil {
-	// 	return nil, grpc.Errorf(code.Internal, "Error os.Rename(): %v", err)
-	// }
+	if err := os.Rename(pathSrc, pathDest); err != nil {
+		return nil, grpc.Errorf(codes.Internal, "Error os.Rename(): %v", err)
+	}
 
 	return &pb.MoveLocalResponse{}, nil
 }

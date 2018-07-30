@@ -43,6 +43,13 @@ message ListLocalDirResponse {
   repeated FileInfo entry = 1;
 }
 
+message MkdirLocalRequest {
+  string path = 1;
+}
+
+message MkdirLocalResponse {
+}
+
 message MoveLocalRequest {
   string path_src = 1;
   string path_dest = 2;
@@ -61,6 +68,13 @@ service FeService {
   rpc ListLocalDir(ListLocalDirRequest) returns (ListLocalDirResponse) {
     option (google.api.http) = {
       get: "/api/v1/fe/local/ls"
+    };
+  }
+
+  rpc MkdirLocal(MkdirLocalRequest) returns (MkdirLocalResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/fe/local/mkdir"
+      body: "*"
     };
   }
 

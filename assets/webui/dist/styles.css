@@ -324,6 +324,11 @@ browse-fs.modal .browsefs__header--prompt {
   overflow-y: scroll;
 }
 
+.browsefs__list--empty {
+  text-color: #999;
+  font-weight: bold;
+}
+
 browse-fs.filtered .browsefs__list {
   background-color: var(--comp-light-color);
 }
