@@ -58,6 +58,14 @@ message MoveLocalRequest {
 message MoveLocalResponse {
 }
 
+message RemoveLocalRequest {
+  string path = 1;
+  bool remove_children = 2;
+}
+
+message RemoveLocalResponse {
+}
+
 service FeService {
   rpc ListHosts(ListHostsRequest) returns (ListHostsResponse) {
     option (google.api.http) = {
@@ -81,6 +89,13 @@ service FeService {
   rpc MoveLocal(MoveLocalRequest) returns (MoveLocalResponse) {
     option (google.api.http) = {
       post: "/api/v1/fe/local/mv"
+      body: "*"
+    };
+  }
+
+  rpc RemoveLocal(RemoveLocalRequest) returns (RemoveLocalResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/fe/local/rm"
       body: "*"
     };
   }

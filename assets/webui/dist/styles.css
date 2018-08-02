@@ -261,6 +261,9 @@ browse-fs.modal {
   background-color: var(--dark-bg-color);
 }
 
+browse-fs.hasfocus {
+}
+
 .browsefs__header {
   flex-grow: 0;
   flex-shrink: 0;
@@ -275,11 +278,50 @@ browse-fs.filtered .browsefs__header--query {
   background-color: var(--comp-dark-color);
 }
 
+.browsefs__confirm {
+  display: none;
+  flex-direction: column;
+  padding: 0;
+  height: auto;
+}
+
+browse-fs.confirmactive .browsefs__confirm {
+  display: flex;
+}
+
+.browsefs__confirm--title {
+  background-color: var(--dark2-bg-color);
+  color: var(--main-fg-color);
+  font-weight: bold;
+  line-height: 15px;
+  padding: 5px;
+}
+
+.browsefs__confirm--detail {
+  border: 1px solid black;
+  background-color: white;
+  margin: 3px;
+  line-height: 18px;
+  padding: 3px;
+}
+
+.browsefs__confirm--btnscont {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 3px 3px;
+}
+
+.browsefs__confirm--ok {
+  font-weight: bold;
+  background-color: var(--darklight-fg-color);
+  margin-right: 2px;
+}
+
 .browsefs__header--prompt {
   display: none;
 }
 
-browse-fs.modal .browsefs__header--prompt {
+browse-fs.promptactive .browsefs__header--prompt {
   display: flex;
   background-color: var(--main-bg-color);
 }

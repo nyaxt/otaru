@@ -50,6 +50,7 @@ splitbar.addEventListener('mousedown', md => {
 window.addEventListener('DOMContentLoaded', () => {
   let focusfs = leftfs;
   focusfs.cursorIndex = 0;
+  focusfs.hasFocus = true;
 
   document.addEventListener('keydown', e => {
     if (e.key === 'PageDown') {
@@ -75,44 +76,18 @@ window.addEventListener('DOMContentLoaded', () => {
       return false;
     }
 
-    if (e.key === 'j') {
-      ++ focusfs.cursorIndex;
-    } else if (e.key === 'k') {
-      focusfs.cursorIndex = Math.max(focusfs.cursorIndex - 1, 0);
-    } else if (e.key === 'l') {
+    if (e.key === 'l') {
       rightfs.cursorIndex = leftfs.cursorIndex;
       leftfs.clearCursor();
       focusfs = rightfs;
+      leftfs.hasFocus = false;
+      rightfs.hasFocus = true;
     } else if (e.key === 'h') {
       leftfs.cursorIndex = rightfs.cursorIndex;
       rightfs.clearCursor();
       focusfs = leftfs;
-    } else if (e.key === 'r') {
-      focusfs.openRenamePrompt();
-    } else if (e.key === 'd') {
-      focusfs.openMkdirPrompt();
-    } else if (e.key === 'p') {
-      let cr = focusfs.cursorRow;
-      if (cr)
-        preview.open(cr.opath);
-    } else if (e.key === 'x') {
-      let cr = focusfs.cursorRow;
-      if (cr)
-        cr.toggleSelection();
-    } else if (e.key === ' ') {
-      let cr = focusfs.cursorRow;
-      if (cr)
-        cr.toggleSelection();
-
-      focusfs.cursorIndex = focusfs.cursorIndex + 1;
-    } else if (e.key === 'Enter') {
-      let cr = focusfs.cursorRow;
-      if (cr)
-        cr.triggerAction();
-    } else if (e.key === 'u') {
-      focusfs.navigateParent();
-    } else if (e.key === '?') {
-      focusfs.query = '';
+      rightfs.hasFocus = false;
+      leftfs.hasFocus = true;
     } else {
       console.log(`keypress ${e.key}`);
     }

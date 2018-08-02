@@ -110,6 +110,32 @@
           "FeService"
         ]
       }
+    },
+    "/api/v1/fe/local/rm": {
+      "post": {
+        "operationId": "RemoveLocal",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbRemoveLocalResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbRemoveLocalRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FeService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -189,6 +215,17 @@
       }
     },
     "pbMoveLocalResponse": {
+      "type": "object"
+    },
+    "pbRemoveLocalRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "pbRemoveLocalResponse": {
       "type": "object"
     }
   }

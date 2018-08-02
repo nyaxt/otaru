@@ -3,8 +3,12 @@ import {rpc, downloadFile, parseOtaruPath, fsLs, fsMv, fsMkdir} from './api.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
 import {findLongestCommonSubStr} from './commonsubstr.js';
 
-const kPromptCancelled = Symbol('prompt cancelled.');
+const kDialogCancelled = Symbol('modal dialog cancelled.');
 
+const kFocusClass = 'hasfocus';
+const kModalClass = 'modal';
+const kPromptActiveClass = 'promptactive';
+const kConfirmActiveClass = 'confirmactive';
 const kCursorClass = 'content__entry--cursor';
 const kMatchClass = 'browsefs__entry--match';
 const kSelectedClass = 'browsefs__entry--selected';
@@ -13,7 +17,6 @@ const kFilterUpdateDelayMs = 500;
 const kRowHeight = 30;
 
 const reValidFileName = /^[^\/]+$/;
-
 
 const colNames = ['type', 'name', 'size', 'uid', 'gid', 'perm_mode', 'modified_time'];
 const reTime = /_time$/;
@@ -73,9 +76,17 @@ const innerHTMLSource =
     <label class="browsefs__label" for="browsefs-query">Query: </label>
     <input class="browsefs__text browsefs__query" type="text" id="browsefs-query" tabindex="1">
   </div>
+  <div class="section__header browsefs__header browsefs__confirm">
+    <div class="browsefs__confirm--title"></div>
+    <div class="browsefs__confirm--detail"></div>
+    <div class="browsefs__confirm--btnscont">
+      <a class="button browsefs__confirm--ok" tabindex="2" href="#">OK</a>
+      <a class="button browsefs__confirm--cancel" tabindex="3" href="#">Cancel</a>
+    </div>
+  </div>
   <div class="section__header browsefs__header browsefs__header--prompt">
     <label class="browsefs__label browsefs__promptlabel" for="browsefs-prompt">prompt: </label>
-    <input class="browsefs__text browsefs__prompt" type="text" id="browsefs-prompt" tabindex="2">
+    <input class="browsefs__text browsefs__prompt" type="text" id="browsefs-prompt" tabindex="4">
   </div>
   <div class="browsefs__scroll">
     <table class="content__table browsefs__list"><tbody></tbody></table>
@@ -91,6 +102,21 @@ class BrowseFS extends HTMLElement {
     this.cursorIndex_ = -1;
     this.query_ = null;
     this.renameBefore_ = null;
+  }
+
+  get hasFocus() {
+    return this.classList.contains(kFocusClass);
+  }
+
+  set hasFocus(val) {
+    if (val) 
+      this.classList.add(kFocusClass);
+    else
+      this.classList.remove(kFocusClass);
+  }
+
+  get hasModalDialog() {
+    return this.classList.contains(kModalClass);
   }
 
   get path() {
@@ -181,6 +207,10 @@ class BrowseFS extends HTMLElement {
     this.queryInput_ = this.querySelector('.browsefs__query');
     this.promptLabel_ = this.querySelector('.browsefs__promptlabel');
     this.promptInput_ = this.querySelector('.browsefs__prompt');
+    this.confirmTitle_ = this.querySelector('.browsefs__confirm--title');
+    this.confirmDetail_ = this.querySelector('.browsefs__confirm--detail');
+    this.confirmOk_ = this.querySelector('.browsefs__confirm--ok');
+    this.confirmCancel_ = this.querySelector('.browsefs__confirm--cancel');
     this.scrollDiv_ = this.querySelector('.browsefs__scroll');
 
     this.parentDirBtn_.addEventListener('click', ev => {
@@ -246,14 +276,14 @@ class BrowseFS extends HTMLElement {
     this.promptInput_.addEventListener('keydown', kd => {
       if (kd.key === 'Tab') {
         kd.preventDefault();
-        this.onExitPrompt_(false);
+        this.onExitDialog_(false);
         return false;
       }
       return false;
     });
     this.promptInput_.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
-        this.onExitPrompt_(true);
+        this.onExitDialog_(true);
         return false;
       }
 
@@ -261,15 +291,77 @@ class BrowseFS extends HTMLElement {
     });
     this.promptInput_.addEventListener('keyup', (e) => {
       if (e.key === 'Escape') {
-        this.onExitPrompt_(false);
+        this.onExitDialog_(false);
         return false;
       }
       return true;
     });
 
+    this.confirmOk_.addEventListener('click', ev => {
+      this.onExitDialog_(true);
+      ev.preventDefault(); 
+    });
+    this.confirmCancel_.addEventListener('click', ev => {
+      this.onExitDialog_(false);
+      ev.preventDefault(); 
+    });
+
     window.addEventListener("DOMContentLoaded", () => {
       this.triggerUpdate();
     });
+    window.addEventListener('keypress', this.onKeyPress_.bind(this));
+    window.addEventListener('keyup', this.onKeyUp_.bind(this));
+  }
+
+  async onKeyPress_(e) {
+    if (!this.hasFocus)
+      return;
+    if (this.hasModalDialog) {
+      if (e.key === 'Enter') {
+        if (this.onExitDialog_) this.onExitDialog_(true);
+      }
+      return;
+    } 
+
+    if (e.key === 'j') {
+      ++ this.cursorIndex;
+    } else if (e.key === 'k') {
+      this.cursorIndex = Math.max(this.cursorIndex - 1, 0);
+    } else if (e.key === 'r') {
+      this.openRenamePrompt();
+    } else if (e.key === 'd') {
+      this.openMkdirPrompt();
+    } else if (e.key === 'p') {
+      let cr = this.cursorRow;
+      if (cr)
+        preview.open(cr.opath);
+    } else if (e.key === 'x') {
+      let cr = this.cursorRow;
+      if (cr)
+        cr.toggleSelection();
+    } else if (e.key === ' ') {
+      let cr = this.cursorRow;
+      if (cr)
+        cr.toggleSelection();
+
+      this.cursorIndex = this.cursorIndex + 1;
+    } else if (e.key === 'Delete') {
+      this.deleteSelection();
+    } else if (e.key === 'Enter') {
+      let cr = this.cursorRow;
+      if (cr)
+        cr.triggerAction();
+    } else if (e.key === 'u') {
+      this.navigateParent();
+    } else if (e.key === '?') {
+      this.query = '';
+    }
+  }
+
+  async onKeyUp_(e) {
+    if (e.key === 'Escape') {
+      if (this.onExitDialog_) this.onExitDialog_(false);
+    }
   }
 
   clear() {
@@ -500,7 +592,7 @@ class BrowseFS extends HTMLElement {
   async openRenamePrompt() {
     let selectedRows = this.getSelectedRows_();
     if (selectedRows.length == 0) {
-      if (this.cursorRow === null) {
+      if (!this.cursorRow) {
         console.log("tried to open rename dialog, but no row selected.");
         return;
       }
@@ -541,7 +633,7 @@ class BrowseFS extends HTMLElement {
         this.cursorRow.toggleSelection();
       }
     } catch(e) {
-      if (e === kPromptCancelled) {
+      if (e === kDialogCancelled) {
         console.log(`rename cancelled.`); 
       } else {
         console.log(`rename failed: ${e}`); 
@@ -566,7 +658,7 @@ class BrowseFS extends HTMLElement {
       const result = await fsMkdir(this.path + dirname);
       this.triggerUpdate();
     } catch(e) {
-      if (e === kPromptCancelled) {
+      if (e === kDialogCancelled) {
         console.log(`mkdir cancelled.`); 
       } else {
         console.log(`mkdir failed: ${e}`); 
@@ -579,18 +671,20 @@ class BrowseFS extends HTMLElement {
     this.promptLabel_.textContent = labelText;
     this.promptInput_.value = initValue;
     this.promptInput_.disabled = false;
-    this.classList.add('modal');
+    this.classList.add(kModalClass);
+    this.classList.add(kPromptActiveClass);
     window.requestAnimationFrame(() => {
       this.promptInput_.focus();
     });
 
     return new Promise((resolve, reject) => {
-      this.onExitPrompt_ = (success) => {
+      this.onExitDialog_ = (success) => {
+        this.onExitDialog_ = null;
         this.promptInput_.disabled = true;
 
         if (!success) {
           this.closePrompt_();
-          reject(kPromptCancelled);
+          reject(k);
           return;
         }
 
@@ -602,19 +696,78 @@ class BrowseFS extends HTMLElement {
   closePrompt_() {
     this.promptLabel_.textContent = "Prompt: ";
     this.promptInput_.blur();
-    this.classList.remove('modal');
+    this.classList.remove(kModalClass);
+    this.classList.remove(kPromptActiveClass);
+  }
+
+  openConfirm_(title, detail) {
+    this.confirmTitle_.textContent = title;
+
+    const lines = detail.split(/\r?\n/g);
+    let firstLine = true;
+    for (let l of lines) {
+      if (firstLine) {
+        firstLine = false;
+      } else {
+        const br = document.createElement('br');
+        this.confirmDetail_.appendChild(br);
+      }
+      const text = document.createTextNode(l);
+      this.confirmDetail_.appendChild(text);
+    }
+    this.classList.add(kModalClass);
+    this.classList.add(kConfirmActiveClass);
+
+    return new Promise((resolve, reject) => {
+      this.onExitDialog_ = (success) => {
+        this.onExitDialog_ = null;
+        if (!success) {
+          this.closeConfirm_();
+          reject(kDialogCancelled);
+          return;
+        }
+
+        resolve(true);
+      };
+    });
+  }
+
+  closeConfirm_() {
+    this.classList.remove(kModalClass);
+    this.classList.remove(kConfirmActiveClass);
+    removeAllChildNodes(this.confirmTitle_);
+    removeAllChildNodes(this.confirmDetail_);
+  }
+
+  async deleteSelection() {
+    let selectedRows = this.getSelectedRows_();
+    if (selectedRows.length == 0) {
+      if (!this.cursorRow) {
+        console.log("No row selected for deletion.");
+        return;
+      }
+      this.cursorRow.toggleSelection();
+      selectedRows = this.getSelectedRows_();
+    }
+
+    let details = '';
+    for (let r of selectedRows) {
+      details += `rm: "${r.data.name}"\n`; 
+    }
+    await this.openConfirm_(`Delete: ${selectedRows.length} item(s)`, details);
+    this.closeConfirm_();
   }
 }
 window.customElements.define("browse-fs", BrowseFS);
 
 let staticHostList = null;
 const getHostList = async () => {
-  if (staticHostList !== null) {
-    return staticHostList;
+  if (staticHostList === null) {
+    const result = await rpc('api/v1/fe/hosts');
+    staticHostList = result['host'];
   }
 
-  const result = await rpc('api/v1/fe/hosts');
-  return result['host'];
+  return staticHostList;
 };
 
 const formatVal = (type, val) => {

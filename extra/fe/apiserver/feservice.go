@@ -110,6 +110,33 @@ func (s *feService) MoveLocal(ctx context.Context, req *pb.MoveLocalRequest) (*p
 	return &pb.MoveLocalResponse{}, nil
 }
 
+func (s *feService) RemoveLocal(ctx context.Context, req *pb.RemoveLocalRequest) (*pb.RemoveLocalResponse, error) {
+	path, err := s.cfg.ResolveLocalPath(req.Path)
+	if err != nil {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Failed to resolve local path: %v", err)
+	}
+
+	logger.Infof(mylog, "Remove %q", path)
+	if _, err = os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return nil, grpc.Errorf(codes.FailedPrecondition, "Destination path does not exist.")
+		}
+		return nil, grpc.Errorf(codes.Internal, "Error Stat()ing destination path: %v", err)
+	}
+
+	if req.RemoveAll {
+		if err := os.RemoveAll(path); err != nil {
+			return nil, grpc.Errorf(codes.Internal, "Error os.RemoveAll(): %v", err)
+		}
+	} else {
+		if err := os.Remove(path); err != nil {
+			return nil, grpc.Errorf(codes.Internal, "Error os.Remove(): %v", err)
+		}
+	}
+
+	return &pb.RemoveLocalResponse{}, nil
+}
+
 func genHostNames(cfg *cli.CliConfig) []string {
 	hnames := make([]string, 0)
 	id := uint32(0)
