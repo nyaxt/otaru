@@ -2,6 +2,7 @@ import {$, $$, removeAllChildNodes} from './domhelper.js';
 import {rpc, downloadFile, parseOtaruPath, fsLs, fsMv, fsMkdir} from './api.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
 import {findLongestCommonSubStr} from './commonsubstr.js';
+import {preview} from './preview.js';
 
 const kDialogCancelled = Symbol('modal dialog cancelled.');
 
@@ -17,6 +18,7 @@ const kFilterUpdateDelayMs = 500;
 const kRowHeight = 30;
 
 const reValidFileName = /^[^\/]+$/;
+const reFileNameBase = /^[^\d\.]+/;
 
 const colNames = ['type', 'name', 'size', 'uid', 'gid', 'perm_mode', 'modified_time'];
 const reTime = /_time$/;
@@ -109,7 +111,7 @@ class BrowseFS extends HTMLElement {
   }
 
   set hasFocus(val) {
-    if (val) 
+    if (val)
       this.classList.add(kFocusClass);
     else
       this.classList.remove(kFocusClass);
@@ -299,11 +301,11 @@ class BrowseFS extends HTMLElement {
 
     this.confirmOk_.addEventListener('click', ev => {
       this.onExitDialog_(true);
-      ev.preventDefault(); 
+      ev.preventDefault();
     });
     this.confirmCancel_.addEventListener('click', ev => {
       this.onExitDialog_(false);
-      ev.preventDefault(); 
+      ev.preventDefault();
     });
 
     window.addEventListener("DOMContentLoaded", () => {
@@ -314,14 +316,14 @@ class BrowseFS extends HTMLElement {
   }
 
   async onKeyPress_(e) {
-    if (!this.hasFocus)
+    if (preview.isOpen || !this.hasFocus)
       return;
     if (this.hasModalDialog) {
       if (e.key === 'Enter') {
         if (this.onExitDialog_) this.onExitDialog_(true);
       }
       return;
-    } 
+    }
 
     if (e.key === 'j') {
       ++ this.cursorIndex;
@@ -429,7 +431,7 @@ class BrowseFS extends HTMLElement {
   }
 
   populateNameCell_(cell, data, highlight = null) {
-    const name = data.name;
+    let name = data.name;
     if (highlight) {
       for (;;) {
         const i = name.indexOf(highlight);
@@ -599,7 +601,7 @@ class BrowseFS extends HTMLElement {
       this.cursorRow.toggleSelection();
       selectedRows = this.getSelectedRows_();
     }
-    
+
     if (selectedRows.length == 1) {
       this.renameBefore_ = selectedRows[0].data.name;
     } else {
@@ -614,8 +616,8 @@ class BrowseFS extends HTMLElement {
     }
 
     try {
-      const renameAfter = await this.openPrompt_("Rename: ", this.renameBefore_);
-      
+      const renameAfter = await this.openPrompt_("Rename: ", this.renameBefore_, reFileNameBase);
+
       for (let r of selectedRows) {
         const oldFileName = r.data.name;
         const newFileName = oldFileName.replace(this.renameBefore_, renameAfter);
@@ -628,18 +630,17 @@ class BrowseFS extends HTMLElement {
         const result = await fsMv(pathSrc, pathDest);
         r.data.name = newFileName;
       }
-
-      if (selectedRows.length === 1) {
-        this.cursorRow.toggleSelection();
-      }
     } catch(e) {
       if (e === kDialogCancelled) {
-        console.log(`rename cancelled.`); 
+        console.log(`rename cancelled.`);
       } else {
-        console.log(`rename failed: ${e}`); 
+        console.log(`rename failed: ${e}`);
       }
     }
     this.updateNameHighlight_(null);
+    if (selectedRows.length === 1) {
+      this.cursorRow.toggleSelection();
+    }
     this.closePrompt_();
   }
 
@@ -659,15 +660,15 @@ class BrowseFS extends HTMLElement {
       this.triggerUpdate();
     } catch(e) {
       if (e === kDialogCancelled) {
-        console.log(`mkdir cancelled.`); 
+        console.log(`mkdir cancelled.`);
       } else {
-        console.log(`mkdir failed: ${e}`); 
+        console.log(`mkdir failed: ${e}`);
       }
     }
     this.closePrompt_();
   }
 
-  openPrompt_(labelText, initValue) {
+  openPrompt_(labelText, initValue, selRe = null) {
     this.promptLabel_.textContent = labelText;
     this.promptInput_.value = initValue;
     this.promptInput_.disabled = false;
@@ -675,6 +676,12 @@ class BrowseFS extends HTMLElement {
     this.classList.add(kPromptActiveClass);
     window.requestAnimationFrame(() => {
       this.promptInput_.focus();
+      if (selRe) {
+        const result = reFileNameBase.exec(this.promptInput_.value);
+        if (result) {
+          this.promptInput_.setSelectionRange(result.index, result[0].length);
+        }
+      }
     });
 
     return new Promise((resolve, reject) => {
@@ -684,7 +691,7 @@ class BrowseFS extends HTMLElement {
 
         if (!success) {
           this.closePrompt_();
-          reject(k);
+          reject(kDialogCancelled);
           return;
         }
 
@@ -752,7 +759,7 @@ class BrowseFS extends HTMLElement {
 
     let details = '';
     for (let r of selectedRows) {
-      details += `rm: "${r.data.name}"\n`; 
+      details += `rm: "${r.data.name}"\n`;
     }
     await this.openConfirm_(`Delete: ${selectedRows.length} item(s)`, details);
     this.closeConfirm_();
