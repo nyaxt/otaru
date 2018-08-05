@@ -9,6 +9,9 @@ const rightfs = $("#rightfs");
 
 leftfs.path = '//[local]/';
 
+leftfs.counterpart = rightfs;
+rightfs.counterpart = leftfs;
+
 contentSection('browsefs').addEventListener('shown', e => {
   if (e.browsefsPath !== undefined)
     rightfs.path = e.browsefsPath;

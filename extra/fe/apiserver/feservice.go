@@ -124,7 +124,7 @@ func (s *feService) RemoveLocal(ctx context.Context, req *pb.RemoveLocalRequest)
 		return nil, grpc.Errorf(codes.Internal, "Error Stat()ing destination path: %v", err)
 	}
 
-	if req.RemoveAll {
+	if req.RemoveChildren {
 		if err := os.RemoveAll(path); err != nil {
 			return nil, grpc.Errorf(codes.Internal, "Error os.RemoveAll(): %v", err)
 		}

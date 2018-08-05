@@ -1,18 +1,29 @@
 import {$, $$, removeAllChildNodes} from './domhelper.js';
-import {rpc, downloadFile, parseOtaruPath, fsLs, fsMv, fsMkdir} from './api.js';
+import {rpc, downloadFile, parseOtaruPath, fsLs, fsMv, fsMkdir, fsRm} from './api.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
 import {findLongestCommonSubStr} from './commonsubstr.js';
 import {preview} from './preview.js';
+
+const debugwait = () => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 1000);
+  });
+}
 
 const kDialogCancelled = Symbol('modal dialog cancelled.');
 
 const kFocusClass = 'hasfocus';
 const kModalClass = 'modal';
+const kDisabledClass = 'disabled';
 const kPromptActiveClass = 'promptactive';
 const kConfirmActiveClass = 'confirmactive';
+const kConfirmProcessingClass = 'confirmprocessing';
 const kCursorClass = 'content__entry--cursor';
 const kMatchClass = 'browsefs__entry--match';
 const kSelectedClass = 'browsefs__entry--selected';
+const kDetailItemClass = 'detail__item';
+const kDetailProgressClass = 'detail__progress';
+const kDetailTextClass  = 'detail__text';
 
 const kFilterUpdateDelayMs = 500;
 const kRowHeight = 30;
@@ -98,6 +109,7 @@ class BrowseFS extends HTMLElement {
   constructor() {
     super();
 
+    this.counterpart = null;
     this.inflightUpdate_ = false;
     this.path_ = '//';
     this.cursorRow_ = null;
@@ -278,14 +290,18 @@ class BrowseFS extends HTMLElement {
     this.promptInput_.addEventListener('keydown', kd => {
       if (kd.key === 'Tab') {
         kd.preventDefault();
-        this.onExitDialog_(false);
+        if (this.onExitDialog_) {
+          this.onExitDialog_(false);
+        }
         return false;
       }
       return false;
     });
     this.promptInput_.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
-        this.onExitDialog_(true);
+        if (this.onExitDialog_) {
+          this.onExitDialog_(true);
+        }
         return false;
       }
 
@@ -293,18 +309,25 @@ class BrowseFS extends HTMLElement {
     });
     this.promptInput_.addEventListener('keyup', (e) => {
       if (e.key === 'Escape') {
-        this.onExitDialog_(false);
+        if (this.onExitDialog_) {
+          this.onExitDialog_(false);
+        }
         return false;
       }
       return true;
     });
 
     this.confirmOk_.addEventListener('click', ev => {
-      this.onExitDialog_(true);
+      if (this.onExitDialog_) {
+        this.onExitDialog_(true);
+      }
+
       ev.preventDefault();
     });
     this.confirmCancel_.addEventListener('click', ev => {
-      this.onExitDialog_(false);
+      if (this.onExitDialog_) {
+        this.onExitDialog_(false);
+      }
       ev.preventDefault();
     });
 
@@ -333,6 +356,8 @@ class BrowseFS extends HTMLElement {
       this.openRenamePrompt();
     } else if (e.key === 'd') {
       this.openMkdirPrompt();
+    } else if (e.key === 'm') {
+      this.moveSelection();
     } else if (e.key === 'p') {
       let cr = this.cursorRow;
       if (cr)
@@ -707,10 +732,8 @@ class BrowseFS extends HTMLElement {
     this.classList.remove(kPromptActiveClass);
   }
 
-  openConfirm_(title, detail) {
-    this.confirmTitle_.textContent = title;
-
-    const lines = detail.split(/\r?\n/g);
+  setConfirmDetailText_(text) {
+    const lines = text.split(/\r?\n/g);
     let firstLine = true;
     for (let l of lines) {
       if (firstLine) {
@@ -722,18 +745,60 @@ class BrowseFS extends HTMLElement {
       const text = document.createTextNode(l);
       this.confirmDetail_.appendChild(text);
     }
+  }
+
+  setConfirmDetailItems_(items) {
+    const div = this.confirmDetail_;
+    for (let item of items) {
+      const divItem = document.createElement("div");
+      divItem.classList.add(kDetailItemClass);
+
+      const spanProgress = document.createElement("span");
+      spanProgress.classList.add(kDetailProgressClass);
+      spanProgress.textContent = '・';
+      divItem.appendChild(spanProgress);
+
+      const spanText = document.createElement("span");
+      spanText.classList.add(kDetailTextClass);
+      spanText.textContent = item;
+      divItem.appendChild(spanText);
+
+      div.appendChild(divItem);
+    }
+  }
+
+  setConfirmProgress_(n) {
+    const div = this.confirmDetail_;
+    const nl = div.querySelectorAll(`.${kDetailProgressClass}`);
+    for (let i = 0; i < n; ++ i) {
+      if (i >= nl.length)
+        return;
+
+      nl[i].textContent = '✔';
+    }
+  }
+
+  openConfirm_(title) {
+    this.confirmTitle_.textContent = title;
+
     this.classList.add(kModalClass);
     this.classList.add(kConfirmActiveClass);
+    this.confirmOk_.classList.remove(kDisabledClass);
+    this.confirmCancel_.classList.remove(kDisabledClass);
 
     return new Promise((resolve, reject) => {
       this.onExitDialog_ = (success) => {
         this.onExitDialog_ = null;
+        this.confirmOk_.classList.add(kDisabledClass);
+        this.confirmCancel_.classList.add(kDisabledClass);
+
         if (!success) {
           this.closeConfirm_();
           reject(kDialogCancelled);
           return;
         }
 
+        this.classList.add(kConfirmProcessingClass);
         resolve(true);
       };
     });
@@ -742,6 +807,7 @@ class BrowseFS extends HTMLElement {
   closeConfirm_() {
     this.classList.remove(kModalClass);
     this.classList.remove(kConfirmActiveClass);
+    this.classList.remove(kConfirmProcessingClass);
     removeAllChildNodes(this.confirmTitle_);
     removeAllChildNodes(this.confirmDetail_);
   }
@@ -757,12 +823,65 @@ class BrowseFS extends HTMLElement {
       selectedRows = this.getSelectedRows_();
     }
 
-    let details = '';
+    const items = [];
+    const itemLabels = [];
     for (let r of selectedRows) {
-      details += `rm: "${r.data.name}"\n`;
+      items.push(this.path + r.data.name);
+      itemLabels.push(`rm: "${r.data.name}"`);
     }
-    await this.openConfirm_(`Delete: ${selectedRows.length} item(s)`, details);
+    this.setConfirmDetailItems_(itemLabels);
+    await this.openConfirm_(`Delete: ${selectedRows.length} item(s)`);
+    let i = 0;
+    for (let item of items) {
+      console.log(`rpc rm ${item}`);
+      await fsRm(item);
+      this.setConfirmProgress_(++i);
+    }
     this.closeConfirm_();
+    this.triggerUpdate();
+  }
+
+  async moveSelection() {
+    try {
+      if (!this.counterpart) {
+        throw "No counterpart to move to.";
+        return;
+      }
+
+      let selectedRows = this.getSelectedRows_();
+      if (selectedRows.length == 0) {
+        if (!this.cursorRow) {
+          console.log("No row selected for move.");
+          return;
+        }
+        this.cursorRow.toggleSelection();
+        selectedRows = this.getSelectedRows_();
+      }
+
+      const items = [];
+      const itemLabels = [];
+      for (let r of selectedRows) {
+        const src = this.path + r.data.name;
+        const dest = this.counterpart.path + r.data.name;
+        items.push({src, dest});
+        itemLabels.push(`mv: "${src}" -> "${dest}"`);
+      }
+      this.setConfirmDetailItems_(itemLabels);
+      await this.openConfirm_(`Move: ${selectedRows.length} item(s)`);
+      let i = 0;
+      for (let item of items) {
+        console.log(item);
+        await fsMv(item.src, item.dest);
+        this.setConfirmProgress_(++i);
+      }
+      this.closeConfirm_();
+      this.triggerUpdate();
+      this.counterpart.triggerUpdate();
+    } catch (e) {
+      alert(e);
+    } finally {
+      this.closeConfirm_();
+    }
   }
 }
 window.customElements.define("browse-fs", BrowseFS);

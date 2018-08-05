@@ -34,7 +34,7 @@ const rpc = async (endpoint, opts = {}) => {
     fetchOpts.body = new Blob([jsonStr], {type: 'application/json'});
   }
   if (opts['rawBody'] !== undefined) {
-    fetchOpts.body = opts['rawBody']; 
+    fetchOpts.body = opts['rawBody'];
   }
 
   const resp = await window.fetch(url, fetchOpts);
@@ -45,7 +45,7 @@ const rpc = async (endpoint, opts = {}) => {
   if (ctype === "application/json") {
     return await resp.json();
   } else if (ctype === "text/plain") {
-    return await resp.text(); 
+    return await resp.text();
   } else {
     throw new Error(`fetch resp unknown ctype "${ctype}"`);
   }
@@ -87,7 +87,7 @@ const parseOtaruPath = (opath) => {
 }
 
 const fsLs = async (host, path) => {
-  const result = await rpc(fsopEndpoint('ls', host), {args: {path: path}});
+  const result = await rpc(fsopEndpoint('ls', host), {args: {path}});
   if (result['entry'])
     return result['entry'];
 
@@ -101,10 +101,17 @@ const fsMkdir = async (opath) => {
   const {host, path} = parseOtaruPath(opath);
   return await rpc(fsopEndpoint('mkdir', host), {
     method: 'POST',
-    body: {path: path}
+    body: {path}
   });
 };
 
+const fsRm = async (opath) => {
+  const {host, path} = parseOtaruPath(opath);
+  return await rpc(fsopEndpoint('rm', host), {
+    method: 'POST',
+    body: {path}
+  });
+};
 
 const fsMv = async (src, dest) => {
   const {host: hostSrc, path: pathSrc} = parseOtaruPath(src);
@@ -117,7 +124,7 @@ const fsMv = async (src, dest) => {
   console.log(`mv "${pathSrc}" -> "${pathDest}"`);
   return await rpc (fsopEndpoint('mv', hostSrc), {
     method: 'POST',
-    body: {pathSrc: pathSrc, pathDest: pathDest},
+    body: {pathSrc, pathDest},
   });
 };
 
@@ -126,7 +133,7 @@ const previewFileUrl = (opath, idx) => {
 };
 
 const previewFile = async (opath) => {
-  return await rpc('preview', {args: {opath: opath}});
+  return await rpc('preview', {args: {opath}});
 };
 
 const downloadFile = (host, id, filename) => {
@@ -149,6 +156,7 @@ export {
   fsLs,
   fsMkdir,
   fsMv,
+  fsRm,
   parseOtaruPath,
   previewFile,
   previewFileUrl,

@@ -59,6 +59,11 @@ body {
   user-select: none;
 }
 
+.button.disabled {
+  background-color: var(--dark-bg-color);
+  border: 1px solid black;
+}
+
 .nav {
   width: 100%;
   height: var(--nav-height);

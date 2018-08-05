@@ -222,6 +222,10 @@
       "properties": {
         "path": {
           "type": "string"
+        },
+        "remove_children": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
