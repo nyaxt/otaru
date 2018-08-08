@@ -813,32 +813,38 @@ class BrowseFS extends HTMLElement {
   }
 
   async deleteSelection() {
-    let selectedRows = this.getSelectedRows_();
-    if (selectedRows.length == 0) {
-      if (!this.cursorRow) {
-        console.log("No row selected for deletion.");
-        return;
+    try {
+      let selectedRows = this.getSelectedRows_();
+      if (selectedRows.length == 0) {
+        if (!this.cursorRow) {
+          console.log("No row selected for deletion.");
+          return;
+        }
+        this.cursorRow.toggleSelection();
+        selectedRows = this.getSelectedRows_();
       }
-      this.cursorRow.toggleSelection();
-      selectedRows = this.getSelectedRows_();
-    }
 
-    const items = [];
-    const itemLabels = [];
-    for (let r of selectedRows) {
-      items.push(this.path + r.data.name);
-      itemLabels.push(`rm: "${r.data.name}"`);
+      const items = [];
+      const itemLabels = [];
+      for (let r of selectedRows) {
+        items.push(this.path + r.data.name);
+        itemLabels.push(`rm: "${r.data.name}"`);
+      }
+      this.setConfirmDetailItems_(itemLabels);
+      await this.openConfirm_(`Delete: ${selectedRows.length} item(s)`);
+      let i = 0;
+      for (let item of items) {
+        console.log(`rpc rm ${item}`);
+        await fsRm(item);
+        this.setConfirmProgress_(++i);
+      }
+      this.closeConfirm_();
+      this.triggerUpdate();
+    } catch (e) {
+      alert(e);
+    } finally {
+      this.closeConfirm_();
     }
-    this.setConfirmDetailItems_(itemLabels);
-    await this.openConfirm_(`Delete: ${selectedRows.length} item(s)`);
-    let i = 0;
-    for (let item of items) {
-      console.log(`rpc rm ${item}`);
-      await fsRm(item);
-      this.setConfirmProgress_(++i);
-    }
-    this.closeConfirm_();
-    this.triggerUpdate();
   }
 
   async moveSelection() {
