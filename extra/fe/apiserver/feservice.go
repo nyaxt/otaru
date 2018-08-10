@@ -1,8 +1,12 @@
 package apiserver
 
 import (
+	"fmt"
+	"io"
 	"io/ioutil"
+	"math/rand"
 	"os"
+	"path/filepath"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -117,20 +121,55 @@ func (s *feService) RemoveLocal(ctx context.Context, req *pb.RemoveLocalRequest)
 	}
 
 	logger.Infof(mylog, "Remove %q", path)
-	if _, err = os.Stat(path); err != nil {
+	fi, err := os.Stat(path)
+	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, grpc.Errorf(codes.FailedPrecondition, "Destination path does not exist.")
 		}
 		return nil, grpc.Errorf(codes.Internal, "Error Stat()ing destination path: %v", err)
 	}
 
-	if req.RemoveChildren {
-		if err := os.RemoveAll(path); err != nil {
-			return nil, grpc.Errorf(codes.Internal, "Error os.RemoveAll(): %v", err)
+	if fi.IsDir() && !req.RemoveChildren {
+		d, err := os.Open(path)
+		if err != nil {
+			return nil, grpc.Errorf(codes.Internal, "Failed to open dir: %v", err)
+		}
+		defer d.Close()
+
+		if _, err := d.Readdirnames(1); err != io.EOF {
+			if err != nil {
+				return nil, grpc.Errorf(codes.Internal, "Failed to peek dir: %v", err)
+			}
+			return nil, grpc.Errorf(codes.FailedPrecondition, "Target dir not empty and RemoveChildren flag is not set.")
+		}
+	}
+
+	if s.cfg.TrashDirPath != "" {
+		trashPath := filepath.Join(s.cfg.TrashDirPath, filepath.Base(path))
+		for {
+			if _, err := os.Stat(trashPath); err != nil {
+				if os.IsNotExist(err) {
+					break
+				}
+				return nil, grpc.Errorf(codes.Internal, "Stat failed for unknown reason: %v", err)
+			}
+
+			trashBase := fmt.Sprintf("%s_%d", filepath.Base(path), rand.Intn(100))
+			trashPath = filepath.Join(s.cfg.TrashDirPath, trashBase)
+		}
+
+		if err := os.Rename(path, trashPath); err != nil {
+			return nil, grpc.Errorf(codes.Internal, "Error os.Rename(): %v", err)
 		}
 	} else {
-		if err := os.Remove(path); err != nil {
-			return nil, grpc.Errorf(codes.Internal, "Error os.Remove(): %v", err)
+		if req.RemoveChildren {
+			if err := os.RemoveAll(path); err != nil {
+				return nil, grpc.Errorf(codes.Internal, "Error os.RemoveAll(): %v", err)
+			}
+		} else {
+			if err := os.Remove(path); err != nil {
+				return nil, grpc.Errorf(codes.Internal, "Error os.Remove(): %v", err)
+			}
 		}
 	}
 

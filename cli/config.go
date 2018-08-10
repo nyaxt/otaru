@@ -18,10 +18,10 @@ var ErrNoLocalPathDefined = errors.New("No local root path is defined.")
 type CliConfig struct {
 	Host map[string]*Host
 
-	Fe              FeConfig
-	FuzzyMvCacheDir string
+	Fe FeConfig
 
 	LocalRootPath string
+	TrashDirPath  string
 }
 
 type Host struct {
@@ -42,7 +42,7 @@ type FeConfig struct {
 
 func NewConfig(configdir string) (*CliConfig, error) {
 	if err := util.IsDir(configdir); err != nil {
-		return nil, fmt.Errorf("configdir \"%s\" is not a dir: %v", configdir, err)
+		return nil, fmt.Errorf("configdir %q is not a dir: %v", configdir, err)
 	}
 	os.Setenv("OTARUDIR", configdir)
 
@@ -58,7 +58,6 @@ func NewConfig(configdir string) (*CliConfig, error) {
 		possibleCertFile = ""
 	}
 	cfg := CliConfig{
-		FuzzyMvCacheDir: path.Join(configdir, "fuzzymvcache"),
 		Fe: FeConfig{
 			ListenAddr: ":10247",
 			CertFile:   possibleCertFile,
@@ -73,6 +72,17 @@ func NewConfig(configdir string) (*CliConfig, error) {
 		h.ExpectedCertFile = os.ExpandEnv(h.ExpectedCertFile)
 		if h.ExpectedCertFile == "" {
 			h.ExpectedCertFile = possibleCertFile
+		}
+	}
+
+	if cfg.LocalRootPath != "" {
+		if err := util.IsDir(cfg.LocalRootPath); err != nil {
+			return nil, fmt.Errorf("local_root_path %q is not a dir: %v", cfg.LocalRootPath, err)
+		}
+	}
+	if cfg.TrashDirPath != "" {
+		if err := util.IsDir(cfg.TrashDirPath); err != nil {
+			return nil, fmt.Errorf("trash_dir_path %q is not a dir: %v", cfg.TrashDirPath, err)
 		}
 	}
 
