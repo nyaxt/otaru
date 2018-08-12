@@ -58,6 +58,30 @@ message MoveLocalRequest {
 message MoveLocalResponse {
 }
 
+message DownloadRequest {
+  string opath_stc = 1;
+  string path_dest = 2;
+}
+
+message DownloadResponse {
+}
+
+message UploadRequest {
+  string path_stc = 1;
+  string opath_dest = 2;
+}
+
+message UploadResponse {
+}
+
+message RemoteMoveRequest {
+  string opath_src = 1;
+  string opath_dest = 2;
+}
+
+message RemoteMoveResponse {
+}
+
 message RemoveLocalRequest {
   string path = 1;
   bool remove_children = 2;
@@ -89,6 +113,27 @@ service FeService {
   rpc MoveLocal(MoveLocalRequest) returns (MoveLocalResponse) {
     option (google.api.http) = {
       post: "/api/v1/fe/local/mv"
+      body: "*"
+    };
+  }
+
+  rpc Download(DownloadRequest) returns (DownloadResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/fe/local/download"
+      body: "*"
+    };
+  }
+
+  rpc Upload(UploadRequest) returns (UploadResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/fe/local/upload"
+      body: "*"
+    };
+  }
+
+  rpc RemoteMove(RemoteMoveRequest) returns (RemoteMoveResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/fe/local/remote_mv"
       body: "*"
     };
   }

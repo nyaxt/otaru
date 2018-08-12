@@ -1,5 +1,7 @@
 import {$} from './domhelper.js';
 
+const kHostLocal = '[local]';
+
 let apiprefix = `${window.document.location.origin}/`;
 (() => {
   const apiprefix_input = $("#apiprefix");
@@ -69,7 +71,7 @@ const fillRemoteContent = async (endpoint, prefix, fillKeys) => {
 const fsopEndpoint = (op, host) => {
   if (host === '[noproxy]')
     return `api/v1/filesystem/${op}`;
-  else if (host === '[local]')
+  else if (host === kHostLocal)
     return `api/v1/fe/local/${op}`;
 
   return `proxy/${host}/api/v1/filesystem/${op}`;
@@ -117,15 +119,42 @@ const fsMv = async (src, dest) => {
   const {host: hostSrc, path: pathSrc} = parseOtaruPath(src);
   const {host: hostDest, path: pathDest} = parseOtaruPath(dest);
 
+  // local  -> local: /api/v1/fe/local/mv
+  // local  -> remote: /api/v1/fe/local/upload
+  // remote -> local: /api/v1/fe/local/download
+  // remote -> remote: /api/v1/fe/remove_mv
+
   if (hostSrc != hostDest) {
     throw new Error(`Unimplemented: src host ${hostSrc} != dest host ${hostDest}`);
   }
 
   console.log(`mv "${pathSrc}" -> "${pathDest}"`);
-  return await rpc (fsopEndpoint('mv', hostSrc), {
-    method: 'POST',
-    body: {pathSrc, pathDest},
-  });
+
+  if (hostSrc === kHostLocal) {
+    if (hostDest === kHostLocal) {
+      return await rpc ('api/v1/fe/local/mv', {
+        method: 'POST',
+        body: {pathSrc, pathDest},
+      });
+    }
+
+    return await rpc ('api/v1/fe/local/upload', {
+      method: 'POST',
+      body: {pathSrc, opathDest: dest},
+    });
+  } else {
+    if (hostDest === kHostLocal) {
+      return await rpc ('api/v1/fe/local/download', {
+        method: 'POST',
+        body: {opathSrc: src, pathDest},
+      });
+    }
+
+    return await rpc('api/v1/fe/remove_mv', {
+      method: 'POST',
+      body: {opathSrc: src, opathDest: dest}
+    });
+  }
 };
 
 const previewFileUrl = (opath, idx) => {
@@ -140,7 +169,7 @@ const downloadFile = (host, id, filename) => {
   var ep;
   if (host === '[noproxy]') {
     ep = `file/${id}/${encodeURIComponent(filename)}`;
-  } else if (host === '[local]') {
+  } else if (host === kHostLocal) {
     throw "attempt to download local file";
   } else {
     ep = `proxy/${host}/file/${id}/${encodeURIComponent(filename)}`;
