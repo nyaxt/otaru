@@ -42,7 +42,7 @@ func (p *zipPreviewer) Serve(ctx context.Context, opath string, idx int, w http.
 
 	size := r.Size()
 	if size > MaxArchiveSize {
-		return fmt.Errorf("Refusing to read large archive %.02f MB", size/1024/1024)
+		return fmt.Errorf("Refusing to read large archive %.02f MB", float64(size)/1024/1024)
 	}
 
 	ra, ok := r.(io.ReaderAt)
