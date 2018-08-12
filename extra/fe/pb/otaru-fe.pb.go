@@ -36,7 +36,7 @@ func (m *ListHostsRequest) Reset()         { *m = ListHostsRequest{} }
 func (m *ListHostsRequest) String() string { return proto.CompactTextString(m) }
 func (*ListHostsRequest) ProtoMessage()    {}
 func (*ListHostsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_otaru_fe_3ac03136d0201698, []int{0}
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{0}
 }
 func (m *ListHostsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListHostsRequest.Unmarshal(m, b)
@@ -67,7 +67,7 @@ func (m *ListHostsResponse) Reset()         { *m = ListHostsResponse{} }
 func (m *ListHostsResponse) String() string { return proto.CompactTextString(m) }
 func (*ListHostsResponse) ProtoMessage()    {}
 func (*ListHostsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_otaru_fe_3ac03136d0201698, []int{1}
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{1}
 }
 func (m *ListHostsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListHostsResponse.Unmarshal(m, b)
@@ -109,7 +109,7 @@ func (m *FileInfo) Reset()         { *m = FileInfo{} }
 func (m *FileInfo) String() string { return proto.CompactTextString(m) }
 func (*FileInfo) ProtoMessage()    {}
 func (*FileInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_otaru_fe_3ac03136d0201698, []int{2}
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{2}
 }
 func (m *FileInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FileInfo.Unmarshal(m, b)
@@ -175,7 +175,7 @@ func (m *ListLocalDirRequest) Reset()         { *m = ListLocalDirRequest{} }
 func (m *ListLocalDirRequest) String() string { return proto.CompactTextString(m) }
 func (*ListLocalDirRequest) ProtoMessage()    {}
 func (*ListLocalDirRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_otaru_fe_3ac03136d0201698, []int{3}
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{3}
 }
 func (m *ListLocalDirRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListLocalDirRequest.Unmarshal(m, b)
@@ -213,7 +213,7 @@ func (m *ListLocalDirResponse) Reset()         { *m = ListLocalDirResponse{} }
 func (m *ListLocalDirResponse) String() string { return proto.CompactTextString(m) }
 func (*ListLocalDirResponse) ProtoMessage()    {}
 func (*ListLocalDirResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_otaru_fe_3ac03136d0201698, []int{4}
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{4}
 }
 func (m *ListLocalDirResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListLocalDirResponse.Unmarshal(m, b)
@@ -251,7 +251,7 @@ func (m *MkdirLocalRequest) Reset()         { *m = MkdirLocalRequest{} }
 func (m *MkdirLocalRequest) String() string { return proto.CompactTextString(m) }
 func (*MkdirLocalRequest) ProtoMessage()    {}
 func (*MkdirLocalRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_otaru_fe_3ac03136d0201698, []int{5}
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{5}
 }
 func (m *MkdirLocalRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MkdirLocalRequest.Unmarshal(m, b)
@@ -288,7 +288,7 @@ func (m *MkdirLocalResponse) Reset()         { *m = MkdirLocalResponse{} }
 func (m *MkdirLocalResponse) String() string { return proto.CompactTextString(m) }
 func (*MkdirLocalResponse) ProtoMessage()    {}
 func (*MkdirLocalResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_otaru_fe_3ac03136d0201698, []int{6}
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{6}
 }
 func (m *MkdirLocalResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MkdirLocalResponse.Unmarshal(m, b)
@@ -320,7 +320,7 @@ func (m *MoveLocalRequest) Reset()         { *m = MoveLocalRequest{} }
 func (m *MoveLocalRequest) String() string { return proto.CompactTextString(m) }
 func (*MoveLocalRequest) ProtoMessage()    {}
 func (*MoveLocalRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_otaru_fe_3ac03136d0201698, []int{7}
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{7}
 }
 func (m *MoveLocalRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MoveLocalRequest.Unmarshal(m, b)
@@ -364,7 +364,7 @@ func (m *MoveLocalResponse) Reset()         { *m = MoveLocalResponse{} }
 func (m *MoveLocalResponse) String() string { return proto.CompactTextString(m) }
 func (*MoveLocalResponse) ProtoMessage()    {}
 func (*MoveLocalResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_otaru_fe_3ac03136d0201698, []int{8}
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{8}
 }
 func (m *MoveLocalResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MoveLocalResponse.Unmarshal(m, b)
@@ -384,6 +384,242 @@ func (m *MoveLocalResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MoveLocalResponse proto.InternalMessageInfo
 
+type DownloadRequest struct {
+	OpathStc             string   `protobuf:"bytes,1,opt,name=opath_stc,json=opathStc,proto3" json:"opath_stc,omitempty"`
+	PathDest             string   `protobuf:"bytes,2,opt,name=path_dest,json=pathDest,proto3" json:"path_dest,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *DownloadRequest) Reset()         { *m = DownloadRequest{} }
+func (m *DownloadRequest) String() string { return proto.CompactTextString(m) }
+func (*DownloadRequest) ProtoMessage()    {}
+func (*DownloadRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{9}
+}
+func (m *DownloadRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DownloadRequest.Unmarshal(m, b)
+}
+func (m *DownloadRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DownloadRequest.Marshal(b, m, deterministic)
+}
+func (dst *DownloadRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DownloadRequest.Merge(dst, src)
+}
+func (m *DownloadRequest) XXX_Size() int {
+	return xxx_messageInfo_DownloadRequest.Size(m)
+}
+func (m *DownloadRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_DownloadRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DownloadRequest proto.InternalMessageInfo
+
+func (m *DownloadRequest) GetOpathStc() string {
+	if m != nil {
+		return m.OpathStc
+	}
+	return ""
+}
+
+func (m *DownloadRequest) GetPathDest() string {
+	if m != nil {
+		return m.PathDest
+	}
+	return ""
+}
+
+type DownloadResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *DownloadResponse) Reset()         { *m = DownloadResponse{} }
+func (m *DownloadResponse) String() string { return proto.CompactTextString(m) }
+func (*DownloadResponse) ProtoMessage()    {}
+func (*DownloadResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{10}
+}
+func (m *DownloadResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DownloadResponse.Unmarshal(m, b)
+}
+func (m *DownloadResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DownloadResponse.Marshal(b, m, deterministic)
+}
+func (dst *DownloadResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DownloadResponse.Merge(dst, src)
+}
+func (m *DownloadResponse) XXX_Size() int {
+	return xxx_messageInfo_DownloadResponse.Size(m)
+}
+func (m *DownloadResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_DownloadResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DownloadResponse proto.InternalMessageInfo
+
+type UploadRequest struct {
+	PathSrc              string   `protobuf:"bytes,1,opt,name=path_src,json=pathSrc,proto3" json:"path_src,omitempty"`
+	OpathDest            string   `protobuf:"bytes,2,opt,name=opath_dest,json=opathDest,proto3" json:"opath_dest,omitempty"`
+	AllowOverwrite       bool     `protobuf:"varint,3,opt,name=allow_overwrite,json=allowOverwrite,proto3" json:"allow_overwrite,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *UploadRequest) Reset()         { *m = UploadRequest{} }
+func (m *UploadRequest) String() string { return proto.CompactTextString(m) }
+func (*UploadRequest) ProtoMessage()    {}
+func (*UploadRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{11}
+}
+func (m *UploadRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UploadRequest.Unmarshal(m, b)
+}
+func (m *UploadRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UploadRequest.Marshal(b, m, deterministic)
+}
+func (dst *UploadRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UploadRequest.Merge(dst, src)
+}
+func (m *UploadRequest) XXX_Size() int {
+	return xxx_messageInfo_UploadRequest.Size(m)
+}
+func (m *UploadRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UploadRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UploadRequest proto.InternalMessageInfo
+
+func (m *UploadRequest) GetPathSrc() string {
+	if m != nil {
+		return m.PathSrc
+	}
+	return ""
+}
+
+func (m *UploadRequest) GetOpathDest() string {
+	if m != nil {
+		return m.OpathDest
+	}
+	return ""
+}
+
+func (m *UploadRequest) GetAllowOverwrite() bool {
+	if m != nil {
+		return m.AllowOverwrite
+	}
+	return false
+}
+
+type UploadResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *UploadResponse) Reset()         { *m = UploadResponse{} }
+func (m *UploadResponse) String() string { return proto.CompactTextString(m) }
+func (*UploadResponse) ProtoMessage()    {}
+func (*UploadResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{12}
+}
+func (m *UploadResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UploadResponse.Unmarshal(m, b)
+}
+func (m *UploadResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UploadResponse.Marshal(b, m, deterministic)
+}
+func (dst *UploadResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UploadResponse.Merge(dst, src)
+}
+func (m *UploadResponse) XXX_Size() int {
+	return xxx_messageInfo_UploadResponse.Size(m)
+}
+func (m *UploadResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UploadResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UploadResponse proto.InternalMessageInfo
+
+type RemoteMoveRequest struct {
+	OpathSrc             string   `protobuf:"bytes,1,opt,name=opath_src,json=opathSrc,proto3" json:"opath_src,omitempty"`
+	OpathDest            string   `protobuf:"bytes,2,opt,name=opath_dest,json=opathDest,proto3" json:"opath_dest,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *RemoteMoveRequest) Reset()         { *m = RemoteMoveRequest{} }
+func (m *RemoteMoveRequest) String() string { return proto.CompactTextString(m) }
+func (*RemoteMoveRequest) ProtoMessage()    {}
+func (*RemoteMoveRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{13}
+}
+func (m *RemoteMoveRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RemoteMoveRequest.Unmarshal(m, b)
+}
+func (m *RemoteMoveRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RemoteMoveRequest.Marshal(b, m, deterministic)
+}
+func (dst *RemoteMoveRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RemoteMoveRequest.Merge(dst, src)
+}
+func (m *RemoteMoveRequest) XXX_Size() int {
+	return xxx_messageInfo_RemoteMoveRequest.Size(m)
+}
+func (m *RemoteMoveRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RemoteMoveRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RemoteMoveRequest proto.InternalMessageInfo
+
+func (m *RemoteMoveRequest) GetOpathSrc() string {
+	if m != nil {
+		return m.OpathSrc
+	}
+	return ""
+}
+
+func (m *RemoteMoveRequest) GetOpathDest() string {
+	if m != nil {
+		return m.OpathDest
+	}
+	return ""
+}
+
+type RemoteMoveResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *RemoteMoveResponse) Reset()         { *m = RemoteMoveResponse{} }
+func (m *RemoteMoveResponse) String() string { return proto.CompactTextString(m) }
+func (*RemoteMoveResponse) ProtoMessage()    {}
+func (*RemoteMoveResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{14}
+}
+func (m *RemoteMoveResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RemoteMoveResponse.Unmarshal(m, b)
+}
+func (m *RemoteMoveResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RemoteMoveResponse.Marshal(b, m, deterministic)
+}
+func (dst *RemoteMoveResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RemoteMoveResponse.Merge(dst, src)
+}
+func (m *RemoteMoveResponse) XXX_Size() int {
+	return xxx_messageInfo_RemoteMoveResponse.Size(m)
+}
+func (m *RemoteMoveResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_RemoteMoveResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RemoteMoveResponse proto.InternalMessageInfo
+
 type RemoveLocalRequest struct {
 	Path                 string   `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
 	RemoveChildren       bool     `protobuf:"varint,2,opt,name=remove_children,json=removeChildren,proto3" json:"remove_children,omitempty"`
@@ -396,7 +632,7 @@ func (m *RemoveLocalRequest) Reset()         { *m = RemoveLocalRequest{} }
 func (m *RemoveLocalRequest) String() string { return proto.CompactTextString(m) }
 func (*RemoveLocalRequest) ProtoMessage()    {}
 func (*RemoveLocalRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_otaru_fe_3ac03136d0201698, []int{9}
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{15}
 }
 func (m *RemoveLocalRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RemoveLocalRequest.Unmarshal(m, b)
@@ -440,7 +676,7 @@ func (m *RemoveLocalResponse) Reset()         { *m = RemoveLocalResponse{} }
 func (m *RemoveLocalResponse) String() string { return proto.CompactTextString(m) }
 func (*RemoveLocalResponse) ProtoMessage()    {}
 func (*RemoveLocalResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_otaru_fe_3ac03136d0201698, []int{10}
+	return fileDescriptor_otaru_fe_9a3141afedd5b125, []int{16}
 }
 func (m *RemoveLocalResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RemoveLocalResponse.Unmarshal(m, b)
@@ -470,6 +706,12 @@ func init() {
 	proto.RegisterType((*MkdirLocalResponse)(nil), "pb.MkdirLocalResponse")
 	proto.RegisterType((*MoveLocalRequest)(nil), "pb.MoveLocalRequest")
 	proto.RegisterType((*MoveLocalResponse)(nil), "pb.MoveLocalResponse")
+	proto.RegisterType((*DownloadRequest)(nil), "pb.DownloadRequest")
+	proto.RegisterType((*DownloadResponse)(nil), "pb.DownloadResponse")
+	proto.RegisterType((*UploadRequest)(nil), "pb.UploadRequest")
+	proto.RegisterType((*UploadResponse)(nil), "pb.UploadResponse")
+	proto.RegisterType((*RemoteMoveRequest)(nil), "pb.RemoteMoveRequest")
+	proto.RegisterType((*RemoteMoveResponse)(nil), "pb.RemoteMoveResponse")
 	proto.RegisterType((*RemoveLocalRequest)(nil), "pb.RemoveLocalRequest")
 	proto.RegisterType((*RemoveLocalResponse)(nil), "pb.RemoveLocalResponse")
 }
@@ -490,6 +732,9 @@ type FeServiceClient interface {
 	ListLocalDir(ctx context.Context, in *ListLocalDirRequest, opts ...grpc.CallOption) (*ListLocalDirResponse, error)
 	MkdirLocal(ctx context.Context, in *MkdirLocalRequest, opts ...grpc.CallOption) (*MkdirLocalResponse, error)
 	MoveLocal(ctx context.Context, in *MoveLocalRequest, opts ...grpc.CallOption) (*MoveLocalResponse, error)
+	Download(ctx context.Context, in *DownloadRequest, opts ...grpc.CallOption) (*DownloadResponse, error)
+	Upload(ctx context.Context, in *UploadRequest, opts ...grpc.CallOption) (*UploadResponse, error)
+	RemoteMove(ctx context.Context, in *RemoteMoveRequest, opts ...grpc.CallOption) (*RemoteMoveResponse, error)
 	RemoveLocal(ctx context.Context, in *RemoveLocalRequest, opts ...grpc.CallOption) (*RemoveLocalResponse, error)
 }
 
@@ -537,6 +782,33 @@ func (c *feServiceClient) MoveLocal(ctx context.Context, in *MoveLocalRequest, o
 	return out, nil
 }
 
+func (c *feServiceClient) Download(ctx context.Context, in *DownloadRequest, opts ...grpc.CallOption) (*DownloadResponse, error) {
+	out := new(DownloadResponse)
+	err := c.cc.Invoke(ctx, "/pb.FeService/Download", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *feServiceClient) Upload(ctx context.Context, in *UploadRequest, opts ...grpc.CallOption) (*UploadResponse, error) {
+	out := new(UploadResponse)
+	err := c.cc.Invoke(ctx, "/pb.FeService/Upload", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *feServiceClient) RemoteMove(ctx context.Context, in *RemoteMoveRequest, opts ...grpc.CallOption) (*RemoteMoveResponse, error) {
+	out := new(RemoteMoveResponse)
+	err := c.cc.Invoke(ctx, "/pb.FeService/RemoteMove", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *feServiceClient) RemoveLocal(ctx context.Context, in *RemoveLocalRequest, opts ...grpc.CallOption) (*RemoveLocalResponse, error) {
 	out := new(RemoveLocalResponse)
 	err := c.cc.Invoke(ctx, "/pb.FeService/RemoveLocal", in, out, opts...)
@@ -552,6 +824,9 @@ type FeServiceServer interface {
 	ListLocalDir(context.Context, *ListLocalDirRequest) (*ListLocalDirResponse, error)
 	MkdirLocal(context.Context, *MkdirLocalRequest) (*MkdirLocalResponse, error)
 	MoveLocal(context.Context, *MoveLocalRequest) (*MoveLocalResponse, error)
+	Download(context.Context, *DownloadRequest) (*DownloadResponse, error)
+	Upload(context.Context, *UploadRequest) (*UploadResponse, error)
+	RemoteMove(context.Context, *RemoteMoveRequest) (*RemoteMoveResponse, error)
 	RemoveLocal(context.Context, *RemoveLocalRequest) (*RemoveLocalResponse, error)
 }
 
@@ -631,6 +906,60 @@ func _FeService_MoveLocal_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FeService_Download_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DownloadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FeServiceServer).Download(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.FeService/Download",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FeServiceServer).Download(ctx, req.(*DownloadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FeService_Upload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UploadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FeServiceServer).Upload(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.FeService/Upload",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FeServiceServer).Upload(ctx, req.(*UploadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FeService_RemoteMove_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoteMoveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FeServiceServer).RemoteMove(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.FeService/RemoteMove",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FeServiceServer).RemoteMove(ctx, req.(*RemoteMoveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _FeService_RemoveLocal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RemoveLocalRequest)
 	if err := dec(in); err != nil {
@@ -670,6 +999,18 @@ var _FeService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _FeService_MoveLocal_Handler,
 		},
 		{
+			MethodName: "Download",
+			Handler:    _FeService_Download_Handler,
+		},
+		{
+			MethodName: "Upload",
+			Handler:    _FeService_Upload_Handler,
+		},
+		{
+			MethodName: "RemoteMove",
+			Handler:    _FeService_RemoteMove_Handler,
+		},
+		{
 			MethodName: "RemoveLocal",
 			Handler:    _FeService_RemoveLocal_Handler,
 		},
@@ -678,50 +1019,61 @@ var _FeService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "otaru-fe.proto",
 }
 
-func init() { proto.RegisterFile("otaru-fe.proto", fileDescriptor_otaru_fe_3ac03136d0201698) }
+func init() { proto.RegisterFile("otaru-fe.proto", fileDescriptor_otaru_fe_9a3141afedd5b125) }
 
-var fileDescriptor_otaru_fe_3ac03136d0201698 = []byte{
-	// 661 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x54, 0xcd, 0x72, 0xd3, 0x3c,
-	0x14, 0x1d, 0x27, 0xed, 0xf7, 0x25, 0x6a, 0x52, 0x52, 0xa5, 0x3f, 0xc6, 0x65, 0x3a, 0xae, 0x59,
-	0x34, 0x74, 0x68, 0x4c, 0xc3, 0x2e, 0x2b, 0x4a, 0x3b, 0x1d, 0xca, 0xb4, 0xfc, 0xb8, 0x5d, 0x74,
-	0xd5, 0x8c, 0x63, 0xdf, 0x24, 0x2a, 0xb6, 0x25, 0x24, 0x25, 0x10, 0x76, 0x30, 0xc3, 0x0b, 0xc0,
-	0x82, 0x07, 0x63, 0xc5, 0x9e, 0x07, 0x61, 0x24, 0x3b, 0x25, 0xb5, 0x19, 0x58, 0x59, 0x3e, 0xf7,
-	0xdc, 0x73, 0x7f, 0x8e, 0x46, 0x68, 0x99, 0x4a, 0x9f, 0x8f, 0xf7, 0x06, 0xd0, 0x66, 0x9c, 0x4a,
-	0x8a, 0x4b, 0xac, 0x6f, 0x2d, 0x69, 0x2c, 0x05, 0xac, 0x7b, 0x43, 0x4a, 0x87, 0x11, 0xb8, 0x3e,
-	0x23, 0xae, 0x9f, 0x24, 0x54, 0xfa, 0x92, 0xd0, 0x44, 0x64, 0xd1, 0x87, 0xfa, 0x13, 0xec, 0x0d,
-	0x21, 0xd9, 0x13, 0xef, 0xfc, 0xe1, 0x10, 0xb8, 0x4b, 0x99, 0x66, 0x14, 0xd9, 0x0e, 0x46, 0x8d,
-	0x53, 0x22, 0xe4, 0x33, 0x2a, 0xa4, 0xf0, 0xe0, 0xed, 0x18, 0x84, 0x74, 0x76, 0xd0, 0xca, 0x1c,
-	0x26, 0x18, 0x4d, 0x04, 0x60, 0x8c, 0x16, 0x46, 0x54, 0x48, 0xd3, 0xb0, 0xcb, 0xad, 0xaa, 0xa7,
-	0xcf, 0xce, 0x37, 0x03, 0x55, 0x8e, 0x49, 0x04, 0x27, 0xc9, 0x80, 0x2a, 0x42, 0xe2, 0xc7, 0x60,
-	0x1a, 0xb6, 0xa1, 0x08, 0xea, 0x8c, 0xb7, 0xd1, 0x82, 0x9c, 0x32, 0x30, 0x4b, 0xb6, 0xd1, 0x5a,
-	0xee, 0xd4, 0xdb, 0xac, 0xdf, 0x3e, 0x79, 0x41, 0x43, 0xb8, 0x98, 0x32, 0xf0, 0x74, 0x48, 0xa5,
-	0x09, 0xf2, 0x01, 0xcc, 0xb2, 0x6d, 0xb4, 0xca, 0x9e, 0x3e, 0xe3, 0x4d, 0x54, 0x65, 0xc0, 0xe3,
-	0x5e, 0x4c, 0x43, 0x30, 0x17, 0x6c, 0xa3, 0x55, 0xf7, 0x2a, 0x0a, 0x38, 0xa3, 0x21, 0xe0, 0xfb,
-	0xa8, 0x1e, 0xd3, 0x90, 0x0c, 0x08, 0x84, 0x3d, 0x49, 0x62, 0x30, 0x17, 0x75, 0x66, 0x6d, 0x06,
-	0x5e, 0x90, 0x18, 0x9c, 0x07, 0xa8, 0xa9, 0x46, 0x38, 0xa5, 0x81, 0x1f, 0x1d, 0x11, 0x9e, 0x4d,
-	0xa6, 0x8a, 0x31, 0x5f, 0x8e, 0x66, 0x3d, 0xaa, 0xb3, 0xd3, 0x45, 0xab, 0xb7, 0xa9, 0xd9, 0xc0,
-	0x0e, 0x5a, 0x84, 0x44, 0xf2, 0xa9, 0x9e, 0x78, 0xa9, 0x53, 0x53, 0xcd, 0xcf, 0x86, 0xf5, 0xd2,
-	0x90, 0xda, 0xd4, 0xd9, 0x9b, 0x90, 0x70, 0x9d, 0xfc, 0xb7, 0x22, 0xab, 0x08, 0xcf, 0x13, 0xd3,
-	0x12, 0xce, 0x73, 0xd4, 0x38, 0xa3, 0x13, 0xb8, 0x95, 0x7d, 0x17, 0x55, 0x54, 0x46, 0x4f, 0xf0,
-	0x20, 0x53, 0xf8, 0x5f, 0xfd, 0x9f, 0xf3, 0x40, 0xaf, 0x45, 0x85, 0x42, 0x10, 0x52, 0xaf, 0xb4,
-	0xea, 0x69, 0xee, 0x91, 0x32, 0xad, 0x89, 0x56, 0xe6, 0xb4, 0xb2, 0x02, 0xaf, 0x11, 0xf6, 0x20,
-	0xce, 0x97, 0xf8, 0x43, 0x83, 0x78, 0x07, 0xdd, 0xe1, 0x9a, 0xd9, 0x0b, 0x46, 0x24, 0x0a, 0x39,
-	0x24, 0xba, 0x42, 0xc5, 0x5b, 0x4e, 0xe1, 0xc3, 0x0c, 0x75, 0xd6, 0x50, 0xf3, 0x96, 0x64, 0x5a,
-	0xa9, 0xf3, 0xa3, 0x8c, 0xaa, 0xc7, 0x70, 0x0e, 0x7c, 0x42, 0x02, 0xc0, 0x1e, 0xaa, 0xde, 0xdc,
-	0x20, 0xbc, 0xaa, 0x36, 0x97, 0xbf, 0x64, 0xd6, 0x5a, 0x0e, 0xcd, 0x3a, 0x36, 0x3f, 0x7d, 0xff,
-	0xf9, 0xb5, 0x84, 0x71, 0x43, 0xdf, 0xee, 0xc9, 0xbe, 0x3b, 0x00, 0x77, 0xa4, 0x65, 0xae, 0x50,
-	0x6d, 0xde, 0x27, 0xbc, 0x31, 0x13, 0xc8, 0x99, 0x6c, 0x99, 0xc5, 0x40, 0x26, 0xbe, 0xa9, 0xc5,
-	0xd7, 0x70, 0x73, 0x4e, 0x3c, 0x52, 0x24, 0x37, 0x52, 0xfa, 0xe8, 0xb7, 0x45, 0x58, 0xb7, 0x57,
-	0xf0, 0xd6, 0x5a, 0xcf, 0xc3, 0x99, 0xf2, 0xb6, 0x56, 0xde, 0x74, 0xd6, 0x0b, 0xca, 0xb1, 0x22,
-	0x77, 0x8d, 0x5d, 0x7c, 0x89, 0xaa, 0x37, 0x06, 0xa5, 0x3b, 0xc9, 0x7b, 0x9f, 0xee, 0xa4, 0xe8,
-	0xe2, 0x96, 0x16, 0x37, 0x9d, 0x62, 0xdb, 0xf1, 0x44, 0x29, 0x5f, 0xa1, 0xa5, 0x39, 0x4b, 0xb0,
-	0xee, 0xb1, 0x68, 0xbb, 0xb5, 0x51, 0xc0, 0xff, 0xa9, 0xcf, 0xe3, 0xae, 0xb1, 0xfb, 0xf4, 0xb3,
-	0xf1, 0xe5, 0xe0, 0xa3, 0x81, 0x2f, 0x51, 0xed, 0x65, 0xf6, 0x32, 0xd9, 0x07, 0xaf, 0x4e, 0x9c,
-	0x43, 0x54, 0xd7, 0xff, 0x36, 0xe3, 0xf4, 0x1a, 0x02, 0x89, 0xb7, 0x46, 0x52, 0x32, 0xd1, 0x75,
-	0xdd, 0x21, 0x91, 0xa3, 0x71, 0xbf, 0x1d, 0xd0, 0xd8, 0x4d, 0xa6, 0xfe, 0x7b, 0xe9, 0xea, 0xd7,
-	0xcb, 0xc2, 0x63, 0x48, 0xe8, 0x13, 0x8d, 0x08, 0x09, 0x4c, 0xc5, 0x3b, 0xe5, 0xfd, 0xf6, 0xa3,
-	0x5d, 0xa3, 0xd4, 0x69, 0xf8, 0x8c, 0x45, 0x24, 0xd0, 0x6f, 0x93, 0x7b, 0x2d, 0x68, 0xd2, 0x2d,
-	0x20, 0xfd, 0xff, 0xf4, 0x93, 0xf5, 0xf8, 0x57, 0x00, 0x00, 0x00, 0xff, 0xff, 0x8a, 0x8e, 0xcf,
-	0x78, 0x21, 0x05, 0x00, 0x00,
+var fileDescriptor_otaru_fe_9a3141afedd5b125 = []byte{
+	// 846 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x95, 0xdd, 0x72, 0xdb, 0x44,
+	0x14, 0xc7, 0x47, 0xf9, 0x28, 0xf6, 0x49, 0xec, 0x3a, 0xeb, 0xa4, 0x51, 0x95, 0x12, 0x5c, 0x01,
+	0xd3, 0x90, 0x21, 0x16, 0x35, 0x77, 0xbe, 0xa2, 0x34, 0xd3, 0x21, 0xd0, 0x10, 0x50, 0xca, 0x4c,
+	0x67, 0x98, 0xa9, 0x47, 0x96, 0x4e, 0xec, 0x2d, 0x92, 0x76, 0x59, 0xad, 0x6d, 0xcc, 0x1d, 0xcc,
+	0xf0, 0x02, 0x70, 0xc1, 0x83, 0xf1, 0x0a, 0xdc, 0xf3, 0x0a, 0xcc, 0xae, 0x56, 0x89, 0x2c, 0x75,
+	0x92, 0x2b, 0xaf, 0xfe, 0x7b, 0xf6, 0x77, 0x3e, 0xf6, 0x1c, 0x2f, 0xb4, 0x99, 0x0c, 0xc4, 0xec,
+	0xe4, 0x0a, 0xfb, 0x5c, 0x30, 0xc9, 0xc8, 0x1a, 0x1f, 0x3b, 0x5b, 0x5a, 0xcb, 0x05, 0xe7, 0xd1,
+	0x84, 0xb1, 0x49, 0x8c, 0x5e, 0xc0, 0xa9, 0x17, 0xa4, 0x29, 0x93, 0x81, 0xa4, 0x2c, 0xcd, 0xcc,
+	0xee, 0xa7, 0xfa, 0x27, 0x3c, 0x99, 0x60, 0x7a, 0x92, 0x2d, 0x82, 0xc9, 0x04, 0x85, 0xc7, 0xb8,
+	0xb6, 0xa8, 0x5b, 0xbb, 0x04, 0x3a, 0x2f, 0x69, 0x26, 0xbf, 0x62, 0x99, 0xcc, 0x7c, 0xfc, 0x79,
+	0x86, 0x99, 0x74, 0x9f, 0xc0, 0x4e, 0x49, 0xcb, 0x38, 0x4b, 0x33, 0x24, 0x04, 0x36, 0xa6, 0x2c,
+	0x93, 0xb6, 0xd5, 0x5b, 0x3f, 0x6a, 0xfa, 0x7a, 0xed, 0xfe, 0x6d, 0x41, 0xe3, 0x05, 0x8d, 0xf1,
+	0x2c, 0xbd, 0x62, 0xca, 0x20, 0x0d, 0x12, 0xb4, 0xad, 0x9e, 0xa5, 0x0c, 0xd4, 0x9a, 0x3c, 0x86,
+	0x0d, 0xb9, 0xe4, 0x68, 0xaf, 0xf5, 0xac, 0xa3, 0xf6, 0xa0, 0xd5, 0xe7, 0xe3, 0xfe, 0xd9, 0xb7,
+	0x2c, 0xc2, 0x57, 0x4b, 0x8e, 0xbe, 0xde, 0x52, 0xc7, 0x32, 0xfa, 0x2b, 0xda, 0xeb, 0x3d, 0xeb,
+	0x68, 0xdd, 0xd7, 0x6b, 0x72, 0x00, 0x4d, 0x8e, 0x22, 0x19, 0x25, 0x2c, 0x42, 0x7b, 0xa3, 0x67,
+	0x1d, 0xb5, 0xfc, 0x86, 0x12, 0xce, 0x59, 0x84, 0xe4, 0x43, 0x68, 0x25, 0x2c, 0xa2, 0x57, 0x14,
+	0xa3, 0x91, 0xa4, 0x09, 0xda, 0x9b, 0xfa, 0xe4, 0x76, 0x21, 0xbe, 0xa2, 0x09, 0xba, 0x9f, 0x40,
+	0x57, 0xa5, 0xf0, 0x92, 0x85, 0x41, 0x7c, 0x4a, 0x85, 0xc9, 0x4c, 0x39, 0xe3, 0x81, 0x9c, 0x16,
+	0x31, 0xaa, 0xb5, 0x3b, 0x84, 0xdd, 0x55, 0x53, 0x93, 0xb0, 0x0b, 0x9b, 0x98, 0x4a, 0xb1, 0xd4,
+	0x19, 0x6f, 0x0d, 0xb6, 0x55, 0xf0, 0x45, 0xb2, 0x7e, 0xbe, 0xa5, 0x2a, 0x75, 0xfe, 0x53, 0x44,
+	0x85, 0x3e, 0x7c, 0x9b, 0x93, 0x5d, 0x20, 0x65, 0xc3, 0xdc, 0x85, 0xfb, 0x35, 0x74, 0xce, 0xd9,
+	0x1c, 0x57, 0x4e, 0x3f, 0x84, 0x86, 0x3a, 0x31, 0xca, 0x44, 0x68, 0x08, 0xef, 0xa9, 0xef, 0x4b,
+	0x11, 0xea, 0xb2, 0xa8, 0xad, 0x08, 0x33, 0xa9, 0x4b, 0xda, 0xf4, 0xb5, 0xed, 0xa9, 0xba, 0xb4,
+	0x2e, 0xec, 0x94, 0x58, 0xc6, 0xc1, 0x37, 0x70, 0xff, 0x94, 0x2d, 0xd2, 0x98, 0x05, 0x51, 0xc1,
+	0x3f, 0x80, 0x26, 0xcb, 0x1d, 0xc8, 0xc2, 0x41, 0x43, 0x0b, 0x97, 0xf2, 0x0e, 0x0f, 0x04, 0x3a,
+	0x37, 0x30, 0xe3, 0x40, 0x40, 0xeb, 0x07, 0x5e, 0xc6, 0xdf, 0x12, 0xfe, 0xfb, 0x00, 0xac, 0x4a,
+	0xcf, 0x63, 0x51, 0x78, 0xf2, 0x04, 0xee, 0x07, 0x71, 0xcc, 0x16, 0x23, 0x36, 0x47, 0xb1, 0x10,
+	0x54, 0xe6, 0x3d, 0xd1, 0xf0, 0xdb, 0x5a, 0xbe, 0x28, 0x54, 0xb7, 0x03, 0xed, 0xc2, 0xa7, 0x89,
+	0xe2, 0x02, 0x76, 0x7c, 0x4c, 0x98, 0x44, 0x55, 0x81, 0x7a, 0xa2, 0xa2, 0x92, 0xe8, 0x9d, 0xb1,
+	0xa8, 0xeb, 0x2a, 0x03, 0x8d, 0x9b, 0xef, 0x73, 0xb5, 0x72, 0x61, 0xef, 0xb8, 0x6e, 0x95, 0x8b,
+	0xd0, 0x96, 0xa3, 0x70, 0x4a, 0xe3, 0x48, 0x60, 0xaa, 0x7d, 0x34, 0xfc, 0x76, 0x2e, 0x3f, 0x37,
+	0xaa, 0xbb, 0x07, 0xdd, 0x15, 0x64, 0xee, 0x69, 0xf0, 0xdf, 0x26, 0x34, 0x5f, 0xe0, 0x25, 0x8a,
+	0x39, 0x0d, 0x91, 0xf8, 0xd0, 0xbc, 0x9e, 0x47, 0xb2, 0xab, 0xfa, 0xb0, 0x3a, 0xb2, 0xce, 0x5e,
+	0x45, 0x35, 0x11, 0xdb, 0xbf, 0xff, 0xf3, 0xef, 0x5f, 0x6b, 0x84, 0x74, 0xf4, 0x7f, 0xc5, 0xfc,
+	0xa9, 0x77, 0x85, 0xde, 0x54, 0x63, 0xde, 0xc0, 0x76, 0xb9, 0xeb, 0xc9, 0x7e, 0x01, 0xa8, 0x8c,
+	0x8c, 0x63, 0xd7, 0x37, 0x0c, 0xfc, 0x40, 0xc3, 0xf7, 0x48, 0xb7, 0x04, 0x8f, 0x95, 0x91, 0x17,
+	0x2b, 0x3e, 0xdc, 0x34, 0x3c, 0xd1, 0xe1, 0xd5, 0x26, 0xc5, 0x79, 0x50, 0x95, 0x0d, 0xf9, 0xb1,
+	0x26, 0x1f, 0xb8, 0x0f, 0x6a, 0xe4, 0x44, 0x19, 0x0f, 0xad, 0x63, 0xf2, 0x1a, 0x9a, 0xd7, 0xed,
+	0x9e, 0xd7, 0xa4, 0x3a, 0x49, 0x79, 0x4d, 0xea, 0x33, 0x71, 0xa8, 0xe1, 0xb6, 0x5b, 0x0f, 0x3b,
+	0x99, 0x2b, 0xf2, 0x8f, 0xd0, 0x28, 0xda, 0x9c, 0x74, 0x15, 0xa2, 0x32, 0x41, 0xce, 0xee, 0xaa,
+	0x68, 0xb0, 0x1f, 0x69, 0xec, 0xa1, 0xfb, 0xb0, 0x86, 0x8d, 0x8c, 0xa9, 0x82, 0x5f, 0xc2, 0xbd,
+	0xbc, 0x77, 0xc9, 0x8e, 0xa2, 0xac, 0xcc, 0x8e, 0x43, 0xca, 0x92, 0xc1, 0xba, 0x1a, 0xfb, 0xc8,
+	0xdd, 0xaf, 0x61, 0x67, 0xbc, 0x80, 0x8e, 0x01, 0x6e, 0xba, 0x35, 0xaf, 0x75, 0x6d, 0x1c, 0xf2,
+	0x5a, 0xbf, 0xa3, 0xa9, 0x3f, 0xd6, 0x0e, 0x3e, 0x70, 0x9d, 0x9a, 0x03, 0xa1, 0x8d, 0x47, 0x79,
+	0x55, 0xde, 0xc0, 0x56, 0xa9, 0x51, 0xc9, 0x35, 0xad, 0x52, 0xf3, 0xfd, 0x9a, 0x7e, 0x67, 0xd5,
+	0x45, 0x32, 0xb4, 0x8e, 0xbf, 0xfc, 0xc3, 0xfa, 0xf3, 0xd9, 0x6f, 0x16, 0x79, 0x0d, 0xdb, 0x17,
+	0xe6, 0xf5, 0xeb, 0x3d, 0xfb, 0xee, 0xcc, 0x7d, 0x0e, 0x2d, 0xfd, 0xdd, 0xe3, 0x82, 0xbd, 0xc5,
+	0x50, 0x92, 0xc3, 0xa9, 0x94, 0x3c, 0x1b, 0x7a, 0xde, 0x84, 0xca, 0xe9, 0x6c, 0xdc, 0x0f, 0x59,
+	0xe2, 0xa5, 0xcb, 0xe0, 0x17, 0xe9, 0xe9, 0x17, 0xd2, 0x21, 0x33, 0x4c, 0xd9, 0x17, 0x5a, 0xc9,
+	0x24, 0x72, 0xb5, 0x3f, 0x58, 0x7f, 0xda, 0xff, 0xec, 0xd8, 0x5a, 0x1b, 0x74, 0x02, 0xce, 0x63,
+	0x1a, 0xea, 0xf7, 0xcf, 0x7b, 0x9b, 0xb1, 0x74, 0x58, 0x53, 0xc6, 0xf7, 0xf4, 0xb3, 0xf8, 0xf9,
+	0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0x03, 0x1d, 0x96, 0xe8, 0x85, 0x07, 0x00, 0x00,
 }

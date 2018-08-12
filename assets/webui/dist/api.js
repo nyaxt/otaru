@@ -140,19 +140,19 @@ const fsMv = async (src, dest) => {
 
     return await rpc ('api/v1/fe/local/upload', {
       method: 'POST',
-      body: {pathSrc, opathDest: dest},
+      body: {pathSrc, opathDest: dest, allowOverwrite: false},
     });
   } else {
     if (hostDest === kHostLocal) {
       return await rpc ('api/v1/fe/local/download', {
         method: 'POST',
-        body: {opathSrc: src, pathDest},
+        body: {opathSrc: src, pathDest, allowOverwrite: false},
       });
     }
 
     return await rpc('api/v1/fe/remove_mv', {
       method: 'POST',
-      body: {opathSrc: src, opathDest: dest}
+      body: {opathSrc: src, opathDest: dest, allowOverwrite: false}
     });
   }
 };

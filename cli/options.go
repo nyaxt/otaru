@@ -5,14 +5,16 @@ import (
 )
 
 type options struct {
-	cfg       *CliConfig
-	ctx       context.Context
-	forceGrpc bool
+	cfg            *CliConfig
+	ctx            context.Context
+	forceGrpc      bool
+	allowOverwrite bool
 }
 
 var defaultOptions = options{
-	ctx:       context.Background(),
-	forceGrpc: false,
+	ctx:            context.Background(),
+	forceGrpc:      false,
+	allowOverwrite: false,
 }
 
 type Option func(*options)
@@ -23,6 +25,11 @@ func WithCliConfig(cfg *CliConfig) Option {
 
 func WithContext(ctx context.Context) Option {
 	return func(o *options) { o.ctx = ctx }
+}
+
+// AllowOverwrite allows NewWriter to open an existing file.
+func AllowOverwrite(b bool) Option {
+	return func(o *options) { o.allowOverwrite = b }
 }
 
 func ForceGrpc() Option {

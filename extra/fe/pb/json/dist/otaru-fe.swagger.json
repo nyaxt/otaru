@@ -35,6 +35,32 @@
         ]
       }
     },
+    "/api/v1/fe/local/download": {
+      "post": {
+        "operationId": "Download",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbDownloadResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbDownloadRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FeService"
+        ]
+      }
+    },
     "/api/v1/fe/local/ls": {
       "get": {
         "operationId": "ListLocalDir",
@@ -111,6 +137,32 @@
         ]
       }
     },
+    "/api/v1/fe/local/remote_mv": {
+      "post": {
+        "operationId": "RemoteMove",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbRemoteMoveResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbRemoteMoveRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FeService"
+        ]
+      }
+    },
     "/api/v1/fe/local/rm": {
       "post": {
         "operationId": "RemoveLocal",
@@ -136,9 +188,49 @@
           "FeService"
         ]
       }
+    },
+    "/api/v1/fe/local/upload": {
+      "post": {
+        "operationId": "Upload",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbUploadResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbUploadRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FeService"
+        ]
+      }
     }
   },
   "definitions": {
+    "pbDownloadRequest": {
+      "type": "object",
+      "properties": {
+        "opath_stc": {
+          "type": "string"
+        },
+        "path_dest": {
+          "type": "string"
+        }
+      }
+    },
+    "pbDownloadResponse": {
+      "type": "object"
+    },
     "pbFileInfo": {
       "type": "object",
       "properties": {
@@ -217,6 +309,20 @@
     "pbMoveLocalResponse": {
       "type": "object"
     },
+    "pbRemoteMoveRequest": {
+      "type": "object",
+      "properties": {
+        "opath_src": {
+          "type": "string"
+        },
+        "opath_dest": {
+          "type": "string"
+        }
+      }
+    },
+    "pbRemoteMoveResponse": {
+      "type": "object"
+    },
     "pbRemoveLocalRequest": {
       "type": "object",
       "properties": {
@@ -230,6 +336,24 @@
       }
     },
     "pbRemoveLocalResponse": {
+      "type": "object"
+    },
+    "pbUploadRequest": {
+      "type": "object",
+      "properties": {
+        "path_src": {
+          "type": "string"
+        },
+        "opath_dest": {
+          "type": "string"
+        },
+        "allow_overwrite": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
+    "pbUploadResponse": {
       "type": "object"
     }
   }

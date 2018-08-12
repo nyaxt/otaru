@@ -114,6 +114,53 @@ func (s *feService) MoveLocal(ctx context.Context, req *pb.MoveLocalRequest) (*p
 	return &pb.MoveLocalResponse{}, nil
 }
 
+func (s *feService) Download(ctx context.Context, req *pb.DownloadRequest) (*pb.DownloadResponse, error) {
+	return nil, grpc.Errorf(codes.Internal, "Not implemented!")
+
+	return &pb.DownloadResponse{}, nil
+}
+
+func (s *feService) Upload(ctx context.Context, req *pb.UploadRequest) (*pb.UploadResponse, error) {
+	pathSrc, err := s.cfg.ResolveLocalPath(req.PathSrc)
+	if err != nil {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Failed to resolve local path: %v", err)
+	}
+	opathDest := req.OpathDest
+
+	logger.Infof(mylog, "Upload %q -> %q", pathSrc, opathDest)
+
+	if _, err = os.Stat(pathSrc); err != nil {
+		if os.IsNotExist(err) {
+			return nil, grpc.Errorf(codes.FailedPrecondition, "Source path doesn't exist.")
+		}
+		return nil, grpc.Errorf(codes.Internal, "Error Stat()ing source path: %v", err)
+	}
+
+	r, err := os.Open(pathSrc)
+	if err != nil {
+		return nil, grpc.Errorf(codes.Internal, "Failed to os.Open(src): %v", err)
+	}
+	defer r.Close()
+
+	w, err := cli.NewWriter(opathDest, cli.WithCliConfig(s.cfg), cli.WithContext(ctx), cli.AllowOverwrite(req.AllowOverwrite))
+	if err != nil {
+		return nil, grpc.Errorf(codes.Internal, "Failed to init writer: %v", err)
+	}
+	defer w.Close()
+
+	if _, err := io.Copy(w, r); err != nil {
+		return nil, grpc.Errorf(codes.Internal, "Failed to cp: %v", err)
+	}
+
+	return &pb.UploadResponse{}, nil
+}
+
+func (s *feService) RemoteMove(ctx context.Context, req *pb.RemoteMoveRequest) (*pb.RemoteMoveResponse, error) {
+	return nil, grpc.Errorf(codes.Internal, "Not implemented!")
+
+	return &pb.RemoteMoveResponse{}, nil
+}
+
 func (s *feService) RemoveLocal(ctx context.Context, req *pb.RemoveLocalRequest) (*pb.RemoveLocalResponse, error) {
 	path, err := s.cfg.ResolveLocalPath(req.Path)
 	if err != nil {

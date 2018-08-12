@@ -67,8 +67,9 @@ message DownloadResponse {
 }
 
 message UploadRequest {
-  string path_stc = 1;
+  string path_src = 1;
   string opath_dest = 2;
+  bool allow_overwrite = 3;
 }
 
 message UploadResponse {

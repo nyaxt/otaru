@@ -48,7 +48,7 @@ func newWriterHttp(ep string, tc *tls.Config, id uint64) (io.WriteCloser, error)
 		req := &http.Request{
 			Method: "PUT",
 			Header: map[string][]string{
-			// "Accept-Encoding": {"gzip"}, // FIXME
+				// "Accept-Encoding": {"gzip"}, // FIXME
 			},
 			URL:           url,
 			Body:          pr,
@@ -162,6 +162,10 @@ func NewWriter(pathstr string, ofs ...Option) (io.WriteCloser, error) {
 	id := resp.Id
 	logger.Infof(Log, "Target file \"%s\" inode id: %v", p.FsPath, id)
 	if !resp.IsNew {
+		if !opts.allowOverwrite {
+			return nil, fmt.Errorf("Target file already exists and overwriting is prohivited.")
+		}
+
 		logger.Infof(Log, "Target file \"%s\" already exists. Overwriting.", p.FsPath)
 	}
 
