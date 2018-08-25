@@ -1,6 +1,7 @@
 package apiserver_test
 
 import (
+	"bytes"
 	"context"
 	"io/ioutil"
 	"os"
@@ -55,6 +56,34 @@ func (m *mockFsBackend) Terminate() {
 	<-m.joinC
 }
 
+func checkFileContents(t *testing.T, path string, b []byte) {
+	t.Helper()
+	c, err := ioutil.ReadFile(path)
+	if err != nil {
+		t.Errorf("Failed to read file %q: %v", path, err)
+		return
+	}
+	if !bytes.Equal(c, b) {
+		t.Errorf("Unexpected content of file %q: %q", path, c)
+	}
+}
+
+func checkFileNotExist(t *testing.T, path string) {
+	t.Helper()
+	fi, err := os.Lstat(path)
+	if err == nil {
+		typ := "File"
+		if fi.IsDir() {
+			typ = "Dir"
+		}
+		t.Errorf("%s %q unexpectedly exists", typ, path)
+		return
+	}
+	if !os.IsNotExist(err) {
+		t.Errorf("os.Stat(%q) unexpected error: %v", path, err)
+	}
+}
+
 func TestFeService(t *testing.T) {
 	rootPath, err := ioutil.TempDir("", "felocal")
 	if err != nil {
@@ -67,6 +96,11 @@ func TestFeService(t *testing.T) {
 		t.Fatalf("a.txt: %v", err)
 	}
 
+	trashPath, err := ioutil.TempDir("", "fetrash")
+	if err != nil {
+		t.Fatalf("failed to create tmpdir: %v", err)
+	}
+
 	cfg := &cli.CliConfig{
 		Host: map[string]*cli.Host{
 			"hostfoo": &cli.Host{
@@ -75,6 +109,7 @@ func TestFeService(t *testing.T) {
 			},
 		},
 		LocalRootPath: rootPath,
+		TrashDirPath:  trashPath,
 	}
 
 	m := runMockFsBackend()
@@ -163,6 +198,51 @@ func TestFeService(t *testing.T) {
 		if resp.Entry[0].Type != opb.INodeType_DIR {
 			tt.Fatalf("resp.Entry: %+v", resp.Entry)
 		}
+	})
+	t.Run("MoveLocal", func(tt *testing.T) {
+		if err := os.Mkdir(filepath.Join(rootPath, "move_src"), 0755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := ioutil.WriteFile(filepath.Join(rootPath, "move_src", "c.txt"), []byte("abcdef\n"), 0644); err != nil {
+			t.Fatalf("a.txt: %v", err)
+		}
+		if err := os.Mkdir(filepath.Join(rootPath, "move_dest"), 0755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+
+		ctx := context.TODO()
+		_, err := fesc.MoveLocal(ctx, &pb.MoveLocalRequest{
+			PathSrc:  "/move_src/c.txt",
+			PathDest: "/move_dest/c.txt",
+		})
+		if err != nil {
+			tt.Fatalf("MoveLocal: %v", err)
+		}
+		checkFileContents(t, filepath.Join(rootPath, "move_dest", "c.txt"), []byte("abcdef\n"))
+		checkFileNotExist(t, filepath.Join(rootPath, "move_src", "c.txt"))
+	})
+	t.Run("RemoveLocal", func(tt *testing.T) {
+		if err := os.Mkdir(filepath.Join(rootPath, "rm"), 0755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := ioutil.WriteFile(filepath.Join(rootPath, "rm", "tgt.txt"), []byte("foo"), 0644); err != nil {
+			t.Fatalf("a.txt: %v", err)
+		}
+		if err := ioutil.WriteFile(filepath.Join(rootPath, "rm", "nontgt.txt"), []byte("bar"), 0644); err != nil {
+			t.Fatalf("a.txt: %v", err)
+		}
+
+		ctx := context.TODO()
+		_, err := fesc.RemoveLocal(ctx, &pb.RemoveLocalRequest{
+			Path:           "rm/tgt.txt",
+			RemoveChildren: false,
+		})
+		if err != nil {
+			tt.Fatalf("RemoveLocal: %v", err)
+		}
+		checkFileNotExist(t, filepath.Join(rootPath, "rm", "tgt.txt"))
+		checkFileContents(t, filepath.Join(rootPath, "rm", "nontgt.txt"), []byte("bar"))
+		checkFileContents(t, filepath.Join(trashPath, "tgt.txt"), []byte("foo"))
 	})
 
 	close(closeC)
