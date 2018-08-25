@@ -21,7 +21,16 @@ const (
 	testFeListenAddr = "localhost:20247"
 )
 
-func init() { testutils.EnsureLogger() }
+var certFile string
+var keyFile string
+
+func init() {
+	testutils.EnsureLogger()
+
+	otarudir := os.Getenv("OTARUDIR")
+	certFile = path.Join(otarudir, "cert.pem")
+	keyFile = path.Join(otarudir, "cert-key.pem")
+}
 
 type mockRequest struct {
 	url.URL
@@ -36,7 +45,7 @@ type mockBackend struct {
 	Reqs []mockRequest
 }
 
-func runMockBackend(certFile, keyFile string) *mockBackend {
+func runMockBackend() *mockBackend {
 	m := &mockBackend{
 		closeC: make(chan struct{}),
 		joinC:  make(chan struct{}),
@@ -81,9 +90,6 @@ func (m *mockBackend) Terminate() {
 }
 
 func TestProxyHandler(t *testing.T) {
-	otarudir := os.Getenv("OTARUDIR")
-	certFile := path.Join(otarudir, "cert.pem")
-	keyFile := path.Join(otarudir, "cert-key.pem")
 	cfg := &cli.CliConfig{
 		Host: map[string]*cli.Host{
 			"hostfoo": &cli.Host{
@@ -93,7 +99,7 @@ func TestProxyHandler(t *testing.T) {
 		},
 	}
 
-	m := runMockBackend(certFile, keyFile)
+	m := runMockBackend()
 
 	closeC := make(chan struct{})
 	joinC := make(chan struct{})

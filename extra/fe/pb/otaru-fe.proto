@@ -134,7 +134,7 @@ service FeService {
 
   rpc RemoteMove(RemoteMoveRequest) returns (RemoteMoveResponse) {
     option (google.api.http) = {
-      post: "/api/v1/fe/local/remote_mv"
+      post: "/api/v1/fe/remote_mv"
       body: "*"
     };
   }
