@@ -341,6 +341,10 @@ func Serve(opt ...Option) error {
 	}
 
 	lis, err := net.Listen("tcp", opts.listenAddr)
+	if err != nil {
+		return fmt.Errorf("Failed to listen \"%s\": %v", opts.listenAddr, err)
+	}
+
 	closed := false
 	if opts.closeC != nil {
 		go func() {
@@ -350,9 +354,6 @@ func Serve(opt ...Option) error {
 		}()
 	}
 
-	if err != nil {
-		return fmt.Errorf("Failed to listen \"%s\": %v", opts.listenAddr, err)
-	}
 	if opts.certFile != "" {
 		// Serve over TLS (HTTPS)
 

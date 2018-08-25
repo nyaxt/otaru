@@ -17,7 +17,7 @@ import (
 
 func init() { tu.EnsureLogger() }
 
-const testListenAddr = "localhost:20800"
+const testListenAddr = "localhost:20820"
 const username = "username"
 const password = "password"
 
