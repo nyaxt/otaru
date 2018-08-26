@@ -59,8 +59,9 @@ message MoveLocalResponse {
 }
 
 message DownloadRequest {
-  string opath_stc = 1;
+  string opath_src = 1;
   string path_dest = 2;
+  bool allow_overwrite = 3;
 }
 
 message DownloadResponse {

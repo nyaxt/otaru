@@ -137,32 +137,6 @@
         ]
       }
     },
-    "/api/v1/fe/local/remote_mv": {
-      "post": {
-        "operationId": "RemoteMove",
-        "responses": {
-          "200": {
-            "description": "",
-            "schema": {
-              "$ref": "#/definitions/pbRemoteMoveResponse"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/pbRemoteMoveRequest"
-            }
-          }
-        ],
-        "tags": [
-          "FeService"
-        ]
-      }
-    },
     "/api/v1/fe/local/rm": {
       "post": {
         "operationId": "RemoveLocal",
@@ -214,17 +188,47 @@
           "FeService"
         ]
       }
+    },
+    "/api/v1/fe/remote_mv": {
+      "post": {
+        "operationId": "RemoteMove",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/pbRemoteMoveResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbRemoteMoveRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FeService"
+        ]
+      }
     }
   },
   "definitions": {
     "pbDownloadRequest": {
       "type": "object",
       "properties": {
-        "opath_stc": {
+        "opath_src": {
           "type": "string"
         },
         "path_dest": {
           "type": "string"
+        },
+        "allow_overwrite": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },

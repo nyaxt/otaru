@@ -42,6 +42,7 @@ func runMockFsBackend() *mockFsBackend {
 			apiserver.X509KeyPair(certFile, keyFile),
 			apiserver.CloseChannel(m.closeC),
 			otaruapiserver.InstallFileSystemService(fs),
+			otaruapiserver.InstallFileHandler(fs),
 		); err != nil {
 			panic(err)
 		}
@@ -93,7 +94,7 @@ func TestFeService(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 	if err := ioutil.WriteFile(filepath.Join(rootPath, "foo", "a.txt"), []byte("hoge\n"), 0644); err != nil {
-		t.Fatalf("a.txt: %v", err)
+		t.Fatalf("WriteFile: %v", err)
 	}
 
 	trashPath, err := ioutil.TempDir("", "fetrash")
@@ -204,7 +205,7 @@ func TestFeService(t *testing.T) {
 			t.Fatalf("mkdir: %v", err)
 		}
 		if err := ioutil.WriteFile(filepath.Join(rootPath, "move_src", "c.txt"), []byte("abcdef\n"), 0644); err != nil {
-			t.Fatalf("a.txt: %v", err)
+			t.Fatalf("WriteFile: %v", err)
 		}
 		if err := os.Mkdir(filepath.Join(rootPath, "move_dest"), 0755); err != nil {
 			t.Fatalf("mkdir: %v", err)
@@ -226,10 +227,10 @@ func TestFeService(t *testing.T) {
 			t.Fatalf("mkdir: %v", err)
 		}
 		if err := ioutil.WriteFile(filepath.Join(rootPath, "rm", "tgt.txt"), []byte("foo"), 0644); err != nil {
-			t.Fatalf("a.txt: %v", err)
+			t.Fatalf("WriteFile: %v", err)
 		}
 		if err := ioutil.WriteFile(filepath.Join(rootPath, "rm", "nontgt.txt"), []byte("bar"), 0644); err != nil {
-			t.Fatalf("a.txt: %v", err)
+			t.Fatalf("WriteFile: %v", err)
 		}
 
 		ctx := context.TODO()
@@ -243,6 +244,49 @@ func TestFeService(t *testing.T) {
 		checkFileNotExist(t, filepath.Join(rootPath, "rm", "tgt.txt"))
 		checkFileContents(t, filepath.Join(rootPath, "rm", "nontgt.txt"), []byte("bar"))
 		checkFileContents(t, filepath.Join(trashPath, "tgt.txt"), []byte("foo"))
+	})
+	t.Run("UploadDownload", func(tt *testing.T) {
+		if err := os.Mkdir(filepath.Join(rootPath, "upldl"), 0755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := ioutil.WriteFile(filepath.Join(rootPath, "upldl", "src.txt"), []byte("src"), 0644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+		if err := ioutil.WriteFile(filepath.Join(rootPath, "upldl", "existing.txt"), []byte("existing"), 0644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+
+		ctx := context.TODO()
+		_, err := fesc.Upload(ctx, &pb.UploadRequest{
+			PathSrc:        "upldl/src.txt",
+			OpathDest:      "//hostfoo/foo.txt",
+			AllowOverwrite: false,
+		})
+		if err != nil {
+			tt.Fatalf("Upload: %v", err)
+		}
+
+		_, err = fesc.Download(ctx, &pb.DownloadRequest{
+			OpathSrc:       "//hostfoo/foo.txt",
+			PathDest:       "upldl/dest.txt",
+			AllowOverwrite: false,
+		})
+		if err != nil {
+			tt.Fatalf("Download: %v", err)
+		}
+
+		_, err = fesc.Download(ctx, &pb.DownloadRequest{
+			OpathSrc:       "//hostfoo/foo.txt",
+			PathDest:       "upldl/existing.txt",
+			AllowOverwrite: false,
+		})
+		if err == nil {
+			tt.Fatalf("Download: unexpected overwrite: %v", err)
+		}
+
+		checkFileContents(t, filepath.Join(rootPath, "upldl", "src.txt"), []byte("src"))
+		checkFileContents(t, filepath.Join(rootPath, "upldl", "dest.txt"), []byte("src"))
+		checkFileContents(t, filepath.Join(rootPath, "upldl", "existing.txt"), []byte("existing"))
 	})
 
 	close(closeC)

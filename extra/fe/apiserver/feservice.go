@@ -115,7 +115,43 @@ func (s *feService) MoveLocal(ctx context.Context, req *pb.MoveLocalRequest) (*p
 }
 
 func (s *feService) Download(ctx context.Context, req *pb.DownloadRequest) (*pb.DownloadResponse, error) {
-	return nil, grpc.Errorf(codes.Internal, "Not implemented!")
+	pathDest, err := s.cfg.ResolveLocalPath(req.PathDest)
+	if err != nil {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Failed to resolve local path: %v", err)
+	}
+	opathSrc := req.OpathSrc
+
+	logger.Infof(mylog, "Download %q -> %q", opathSrc, pathDest)
+
+	fi, err := os.Stat(pathDest)
+	if err == nil {
+		if !req.AllowOverwrite {
+			return nil, grpc.Errorf(codes.FailedPrecondition, "Destination path already exists.")
+		}
+		if fi.IsDir() {
+			return nil, grpc.Errorf(codes.FailedPrecondition, "Destination path is a directory.")
+		}
+	}
+	if !os.IsNotExist(err) {
+		return nil, grpc.Errorf(codes.Internal, "Error Stat()ing destination path: %v", err)
+	}
+
+	r, err := cli.NewReader(opathSrc, cli.WithCliConfig(s.cfg), cli.WithContext(ctx))
+	if err != nil {
+		return nil, grpc.Errorf(codes.Internal, "Failed to init reader: %v", err)
+	}
+	defer r.Close()
+
+	mode := os.FileMode(0644) // FIXME
+	w, err := os.OpenFile(pathDest, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
+	if err != nil {
+		return nil, grpc.Errorf(codes.Internal, "Failed to os.OpenFile(pathDest): %v", err)
+	}
+	defer w.Close()
+
+	if _, err := io.Copy(w, r); err != nil {
+		return nil, grpc.Errorf(codes.Internal, "Failed to io.Copy: %v", err)
+	}
 
 	return &pb.DownloadResponse{}, nil
 }
@@ -149,7 +185,7 @@ func (s *feService) Upload(ctx context.Context, req *pb.UploadRequest) (*pb.Uplo
 	defer w.Close()
 
 	if _, err := io.Copy(w, r); err != nil {
-		return nil, grpc.Errorf(codes.Internal, "Failed to cp: %v", err)
+		return nil, grpc.Errorf(codes.Internal, "Failed to io.Copy: %v", err)
 	}
 
 	return &pb.UploadResponse{}, nil

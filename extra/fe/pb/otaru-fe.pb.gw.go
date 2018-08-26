@@ -418,7 +418,7 @@ var (
 
 	pattern_FeService_Upload_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "fe", "local", "upload"}, ""))
 
-	pattern_FeService_RemoteMove_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "fe", "local", "remote_mv"}, ""))
+	pattern_FeService_RemoteMove_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "fe", "remote_mv"}, ""))
 
 	pattern_FeService_RemoveLocal_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "fe", "local", "rm"}, ""))
 )
