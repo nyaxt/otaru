@@ -266,6 +266,15 @@ func TestFeService(t *testing.T) {
 			tt.Fatalf("Upload: %v", err)
 		}
 
+		_, err = fesc.Upload(ctx, &pb.UploadRequest{
+			PathSrc:        "upldl/src.txt",
+			OpathDest:      "//hostfoo/foo.txt",
+			AllowOverwrite: false,
+		})
+		if err == nil {
+			tt.Fatalf("Upload: unexpected overwrite")
+		}
+
 		_, err = fesc.Download(ctx, &pb.DownloadRequest{
 			OpathSrc:       "//hostfoo/foo.txt",
 			PathDest:       "upldl/dest.txt",
@@ -281,7 +290,7 @@ func TestFeService(t *testing.T) {
 			AllowOverwrite: false,
 		})
 		if err == nil {
-			tt.Fatalf("Download: unexpected overwrite: %v", err)
+			tt.Fatalf("Download: unexpected overwrite")
 		}
 
 		checkFileContents(t, filepath.Join(rootPath, "upldl", "src.txt"), []byte("src"))
