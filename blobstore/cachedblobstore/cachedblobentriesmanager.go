@@ -231,7 +231,7 @@ func (mgr *CachedBlobEntriesManager) CloseEntryForTesting(blobpath string) {
 
 		be, ok := mgr.entries[blobpath]
 		if !ok {
-			logger.Warningf(mylog, "CloseEntryForTesting \"\" couldn't find any entry to close", blobpath)
+			logger.Warningf(mylog, "CloseEntryForTesting %q couldn't find any entry to close", blobpath)
 			return
 		}
 
