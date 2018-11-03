@@ -156,7 +156,7 @@ func Serve(opt ...Option) error {
 
 	certtext, err := ioutil.ReadFile(opts.certFile)
 	if err != nil {
-		return fmt.Errorf("Failed to load TLS cert file: %v", err)
+		return fmt.Errorf("Failed to load TLS cert file %q: %v", opts.certFile, err)
 	}
 	keytext, err := ioutil.ReadFile(opts.keyFile)
 	if err != nil {

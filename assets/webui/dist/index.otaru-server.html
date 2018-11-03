@@ -12,23 +12,11 @@
   <a class="nav__item nav__tab" href="#loglevel">loglevel</a>
   <a class="nav__item nav__tab" href="#settings">settings</a>
 </nav>
-<section class="section section--hasheader section--browsefs">
-  <div class="section__header browsefs__header">
-    <a class="button browsefs__parentdir" href="#">↑</a>
-    <label class="browsefs__label" for="browsefs-path">Path: </label>
-    <input class="browsefs__path" type="text" id="browsefs-path">
-    <select class="browsefs__sort">
-      <option value="name" selected>Name</option> 
-      <option value="time_asc">Time ↓</option> 
-      <option value="time_desc">Time ↑</option> 
-    </select>
-    <input class="browsefs__upload" type="file" id="browsefs-upload" multiple>
-    <label class="button browsefs__label--upload" for="browsefs-upload">Upload</label>
-  </div>
-  <table class="content__table browsefs__list"><tbody>
-  </tbody></table>
+<otaru-preview id="preview"></otaru-preview>
+<section class="section section--browsefs">
+  <browse-fs path="//[noproxy]/"></browse-fs>
 </section>
-<section class="section section--hasheader section--logview">
+<section class="section section--logview">
   <div class="section__header logview__header">
     <a class="button logview__refresh" href="#">↺</a>
   </div>

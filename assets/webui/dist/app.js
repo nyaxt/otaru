@@ -1,11 +1,23 @@
+import {$} from './domhelper.js';
 import {contentSection, isSectionSelected} from './nav.js';
-import {fillRemoteContent} from './api.js';
+import {fillRemoteContent, kHostNoProxy} from './api.js';
 import {formatTimestampRPC} from './format.js';
-import './browsefs.js';
+import {setHostList} from './browsefs.js';
 import './logview.js';
 import './loglevel.js';
 
 const updateInterval = 3000;
+
+(() => {
+  const bfs = $('browse-fs');
+  setHostList([kHostNoProxy]);
+  contentSection('browsefs').addEventListener('shown', e => {
+    bfs.hasFocus = true;
+  });
+  contentSection('browsefs').addEventListener('hidden', e => {
+    bfs.hasFocus = false;
+  });
+})();
 
 (() => {
   const triggerUpdate = async () => {

@@ -107,10 +107,6 @@ body {
   flex-grow: 1;
 }
 
-.section--hasheader {
-  margin-top: calc(var(--nav-height) + var(--section-header-height));
-}
-
 .section--selected.section--split {
   display: flex;
   flex-direction: row;

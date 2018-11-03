@@ -3,6 +3,7 @@ package facade
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 
 	"github.com/nyaxt/otaru/filesystem"
@@ -14,9 +15,13 @@ func verifyWebdavServerConfig(configdir string, cfg *WebdavServerConfig) error {
 	if cfg.EnableTLS {
 		if cfg.CertFile == "" {
 			cfg.CertFile = path.Join(configdir, "cert.pem")
+		} else {
+			cfg.CertFile = os.ExpandEnv(cfg.CertFile)
 		}
 		if cfg.KeyFile == "" {
 			cfg.KeyFile = path.Join(configdir, "cert-key.pem")
+		} else {
+			cfg.KeyFile = os.ExpandEnv(cfg.KeyFile)
 		}
 	} else {
 		if cfg.CertFile != "" || cfg.KeyFile != "" {

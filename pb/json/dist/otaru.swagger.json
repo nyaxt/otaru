@@ -24,7 +24,7 @@
         "operationId": "GetConfig",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbGetBlobstoreConfigResponse"
             }
@@ -40,7 +40,7 @@
         "operationId": "GetEntries",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbGetEntriesResponse"
             }
@@ -56,7 +56,7 @@
         "operationId": "ReduceCache",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbReduceCacheResponse"
             }
@@ -82,7 +82,7 @@
         "operationId": "Attr",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbAttrResponse"
             }
@@ -91,6 +91,7 @@
         "parameters": [
           {
             "name": "id",
+            "description": "If |id| == 0, then query path.",
             "in": "path",
             "required": true,
             "type": "string",
@@ -113,7 +114,7 @@
         "operationId": "ReadFile",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbReadFileResponse"
             }
@@ -150,7 +151,7 @@
         "operationId": "WriteFile",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbWriteFileResponse"
             }
@@ -183,7 +184,7 @@
         "operationId": "FindNodeFullPath",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbFindNodeFullPathResponse"
             }
@@ -207,7 +208,7 @@
         "operationId": "ListDir",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbListDirResponse"
             }
@@ -242,7 +243,7 @@
         "operationId": "Create",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbCreateResponse"
             }
@@ -263,12 +264,38 @@
         ]
       }
     },
+    "/api/v1/filesystem/node/rm": {
+      "post": {
+        "operationId": "Remove",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbRemoveResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbRemoveRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
     "/api/v1/inodedb/stats": {
       "get": {
         "operationId": "GetINodeDBStats",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbGetINodeDBStatsResponse"
             }
@@ -284,7 +311,7 @@
         "operationId": "GetCategories",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbGetCategoriesResponse"
             }
@@ -300,7 +327,7 @@
         "operationId": "SetCategory",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbSetCategoryResponse"
             }
@@ -333,7 +360,7 @@
         "operationId": "GetLatestLogEntryId",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbGetLatestLogEntryIdResponse"
             }
@@ -349,7 +376,7 @@
         "operationId": "QueryLogs",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbQueryLogsResponse"
             }
@@ -390,7 +417,7 @@
         "operationId": "GetSystemInfo",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbSystemInfoResponse"
             }
@@ -406,7 +433,7 @@
         "operationId": "GetVersion",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbVersionResponse"
             }
@@ -751,6 +778,22 @@
           "type": "string"
         }
       }
+    },
+    "pbRemoveRequest": {
+      "type": "object",
+      "properties": {
+        "dir_id": {
+          "type": "string",
+          "format": "uint64",
+          "description": "If |dir_id| == 0, then treat |name| as fullpath."
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "pbRemoveResponse": {
+      "type": "object"
     },
     "pbSetCategoryResponse": {
       "type": "object"

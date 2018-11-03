@@ -1,6 +1,7 @@
 import {$} from './domhelper.js';
 
 const kHostLocal = '[local]';
+const kHostNoProxy = '[noproxy]';
 
 let apiprefix = `${window.document.location.origin}/`;
 (() => {
@@ -69,7 +70,7 @@ const fillRemoteContent = async (endpoint, prefix, fillKeys) => {
 };
 
 const fsopEndpoint = (op, host) => {
-  if (host === '[noproxy]')
+  if (host === kHostNoProxy)
     return `api/v1/filesystem/${op}`;
   else if (host === kHostLocal)
     return `api/v1/fe/local/${op}`;
@@ -94,24 +95,49 @@ const fsLs = async (host, path) => {
     return result['entry'];
 
   if (result['listing'])
-    return result['listing'][0]['entry'];
+    return result['listing'][0]['entry'] || [];
 
   return [];
 };
 
 const fsMkdir = async (opath) => {
   const {host, path} = parseOtaruPath(opath);
-  return await rpc(fsopEndpoint('mkdir', host), {
+  if (host === kHostLocal) {
+    return await rpc('api/v1/fe/local/mkdir', {
+      method: 'POST',
+      body: {path}
+    });
+  }
+
+  return await rpc(fsopEndpoint('node', host), {
     method: 'POST',
-    body: {path}
+    body: {
+      dir_id: "0",
+      name: path,
+      uid: 0,
+      gid: 0,
+      perm_mode: 0o755,
+      modified_time: "0",
+      type: "DIR",
+    }
   });
 };
 
 const fsRm = async (opath) => {
   const {host, path} = parseOtaruPath(opath);
-  return await rpc(fsopEndpoint('rm', host), {
+  if (host === kHostLocal) {
+    return await rpc('api/v1/fe/local/rm', {
+      method: 'POST',
+      body: {path}
+    });
+  }
+
+  return await rpc(fsopEndpoint('node/rm', host), {
     method: 'POST',
-    body: {path}
+    body: {
+      dir_id: "0",
+      name: path,
+    }
   });
 };
 
@@ -167,7 +193,7 @@ const previewFile = async (opath) => {
 
 const downloadFile = (host, id, filename) => {
   var ep;
-  if (host === '[noproxy]') {
+  if (host === kHostNoProxy) {
     ep = `file/${id}/${encodeURIComponent(filename)}`;
   } else if (host === kHostLocal) {
     throw "attempt to download local file";
@@ -186,6 +212,8 @@ export {
   fsMkdir,
   fsMv,
   fsRm,
+  kHostLocal,
+  kHostNoProxy,
   parseOtaruPath,
   previewFile,
   previewFileUrl,

@@ -3,6 +3,7 @@ package otaruapiserver
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 	"time"
 
 	"golang.org/x/net/context"
@@ -189,6 +190,30 @@ func (svc *fileSystemService) Create(ctx context.Context, req *pb.CreateRequest)
 	}
 
 	return &pb.CreateResponse{Id: uint64(id), IsNew: true}, nil
+}
+
+func (svc *fileSystemService) Remove(ctx context.Context, req *pb.RemoveRequest) (*pb.RemoveResponse, error) {
+	dirId := inodedb.ID(req.DirId)
+	name := req.Name
+	if dirId == 0 {
+		// lookup dir id
+		parent := filepath.Dir(req.Name)
+		var err error
+		dirId, err = svc.fs.FindNodeFullPath(parent)
+		if err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, "Failed to find parent %q: %v", parent, err)
+		}
+		name = filepath.Base(req.Name)
+	}
+
+	if err := svc.fs.Remove(dirId, name); err != nil {
+		if util.IsNotExist(err) {
+			return nil, grpc.Errorf(codes.NotFound, "Target does not exist")
+		}
+		return nil, grpc.Errorf(codes.Internal, "Remove failed: %v", err)
+	}
+
+	return &pb.RemoveResponse{}, nil
 }
 
 func (svc *fileSystemService) ReadFile(ctx context.Context, req *pb.ReadFileRequest) (*pb.ReadFileResponse, error) {

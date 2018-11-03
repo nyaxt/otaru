@@ -106,6 +106,8 @@ const innerHTMLSource =
   </div>`;
 
 class BrowseFS extends HTMLElement {
+  static get observedAttributes() { return ["path"]; }
+
   constructor() {
     super();
 
@@ -116,6 +118,12 @@ class BrowseFS extends HTMLElement {
     this.cursorIndex_ = -1;
     this.query_ = null;
     this.renameBefore_ = null;
+  }
+
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (name === 'path') {
+      this.path = newValue;
+    }
   }
 
   get hasFocus() {
@@ -270,7 +278,7 @@ class BrowseFS extends HTMLElement {
     const onquerykeypressup = (e) => {
       if (e.type === 'keypress' && e.key === 'Enter') {
         let cr = this.cursorRow;
-        if (cr)
+        if (cr && cr.triggerAction)
           cr.triggerAction();
 
         return true;
@@ -336,6 +344,8 @@ class BrowseFS extends HTMLElement {
     });
     window.addEventListener('keypress', this.onKeyPress_.bind(this));
     window.addEventListener('keyup', this.onKeyUp_.bind(this));
+
+    this.connectedCallbackRun_ = true;
   }
 
   async onKeyPress_(e) {
@@ -376,7 +386,7 @@ class BrowseFS extends HTMLElement {
       this.deleteSelection();
     } else if (e.key === 'Enter') {
       let cr = this.cursorRow;
-      if (cr)
+      if (cr && cr.triggerAction)
         cr.triggerAction();
     } else if (e.key === 'u') {
       this.navigateParent();
@@ -396,6 +406,9 @@ class BrowseFS extends HTMLElement {
   }
 
   async triggerUpdate() {
+    if (!this.connectedCallbackRun_)
+      return;
+
     if (this.inflightUpdate_)
       return;
 
@@ -901,6 +914,9 @@ const getHostList = async () => {
 
   return staticHostList;
 };
+const setHostList = (list) => {
+  staticHostList = list;
+};
 
 const formatVal = (type, val) => {
   if (type === 'type') {
@@ -935,4 +951,4 @@ const formatVal = (type, val) => {
   return val;
 };
 
-export {staticHostList};
+export {setHostList};

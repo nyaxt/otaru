@@ -179,6 +179,9 @@ func NewConfig(configdir string) (*Config, error) {
 		}
 	}
 
+	cfg.ApiServer.CertFile = os.ExpandEnv(cfg.ApiServer.CertFile)
+	cfg.ApiServer.KeyFile = os.ExpandEnv(cfg.ApiServer.KeyFile)
+
 	if err := verifyWebdavServerConfig(configdir, &cfg.WebdavServer); err != nil {
 		return nil, err
 	}

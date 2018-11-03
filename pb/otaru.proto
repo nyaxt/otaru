@@ -66,6 +66,15 @@ message CreateResponse {
   bool is_new = 2;
 }
 
+message RemoveRequest {
+  // If |dir_id| == 0, then treat |name| as fullpath.
+  uint64 dir_id = 1;
+  string name = 2;
+}
+
+message RemoveResponse {
+}
+
 message FindNodeFullPathRequest {
   string path = 1;
 }
@@ -125,6 +134,14 @@ service FileSystemService {
   rpc Create(CreateRequest) returns (CreateResponse) {
     option (google.api.http) = {
       post: "/api/v1/filesystem/node"
+      body: "*"
+    };
+  }
+
+  rpc Remove(RemoveRequest) returns (RemoveResponse) {
+    option (google.api.http) = {
+      // delete method doesn't allow body, so post
+      post: "/api/v1/filesystem/node/rm"
       body: "*"
     };
   }
