@@ -24,7 +24,7 @@
         "operationId": "ListHosts",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbListHostsResponse"
             }
@@ -35,12 +35,38 @@
         ]
       }
     },
+    "/api/v1/fe/local/cp": {
+      "post": {
+        "operationId": "CopyLocal",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbCopyLocalResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbCopyLocalRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FeService"
+        ]
+      }
+    },
     "/api/v1/fe/local/download": {
       "post": {
         "operationId": "Download",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbDownloadResponse"
             }
@@ -66,7 +92,7 @@
         "operationId": "ListLocalDir",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbListLocalDirResponse"
             }
@@ -90,7 +116,7 @@
         "operationId": "MkdirLocal",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbMkdirLocalResponse"
             }
@@ -116,7 +142,7 @@
         "operationId": "MoveLocal",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbMoveLocalResponse"
             }
@@ -142,7 +168,7 @@
         "operationId": "RemoveLocal",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbRemoveLocalResponse"
             }
@@ -168,7 +194,7 @@
         "operationId": "Upload",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbUploadResponse"
             }
@@ -194,7 +220,7 @@
         "operationId": "RemoteMove",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbRemoteMoveResponse"
             }
@@ -217,6 +243,20 @@
     }
   },
   "definitions": {
+    "pbCopyLocalRequest": {
+      "type": "object",
+      "properties": {
+        "path_src": {
+          "type": "string"
+        },
+        "path_dest": {
+          "type": "string"
+        }
+      }
+    },
+    "pbCopyLocalResponse": {
+      "type": "object"
+    },
     "pbDownloadRequest": {
       "type": "object",
       "properties": {

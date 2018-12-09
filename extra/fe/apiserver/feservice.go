@@ -80,6 +80,54 @@ func (s *feService) MkdirLocal(ctx context.Context, req *pb.MkdirLocalRequest) (
 	return &pb.MkdirLocalResponse{}, nil
 }
 
+func (s *feService) CopyLocal(ctx context.Context, req *pb.CopyLocalRequest) (*pb.CopyLocalResponse, error) {
+	pathSrc, err := s.cfg.ResolveLocalPath(req.PathSrc)
+	if err != nil {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Failed to resolve local path: %v", err)
+	}
+	pathDest, err := s.cfg.ResolveLocalPath(req.PathDest)
+	if err != nil {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Failed to resolve local path: %v", err)
+	}
+
+	logger.Infof(mylog, "CopyLocal %q -> %q", pathSrc, pathDest)
+
+	fiSrc, err := os.Stat(pathSrc)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, grpc.Errorf(codes.FailedPrecondition, "Source path doesn't exist.")
+		}
+		return nil, grpc.Errorf(codes.Internal, "Error Stat()ing source path: %v", err)
+	}
+
+	_, err = os.Stat(pathDest)
+	if err == nil {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Destination path already exists.")
+	}
+	if !os.IsNotExist(err) {
+		return nil, grpc.Errorf(codes.Internal, "Error Stat()ing destination path: %v", err)
+	}
+
+	r, err := os.Open(pathSrc)
+	if err != nil {
+		return nil, grpc.Errorf(codes.Internal, "Failed to os.Open(src): %v", err)
+	}
+	defer r.Close()
+
+	mode := fiSrc.Mode()
+	w, err := os.OpenFile(pathDest, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
+	if err != nil {
+		return nil, grpc.Errorf(codes.Internal, "Failed to os.OpenFile(pathDest): %v", err)
+	}
+	defer w.Close()
+
+	if _, err := io.Copy(w, r); err != nil {
+		return nil, grpc.Errorf(codes.Internal, "Failed to io.Copy: %v", err)
+	}
+
+	return &pb.CopyLocalResponse{}, nil
+}
+
 func (s *feService) MoveLocal(ctx context.Context, req *pb.MoveLocalRequest) (*pb.MoveLocalResponse, error) {
 	pathSrc, err := s.cfg.ResolveLocalPath(req.PathSrc)
 	if err != nil {

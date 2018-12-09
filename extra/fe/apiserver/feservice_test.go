@@ -200,6 +200,28 @@ func TestFeService(t *testing.T) {
 			tt.Fatalf("resp.Entry: %+v", resp.Entry)
 		}
 	})
+	t.Run("CopyLocal", func(tt *testing.T) {
+		if err := os.Mkdir(filepath.Join(rootPath, "copy_src"), 0755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := ioutil.WriteFile(filepath.Join(rootPath, "copy_src", "c.txt"), []byte("abcdef\n"), 0644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+		if err := os.Mkdir(filepath.Join(rootPath, "copy_dest"), 0755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+
+		ctx := context.TODO()
+		_, err := fesc.CopyLocal(ctx, &pb.CopyLocalRequest{
+			PathSrc:  "/copy_src/c.txt",
+			PathDest: "/copy_dest/c.txt",
+		})
+		if err != nil {
+			tt.Fatalf("CopyLocal: %v", err)
+		}
+		checkFileContents(t, filepath.Join(rootPath, "copy_dest", "c.txt"), []byte("abcdef\n"))
+		checkFileContents(t, filepath.Join(rootPath, "copy_src", "c.txt"), []byte("abcdef\n"))
+	})
 	t.Run("MoveLocal", func(tt *testing.T) {
 		if err := os.Mkdir(filepath.Join(rootPath, "move_src"), 0755); err != nil {
 			t.Fatalf("mkdir: %v", err)

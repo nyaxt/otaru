@@ -50,6 +50,14 @@ message MkdirLocalRequest {
 message MkdirLocalResponse {
 }
 
+message CopyLocalRequest {
+  string path_src = 1;
+  string path_dest = 2;
+}
+
+message CopyLocalResponse {
+}
+
 message MoveLocalRequest {
   string path_src = 1;
   string path_dest = 2;
@@ -108,6 +116,13 @@ service FeService {
   rpc MkdirLocal(MkdirLocalRequest) returns (MkdirLocalResponse) {
     option (google.api.http) = {
       post: "/api/v1/fe/local/mkdir"
+      body: "*"
+    };
+  }
+
+  rpc CopyLocal(CopyLocalRequest) returns (CopyLocalResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/fe/local/cp"
       body: "*"
     };
   }

@@ -2,6 +2,8 @@ import {$} from './domhelper.js';
 
 const kHostLocal = '[local]';
 const kHostNoProxy = '[noproxy]';
+const kCopy = 'copy';
+const kMove = 'move';
 
 let apiprefix = `${window.document.location.origin}/`;
 (() => {
@@ -141,7 +143,7 @@ const fsRm = async (opath) => {
   });
 };
 
-const fsMv = async (src, dest) => {
+const fsMoveOrCopy = async (moveOrCopy, src, dest) => {
   const {host: hostSrc, path: pathSrc} = parseOtaruPath(src);
   const {host: hostDest, path: pathDest} = parseOtaruPath(dest);
 
@@ -150,35 +152,39 @@ const fsMv = async (src, dest) => {
   // remote -> local: /api/v1/fe/local/download
   // remote -> remote: /api/v1/fe/remove_mv
 
-  if (hostSrc != hostDest) {
-    throw new Error(`Unimplemented: src host ${hostSrc} != dest host ${hostDest}`);
-  }
-
   console.log(`mv "${pathSrc}" -> "${pathDest}"`);
 
   if (hostSrc === kHostLocal) {
     if (hostDest === kHostLocal) {
-      return await rpc ('api/v1/fe/local/mv', {
+      const op = moveOrCopy === kCopy ? 'cp' : 'mv';
+      return await rpc(`api/v1/fe/local/${op}`, {
         method: 'POST',
         body: {pathSrc, pathDest},
       });
     }
 
-    return await rpc ('api/v1/fe/local/upload', {
+    await rpc ('api/v1/fe/local/upload', {
       method: 'POST',
       body: {pathSrc, opathDest: dest, allowOverwrite: false},
     });
+    if (moveOrCopy === kMove) {
+      await fsRm(src);
+    }
   } else {
     if (hostDest === kHostLocal) {
-      return await rpc ('api/v1/fe/local/download', {
+      return await rpc('api/v1/fe/local/download', {
         method: 'POST',
         body: {opathSrc: src, pathDest, allowOverwrite: false},
       });
+      if (moveOrCopy === kMove) {
+        await fsRm(src);
+      }
     }
 
-    return await rpc('api/v1/fe/remove_mv', {
+    const op = moveOrCopy === kCopy ? 'remote_cp' : 'remote_mv';
+    return await rpc(`api/v1/fe/local/${op}`, {
       method: 'POST',
-      body: {opathSrc: src, opathDest: dest, allowOverwrite: false}
+      body: {pathSrc, pathDest},
     });
   }
 };
@@ -210,10 +216,12 @@ export {
   fillRemoteContent,
   fsLs,
   fsMkdir,
-  fsMv,
+  fsMoveOrCopy,
   fsRm,
+  kCopy,
   kHostLocal,
   kHostNoProxy,
+  kMove,
   parseOtaruPath,
   previewFile,
   previewFileUrl,

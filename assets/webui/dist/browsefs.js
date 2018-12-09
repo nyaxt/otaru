@@ -1,5 +1,5 @@
 import {$, $$, removeAllChildNodes} from './domhelper.js';
-import {rpc, downloadFile, parseOtaruPath, fsLs, fsMv, fsMkdir, fsRm} from './api.js';
+import {kCopy, kMove, rpc, downloadFile, parseOtaruPath, fsLs, fsMoveOrCopy, fsMkdir, fsRm} from './api.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
 import {findLongestCommonSubStr} from './commonsubstr.js';
 import {preview} from './preview.js';
@@ -10,7 +10,7 @@ const debugwait = () => {
   });
 }
 
-const kDialogCancelled = Symbol('modal dialog cancelled.');
+const kDialogCancelled = 'modal dialog cancelled.';
 
 const kFocusClass = 'hasfocus';
 const kModalClass = 'modal';
@@ -368,6 +368,8 @@ class BrowseFS extends HTMLElement {
       this.openMkdirPrompt();
     } else if (e.key === 'm') {
       this.moveSelection();
+    } else if (e.key === 'c') {
+      this.copySelection();
     } else if (e.key === 'p') {
       let cr = this.cursorRow;
       if (cr)
@@ -860,10 +862,18 @@ class BrowseFS extends HTMLElement {
     }
   }
 
+  async copySelection() {
+    this.moveOrCopySelection_(kCopy); 
+  }
+
   async moveSelection() {
+    this.moveOrCopySelection_(kMove); 
+  }
+
+  async moveOrCopySelection_(moveOrCopy) {
     try {
       if (!this.counterpart) {
-        throw "No counterpart to move to.";
+        throw "No counterpart to move/copy to.";
         return;
       }
 
@@ -883,14 +893,14 @@ class BrowseFS extends HTMLElement {
         const src = this.path + r.data.name;
         const dest = this.counterpart.path + r.data.name;
         items.push({src, dest});
-        itemLabels.push(`mv: "${src}" -> "${dest}"`);
+        itemLabels.push(`${moveOrCopy}: "${src}" -> "${dest}"`);
       }
       this.setConfirmDetailItems_(itemLabels);
-      await this.openConfirm_(`Move: ${selectedRows.length} item(s)`);
+      await this.openConfirm_(`${moveOrCopy}: ${selectedRows.length} item(s)`);
       let i = 0;
       for (let item of items) {
         console.log(item);
-        await fsMv(item.src, item.dest);
+        await fsMoveOrCopy(moveOrCopy, item.src, item.dest);
         this.setConfirmProgress_(++i);
       }
       this.closeConfirm_();
