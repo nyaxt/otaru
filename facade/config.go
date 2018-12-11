@@ -61,6 +61,8 @@ type ApiServerConfig struct {
 	CertFile           string
 	KeyFile            string
 	CORSAllowedOrigins []string `toml:"cors_allowed_origins"`
+
+	JwtPubkeys []string
 }
 
 type WebdavServerConfig struct {

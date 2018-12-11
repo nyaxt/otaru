@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,7 +23,7 @@ type httpWriter struct {
 
 var _ = io.WriteCloser(&httpWriter{})
 
-func newWriterHttp(ep string, tc *tls.Config, id uint64) (io.WriteCloser, error) {
+func newWriterHttp(cinfo *ConnectionInfo, id uint64) (io.WriteCloser, error) {
 	pr, pw, err := os.Pipe()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create pipe: %v", err)
@@ -36,12 +35,12 @@ func newWriterHttp(ep string, tc *tls.Config, id uint64) (io.WriteCloser, error)
 		defer close(errC)
 		cli := &http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: tc,
+				TLSClientConfig: cinfo.TLSConfig,
 			},
 		}
 		url := &url.URL{
 			Scheme: "https",
-			Host:   ep,
+			Host:   cinfo.ApiEndpoint,
 			Path:   fmt.Sprintf("/file/%d/bin", id),
 		}
 		logger.Debugf(Log, "requrl %v", url.String())
@@ -53,6 +52,9 @@ func newWriterHttp(ep string, tc *tls.Config, id uint64) (io.WriteCloser, error)
 			URL:           url,
 			Body:          pr,
 			ContentLength: -1, // FIXME
+		}
+		if cinfo.AuthToken != "" {
+			req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", cinfo.AuthToken))
 		}
 		resp, err := cli.Do(req)
 		if err != nil {
@@ -135,11 +137,11 @@ func NewWriter(pathstr string, ofs ...Option) (io.WriteCloser, error) {
 		return nil, err
 	}
 
-	ep, tc, err := ConnectionInfo(opts.cfg, p.Vhost)
+	cinfo, err := QueryConnectionInfo(opts.cfg, p.Vhost)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := DialGrpc(ep, tc)
+	conn, err := cinfo.DialGrpc()
 	if err != nil {
 		return nil, err
 	}
@@ -173,6 +175,6 @@ func NewWriter(pathstr string, ofs ...Option) (io.WriteCloser, error) {
 		return &grpcWriter{ctx: opts.ctx, conn: conn, id: id, offset: 0}, nil
 	} else {
 		conn.Close()
-		return newWriterHttp(ep, tc, id)
+		return newWriterHttp(cinfo, id)
 	}
 }

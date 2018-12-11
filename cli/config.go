@@ -29,7 +29,7 @@ type Host struct {
 	ExpectedCertFile   string
 	OverrideServerName string
 
-	//ClientCertFile   string
+	AuthToken string
 }
 
 type FeConfig struct {

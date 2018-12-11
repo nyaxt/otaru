@@ -121,11 +121,14 @@ func Attr(ctx context.Context, cfg *CliConfig, args []string) error {
 		return fmt.Errorf("%v", err)
 	}
 
-	conn, err := DialGrpcVhost(cfg, p.Vhost)
+	cinfo, err := QueryConnectionInfo(cfg, p.Vhost)
 	if err != nil {
-		return fmt.Errorf("%v", err)
+		return err
 	}
-	defer conn.Close()
+	conn, err := cinfo.DialGrpc()
+	if err != nil {
+		return err
+	}
 
 	fsc := pb.NewFileSystemServiceClient(conn)
 	resp, err := fsc.Attr(ctx, &pb.AttrRequest{Id: id, Path: p.FsPath})
@@ -177,9 +180,13 @@ func Ls(ctx context.Context, w io.Writer, cfg *CliConfig, args []string) error {
 				conn.Close()
 			}
 
-			conn, err = DialGrpcVhost(cfg, p.Vhost)
+			cinfo, err := QueryConnectionInfo(cfg, p.Vhost)
 			if err != nil {
-				return fmt.Errorf("%v", err)
+				return err
+			}
+			conn, err = cinfo.DialGrpc()
+			if err != nil {
+				return err
 			}
 			connectedVhost = p.Vhost
 		}

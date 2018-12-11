@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,15 +31,15 @@ type Reader interface {
 
 var _ = Reader(&httpReader{})
 
-func newReaderHttp(ep string, tc *tls.Config, id uint64) (Reader, error) {
+func newReaderHttp(cinfo *ConnectionInfo, id uint64) (Reader, error) {
 	cli := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: tc,
+			TLSClientConfig: cinfo.TLSConfig,
 		},
 	}
 	url := &url.URL{
 		Scheme: "https",
-		Host:   ep,
+		Host:   cinfo.ApiEndpoint,
 		Path:   fmt.Sprintf("/file/%d/bin", id),
 	}
 	logger.Debugf(Log, "requrl %v", url.String())
@@ -50,6 +49,9 @@ func newReaderHttp(ep string, tc *tls.Config, id uint64) (Reader, error) {
 			// "Accept-Encoding": {"gzip"}, // FIXME
 		},
 		URL: url,
+	}
+	if cinfo.AuthToken != "" {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", cinfo.AuthToken))
 	}
 	resp, err := cli.Do(req)
 	if err != nil {
@@ -187,11 +189,11 @@ func NewReader(pathstr string, options ...Option) (Reader, error) {
 		return fileReader{f}, nil
 	}
 
-	ep, tc, err := ConnectionInfo(opts.cfg, p.Vhost)
+	cinfo, err := QueryConnectionInfo(opts.cfg, p.Vhost)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := DialGrpc(ep, tc)
+	conn, err := cinfo.DialGrpc()
 	if err != nil {
 		return nil, err
 	}
@@ -214,6 +216,6 @@ func NewReader(pathstr string, options ...Option) (Reader, error) {
 		return &grpcReader{ctx: opts.ctx, conn: conn, id: id, size: size, offset: 0}, nil
 	} else {
 		conn.Close()
-		return newReaderHttp(ep, tc, id)
+		return newReaderHttp(cinfo, id)
 	}
 }

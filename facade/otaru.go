@@ -178,10 +178,15 @@ func Serve(cfg *Config, closeC <-chan error) error {
 		}
 	}
 
+	apiopts, err := o.buildApiServerOptions(&cfg.ApiServer)
+	if err != nil {
+		return fmt.Errorf("ApiServer config failed: %v", err)
+	}
+
 	apiCloseC := make(chan struct{})
 	defer close(apiCloseC)
 	apiErrC := make(chan error)
-	apiopts := append(o.buildApiServerOptions(&cfg.ApiServer), apiserver.CloseChannel(apiCloseC))
+	apiopts = append(apiopts, apiserver.CloseChannel(apiCloseC))
 	go func() {
 		if err := apiserver.Serve(apiopts...); err != nil {
 			apiErrC <- err

@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"crypto/ecdsa"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
@@ -16,6 +17,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
+	apiserver_jwt "github.com/nyaxt/otaru/apiserver/jwt"
 	apiserver_logger "github.com/nyaxt/otaru/apiserver/logger"
 	"github.com/nyaxt/otaru/assets/swaggerui"
 	"github.com/nyaxt/otaru/cli"
@@ -31,10 +33,14 @@ type MuxHook func(mux *http.ServeMux)
 
 type options struct {
 	listenAddr string
-	certFile   string
-	keyFile    string
 
-	allowedOrigins  []string
+	certFile string
+	keyFile  string
+
+	allowedOrigins []string
+
+	jwtPublicKeys []*ecdsa.PublicKey
+
 	serviceRegistry []serviceRegistryEntry
 	accesslogger    logger.Logger
 	muxhooks        []MuxHook
@@ -89,6 +95,12 @@ func CloseChannel(c <-chan struct{}) Option {
 
 func CORSAllowedOrigins(allowedOrigins []string) Option {
 	return func(o *options) { o.allowedOrigins = allowedOrigins }
+}
+
+func JWTPublicKeys(pubkeys []*ecdsa.PublicKey) Option {
+	return func(o *options) {
+		o.jwtPublicKeys = pubkeys
+	}
 }
 
 func RegisterService(
@@ -167,16 +179,23 @@ func Serve(opt ...Option) error {
 	if err != nil {
 		return fmt.Errorf("Failed to create X509KeyPair: %v", err)
 	}
-
 	grpcCredentials := credentials.NewServerTLSFromCert(&cert)
+
+	uics := []grpc.UnaryServerInterceptor{}
+	if opts.jwtPublicKeys != nil {
+		uics = append(uics,
+			apiserver_jwt.UnaryServerInterceptor(opts.jwtPublicKeys))
+	}
+	uics = append(uics,
+		grpc_ctxtags.UnaryServerInterceptor(
+			grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.TagBasedRequestFieldExtractor("log_fields")),
+		),
+		apiserver_logger.UnaryServerInterceptor(),
+	)
+
 	grpcServer := grpc.NewServer(
 		grpc.Creds(grpcCredentials),
-		grpc_middleware.WithUnaryServerChain(
-			grpc_ctxtags.UnaryServerInterceptor(
-				grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.TagBasedRequestFieldExtractor("log_fields")),
-			),
-			apiserver_logger.UnaryServerInterceptor(),
-		),
+		grpc_middleware.WithUnaryServerChain(uics...),
 	)
 	for _, e := range opts.serviceRegistry {
 		e.registerServiceServer(grpcServer)
