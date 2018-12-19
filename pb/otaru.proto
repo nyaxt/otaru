@@ -350,6 +350,12 @@ message WhoamiResponse {
   string user = 2;
 }
 
+message AuthTestRequest {
+}
+
+message AuthTestResponse {
+}
+
 service SystemInfoService {
   rpc GetSystemInfo(GetSystemInfoRequest) returns (SystemInfoResponse) {
     option (google.api.http) = {
@@ -366,6 +372,24 @@ service SystemInfoService {
   rpc Whoami(WhoamiRequest) returns (WhoamiResponse) {
     option (google.api.http) = {
       get: "/api/v1/system/whoami"
+    };
+  }
+
+  rpc AuthTestAnonymous(AuthTestRequest) returns (AuthTestResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/system/authtest_anonymous"
+    };
+  }
+
+  rpc AuthTestReadOnly(AuthTestRequest) returns (AuthTestResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/system/authtest_readonly"
+    };
+  }
+
+  rpc AuthTestAdmin(AuthTestRequest) returns (AuthTestResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/system/authtest_admin"
     };
   }
 }

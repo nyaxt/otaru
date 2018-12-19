@@ -129,6 +129,7 @@ func Attr(ctx context.Context, cfg *CliConfig, args []string) error {
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
 
 	fsc := pb.NewFileSystemServiceClient(conn)
 	resp, err := fsc.Attr(ctx, &pb.AttrRequest{Id: id, Path: p.FsPath})

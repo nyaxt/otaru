@@ -66,6 +66,30 @@ func (*systemService) Whoami(ctx context.Context, in *pb.WhoamiRequest) (*pb.Who
 	}, nil
 }
 
+func (*systemService) AuthTestAnonymous(ctx context.Context, in *pb.AuthTestRequest) (*pb.AuthTestResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAnonymous); err != nil {
+		return nil, err
+	}
+
+	return &pb.AuthTestResponse{}, nil
+}
+
+func (*systemService) AuthTestReadOnly(ctx context.Context, in *pb.AuthTestRequest) (*pb.AuthTestResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleReadOnly); err != nil {
+		return nil, err
+	}
+
+	return &pb.AuthTestResponse{}, nil
+}
+
+func (*systemService) AuthTestAdmin(ctx context.Context, in *pb.AuthTestRequest) (*pb.AuthTestResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+		return nil, err
+	}
+
+	return &pb.AuthTestResponse{}, nil
+}
+
 func InstallSystemService() apiserver.Option {
 	return apiserver.RegisterService(
 		func(s *grpc.Server) { pb.RegisterSystemInfoServiceServer(s, &systemService{}) },

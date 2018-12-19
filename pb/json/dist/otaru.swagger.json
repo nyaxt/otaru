@@ -412,6 +412,54 @@
         ]
       }
     },
+    "/api/v1/system/authtest_admin": {
+      "get": {
+        "operationId": "AuthTestAdmin",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbAuthTestResponse"
+            }
+          }
+        },
+        "tags": [
+          "SystemInfoService"
+        ]
+      }
+    },
+    "/api/v1/system/authtest_anonymous": {
+      "get": {
+        "operationId": "AuthTestAnonymous",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbAuthTestResponse"
+            }
+          }
+        },
+        "tags": [
+          "SystemInfoService"
+        ]
+      }
+    },
+    "/api/v1/system/authtest_readonly": {
+      "get": {
+        "operationId": "AuthTestReadOnly",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbAuthTestResponse"
+            }
+          }
+        },
+        "tags": [
+          "SystemInfoService"
+        ]
+      }
+    },
     "/api/v1/system/info": {
       "get": {
         "operationId": "GetSystemInfo",
@@ -484,6 +532,9 @@
           "$ref": "#/definitions/pbINodeView"
         }
       }
+    },
+    "pbAuthTestResponse": {
+      "type": "object"
     },
     "pbCreateRequest": {
       "type": "object",
