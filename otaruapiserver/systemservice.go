@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/nyaxt/otaru/apiserver"
+	"github.com/nyaxt/otaru/apiserver/jwt"
 	"github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/util/countfds"
 	"github.com/nyaxt/otaru/version"
@@ -15,7 +16,11 @@ import (
 
 type systemService struct{}
 
-func (*systemService) GetSystemInfo(context.Context, *pb.GetSystemInfoRequest) (*pb.SystemInfoResponse, error) {
+func (*systemService) GetSystemInfo(ctx context.Context, in *pb.GetSystemInfoRequest) (*pb.SystemInfoResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+		return nil, err
+	}
+
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
@@ -49,6 +54,15 @@ func (*systemService) GetVersion(ctx context.Context, in *pb.GetVersionRequest) 
 		GitCommit: version.GIT_COMMIT,
 		BuildHost: version.BUILD_HOST,
 		BuildTime: version.BuildTimeString,
+	}, nil
+}
+
+func (*systemService) Whoami(ctx context.Context, in *pb.WhoamiRequest) (*pb.WhoamiResponse, error) {
+	ui := jwt.UserInfoFromContext(ctx)
+
+	return &pb.WhoamiResponse{
+		Role: ui.Role.String(),
+		User: ui.User,
 	}, nil
 }
 

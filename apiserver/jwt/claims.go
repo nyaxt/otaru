@@ -11,13 +11,26 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
-var otaruRoleSet = map[string]struct{}{
-	"admin":     struct{}{},
-	"readonly":  struct{}{},
-	"anonymous": struct{}{},
+type Role int
+
+const (
+	RoleAnonymous Role = iota
+	RoleReadOnly
+	RoleAdmin
+)
+
+var strToRole = map[string]Role{
+	"anonymous": RoleAnonymous,
+	"readonly":  RoleReadOnly,
+	"admin":     RoleAdmin,
 }
 
-func IsValidRole(role string) bool {
-	_, valid := otaruRoleSet[role]
-	return valid
+var roleToStr = map[Role]string{
+	RoleAnonymous: "anonymous",
+	RoleReadOnly:  "readonly",
+	RoleAdmin:     "admin",
+}
+
+func (r Role) String() string {
+	return roleToStr[r]
 }

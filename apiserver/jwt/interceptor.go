@@ -1,10 +1,10 @@
 package jwt
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"strings"
 
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -21,6 +21,17 @@ const (
 )
 
 func UnaryServerInterceptor(pubkey *ecdsa.PublicKey) grpc.UnaryServerInterceptor {
+	if pubkey == nil {
+		logger.Warningf(mylog, "Authentication is disabled. Any request to the server will treated as if it were from role \"admin\".")
+
+		return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+			ctx = ContextWithUserInfo(ctx, NoauthUserInfo)
+			resp, err := handler(ctx, req)
+			return resp, err
+		}
+	}
+
+	logger.Infof(mylog, "Authentication is enabled.")
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
@@ -29,7 +40,7 @@ func UnaryServerInterceptor(pubkey *ecdsa.PublicKey) grpc.UnaryServerInterceptor
 
 		auths := md.Get(AuthorizationKey)
 		if len(auths) == 0 {
-			ctx = metadata.AppendToOutgoingContext(ctx, "user", "anonymous", "role", "anonymous")
+			// ctx not modified
 		} else {
 			if len(auths) != 1 {
 				return nil, grpc.Errorf(codes.Unauthenticated, "Invalid number of authorization values.")
@@ -75,16 +86,15 @@ func UnaryServerInterceptor(pubkey *ecdsa.PublicKey) grpc.UnaryServerInterceptor
 				return nil, grpc.Errorf(codes.Unauthenticated, "The jwt token is missing \"sub\" claim.")
 			}
 
-			if !IsValidRole(claims.Role) {
-				return nil, grpc.Errorf(codes.Unauthenticated, "The jwt token has unknown role claim.")
+			ui, err := NewUserInfo(claims.Role, claims.Subject)
+			if err != nil {
+				return nil, grpc.Errorf(codes.Unauthenticated, "%v", err)
 			}
 
-			ctx = metadata.AppendToOutgoingContext(ctx, "user", claims.Subject, "role", claims.Role)
-			// logger.Infof(mylog, "user: %q, role: %q", claims.Subject, claims.Role)
+			ctx = ContextWithUserInfo(ctx, ui)
 		}
 
 		resp, err := handler(ctx, req)
-
 		return resp, err
 	}
 }

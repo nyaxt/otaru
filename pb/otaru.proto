@@ -342,6 +342,14 @@ message VersionResponse {
   string build_time = 3;
 }
 
+message WhoamiRequest {
+}
+
+message WhoamiResponse {
+  string role = 1;
+  string user = 2;
+}
+
 service SystemInfoService {
   rpc GetSystemInfo(GetSystemInfoRequest) returns (SystemInfoResponse) {
     option (google.api.http) = {
@@ -354,4 +362,10 @@ service SystemInfoService {
       get: "/api/v1/system/version"
     };
   };
+
+  rpc Whoami(WhoamiRequest) returns (WhoamiResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/system/whoami"
+    };
+  }
 }

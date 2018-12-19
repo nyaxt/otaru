@@ -443,6 +443,22 @@
           "SystemInfoService"
         ]
       }
+    },
+    "/api/v1/system/whoami": {
+      "get": {
+        "operationId": "Whoami",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbWhoamiResponse"
+            }
+          }
+        },
+        "tags": [
+          "SystemInfoService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -853,6 +869,17 @@
           "type": "string"
         },
         "build_time": {
+          "type": "string"
+        }
+      }
+    },
+    "pbWhoamiResponse": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string"
+        },
+        "user": {
           "type": "string"
         }
       }

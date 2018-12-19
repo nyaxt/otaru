@@ -181,18 +181,13 @@ func Serve(opt ...Option) error {
 	}
 	grpcCredentials := credentials.NewServerTLSFromCert(&cert)
 
-	uics := []grpc.UnaryServerInterceptor{}
-	if opts.jwtPublicKey != nil {
-		uics = append(uics,
-			apiserver_jwt.UnaryServerInterceptor(opts.jwtPublicKey))
-	}
-	uics = append(uics,
+	uics := []grpc.UnaryServerInterceptor{
+		apiserver_jwt.UnaryServerInterceptor(opts.jwtPublicKey),
 		grpc_ctxtags.UnaryServerInterceptor(
 			grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.TagBasedRequestFieldExtractor("log_fields")),
 		),
 		apiserver_logger.UnaryServerInterceptor(),
-	)
-
+	}
 	grpcServer := grpc.NewServer(
 		grpc.Creds(grpcCredentials),
 		grpc_middleware.WithUnaryServerChain(uics...),
