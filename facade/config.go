@@ -62,7 +62,7 @@ type ApiServerConfig struct {
 	KeyFile            string
 	CORSAllowedOrigins []string `toml:"cors_allowed_origins"`
 
-	JwtPubkeys []string
+	JwtPubkey string
 }
 
 type WebdavServerConfig struct {
@@ -183,6 +183,7 @@ func NewConfig(configdir string) (*Config, error) {
 
 	cfg.ApiServer.CertFile = os.ExpandEnv(cfg.ApiServer.CertFile)
 	cfg.ApiServer.KeyFile = os.ExpandEnv(cfg.ApiServer.KeyFile)
+	cfg.ApiServer.JwtPubkey = os.ExpandEnv(cfg.ApiServer.JwtPubkey)
 
 	if err := verifyWebdavServerConfig(configdir, &cfg.WebdavServer); err != nil {
 		return nil, err

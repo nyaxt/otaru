@@ -1,7 +1,6 @@
 package facade
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -25,26 +24,10 @@ func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) ([]apiserver.Option,
 		webuifs = http.Dir(override)
 	}
 
-	jwtPubkeys := make([]*ecdsa.PublicKey, 0, len(cfg.JwtPubkeys))
-	for _, pkcfg := range cfg.JwtPubkeys {
-		keytext, err := ioutil.ReadFile(pkcfg)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to load ECDSA public key file %q: %v", pkcfg, err)
-		}
-
-		pk, err := jwt.ParseECPublicKeyFromPEM(keytext)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to parse ECDSA public key %q: %v", pkcfg, err)
-		}
-
-		jwtPubkeys = append(jwtPubkeys, pk)
-	}
-
 	options := []apiserver.Option{
 		apiserver.ListenAddr(cfg.ListenAddr),
 		apiserver.X509KeyPair(cfg.CertFile, cfg.KeyFile),
 		apiserver.CORSAllowedOrigins(cfg.CORSAllowedOrigins),
-		apiserver.JWTPublicKeys(jwtPubkeys),
 		apiserver.SetWebUI(webuifs, "/index.otaru-server.html"),
 		apiserver.SetSwaggerJson(json.Assets, "/otaru.swagger.json"),
 		otaruapiserver.InstallBlobstoreService(o.S, o.DefaultBS, o.CBS),
@@ -54,6 +37,21 @@ func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) ([]apiserver.Option,
 		otaruapiserver.InstallLoggerService(),
 		otaruapiserver.InstallSystemService(),
 	}
+
+	if cfg.JwtPubkey != "" {
+		keytext, err := ioutil.ReadFile(cfg.JwtPubkey)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to load ECDSA public key file %q: %v", cfg.JwtPubkey, err)
+		}
+
+		pk, err := jwt.ParseECPublicKeyFromPEM(keytext)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse ECDSA public key %q: %v", cfg.JwtPubkey, err)
+		}
+
+		options = append(options, apiserver.JWTPublicKey(pk))
+	}
+
 	/*
 		if cfg.InstallDebugApi {
 			logger.Infof(mylog, "Installing Debug APIs.")

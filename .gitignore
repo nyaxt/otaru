@@ -35,6 +35,7 @@ otaru-fuzzymv
 otaru-globallock
 otaru-mkfs
 otaru-server
+otaru-genjwttoken
 *-fuzz.zip
 
 version/consts.go

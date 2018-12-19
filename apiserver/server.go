@@ -39,7 +39,7 @@ type options struct {
 
 	allowedOrigins []string
 
-	jwtPublicKeys []*ecdsa.PublicKey
+	jwtPublicKey *ecdsa.PublicKey
 
 	serviceRegistry []serviceRegistryEntry
 	accesslogger    logger.Logger
@@ -97,9 +97,9 @@ func CORSAllowedOrigins(allowedOrigins []string) Option {
 	return func(o *options) { o.allowedOrigins = allowedOrigins }
 }
 
-func JWTPublicKeys(pubkeys []*ecdsa.PublicKey) Option {
+func JWTPublicKey(pubkey *ecdsa.PublicKey) Option {
 	return func(o *options) {
-		o.jwtPublicKeys = pubkeys
+		o.jwtPublicKey = pubkey
 	}
 }
 
@@ -182,9 +182,9 @@ func Serve(opt ...Option) error {
 	grpcCredentials := credentials.NewServerTLSFromCert(&cert)
 
 	uics := []grpc.UnaryServerInterceptor{}
-	if opts.jwtPublicKeys != nil {
+	if opts.jwtPublicKey != nil {
 		uics = append(uics,
-			apiserver_jwt.UnaryServerInterceptor(opts.jwtPublicKeys))
+			apiserver_jwt.UnaryServerInterceptor(opts.jwtPublicKey))
 	}
 	uics = append(uics,
 		grpc_ctxtags.UnaryServerInterceptor(
