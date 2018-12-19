@@ -34,7 +34,7 @@ func (ap *apiproxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	hname, tgtpath := ms[1], ms[2]
 
-	ep, tc, err := cli.ConnectionInfo(ap.cfg, hname)
+	ci, err := cli.QueryConnectionInfo(ap.cfg, hname)
 	if err != nil {
 		http.Error(w, "Failed to construct connection info.", http.StatusInternalServerError)
 		return
@@ -42,12 +42,12 @@ func (ap *apiproxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	cli := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: tc,
+			TLSClientConfig: ci.TLSConfig,
 		},
 	}
 	url := &url.URL{
 		Scheme:   "https",
-		Host:     ep,
+		Host:     ci.ApiEndpoint,
 		Path:     tgtpath,
 		RawQuery: r.URL.RawQuery,
 	}

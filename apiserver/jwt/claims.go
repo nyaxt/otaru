@@ -31,6 +31,11 @@ var roleToStr = map[Role]string{
 	RoleAdmin:     "admin",
 }
 
+func IsValidRoleStr(s string) bool {
+	_, ok := strToRole[s]
+	return ok
+}
+
 func (r Role) String() string {
 	return roleToStr[r]
 }

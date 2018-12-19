@@ -6,6 +6,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"github.com/nyaxt/otaru/apiserver"
+	"github.com/nyaxt/otaru/apiserver/jwt"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/logger/logbuf"
 	"github.com/nyaxt/otaru/pb"
@@ -16,6 +17,10 @@ type loggerService struct {
 }
 
 func (*loggerService) GetCategories(ctx context.Context, req *pb.GetCategoriesRequest) (*pb.GetCategoriesResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+		return nil, err
+	}
+
 	cs := logger.Registry().Categories()
 
 	pcs := make([]*pb.LoggerCategory, 0, len(cs))
@@ -30,6 +35,10 @@ func (*loggerService) GetCategories(ctx context.Context, req *pb.GetCategoriesRe
 }
 
 func (*loggerService) SetCategory(ctx context.Context, req *pb.SetCategoryRequest) (*pb.SetCategoryResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+		return nil, err
+	}
+
 	c := logger.Registry().CategoryIfExist(req.Category)
 	if c == nil {
 		return nil, grpc.Errorf(codes.NotFound, "Specified category not found")
@@ -41,6 +50,10 @@ func (*loggerService) SetCategory(ctx context.Context, req *pb.SetCategoryReques
 }
 
 func (s *loggerService) QueryLogs(ctx context.Context, req *pb.QueryLogsRequest) (*pb.QueryLogsResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+		return nil, err
+	}
+
 	es := s.lbuf.Query(int(req.MinId), req.Category, int(req.Limit))
 	pes := make([]*pb.QueryLogsResponse_Entry, 0, len(es))
 	for _, e := range es {
@@ -58,6 +71,10 @@ func (s *loggerService) QueryLogs(ctx context.Context, req *pb.QueryLogsRequest)
 }
 
 func (s *loggerService) GetLatestLogEntryId(ctx context.Context, req *pb.GetLatestLogEntryIdRequest) (*pb.GetLatestLogEntryIdResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+		return nil, err
+	}
+
 	id := s.lbuf.LatestEntryId()
 	return &pb.GetLatestLogEntryIdResponse{Id: uint32(id)}, nil
 }

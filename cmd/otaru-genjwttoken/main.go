@@ -24,7 +24,7 @@ var (
 func run() error {
 	keyfile := *flagPrivKey
 	role := *flagRole
-	if !ojwt.IsValidRole(role) {
+	if !ojwt.IsValidRoleStr(role) {
 		return fmt.Errorf("Invalid role %q.", role)
 	}
 

@@ -140,7 +140,11 @@ func TestFeService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TLSConfigFromCertText: %v", err)
 	}
-	conn, err := cli.DialGrpc(testFeListenAddr, tc)
+	ci := cli.ConnectionInfo{
+		ApiEndpoint: testFeListenAddr,
+		TLSConfig:   tc,
+	}
+	conn, err := ci.DialGrpc()
 	if err != nil {
 		t.Fatalf("DialGrpcVhost: %v", err)
 	}
