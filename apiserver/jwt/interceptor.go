@@ -3,6 +3,8 @@ package jwt
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
+	"fmt"
 	"strings"
 
 	"google.golang.org/grpc"
@@ -20,10 +22,69 @@ const (
 	BearerPrefix     = "Bearer "
 )
 
-func UnaryServerInterceptor(pubkey *ecdsa.PublicKey) grpc.UnaryServerInterceptor {
-	if pubkey == nil {
-		logger.Warningf(mylog, "Authentication is disabled. Any request to the server will treated as if it were from role \"admin\".")
+type JWTAuthProvider struct {
+	pubkey *ecdsa.PublicKey
+}
 
+func NewJWTAuthProvider(pubkey *ecdsa.PublicKey) *JWTAuthProvider {
+	if pubkey == nil {
+		logger.Infof(mylog, "Authentication is disabled. Any request to the server will treated as if it were from role \"admin\".")
+		return &JWTAuthProvider{pubkey: nil}
+	}
+
+	logger.Infof(mylog, "Authentication is enabled.")
+	return &JWTAuthProvider{pubkey: pubkey}
+}
+
+func (p *JWTAuthProvider) UserInfoFromAuthHeader(auth string) (*UserInfo, error) {
+	if !strings.HasPrefix(auth, BearerPrefix) {
+		return nil, errors.New("Unsupported authroization type.")
+	}
+	tokenString := auth[len(BearerPrefix):]
+
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return p.pubkey, nil
+	})
+	if err != nil {
+		return nil, errors.New("Failed to parse jwt token")
+	}
+
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, errors.New("Failed to validate jwt token")
+	}
+
+	if !claims.VerifyAudience(OtaruAudience, true) {
+		return nil, errors.New("Failed to validate jwt token audience.")
+	}
+
+	if claims.NotBefore == 0 {
+		return nil, errors.New("The jwt token is missing \"nbf\" claim.")
+	}
+	if claims.ExpiresAt == 0 {
+		return nil, errors.New("The jwt token is missing \"exp\" claim.")
+	}
+	if err := claims.Valid(); err != nil {
+		return nil, errors.New("The jwt token is not valid at this time.")
+	}
+
+	if claims.Subject == "" {
+		return nil, errors.New("The jwt token is missing \"sub\" claim.")
+	}
+
+	ui, err := NewUserInfo(claims.Role, claims.Subject)
+	if err != nil {
+		return nil, err
+	}
+	return ui, nil
+}
+
+func (p *JWTAuthProvider) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
+	if p.pubkey == nil {
 		return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 			ctx = ContextWithUserInfo(ctx, NoauthUserInfo)
 			resp, err := handler(ctx, req)
@@ -31,7 +92,6 @@ func UnaryServerInterceptor(pubkey *ecdsa.PublicKey) grpc.UnaryServerInterceptor
 		}
 	}
 
-	logger.Infof(mylog, "Authentication is enabled.")
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
@@ -45,48 +105,8 @@ func UnaryServerInterceptor(pubkey *ecdsa.PublicKey) grpc.UnaryServerInterceptor
 			if len(auths) != 1 {
 				return nil, grpc.Errorf(codes.Unauthenticated, "Invalid number of authorization values.")
 			}
-			auth := auths[0]
 
-			if !strings.HasPrefix(auth, BearerPrefix) {
-				return nil, grpc.Errorf(codes.Unauthenticated, "Unsupported authroization type.")
-			}
-			tokenString := auth[len(BearerPrefix):]
-
-			token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-				if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
-					return nil, grpc.Errorf(codes.Unauthenticated, "Unexpected signing method: %v", token.Header["alg"])
-				}
-
-				return pubkey, nil
-			})
-			if err != nil {
-				return nil, grpc.Errorf(codes.Unauthenticated, "Failed to parse jwt token")
-			}
-
-			claims, ok := token.Claims.(*Claims)
-			if !ok || !token.Valid {
-				return nil, grpc.Errorf(codes.Unauthenticated, "Failed to validate jwt token")
-			}
-
-			if !claims.VerifyAudience(OtaruAudience, true) {
-				return nil, grpc.Errorf(codes.Unauthenticated, "Failed to validate jwt token audience.")
-			}
-
-			if claims.NotBefore == 0 {
-				return nil, grpc.Errorf(codes.Unauthenticated, "The jwt token is missing \"nbf\" claim.")
-			}
-			if claims.ExpiresAt == 0 {
-				return nil, grpc.Errorf(codes.Unauthenticated, "The jwt token is missing \"exp\" claim.")
-			}
-			if err := claims.Valid(); err != nil {
-				return nil, grpc.Errorf(codes.Unauthenticated, "The jwt token is not valid at this time.")
-			}
-
-			if claims.Subject == "" {
-				return nil, grpc.Errorf(codes.Unauthenticated, "The jwt token is missing \"sub\" claim.")
-			}
-
-			ui, err := NewUserInfo(claims.Role, claims.Subject)
+			ui, err := p.UserInfoFromAuthHeader(auths[0])
 			if err != nil {
 				return nil, grpc.Errorf(codes.Unauthenticated, "%v", err)
 			}

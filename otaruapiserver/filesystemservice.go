@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"github.com/nyaxt/otaru/apiserver"
+	"github.com/nyaxt/otaru/apiserver/jwt"
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
@@ -51,6 +52,10 @@ func attrToINodeView(id inodedb.ID, name string, a filesystem.Attr) *pb.INodeVie
 }
 
 func (svc *fileSystemService) ListDir(ctx context.Context, req *pb.ListDirRequest) (*pb.ListDirResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleReadOnly); err != nil {
+		return nil, err
+	}
+
 	ids := req.Id
 	if len(ids) == 0 {
 		id, err := svc.fs.FindNodeFullPath(req.Path)
@@ -96,6 +101,10 @@ func (svc *fileSystemService) ListDir(ctx context.Context, req *pb.ListDirReques
 }
 
 func (svc *fileSystemService) FindNodeFullPath(ctx context.Context, req *pb.FindNodeFullPathRequest) (*pb.FindNodeFullPathResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleReadOnly); err != nil {
+		return nil, err
+	}
+
 	id, err := svc.fs.FindNodeFullPath(req.Path)
 	if err != nil {
 		if util.IsNotExist(err) {
@@ -107,6 +116,10 @@ func (svc *fileSystemService) FindNodeFullPath(ctx context.Context, req *pb.Find
 }
 
 func (svc *fileSystemService) Attr(ctx context.Context, req *pb.AttrRequest) (*pb.AttrResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleReadOnly); err != nil {
+		return nil, err
+	}
+
 	id := inodedb.ID(req.Id)
 	if id == 0 {
 		var err error
@@ -132,6 +145,10 @@ func (svc *fileSystemService) Attr(ctx context.Context, req *pb.AttrRequest) (*p
 }
 
 func (svc *fileSystemService) Create(ctx context.Context, req *pb.CreateRequest) (*pb.CreateResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+		return nil, err
+	}
+
 	dirId := inodedb.ID(req.DirId)
 	permMode := uint16(req.PermMode & 0777)
 	var modifiedT time.Time
@@ -193,6 +210,10 @@ func (svc *fileSystemService) Create(ctx context.Context, req *pb.CreateRequest)
 }
 
 func (svc *fileSystemService) Remove(ctx context.Context, req *pb.RemoveRequest) (*pb.RemoveResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+		return nil, err
+	}
+
 	dirId := inodedb.ID(req.DirId)
 	name := req.Name
 	if dirId == 0 {
@@ -217,6 +238,10 @@ func (svc *fileSystemService) Remove(ctx context.Context, req *pb.RemoveRequest)
 }
 
 func (svc *fileSystemService) ReadFile(ctx context.Context, req *pb.ReadFileRequest) (*pb.ReadFileResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleReadOnly); err != nil {
+		return nil, err
+	}
+
 	id := inodedb.ID(req.Id)
 
 	h, err := svc.fs.OpenFile(id, flags.O_RDONLY)
@@ -238,6 +263,10 @@ func (svc *fileSystemService) ReadFile(ctx context.Context, req *pb.ReadFileRequ
 }
 
 func (svc *fileSystemService) WriteFile(ctx context.Context, req *pb.WriteFileRequest) (*pb.WriteFileResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+		return nil, err
+	}
+
 	id := inodedb.ID(req.Id)
 
 	h, err := svc.fs.OpenFile(id, flags.O_RDWR)

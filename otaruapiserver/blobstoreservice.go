@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/nyaxt/otaru/apiserver"
+	"github.com/nyaxt/otaru/apiserver/jwt"
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
 	"github.com/nyaxt/otaru/flags"
@@ -22,7 +23,11 @@ type blobstoreService struct {
 	cbs *cachedblobstore.CachedBlobStore
 }
 
-func (svc *blobstoreService) GetConfig(context.Context, *pb.GetBlobstoreConfigRequest) (*pb.GetBlobstoreConfigResponse, error) {
+func (svc *blobstoreService) GetConfig(ctx context.Context, in *pb.GetBlobstoreConfigRequest) (*pb.GetBlobstoreConfigResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+		return nil, err
+	}
+
 	beFlags := "unknown"
 	if reader, ok := svc.bbs.(flags.FlagsReader); ok {
 		beFlags = flags.FlagsToString(reader.Flags())
@@ -36,7 +41,11 @@ func (svc *blobstoreService) GetConfig(context.Context, *pb.GetBlobstoreConfigRe
 	}, nil
 }
 
-func (svc *blobstoreService) GetEntries(context.Context, *pb.GetEntriesRequest) (*pb.GetEntriesResponse, error) {
+func (svc *blobstoreService) GetEntries(ctx context.Context, in *pb.GetEntriesRequest) (*pb.GetEntriesResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+		return nil, err
+	}
+
 	oes := svc.cbs.DumpEntriesInfo()
 
 	es := make([]*pb.GetEntriesResponse_Entry, 0, len(oes))
@@ -60,6 +69,10 @@ func (svc *blobstoreService) GetEntries(context.Context, *pb.GetEntriesRequest) 
 }
 
 func (svc *blobstoreService) ReduceCache(ctx context.Context, req *pb.ReduceCacheRequest) (*pb.ReduceCacheResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+		return nil, err
+	}
+
 	desiredSizeP := req.DesiredSize
 	desiredSize, err := humanize.ParseBytes(desiredSizeP)
 	if desiredSize > math.MaxInt64 || err != nil {

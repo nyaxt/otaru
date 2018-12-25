@@ -1,7 +1,6 @@
 package apiserver
 
 import (
-	"crypto/ecdsa"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
@@ -39,7 +38,7 @@ type options struct {
 
 	allowedOrigins []string
 
-	jwtPublicKey *ecdsa.PublicKey
+	jwtauth *apiserver_jwt.JWTAuthProvider
 
 	serviceRegistry []serviceRegistryEntry
 	accesslogger    logger.Logger
@@ -97,9 +96,9 @@ func CORSAllowedOrigins(allowedOrigins []string) Option {
 	return func(o *options) { o.allowedOrigins = allowedOrigins }
 }
 
-func JWTPublicKey(pubkey *ecdsa.PublicKey) Option {
+func JWTAuthProvider(jwtauth *apiserver_jwt.JWTAuthProvider) Option {
 	return func(o *options) {
-		o.jwtPublicKey = pubkey
+		o.jwtauth = jwtauth
 	}
 }
 
@@ -181,8 +180,11 @@ func Serve(opt ...Option) error {
 	}
 	grpcCredentials := credentials.NewServerTLSFromCert(&cert)
 
+	if opts.jwtauth == nil {
+		opts.jwtauth = apiserver_jwt.NewJWTAuthProvider(nil)
+	}
 	uics := []grpc.UnaryServerInterceptor{
-		apiserver_jwt.UnaryServerInterceptor(opts.jwtPublicKey),
+		opts.jwtauth.UnaryServerInterceptor(),
 		grpc_ctxtags.UnaryServerInterceptor(
 			grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.TagBasedRequestFieldExtractor("log_fields")),
 		),

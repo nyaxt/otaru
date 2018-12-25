@@ -84,12 +84,13 @@ func runTestServer(pubkey *ecdsa.PublicKey) *testServer {
 		joinC:  make(chan struct{}),
 	}
 
+	jwtauth := ojwt.NewJWTAuthProvider(pubkey)
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testListenAddr),
 			apiserver.X509KeyPair(certFile, keyFile),
 			apiserver.CloseChannel(ts.closeC),
-			apiserver.JWTPublicKey(pubkey),
+			apiserver.JWTAuthProvider(jwtauth),
 			otaruapiserver.InstallSystemService(),
 		); err != nil {
 			panic(err)

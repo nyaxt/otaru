@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/nyaxt/otaru/apiserver"
+	"github.com/nyaxt/otaru/apiserver/jwt"
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/flags"
@@ -20,7 +21,8 @@ import (
 )
 
 type fileHandler struct {
-	fs *filesystem.FileSystem
+	fs      *filesystem.FileSystem
+	jwtauth *jwt.JWTAuthProvider
 }
 
 type content struct {
@@ -60,6 +62,17 @@ func (c *content) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, id inodedb.ID, filename string) {
+	auth := r.Header.Get("Authorization")
+	ui, err := fh.jwtauth.UserInfoFromAuthHeader(auth)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if ui.Role < jwt.RoleReadOnly {
+		http.Error(w, "", http.StatusForbidden)
+		return
+	}
+
 	h, err := fh.fs.OpenFile(id, flags.O_RDONLY)
 	if err != nil {
 		logger.Debugf(mylog, "serveGet(id: %v). OpenFile failed: %v", id, err)
@@ -82,7 +95,7 @@ func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, id inode
 		}
 	}
 
-	w.Header().Set("X-Content-Type-Options", "no-sniff")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.QueryEscape(filename))
 	ctype := mime.TypeByExtension(filepath.Ext(filename))
 	if ctype == "" {
@@ -95,6 +108,17 @@ func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, id inode
 }
 
 func (fh *fileHandler) servePut(w http.ResponseWriter, r *http.Request, id inodedb.ID, filename string) {
+	auth := r.Header.Get("Authorization")
+	ui, err := fh.jwtauth.UserInfoFromAuthHeader(auth)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if ui.Role < jwt.RoleAdmin {
+		http.Error(w, "", http.StatusForbidden)
+		return
+	}
+
 	h, err := fh.fs.OpenFile(id, flags.O_WRONLY)
 	if err != nil {
 		logger.Debugf(mylog, "servePut(id: %v). OpenFile failed: %v", id, err)
@@ -148,9 +172,9 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func InstallFileHandler(fs *filesystem.FileSystem) apiserver.Option {
+func InstallFileHandler(fs *filesystem.FileSystem, jwtauth *jwt.JWTAuthProvider) apiserver.Option {
 	return apiserver.AddMuxHook(func(mux *http.ServeMux) {
 		filePrefix := "/file/"
-		mux.Handle(filePrefix, http.StripPrefix(filePrefix, &fileHandler{fs}))
+		mux.Handle(filePrefix, http.StripPrefix(filePrefix, &fileHandler{fs, jwtauth}))
 	})
 }
