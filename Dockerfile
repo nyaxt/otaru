@@ -1,6 +1,7 @@
 FROM golang:latest
 ENV GOOS linux
 ENV GOARCH amd64
+ENV GO111MODULE on
 
 VOLUME ["/out", "/otaru-testconf"]
 
