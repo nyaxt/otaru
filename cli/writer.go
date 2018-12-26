@@ -70,6 +70,10 @@ func newWriterHttp(cinfo *ConnectionInfo, id uint64) (io.WriteCloser, error) {
 	return &httpWriter{pw, errC}, nil
 }
 
+func NewWriterHttpForTesting(cinfo *ConnectionInfo, id uint64) (io.WriteCloser, error) {
+	return newWriterHttp(cinfo, id)
+}
+
 func (w *httpWriter) Write(p []byte) (int, error) {
 	nw, perr := w.pw.Write(p)
 	if perr != nil {

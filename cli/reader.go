@@ -76,6 +76,10 @@ func newReaderHttp(cinfo *ConnectionInfo, id uint64) (Reader, error) {
 	}, nil
 }
 
+func NewReaderHttpForTesting(cinfo *ConnectionInfo, id uint64) (Reader, error) {
+	return newReaderHttp(cinfo, id)
+}
+
 func (r *httpReader) Read(p []byte) (int, error) {
 	n, err := r.body.Read(p)
 	if err != nil {

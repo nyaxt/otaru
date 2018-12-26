@@ -21,6 +21,7 @@ import (
 	ojwt "github.com/nyaxt/otaru/apiserver/jwt"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/filesystem"
+	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/otaruapiserver"
 	"github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/testutils"
@@ -77,9 +78,11 @@ func init() {
 }
 
 type testServer struct {
-	fs     *filesystem.FileSystem
-	closeC chan struct{}
-	joinC  chan struct{}
+	fs         *filesystem.FileSystem
+	inodeRead  inodedb.ID
+	inodeWrite inodedb.ID
+	closeC     chan struct{}
+	joinC      chan struct{}
 }
 
 func runTestServer(t *testing.T, pubkey *ecdsa.PublicKey) *testServer {
@@ -94,6 +97,16 @@ func runTestServer(t *testing.T, pubkey *ecdsa.PublicKey) *testServer {
 	if err := ts.fs.WriteFile("/foo.txt", testutils.HelloWorld, 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
+	inodeRead, err := ts.fs.FindNodeFullPath("/foo.txt")
+	if err != nil {
+		t.Fatalf("FindNodeFullPath: %v", err)
+	}
+	inodeWrite, err := ts.fs.CreateFileFullPath("/hoge.txt", 0644, 1000, 1000, time.Unix(1545811015, 0))
+	if err != nil {
+		t.Fatalf("CreateFileFullPath: %v", err)
+	}
+	ts.inodeRead = inodeRead
+	ts.inodeWrite = inodeWrite
 
 	jwtauth := ojwt.NewJWTAuthProvider(pubkey)
 	go func() {
@@ -103,7 +116,6 @@ func runTestServer(t *testing.T, pubkey *ecdsa.PublicKey) *testServer {
 			apiserver.CloseChannel(ts.closeC),
 			apiserver.JWTAuthProvider(jwtauth),
 			otaruapiserver.InstallSystemService(),
-			otaruapiserver.InstallFileSystemService(ts.fs),
 			otaruapiserver.InstallFileHandler(ts.fs, jwtauth),
 		); err != nil {
 			panic(err)
@@ -122,8 +134,78 @@ func (ts *testServer) Terminate() {
 	<-ts.joinC
 }
 
+func testCliConfig(host *cli.Host) *cli.CliConfig {
+	return &cli.CliConfig{Host: map[string]*cli.Host{
+		"default": host,
+	}}
+}
+
+func genHttpReadTest(host *cli.Host, inode inodedb.ID, expectSuccess bool) func(*testing.T) {
+	return func(t *testing.T) {
+		ci, err := cli.ConnectionInfoFromHost(host)
+		if err != nil {
+			t.Fatalf("ConnectionInfoFromHost: %v", err)
+		}
+
+		r, err := cli.NewReaderHttpForTesting(ci, uint64(inode))
+		if expectSuccess {
+			if err != nil {
+				t.Fatalf("cli.NewReaderHttpForTesting: %v", err)
+			}
+		} else {
+			if err == nil {
+				r.Close()
+				t.Errorf("cli.NewReaderHttpForTesting unexpected success.")
+				return
+			}
+			return
+		}
+
+		bs, err := ioutil.ReadAll(r)
+		if err != nil {
+			t.Fatalf("ioutil.ReadAll: %v", err)
+		}
+
+		if !bytes.Equal(bs, testutils.HelloWorld) {
+			t.Errorf("unexpected bs: %v", bs)
+		}
+
+		r.Close()
+	}
+}
+
+func genHttpWriteTest(host *cli.Host, inode inodedb.ID, expectSuccess bool) func(*testing.T) {
+	return func(t *testing.T) {
+		ci, err := cli.ConnectionInfoFromHost(host)
+		if err != nil {
+			t.Fatalf("ConnectionInfoFromHost: %v", err)
+		}
+
+		w, err := cli.NewWriterHttpForTesting(ci, uint64(inode))
+		if expectSuccess {
+			if err != nil {
+				t.Fatalf("cli.NewWriterHttpForTesting: %v", err)
+			}
+		} else {
+			if err == nil {
+				w.Close()
+				t.Errorf("cli.NewWriterHttpForTesting unexpected success.")
+				return
+			}
+			return
+		}
+
+		if _, err := w.Write(testutils.HogeFugaPiyo); err != nil {
+			t.Fatalf("w.Write: %v", err)
+		}
+
+		w.Close()
+	}
+}
+
 func TestAuth_NoAuth(t *testing.T) {
 	ts := runTestServer(t, nil)
+	defer ts.Terminate()
 
 	host := &cli.Host{
 		ApiEndpoint:      testListenAddr,
@@ -159,46 +241,29 @@ func TestAuth_NoAuth(t *testing.T) {
 		}
 	})
 
-	ccfg := &cli.CliConfig{Host: map[string]*cli.Host{
-		"default": host,
-	}}
+	t.Run("httpRead", genHttpReadTest(host, ts.inodeRead, true))
+	t.Run("httpWrite", genHttpWriteTest(host, ts.inodeWrite, true))
 
-	t.Run("httpRead", func(t *testing.T) {
-		r, err := cli.NewReader("/foo.txt", cli.WithCliConfig(ccfg))
-		if err != nil {
-			t.Fatalf("cli.NewReader: %v", err)
-		}
-
-		bs, err := ioutil.ReadAll(r)
-		if err != nil {
-			t.Fatalf("ioutil.ReadAll: %v", err)
-		}
-
-		if !bytes.Equal(bs, testutils.HelloWorld) {
-			t.Errorf("unexpected bs: %v", bs)
-		}
-
-		r.Close()
-	})
-
-	ts.Terminate()
 }
 
-func TestAuth_Enabled(t *testing.T) {
+func TestAuth_NoToken(t *testing.T) {
 	ts := runTestServer(t, testPubkey)
+	defer ts.Terminate()
 
-	t.Run("NoToken", func(tt *testing.T) {
-		ci, err := cli.ConnectionInfoFromHost(&cli.Host{
-			ApiEndpoint:      testListenAddr,
-			ExpectedCertFile: certFile,
-		})
+	host := &cli.Host{
+		ApiEndpoint:      testListenAddr,
+		ExpectedCertFile: certFile,
+	}
+
+	t.Run("grpc", func(t *testing.T) {
+		ci, err := cli.ConnectionInfoFromHost(host)
 		if err != nil {
-			tt.Fatalf("ConnectionInfoFromHost: %v", err)
+			t.Fatalf("ConnectionInfoFromHost: %v", err)
 		}
 
 		conn, err := ci.DialGrpc()
 		if err != nil {
-			tt.Fatalf("DialGrpc: %v", err)
+			t.Fatalf("DialGrpc: %v", err)
 		}
 		defer conn.Close()
 
@@ -207,31 +272,41 @@ func TestAuth_Enabled(t *testing.T) {
 		ctx := context.Background()
 
 		if _, err = ssc.AuthTestAdmin(ctx, &pb.AuthTestRequest{}); err == nil {
-			tt.Errorf("AuthTestAdmin should fail.")
+			t.Errorf("AuthTestAdmin should fail.")
 		}
 
 		if _, err = ssc.AuthTestReadOnly(ctx, &pb.AuthTestRequest{}); err == nil {
-			tt.Errorf("AuthTestReadOnly should fail.")
+			t.Errorf("AuthTestReadOnly should fail.")
 		}
 
 		if _, err = ssc.AuthTestAnonymous(ctx, &pb.AuthTestRequest{}); err != nil {
-			tt.Errorf("AuthTestAnonymous: %v.", err)
+			t.Errorf("AuthTestAnonymous: %v.", err)
 		}
 	})
 
-	t.Run("ValidToken", func(tt *testing.T) {
-		ci, err := cli.ConnectionInfoFromHost(&cli.Host{
-			ApiEndpoint:      testListenAddr,
-			ExpectedCertFile: certFile,
-			AuthToken:        testReadOnlyToken,
-		})
+	t.Run("httpRead", genHttpReadTest(host, ts.inodeRead, false))
+	t.Run("httpWrite", genHttpReadTest(host, ts.inodeWrite, false))
+}
+
+func TestAuth_ValidToken(t *testing.T) {
+	ts := runTestServer(t, testPubkey)
+	defer ts.Terminate()
+
+	host := &cli.Host{
+		ApiEndpoint:      testListenAddr,
+		ExpectedCertFile: certFile,
+		AuthToken:        testReadOnlyToken,
+	}
+
+	t.Run("grpc", func(t *testing.T) {
+		ci, err := cli.ConnectionInfoFromHost(host)
 		if err != nil {
-			tt.Fatalf("ConnectionInfoFromHost: %v", err)
+			t.Fatalf("ConnectionInfoFromHost: %v", err)
 		}
 
 		conn, err := ci.DialGrpc()
 		if err != nil {
-			tt.Fatalf("DialGrpc: %v", err)
+			t.Fatalf("DialGrpc: %v", err)
 		}
 		defer conn.Close()
 
@@ -240,31 +315,40 @@ func TestAuth_Enabled(t *testing.T) {
 		ctx := context.Background()
 
 		if _, err = ssc.AuthTestAdmin(ctx, &pb.AuthTestRequest{}); err == nil {
-			tt.Errorf("AuthTestAdmin should fail.")
+			t.Errorf("AuthTestAdmin should fail.")
 		}
 
 		if _, err = ssc.AuthTestReadOnly(ctx, &pb.AuthTestRequest{}); err != nil {
-			tt.Errorf("AuthTestReadOnly: %v.", err)
+			t.Errorf("AuthTestReadOnly: %v.", err)
 		}
 
 		if _, err = ssc.AuthTestAnonymous(ctx, &pb.AuthTestRequest{}); err != nil {
-			tt.Errorf("AuthTestAnonymous: %v.", err)
+			t.Errorf("AuthTestAnonymous: %v.", err)
 		}
 	})
 
-	t.Run("AlgNoneToken", func(tt *testing.T) {
-		ci, err := cli.ConnectionInfoFromHost(&cli.Host{
-			ApiEndpoint:      testListenAddr,
-			ExpectedCertFile: certFile,
-			AuthToken:        testAlgNoneToken,
-		})
+	t.Run("httpRead", genHttpReadTest(host, ts.inodeRead, true))
+	t.Run("httpWrite", genHttpWriteTest(host, ts.inodeWrite, true))
+}
+
+func TestAuth_AlgNoneToken(t *testing.T) {
+	ts := runTestServer(t, testPubkey)
+	defer ts.Terminate()
+
+	host := &cli.Host{
+		ApiEndpoint:      testListenAddr,
+		ExpectedCertFile: certFile,
+		AuthToken:        testAlgNoneToken,
+	}
+	t.Run("grpc", func(t *testing.T) {
+		ci, err := cli.ConnectionInfoFromHost(host)
 		if err != nil {
-			tt.Fatalf("ConnectionInfoFromHost: %v", err)
+			t.Fatalf("ConnectionInfoFromHost: %v", err)
 		}
 
 		conn, err := ci.DialGrpc()
 		if err != nil {
-			tt.Fatalf("DialGrpc: %v", err)
+			t.Fatalf("DialGrpc: %v", err)
 		}
 		defer conn.Close()
 
@@ -273,17 +357,18 @@ func TestAuth_Enabled(t *testing.T) {
 		ctx := context.Background()
 
 		if _, err = ssc.AuthTestAdmin(ctx, &pb.AuthTestRequest{}); err == nil {
-			tt.Errorf("AuthTestAdmin should fail.")
+			t.Errorf("AuthTestAdmin should fail.")
 		}
 
 		if _, err = ssc.AuthTestReadOnly(ctx, &pb.AuthTestRequest{}); err == nil {
-			tt.Errorf("AuthTestReadOnly should fail.")
+			t.Errorf("AuthTestReadOnly should fail.")
 		}
 
 		if _, err = ssc.AuthTestAnonymous(ctx, &pb.AuthTestRequest{}); err == nil {
-			tt.Errorf("AuthTestAnonymous should fail.")
+			t.Errorf("AuthTestAnonymous should fail.")
 		}
 	})
 
-	ts.Terminate()
+	t.Run("httpRead", genHttpReadTest(host, ts.inodeRead, false))
+	t.Run("httpWrite", genHttpReadTest(host, ts.inodeWrite, false))
 }
