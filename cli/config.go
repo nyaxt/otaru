@@ -38,6 +38,8 @@ type FeConfig struct {
 
 	CertFile string
 	KeyFile  string
+
+	JwtPubkeyFile string
 }
 
 func NewConfig(configdir string) (*CliConfig, error) {

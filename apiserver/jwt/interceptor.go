@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"strings"
 
 	"google.golang.org/grpc"
@@ -26,14 +27,30 @@ type JWTAuthProvider struct {
 	pubkey *ecdsa.PublicKey
 }
 
+var NoJWTAuth = &JWTAuthProvider{pubkey: nil}
+
 func NewJWTAuthProvider(pubkey *ecdsa.PublicKey) *JWTAuthProvider {
 	if pubkey == nil {
-		logger.Infof(mylog, "Authentication is disabled. Any request to the server will treated as if it were from role \"admin\".")
-		return &JWTAuthProvider{pubkey: nil}
+		panic("Valid pubkey must be provided!")
+	}
+	return &JWTAuthProvider{pubkey: pubkey}
+}
+
+func NewJWTAuthProviderFromFile(path string) (*JWTAuthProvider, error) {
+	var pk *ecdsa.PublicKey
+	if path != "" {
+		keytext, err := ioutil.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to load ECDSA public key file %q: %v", path, err)
+		}
+
+		pk, err = jwt.ParseECPublicKeyFromPEM(keytext)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse ECDSA public key %q: %v", path, err)
+		}
 	}
 
-	logger.Infof(mylog, "Authentication is enabled.")
-	return &JWTAuthProvider{pubkey: pubkey}
+	return NewJWTAuthProvider(pk), nil
 }
 
 func (p *JWTAuthProvider) UserInfoFromAuthHeader(auth string) (*UserInfo, error) {

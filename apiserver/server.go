@@ -16,12 +16,15 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	apiserver_jwt "github.com/nyaxt/otaru/apiserver/jwt"
+	jwt "github.com/nyaxt/otaru/apiserver/jwt"
 	apiserver_logger "github.com/nyaxt/otaru/apiserver/logger"
 	"github.com/nyaxt/otaru/assets/swaggerui"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/logger"
 )
+
+var LogCategory = logger.Registry().Category("apiserver")
+var mylog = LogCategory
 
 type serviceRegistryEntry struct {
 	registerServiceServer func(*grpc.Server)
@@ -38,7 +41,7 @@ type options struct {
 
 	allowedOrigins []string
 
-	jwtauth *apiserver_jwt.JWTAuthProvider
+	jwtauth *jwt.JWTAuthProvider
 
 	serviceRegistry []serviceRegistryEntry
 	accesslogger    logger.Logger
@@ -49,6 +52,7 @@ type options struct {
 var defaultOptions = options{
 	serviceRegistry: []serviceRegistryEntry{},
 	accesslogger:    logger.Registry().Category("http-apiserver"),
+	jwtauth:         jwt.NoJWTAuth,
 }
 
 type Option func(*options)
@@ -96,7 +100,7 @@ func CORSAllowedOrigins(allowedOrigins []string) Option {
 	return func(o *options) { o.allowedOrigins = allowedOrigins }
 }
 
-func JWTAuthProvider(jwtauth *apiserver_jwt.JWTAuthProvider) Option {
+func JWTAuthProvider(jwtauth *jwt.JWTAuthProvider) Option {
 	return func(o *options) {
 		o.jwtauth = jwtauth
 	}
@@ -180,9 +184,12 @@ func Serve(opt ...Option) error {
 	}
 	grpcCredentials := credentials.NewServerTLSFromCert(&cert)
 
-	if opts.jwtauth == nil {
-		opts.jwtauth = apiserver_jwt.NewJWTAuthProvider(nil)
+	if opts.jwtauth == jwt.NoJWTAuth {
+		logger.Infof(mylog, "Authentication is disabled. Any request to the server will treated as if it were from role \"admin\".")
+	} else {
+		logger.Infof(mylog, "Authentication is enabled.")
 	}
+
 	uics := []grpc.UnaryServerInterceptor{
 		opts.jwtauth.UnaryServerInterceptor(),
 		grpc_ctxtags.UnaryServerInterceptor(

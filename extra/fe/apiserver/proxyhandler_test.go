@@ -2,6 +2,7 @@ package apiserver_test
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru/apiserver"
+	"github.com/nyaxt/otaru/apiserver/jwt/jwt_testutils"
 	"github.com/nyaxt/otaru/cli"
 	feapiserver "github.com/nyaxt/otaru/extra/fe/apiserver"
 	"github.com/nyaxt/otaru/testutils"
@@ -56,6 +58,7 @@ func runMockBackend() *mockBackend {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testBeListenAddr),
 			apiserver.X509KeyPair(certFile, keyFile),
+			apiserver.JWTAuthProvider(jwt_testutils.JWTAuthProvider),
 			apiserver.CloseChannel(m.closeC),
 			apiserver.AddMuxHook(func(mux *http.ServeMux) {
 				mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -84,6 +87,12 @@ func runMockBackend() *mockBackend {
 	return m
 }
 
+func (m *mockBackend) PopReqs() (reqs []mockRequest) {
+	reqs = m.Reqs
+	m.Reqs = []mockRequest{}
+	return
+}
+
 func (m *mockBackend) Terminate() {
 	close(m.closeC)
 	<-m.joinC
@@ -108,11 +117,17 @@ func TestProxyHandler(t *testing.T) {
 			apiserver.ListenAddr(testFeListenAddr),
 			apiserver.X509KeyPair(certFile, keyFile),
 			apiserver.CloseChannel(closeC),
-			feapiserver.InstallProxyHandler(cfg),
+			apiserver.JWTAuthProvider(jwt_testutils.JWTAuthProvider),
+			feapiserver.InstallProxyHandler(cfg, jwt_testutils.JWTAuthProvider),
 		); err != nil {
 			t.Errorf("Serve failed: %v", err)
 		}
 		close(joinC)
+	}()
+	defer func() {
+		close(closeC)
+		<-joinC
+		defer m.Terminate()
 	}()
 
 	// FIXME: wait until Serve to actually start accepting conns
@@ -124,61 +139,101 @@ func TestProxyHandler(t *testing.T) {
 		return
 	}
 
-	resp, err := c.Get("https://" + testFeListenAddr + "/proxy/hostfoo/a/b/c?query=param&foo=bar")
-	if err != nil {
-		t.Errorf("http.Get: %v", err)
-		return
-	}
-	cont, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Errorf("ReadAll(http.Get resp.Body): %v", err)
-		return
-	}
-	if !bytes.Equal(cont, []byte("fuga\n")) {
-		t.Errorf("unexpected content: %v", string(cont))
-	}
-	resp.Body.Close()
+	t.Run("Unauth_Get", func(t *testing.T) {
+		resp, err := c.Get("https://" + testFeListenAddr + "/proxy/hostfoo/a/b/c?query=param&foo=bar")
+		if err != nil {
+			t.Errorf("http.Get: %v", err)
+			return
+		}
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Errorf("Unexpected status code: %v", resp.Status)
+		}
 
-	buf := bytes.NewBuffer([]byte("body"))
-	resp, err = c.Post("https://"+testFeListenAddr+"/proxy/hostfoo/post", "text/plain", buf)
-	if err != nil {
-		t.Errorf("http.Post: %v", err)
-		return
-	}
-	cont, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Errorf("ReadAll(http.Post resp.Body): %v", err)
-		return
-	}
-	if !bytes.Equal(cont, []byte("fuga\n")) {
-		t.Errorf("unexpected content: %v", string(cont))
-	}
-	resp.Body.Close()
+		if _, err = ioutil.ReadAll(resp.Body); err != nil {
+			t.Errorf("ReadAll(http.Get resp.Body): %v", err)
+			return
+		}
+		resp.Body.Close()
 
-	close(closeC)
-	<-joinC
+		reqs := m.PopReqs()
+		if len(reqs) != 0 {
+			t.Fatalf("lem(reqs) %d", len(reqs))
+		}
+	})
 
-	m.Terminate()
+	t.Run("Get", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodGet, "https://"+testFeListenAddr+"/proxy/hostfoo/a/b/c?query=param&foo=bar", nil)
+		if err != nil {
+			t.Fatalf("http.NewRequest: %v", err)
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", jwt_testutils.ReadOnlyToken))
 
-	if len(m.Reqs) != 2 {
-		t.Errorf("lem(m.Reqs) %d", len(m.Reqs))
-	}
-	if m.Reqs[0].URL.String() != "/a/b/c?query=param&foo=bar" {
-		t.Errorf("unexpected req url: %v", m.Reqs[0].URL.String())
-	}
-	if m.Reqs[0].Method != "GET" {
-		t.Errorf("unexpected method %q", m.Reqs[0].Method)
-	}
-	if len(m.Reqs[0].Payload) != 0 {
-		t.Errorf("unexpected payload %v", m.Reqs[0].Payload)
-	}
-	if m.Reqs[1].URL.String() != "/post" {
-		t.Errorf("unexpected req url: %v", m.Reqs[1].URL.String())
-	}
-	if m.Reqs[1].Method != "POST" {
-		t.Errorf("unexpected method %q", m.Reqs[1].Method)
-	}
-	if !bytes.Equal(m.Reqs[1].Payload, []byte("body")) {
-		t.Errorf("unexpected payload %v", m.Reqs[1].Payload)
-	}
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Errorf("(http.Client).Do(Get): %v", err)
+			return
+		}
+		cont, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Errorf("ReadAll(http.Get resp.Body): %v", err)
+			return
+		}
+		if !bytes.Equal(cont, []byte("fuga\n")) {
+			t.Errorf("unexpected content: %v", string(cont))
+		}
+		resp.Body.Close()
+
+		reqs := m.PopReqs()
+		if len(reqs) != 1 {
+			t.Fatalf("lem(reqs) %d", len(reqs))
+		}
+		if reqs[0].URL.String() != "/a/b/c?query=param&foo=bar" {
+			t.Errorf("unexpected req url: %v", reqs[0].URL.String())
+		}
+		if reqs[0].Method != "GET" {
+			t.Errorf("unexpected method %q", reqs[0].Method)
+		}
+		if len(reqs[0].Payload) != 0 {
+			t.Errorf("unexpected payload %v", reqs[0].Payload)
+		}
+	})
+
+	t.Run("Post", func(t *testing.T) {
+		buf := bytes.NewBuffer([]byte("body"))
+		req, err := http.NewRequest(http.MethodPost, "https://"+testFeListenAddr+"/proxy/hostfoo/post", buf)
+		if err != nil {
+			t.Fatalf("http.NewRequest: %v", err)
+		}
+		req.Header.Set("Content-Type", "text/plain")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", jwt_testutils.ReadOnlyToken))
+
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Errorf("(http.Client).Do(Post): %v", err)
+			return
+		}
+		cont, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Errorf("ReadAll(http.Post resp.Body): %v", err)
+			return
+		}
+		if !bytes.Equal(cont, []byte("fuga\n")) {
+			t.Errorf("unexpected content: %v", string(cont))
+		}
+		resp.Body.Close()
+
+		reqs := m.PopReqs()
+		if len(reqs) != 1 {
+			t.Fatalf("lem(reqs) %d", len(reqs))
+		}
+		if reqs[0].URL.String() != "/post" {
+			t.Errorf("unexpected req url: %v", reqs[0].URL.String())
+		}
+		if reqs[0].Method != "POST" {
+			t.Errorf("unexpected method %q", reqs[0].Method)
+		}
+		if !bytes.Equal(reqs[0].Payload, []byte("body")) {
+			t.Errorf("unexpected payload %v", reqs[0].Payload)
+		}
+	})
 }

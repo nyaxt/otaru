@@ -7,12 +7,14 @@ import (
 	"regexp"
 
 	"github.com/nyaxt/otaru/apiserver"
+	"github.com/nyaxt/otaru/apiserver/jwt"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/logger"
 )
 
 type apiproxy struct {
-	cfg *cli.CliConfig
+	cfg     *cli.CliConfig
+	jwtauth *jwt.JWTAuthProvider
 }
 
 var reMatch = regexp.MustCompile(`^/proxy/(\w+)(/.*)$`)
@@ -24,6 +26,17 @@ func copyHeader(d, s http.Header) {
 }
 
 func (ap *apiproxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	auth := r.Header.Get("Authorization")
+	ui, err := ap.jwtauth.UserInfoFromAuthHeader(auth)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if ui.Role < jwt.RoleReadOnly {
+		http.Error(w, "", http.StatusForbidden)
+		return
+	}
+
 	path := r.URL.Path
 	ms := reMatch.FindStringSubmatch(path)
 	if len(ms) != 3 {
@@ -78,8 +91,8 @@ func (ap *apiproxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, presp.Body)
 }
 
-func InstallProxyHandler(cfg *cli.CliConfig) apiserver.Option {
+func InstallProxyHandler(cfg *cli.CliConfig, jwtauth *jwt.JWTAuthProvider) apiserver.Option {
 	return apiserver.AddMuxHook(func(mux *http.ServeMux) {
-		mux.Handle("/proxy/", &apiproxy{cfg})
+		mux.Handle("/proxy/", &apiproxy{cfg, jwtauth})
 	})
 }

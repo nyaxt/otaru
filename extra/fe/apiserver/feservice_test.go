@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru/apiserver"
+	"github.com/nyaxt/otaru/apiserver/jwt"
 	"github.com/nyaxt/otaru/cli"
 	opath "github.com/nyaxt/otaru/cli/path"
 	feapiserver "github.com/nyaxt/otaru/extra/fe/apiserver"
@@ -35,6 +36,7 @@ func runMockFsBackend() *mockFsBackend {
 		joinC:  make(chan struct{}),
 		fs:     fs,
 	}
+	jwtauth := jwt.NoJWTAuth
 
 	go func() {
 		if err := apiserver.Serve(
@@ -42,7 +44,7 @@ func runMockFsBackend() *mockFsBackend {
 			apiserver.X509KeyPair(certFile, keyFile),
 			apiserver.CloseChannel(m.closeC),
 			otaruapiserver.InstallFileSystemService(fs),
-			otaruapiserver.InstallFileHandler(fs),
+			otaruapiserver.InstallFileHandler(fs, jwtauth),
 		); err != nil {
 			panic(err)
 		}

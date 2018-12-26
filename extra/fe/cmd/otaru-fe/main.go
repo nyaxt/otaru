@@ -25,7 +25,10 @@ func Usage() {
 }
 
 func serve(cfg *cli.CliConfig) error {
-	opts := fe_apiserver.BuildApiServerOptions(cfg)
+	opts, err := fe_apiserver.BuildApiServerOptions(cfg)
+	if err != nil {
+		return err
+	}
 	return apiserver.Serve(opts...)
 }
 

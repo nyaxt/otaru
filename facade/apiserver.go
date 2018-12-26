@@ -1,15 +1,10 @@
 package facade
 
 import (
-	"crypto/ecdsa"
-	"fmt"
-	"io/ioutil"
 	"net/http"
 
-	jwt "gopkg.in/dgrijalva/jwt-go.v3"
-
 	"github.com/nyaxt/otaru/apiserver"
-	apiserver_jwt "github.com/nyaxt/otaru/apiserver/jwt"
+	"github.com/nyaxt/otaru/apiserver/jwt"
 	"github.com/nyaxt/otaru/assets/webui"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/otaruapiserver"
@@ -26,20 +21,10 @@ func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) ([]apiserver.Option,
 		webuifs = http.Dir(override)
 	}
 
-	var pk *ecdsa.PublicKey
-	if cfg.JwtPubkey != "" {
-		keytext, err := ioutil.ReadFile(cfg.JwtPubkey)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to load ECDSA public key file %q: %v", cfg.JwtPubkey, err)
-		}
-
-		pk, err = jwt.ParseECPublicKeyFromPEM(keytext)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to parse ECDSA public key %q: %v", cfg.JwtPubkey, err)
-		}
-
+	jwtauth, err := jwt.NewJWTAuthProviderFromFile(cfg.JwtPubkeyFile)
+	if err != nil {
+		return nil, err
 	}
-	jwtauth := apiserver_jwt.NewJWTAuthProvider(pk)
 
 	options := []apiserver.Option{
 		apiserver.ListenAddr(cfg.ListenAddr),

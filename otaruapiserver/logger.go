@@ -1,5 +1,5 @@
 package otaruapiserver
 
-import "github.com/nyaxt/otaru/logger"
+import "github.com/nyaxt/otaru/apiserver"
 
-var mylog = logger.Registry().Category("apiserver")
+var mylog = apiserver.LogCategory

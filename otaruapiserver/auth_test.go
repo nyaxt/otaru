@@ -7,18 +7,15 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 	"time"
 
-	jwt "gopkg.in/dgrijalva/jwt-go.v3"
-
 	"github.com/nyaxt/otaru/apiserver"
 	ojwt "github.com/nyaxt/otaru/apiserver/jwt"
+	jwt_testutils "github.com/nyaxt/otaru/apiserver/jwt/jwt_testutils"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/inodedb"
@@ -32,49 +29,12 @@ const testListenAddr = "localhost:30246"
 var certFile string
 var keyFile string
 
-var testKey *ecdsa.PrivateKey
-var testPubkey *ecdsa.PublicKey
-var testReadOnlyToken string
-var testAlgNoneToken string
-
 func init() {
 	testutils.EnsureLogger()
 
 	otarudir := os.Getenv("OTARUDIR")
 	certFile = path.Join(otarudir, "cert.pem")
 	keyFile = path.Join(otarudir, "cert-key.pem")
-
-	var err error
-	testKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		panic("ecdsa.GenerateKey")
-	}
-	testPubkey = &testKey.PublicKey
-
-	now := time.Now()
-
-	claims := ojwt.Claims{
-		Role: ojwt.RoleReadOnly.String(),
-		StandardClaims: jwt.StandardClaims{
-			Audience:  ojwt.OtaruAudience,
-			ExpiresAt: (now.Add(time.Hour)).Unix(),
-			Issuer:    "auth_test",
-			NotBefore: now.Unix(),
-			Subject:   "auth_test",
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-	testReadOnlyToken, err = token.SignedString(testKey)
-	if err != nil {
-		panic("testReadOnlyToken")
-	}
-
-	token = jwt.NewWithClaims(jwt.SigningMethodNone, claims)
-	testAlgNoneToken, err = token.SignedString(jwt.UnsafeAllowNoneSignatureType)
-	if err != nil {
-		panic("testAlgNoneToken")
-	}
 }
 
 type testServer struct {
@@ -108,7 +68,10 @@ func runTestServer(t *testing.T, pubkey *ecdsa.PublicKey) *testServer {
 	ts.inodeRead = inodeRead
 	ts.inodeWrite = inodeWrite
 
-	jwtauth := ojwt.NewJWTAuthProvider(pubkey)
+	jwtauth := ojwt.NoJWTAuth
+	if pubkey != nil {
+		jwtauth = ojwt.NewJWTAuthProvider(pubkey)
+	}
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testListenAddr),
@@ -247,7 +210,7 @@ func TestAuth_NoAuth(t *testing.T) {
 }
 
 func TestAuth_NoToken(t *testing.T) {
-	ts := runTestServer(t, testPubkey)
+	ts := runTestServer(t, jwt_testutils.Pubkey)
 	defer ts.Terminate()
 
 	host := &cli.Host{
@@ -289,13 +252,13 @@ func TestAuth_NoToken(t *testing.T) {
 }
 
 func TestAuth_ValidToken(t *testing.T) {
-	ts := runTestServer(t, testPubkey)
+	ts := runTestServer(t, jwt_testutils.Pubkey)
 	defer ts.Terminate()
 
 	host := &cli.Host{
 		ApiEndpoint:      testListenAddr,
 		ExpectedCertFile: certFile,
-		AuthToken:        testReadOnlyToken,
+		AuthToken:        jwt_testutils.ReadOnlyToken,
 	}
 
 	t.Run("grpc", func(t *testing.T) {
@@ -332,13 +295,13 @@ func TestAuth_ValidToken(t *testing.T) {
 }
 
 func TestAuth_AlgNoneToken(t *testing.T) {
-	ts := runTestServer(t, testPubkey)
+	ts := runTestServer(t, jwt_testutils.Pubkey)
 	defer ts.Terminate()
 
 	host := &cli.Host{
 		ApiEndpoint:      testListenAddr,
 		ExpectedCertFile: certFile,
-		AuthToken:        testAlgNoneToken,
+		AuthToken:        jwt_testutils.AlgNoneToken,
 	}
 	t.Run("grpc", func(t *testing.T) {
 		ci, err := cli.ConnectionInfoFromHost(host)

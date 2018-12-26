@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru/apiserver"
+	"github.com/nyaxt/otaru/apiserver/jwt/jwt_testutils"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/otaruapiserver"
 	tu "github.com/nyaxt/otaru/testutils"
@@ -32,6 +33,7 @@ func TestMain(m *testing.M) {
 			"default": &cli.Host{
 				ApiEndpoint:      testListenAddr,
 				ExpectedCertFile: certFile,
+				AuthToken:        jwt_testutils.AdminToken,
 			},
 		},
 	}
@@ -66,8 +68,9 @@ func withApiServer(t *testing.T, f func()) {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testListenAddr),
 			apiserver.X509KeyPair(certFile, keyFile),
+			apiserver.JWTAuthProvider(jwt_testutils.JWTAuthProvider),
 			otaruapiserver.InstallFileSystemService(fs),
-			otaruapiserver.InstallFileHandler(fs),
+			otaruapiserver.InstallFileHandler(fs, jwt_testutils.JWTAuthProvider),
 			apiserver.CloseChannel(closeC),
 		); err != nil {
 			t.Errorf("Serve failed: %v", err)
