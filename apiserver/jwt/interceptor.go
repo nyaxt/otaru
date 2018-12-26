@@ -37,6 +37,10 @@ func NewJWTAuthProvider(pubkey *ecdsa.PublicKey) *JWTAuthProvider {
 }
 
 func (p *JWTAuthProvider) UserInfoFromAuthHeader(auth string) (*UserInfo, error) {
+	if p.pubkey == nil && auth == "" {
+		return NoauthUserInfo, nil
+	}
+
 	if !strings.HasPrefix(auth, BearerPrefix) {
 		return nil, errors.New("Unsupported authroization type.")
 	}

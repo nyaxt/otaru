@@ -99,7 +99,7 @@ func TestBasic(t *testing.T) {
 		}
 		b, err := ioutil.ReadFile(getpath)
 		if err != nil {
-			t.Errorf("ioutil.ReadAll(getpath): %v", err)
+			t.Errorf("ioutil.ReadFile(getpath): %v", err)
 		}
 		if !bytes.Equal(b, tu.HelloWorld) {
 			t.Errorf("PRead content != PWrite content: %v", b)

@@ -4,10 +4,12 @@ package otaruapiserver_test
 // , but since it relies on otaruapiserver.SystemService, it is placed here.
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -18,6 +20,7 @@ import (
 	"github.com/nyaxt/otaru/apiserver"
 	ojwt "github.com/nyaxt/otaru/apiserver/jwt"
 	"github.com/nyaxt/otaru/cli"
+	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/otaruapiserver"
 	"github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/testutils"
@@ -74,14 +77,22 @@ func init() {
 }
 
 type testServer struct {
+	fs     *filesystem.FileSystem
 	closeC chan struct{}
 	joinC  chan struct{}
 }
 
-func runTestServer(pubkey *ecdsa.PublicKey) *testServer {
+func runTestServer(t *testing.T, pubkey *ecdsa.PublicKey) *testServer {
+	t.Helper()
+
 	ts := &testServer{
+		fs:     testutils.TestFileSystem(),
 		closeC: make(chan struct{}),
 		joinC:  make(chan struct{}),
+	}
+
+	if err := ts.fs.WriteFile("/foo.txt", testutils.HelloWorld, 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
 	}
 
 	jwtauth := ojwt.NewJWTAuthProvider(pubkey)
@@ -92,6 +103,8 @@ func runTestServer(pubkey *ecdsa.PublicKey) *testServer {
 			apiserver.CloseChannel(ts.closeC),
 			apiserver.JWTAuthProvider(jwtauth),
 			otaruapiserver.InstallSystemService(),
+			otaruapiserver.InstallFileSystemService(ts.fs),
+			otaruapiserver.InstallFileHandler(ts.fs, jwtauth),
 		); err != nil {
 			panic(err)
 		}
@@ -110,43 +123,69 @@ func (ts *testServer) Terminate() {
 }
 
 func TestAuth_NoAuth(t *testing.T) {
-	ts := runTestServer(nil)
+	ts := runTestServer(t, nil)
 
-	ci, err := cli.ConnectionInfoFromHost(&cli.Host{
+	host := &cli.Host{
 		ApiEndpoint:      testListenAddr,
 		ExpectedCertFile: certFile,
+	}
+
+	t.Run("grpc", func(t *testing.T) {
+		ci, err := cli.ConnectionInfoFromHost(host)
+		if err != nil {
+			t.Fatalf("ConnectionInfoFromHost: %v", err)
+		}
+
+		conn, err := ci.DialGrpc()
+		if err != nil {
+			t.Fatalf("DialGrpc: %v", err)
+		}
+		defer conn.Close()
+
+		ssc := pb.NewSystemInfoServiceClient(conn)
+
+		ctx := context.Background()
+
+		if _, err = ssc.AuthTestAdmin(ctx, &pb.AuthTestRequest{}); err != nil {
+			t.Errorf("AuthTestAdmin: %v.", err)
+		}
+
+		if _, err = ssc.AuthTestReadOnly(ctx, &pb.AuthTestRequest{}); err != nil {
+			t.Errorf("AuthTestReadOnly: %v.", err)
+		}
+
+		if _, err = ssc.AuthTestAnonymous(ctx, &pb.AuthTestRequest{}); err != nil {
+			t.Errorf("AuthTestAnonymous: %v.", err)
+		}
 	})
-	if err != nil {
-		t.Fatalf("ConnectionInfoFromHost: %v", err)
-	}
 
-	conn, err := ci.DialGrpc()
-	if err != nil {
-		t.Fatalf("DialGrpc: %v", err)
-	}
-	defer conn.Close()
+	ccfg := &cli.CliConfig{Host: map[string]*cli.Host{
+		"default": host,
+	}}
 
-	ssc := pb.NewSystemInfoServiceClient(conn)
+	t.Run("httpRead", func(t *testing.T) {
+		r, err := cli.NewReader("/foo.txt", cli.WithCliConfig(ccfg))
+		if err != nil {
+			t.Fatalf("cli.NewReader: %v", err)
+		}
 
-	ctx := context.Background()
+		bs, err := ioutil.ReadAll(r)
+		if err != nil {
+			t.Fatalf("ioutil.ReadAll: %v", err)
+		}
 
-	if _, err = ssc.AuthTestAdmin(ctx, &pb.AuthTestRequest{}); err != nil {
-		t.Errorf("AuthTestAdmin: %v.", err)
-	}
+		if !bytes.Equal(bs, testutils.HelloWorld) {
+			t.Errorf("unexpected bs: %v", bs)
+		}
 
-	if _, err = ssc.AuthTestReadOnly(ctx, &pb.AuthTestRequest{}); err != nil {
-		t.Errorf("AuthTestReadOnly: %v.", err)
-	}
-
-	if _, err = ssc.AuthTestAnonymous(ctx, &pb.AuthTestRequest{}); err != nil {
-		t.Errorf("AuthTestAnonymous: %v.", err)
-	}
+		r.Close()
+	})
 
 	ts.Terminate()
 }
 
 func TestAuth_Enabled(t *testing.T) {
-	ts := runTestServer(testPubkey)
+	ts := runTestServer(t, testPubkey)
 
 	t.Run("NoToken", func(tt *testing.T) {
 		ci, err := cli.ConnectionInfoFromHost(&cli.Host{
