@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -64,7 +65,7 @@ func ConnectionInfoFromHost(h *Host) (*ConnectionInfo, error) {
 	}, nil
 }
 
-func (ci *ConnectionInfo) DialGrpc() (*grpc.ClientConn, error) {
+func (ci *ConnectionInfo) DialGrpc(ctx context.Context) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(ci.TLSConfig)),
 	}
@@ -74,7 +75,7 @@ func (ci *ConnectionInfo) DialGrpc() (*grpc.ClientConn, error) {
 		opts = append(opts,
 			grpc.WithPerRPCCredentials(oauth.TokenSource{ts}))
 	}
-	conn, err := grpc.Dial(ci.ApiEndpoint, opts...)
+	conn, err := grpc.DialContext(ctx, ci.ApiEndpoint, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to grpc.Dial(%q). err: %v", ci.ApiEndpoint, err)
 	}

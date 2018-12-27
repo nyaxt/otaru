@@ -197,7 +197,7 @@ func NewReader(pathstr string, options ...Option) (Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn, err := cinfo.DialGrpc()
+	conn, err := cinfo.DialGrpc(opts.ctx)
 	if err != nil {
 		return nil, err
 	}

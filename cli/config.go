@@ -18,7 +18,8 @@ var ErrNoLocalPathDefined = errors.New("No local root path is defined.")
 type CliConfig struct {
 	Host map[string]*Host
 
-	Fe FeConfig
+	Fe     FeConfig
+	Webdav WebdavConfig
 
 	LocalRootPath string
 	TrashDirPath  string
@@ -40,6 +41,18 @@ type FeConfig struct {
 	KeyFile  string
 
 	JwtPubkeyFile string
+}
+
+type WebdavConfig struct {
+	ListenAddr string
+
+	CertFile string
+	KeyFile  string
+
+	// Require digest auth if specified
+	HtdigestFilePath string
+
+	DigestAuthRealm string
 }
 
 func NewConfig(configdir string) (*CliConfig, error) {

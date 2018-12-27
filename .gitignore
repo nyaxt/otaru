@@ -32,10 +32,11 @@ out/*
 otaru-cli
 otaru-fe
 otaru-fuzzymv
+otaru-genjwttoken
 otaru-globallock
 otaru-mkfs
 otaru-server
-otaru-genjwttoken
+otaru-webdav-fe
 *-fuzz.zip
 
 version/consts.go

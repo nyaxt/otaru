@@ -21,9 +21,15 @@ func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) ([]apiserver.Option,
 		webuifs = http.Dir(override)
 	}
 
-	jwtauth, err := jwt.NewJWTAuthProviderFromFile(cfg.JwtPubkeyFile)
-	if err != nil {
-		return nil, err
+	jwtauth := jwt.NoJWTAuth
+	if cfg.JwtPubkeyFile == "" {
+		logger.Infof(mylog, "The public key file for JWT auth is not specified. Disabling JWT auth.")
+	} else {
+		var err error
+		jwtauth, err = jwt.NewJWTAuthProviderFromFile(cfg.JwtPubkeyFile)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	options := []apiserver.Option{

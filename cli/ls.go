@@ -125,7 +125,7 @@ func Attr(ctx context.Context, cfg *CliConfig, args []string) error {
 	if err != nil {
 		return err
 	}
-	conn, err := cinfo.DialGrpc()
+	conn, err := cinfo.DialGrpc(ctx)
 	if err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func Ls(ctx context.Context, w io.Writer, cfg *CliConfig, args []string) error {
 			if err != nil {
 				return err
 			}
-			conn, err = cinfo.DialGrpc()
+			conn, err = cinfo.DialGrpc(ctx)
 			if err != nil {
 				return err
 			}

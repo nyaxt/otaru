@@ -145,7 +145,7 @@ func NewWriter(pathstr string, ofs ...Option) (io.WriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn, err := cinfo.DialGrpc()
+	conn, err := cinfo.DialGrpc(opts.ctx)
 	if err != nil {
 		return nil, err
 	}
