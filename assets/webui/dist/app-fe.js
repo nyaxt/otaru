@@ -104,6 +104,4 @@ window.addEventListener('DOMContentLoaded', () => {
       console.log(`keyup ${e.key}`);
     }
   });
-
-  infobar.showMessage("hoge");  
 });

@@ -12,12 +12,12 @@ const kInnerHTMLSource =
 // TODO: multi-line support
 class Infobar extends HTMLElement {
   constructor() {
-    super(); 
+    super();
   }
 
   connectedCallback() {
     this.hide();
-    this.innerHTML = kInnerHTMLSource; 
+    this.innerHTML = kInnerHTMLSource;
 
     this.textDiv_ = this.querySelector('.infobar__text');
     this.closeBtn_ = this.querySelector('.infobar__button');

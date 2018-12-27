@@ -1,4 +1,5 @@
 import {$} from './domhelper.js';
+import {infobar} from './infobar.js';
 
 const kHostLocal = '[local]';
 const kHostNoProxy = '[noproxy]';
@@ -10,7 +11,18 @@ let apiprefix = `${window.document.location.origin}/`;
   const apiprefix_input = $("#apiprefix");
   apiprefix_input.value = apiprefix;
   apiprefix_input.addEventListener("change", ev => {
-    apiprefix = ev.value;
+    apiprefix = apiprefix_input.value;
+  });
+})();
+
+const kAuthTokenKey = 'authtoken';
+let authtoken = window.localStorage.getItem(kAuthTokenKey) || '';
+(() => {
+  const authtoken_input = $("#authtoken");
+  authtoken_input.value = authtoken;
+  authtoken_input.addEventListener("change", ev => {
+    authtoken = authtoken_input.value;
+    window.localStorage.setItem(kAuthTokenKey, authtoken);
   });
 })();
 
@@ -29,11 +41,24 @@ const propagateKeys = ['method'];
 const rpc = async (endpoint, opts = {}) => {
   const url = rpcUrl(endpoint, opts);
 
-  const fetchOpts = {mode: 'cors', cache: 'reload'}
+  const fetchOpts = {mode: 'cors', cache: 'reload'};
+  const headers = new Headers();
+  headers.append('Authorization', `Bearer ${authtoken}`);
   for (let k of propagateKeys) {
-    if (opts[k] !== undefined)
-      fetchOpts[k] = opts[k];
+    if (opts[k] === undefined)
+      continue;
+
+    if (k === 'headers') {
+      const pheaders = opts[k];
+      for (let hk of pheaders) {
+        headers.appemd(hk, pheaders.get(hk));
+      }
+      continue;
+    }
+
+    fetchOpts[k] = opts[k];
   }
+  fetchOpts['headers'] = headers;
   if (opts['body'] !== undefined) {
     const jsonStr = JSON.stringify(opts['body']);
     fetchOpts.body = new Blob([jsonStr], {type: 'application/json'});
@@ -44,7 +69,15 @@ const rpc = async (endpoint, opts = {}) => {
 
   const resp = await window.fetch(url, fetchOpts);
   if (!resp.ok) {
-    throw new Error(`fetch failed: ${resp.status}`);
+    if (resp.status === 401) {
+      infobar.showMessage(`Failed to authenticate with the API server.`);
+      throw new Error(`fetch failed: Unauthorized.`);
+    } else if (resp.status === 403) {
+      infobar.showMessage(`Request forbidden.`);
+      throw new Error(`fetch failed: Forbidden.`);
+    } else {
+      throw new Error(`fetch failed: ${resp.status}.`);
+    }
   }
   const ctype = resp.headers.get('Content-Type');
   if (ctype === "application/json") {
