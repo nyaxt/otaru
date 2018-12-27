@@ -253,6 +253,28 @@ body {
   flex-grow: 1;
 }
 
+.infobar {
+  display: flex;
+  flex-direction: row;
+
+  background-color: var(--dark-fg-color);
+}
+
+.infobar__text {
+  flex-grow: 1;
+
+  margin-left: 5px;
+  line-height: 25px;
+  height: 25px;
+
+  font-weight: bold;
+  color: var(--dark3-bg-color);
+}
+
+.infobar__button {
+  background-color: var(--darklight-fg-color); 
+}
+
 browse-fs {
   display: flex;
   flex-direction: column;

@@ -3,6 +3,7 @@ import {fillRemoteContent} from './api.js';
 import {$} from './domhelper.js';
 import './browsefs.js';
 import {preview} from './preview.js';
+import {infobar} from './infobar.js';
 
 const leftfs = $("#leftfs");
 const rightfs = $("#rightfs");
@@ -103,4 +104,6 @@ window.addEventListener('DOMContentLoaded', () => {
       console.log(`keyup ${e.key}`);
     }
   });
+
+  infobar.showMessage("hoge");  
 });
