@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/nyaxt/otaru/cli"
+	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/pb"
 )
 
@@ -20,7 +22,7 @@ const MethodPropFind = "PROPFIND"
 func ServeOptions(w http.ResponseWriter) {
 	// w.Header().Set("Allow", "OPTIONS, LOCK, DELETE, PROPPATCH, COPY, MOVE, UNLOCK, PROPFIND")
 	w.Header().Set("Allow", "OPTIONS, PROPFIND")
-	w.Header().Set("DAV", "1, 3")
+	w.Header().Set("DAV", "1")
 	w.Header().Set("Ms-Author-Via", "DAV")
 }
 
@@ -31,7 +33,7 @@ type Handler struct {
 func (h *Handler) VhostListing() Listing {
 	es := make([]*Entry, 0, len(h.cfg.Host))
 	for vhost, _ := range h.cfg.Host {
-		e := &Entry{Name: vhost, Size: 0, ModifiedTime: time.Now(), PermMode: 0555, IsDir: true}
+		e := &Entry{Name: vhost, Size: 0, ModifiedTime: time.Now(), IsDir: true}
 		es = append(es, e)
 	}
 	sort.Slice(es, func(i, j int) bool {
@@ -43,6 +45,7 @@ func (h *Handler) VhostListing() Listing {
 func (h *Handler) EntryForPath(ctx context.Context, conn *grpc.ClientConn, p string) (*Entry, error) {
 	fsc := pb.NewFileSystemServiceClient(conn)
 
+	logger.Debugf(mylog, "path: %q", p)
 	fnresp, err := fsc.FindNodeFullPath(ctx, &pb.FindNodeFullPathRequest{Path: p})
 	if err != nil {
 		return nil, ErrorFromGrpc(err, "FindNodeFullPath")
@@ -87,12 +90,24 @@ func ParseURLPath(p string) (string, string, error) {
 
 	si := strings.Index(p, "/")
 	if si < 0 {
-		return p, "", nil
+		return p, "/", nil
 	}
 
 	vhost, fspath := p[0:si], p[si:]
 	if vhost == "" {
 		return "", "", errors.New("Empty vhost.")
+	}
+	if fspath == "" {
+		fspath = "/"
+	}
+	var err error
+	vhost, err = url.PathUnescape(vhost)
+	if err != nil {
+		return "", "", errors.New("Failed to url.PathUnescape vhost.")
+	}
+	fspath, err = url.PathUnescape(fspath)
+	if err != nil {
+		return "", "", errors.New("Failed to url.PathUnescape fspath.")
 	}
 	return vhost, fspath, nil
 }
@@ -114,11 +129,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		default:
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		}
-		marshaler.WriteResponse(w, &Entry{ModifiedTime: time.Now(), PermMode: 0555, IsDir: true}, ls)
+		marshaler.WriteResponse(w, "/", &Entry{ModifiedTime: time.Now(), IsDir: true}, ls)
 		return
 	}
 
 	vhost, fspath, err := ParseURLPath(p)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("ParseURLPath: %v", err), http.StatusNotFound)
+		return
+	}
 
 	cinfo, err := cli.QueryConnectionInfo(h.cfg, vhost)
 	if err != nil {
@@ -154,7 +173,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			marshaler = ContentServerMarshaler{cinfo}
 		}
 	case MethodPropFind:
-		needLs = r.Header.Get("Depth") != "0"
+		needLs = true //needLs = r.Header.Get("Depth") != "0"
 		marshaler = PropStatMarshaler{}
 	default:
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -170,5 +189,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	marshaler.WriteResponse(w, entry, listing)
+	basepath := r.URL.EscapedPath()
+	marshaler.WriteResponse(w, basepath, entry, listing)
 }
