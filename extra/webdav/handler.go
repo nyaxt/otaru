@@ -170,7 +170,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			needLs = true
 			marshaler = HtmlMarshaler{}
 		} else {
-			marshaler = ContentServerMarshaler{cinfo}
+			marshaler = ContentServerMarshaler{OrigReq: r, CInfo: cinfo}
 		}
 	case MethodPropFind:
 		needLs = true //needLs = r.Header.Get("Depth") != "0"

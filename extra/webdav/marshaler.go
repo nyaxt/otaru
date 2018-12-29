@@ -2,6 +2,8 @@ package webdav
 
 import (
 	"encoding/xml"
+	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -93,10 +95,49 @@ func (m HtmlMarshaler) WriteResponse(w http.ResponseWriter, basepath string, ent
 }
 
 type ContentServerMarshaler struct {
-	cinfo *cli.ConnectionInfo
+	OrigReq *http.Request
+	CInfo   *cli.ConnectionInfo
+}
+
+func copyHeader(d, s http.Header) {
+	for k, v := range s {
+		d[k] = v
+	}
 }
 
 func (m ContentServerMarshaler) WriteResponse(w http.ResponseWriter, basepath string, entry *Entry, listing Listing) {
-	// FIXME: do http proxy to server's filehandler
-	w.Write([]byte("ok"))
+	cli := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: m.CInfo.TLSConfig,
+		},
+	}
+	url := &url.URL{
+		Scheme: "https",
+		Host:   m.CInfo.ApiEndpoint,
+		Path:   fmt.Sprintf("/file/%d/bin", entry.Id),
+	}
+	logger.Debugf(mylog, "requrl %v", url.String())
+	req := &http.Request{
+		Method: "GET",
+		Header: map[string][]string{},
+		URL:    url,
+	}
+	if m.CInfo.AuthToken != "" {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", m.CInfo.AuthToken))
+	}
+	req.Header.Add("Range", m.OrigReq.Header.Get("Range"))
+
+	resp, err := cli.Do(req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to issue HTTP GET request to backend: %v", err), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		http.Error(w, fmt.Sprintf("Backend respond with error: %d", resp.StatusCode), http.StatusBadGateway)
+		return
+	}
+
+	copyHeader(w.Header(), resp.Header)
+	io.Copy(w, resp.Body)
 }
