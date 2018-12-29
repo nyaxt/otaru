@@ -146,7 +146,7 @@ func TestFeService(t *testing.T) {
 		ApiEndpoint: testFeListenAddr,
 		TLSConfig:   tc,
 	}
-	conn, err := ci.DialGrpc()
+	conn, err := ci.DialGrpc(context.TODO())
 	if err != nil {
 		t.Fatalf("DialGrpcVhost: %v", err)
 	}
