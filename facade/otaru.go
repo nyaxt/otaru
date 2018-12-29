@@ -30,7 +30,6 @@ import (
 	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/scheduler"
 	"github.com/nyaxt/otaru/util"
-	"github.com/nyaxt/otaru/webdav"
 )
 
 var mylog = logger.Registry().Category("facade")
@@ -207,21 +206,6 @@ func Serve(cfg *Config, closeC <-chan error) error {
 		}()
 	}
 
-	webdavErrC := make(chan error)
-	if cfg.WebdavServer.ListenAddr != "" {
-		webdavCloseC := make(chan struct{})
-		defer close(webdavCloseC)
-
-		opts := o.buildWebdavServerOptions(o.FS, &cfg.WebdavServer)
-		opts = append(opts, webdav.CloseChannel(webdavCloseC))
-		go func() {
-			if err := webdav.Serve(opts...); err != nil {
-				webdavErrC <- err
-			}
-			close(webdavErrC)
-		}()
-	}
-
 	select {
 	case err := <-apiErrC:
 		if err == nil {
@@ -235,13 +219,6 @@ func Serve(cfg *Config, closeC <-chan error) error {
 			logger.Infof(mylog, "Fuse shutdown detected.")
 		} else {
 			return fmt.Errorf("Fuse error: %v", err)
-		}
-
-	case err := <-webdavErrC:
-		if err == nil {
-			logger.Infof(mylog, "WebDav shutdown detected.")
-		} else {
-			return fmt.Errorf("WebDav error: %v", err)
 		}
 
 	case err := <-closeC:

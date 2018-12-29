@@ -44,10 +44,9 @@ type Config struct {
 	// Run GC every "GCPeriod" seconds.
 	GCPeriod int64 `toml:"gc_period"`
 
-	Fluent       gfluent.Config
-	Logger       loggerconfig.Config
-	ApiServer    ApiServerConfig
-	WebdavServer WebdavServerConfig
+	Fluent    gfluent.Config
+	Logger    loggerconfig.Config
+	ApiServer ApiServerConfig
 }
 
 type ApiServerConfig struct {
@@ -63,21 +62,6 @@ type ApiServerConfig struct {
 	CORSAllowedOrigins []string `toml:"cors_allowed_origins"`
 
 	JwtPubkeyFile string
-}
-
-type WebdavServerConfig struct {
-	ListenAddr string
-
-	// Serve WebDav over TLS
-	EnableTLS bool `toml:"enable_tls"`
-
-	CertFile string
-	KeyFile  string
-
-	// Require digest auth if specified
-	HtdigestFilePath string
-
-	DigestAuthRealm string
 }
 
 func DefaultConfigDir() string {
@@ -184,10 +168,6 @@ func NewConfig(configdir string) (*Config, error) {
 	cfg.ApiServer.CertFile = os.ExpandEnv(cfg.ApiServer.CertFile)
 	cfg.ApiServer.KeyFile = os.ExpandEnv(cfg.ApiServer.KeyFile)
 	cfg.ApiServer.JwtPubkeyFile = os.ExpandEnv(cfg.ApiServer.JwtPubkeyFile)
-
-	if err := verifyWebdavServerConfig(configdir, &cfg.WebdavServer); err != nil {
-		return nil, err
-	}
 
 	if cfg.Fluent.TagPrefix == "" {
 		cfg.Fluent.TagPrefix = "otaru"

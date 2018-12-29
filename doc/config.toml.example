@@ -55,26 +55,6 @@ cache_low_watermark = "18GB"
 #   Domains listed here will be added to "Access-Control-Allow-Origin" HTTP header.
 # cors_allowed_origins = ["https://localhost:9000"]
 
-# WebDAV server config
-[webdav_server]
-# - If specified, expose filesystem via webdav.
-# listen_addr = ":8005"
-
-# - If specified, webdav is served over TLS (https)
-# enable_tls = true
-
-# - TLS certificate file. Defaults to "${OTARUDIR}/cert.pem"
-# cert_file = "cert.pem"
-
-# - TLS key file. Defaults to "${OTARUDIR}/cert-key.pem"
-# key_file = "cert-key.pem"
-
-# - If specified, require digest auth to access files
-# htdigest_file_path = "htdigest"
-
-# - The realm for HTTP digest auth.
-# digest_auth_realm = "otaru webdav"
-
 # Logger config
 [logger]
 
