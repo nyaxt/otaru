@@ -17,7 +17,8 @@ var accesslog = logger.Registry().Category("http-webdav")
 func Serve(cfg *cli.CliConfig, closeC <-chan struct{}) error {
 	wcfg := cfg.Webdav
 
-	handler := &Handler{cfg}
+	var handler http.Handler
+	handler = &Handler{cfg}
 
 	if wcfg.ListenAddr == "" {
 		return errors.New("Webdav server listen addr must be configured.")
@@ -42,10 +43,18 @@ func Serve(cfg *cli.CliConfig, closeC <-chan struct{}) error {
 		return fmt.Errorf("Failed to load webdav {cert,key} pair: %v", err)
 	}
 
+	if wcfg.BasicAuthPassword == "" {
+		logger.Warningf(mylog, "Basic auth not enabled!")
+	} else {
+		logger.Infof(mylog, "Basic auth enabled.")
+		handler = &BasicAuthHandler{wcfg.BasicAuthUser, wcfg.BasicAuthPassword, handler}
+	}
+	loghandler := logger.HttpHandler(accesslog, logger.Info, handler)
+
 	// Note: This doesn't enable h2. Reconsider this if there is a webdav client w/ h2 support.
 	httpsrv := http.Server{
 		Addr:    wcfg.ListenAddr,
-		Handler: logger.HttpHandler(accesslog, logger.Info, handler),
+		Handler: loghandler,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{cert},
 			NextProtos:   []string{"http/1.1"},

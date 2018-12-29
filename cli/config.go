@@ -49,10 +49,8 @@ type WebdavConfig struct {
 	CertFile string
 	KeyFile  string
 
-	// Require digest auth if specified
-	HtdigestFilePath string
-
-	DigestAuthRealm string
+	BasicAuthUser     string
+	BasicAuthPassword string
 }
 
 func NewConfig(configdir string) (*CliConfig, error) {
@@ -78,17 +76,26 @@ func NewConfig(configdir string) (*CliConfig, error) {
 			CertFile:   possibleCertFile,
 			KeyFile:    path.Join(configdir, "cert-key.pem"),
 		},
+		Webdav: WebdavConfig{
+			CertFile:      possibleCertFile,
+			KeyFile:       path.Join(configdir, "cert-key.pem"),
+			BasicAuthUser: "readonly",
+		},
 	}
 	if err := toml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("Failed to parse config file: %v", err)
 	}
-
 	for _, h := range cfg.Host {
 		h.ExpectedCertFile = os.ExpandEnv(h.ExpectedCertFile)
 		if h.ExpectedCertFile == "" {
 			h.ExpectedCertFile = possibleCertFile
 		}
 	}
+	cfg.Fe.CertFile = os.ExpandEnv(cfg.Fe.CertFile)
+	cfg.Fe.KeyFile = os.ExpandEnv(cfg.Fe.KeyFile)
+	cfg.Fe.JwtPubkeyFile = os.ExpandEnv(cfg.Fe.JwtPubkeyFile)
+	cfg.Webdav.CertFile = os.ExpandEnv(cfg.Webdav.CertFile)
+	cfg.Webdav.KeyFile = os.ExpandEnv(cfg.Webdav.KeyFile)
 
 	if cfg.LocalRootPath != "" {
 		if err := util.IsDir(cfg.LocalRootPath); err != nil {
