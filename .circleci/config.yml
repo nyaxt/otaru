@@ -40,6 +40,7 @@ jobs:
       - run: gcloud auth activate-service-account --key-file=svcacc.json
       - run: (cd /tmp/workspace && tar zcvf otaru-bin.tar.gz otaru-bin)
       - run: gsutil cp /tmp/workspace/otaru-bin.tar.gz gs://otaru-release/
+      - run: curl -XPOST $DOCKERHUB
 workflows:
   version: 2
   build_and_deploy:
