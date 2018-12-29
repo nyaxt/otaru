@@ -2,9 +2,7 @@ module github.com/nyaxt/otaru
 
 require (
 	cloud.google.com/go v0.34.0
-	github.com/abbot/go-http-auth v0.4.0
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
-	github.com/bobziuchkovski/digest v0.0.0-20160204210651-26857231d60c
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/dustin/go-humanize v1.0.0
@@ -24,14 +22,15 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/cors v1.6.0
 	github.com/stretchr/testify v1.2.2 // indirect
+	github.com/theckman/go-flock v0.7.0
 	github.com/tinylib/msgp v1.1.0 // indirect
 	go.opencensus.io v0.18.0 // indirect
 	golang.org/x/crypto v0.0.0-20181203042331-505ab145d0a9
 	golang.org/x/net v0.0.0-20181220203305-927f97764cc3
 	golang.org/x/oauth2 v0.0.0-20181203162652-d668ce993890
 	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4 // indirect
-	golang.org/x/sys v0.0.0-20181221143128-b4a75ba826a6 // indirect
-	google.golang.org/api v0.0.0-20181221000618-65a46cafb132
+	golang.org/x/sys v0.0.0-20181228144115-9a3f9b0469bb // indirect
+	google.golang.org/api v0.0.0-20181229000844-f26a60c56f14
 	google.golang.org/appengine v1.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20181221175505-bd9b4fb69e2f
 	google.golang.org/grpc v1.17.0
