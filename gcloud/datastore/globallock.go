@@ -1,13 +1,13 @@
 package datastore
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
 	"time"
 
 	"cloud.google.com/go/datastore"
-	"golang.org/x/net/context"
 
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/logger"
@@ -58,15 +58,15 @@ func (e *ErrLockTaken) Error() string {
 
 // Lock attempts to acquire the global lock.
 // If the lock was already taken by other GlobalLocker instance, it will return an ErrLockTaken.
-func (l *GlobalLocker) tryLockOnce(readOnly bool) error {
+func (l *GlobalLocker) tryLockOnce(ctx context.Context, readOnly bool) error {
 	start := time.Now()
-	cli, err := l.cfg.getClient(context.Background())
+	cli, err := l.cfg.getClient(ctx)
 	if err != nil {
 		return err
 	}
 	defer cli.Close()
 
-	dstx, err := cli.NewTransaction(context.Background())
+	dstx, err := cli.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
@@ -96,24 +96,24 @@ func (l *GlobalLocker) tryLockOnce(readOnly bool) error {
 	return nil
 }
 
-func (l *GlobalLocker) Lock(readOnly bool) (err error) {
+func (l *GlobalLocker) Lock(ctx context.Context, readOnly bool) error {
 	logger.Infof(lklog, "GlobalLocker.Lock(readOnly=%t) started.", readOnly)
 	return gcutil.RetryIfNeeded(func() error {
-		return l.tryLockOnce(readOnly)
+		return l.tryLockOnce(ctx, readOnly)
 	}, lklog)
 }
 
 // ForceUnlock releases the global lock entry forcibly, even if it was held by other GlobalLocker instance.
 // If there was no lock, ForceUnlock will log an warning, but return no error.
-func (l *GlobalLocker) forceUnlockOnce() error {
+func (l *GlobalLocker) forceUnlockOnce(ctx context.Context) error {
 	start := time.Now()
-	cli, err := l.cfg.getClient(context.Background())
+	cli, err := l.cfg.getClient(ctx)
 	if err != nil {
 		return err
 	}
 	defer cli.Close()
 
-	dstx, err := cli.NewTransaction(context.Background())
+	dstx, err := cli.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
@@ -139,10 +139,10 @@ func (l *GlobalLocker) forceUnlockOnce() error {
 	return nil
 }
 
-func (l *GlobalLocker) ForceUnlock() error {
+func (l *GlobalLocker) ForceUnlock(ctx context.Context) error {
 	logger.Infof(lklog, "GlobalLocker.ForceUnlock() started.")
 	return gcutil.RetryIfNeeded(func() error {
-		return l.forceUnlockOnce()
+		return l.forceUnlockOnce(ctx)
 	}, lklog)
 }
 
@@ -160,14 +160,14 @@ const (
 // Unlock releases the global lock previously taken by this GlobalLocker.
 // If the lock was taken by other GlobalLocker, Unlock will fail with ErrLockTaken.
 // If there was no lock, Unlock will fail with ErrNoLock.
-func (l *GlobalLocker) Unlock() error {
+func (l *GlobalLocker) Unlock(ctx context.Context) error {
 	logger.Infof(lklog, "GlobalLocker.Unlock() started.")
-	return l.unlockInternal(checkCreatedAt)
+	return l.unlockInternal(ctx, checkCreatedAt)
 }
 
-func (l *GlobalLocker) UnlockIgnoreCreatedAt() error {
+func (l *GlobalLocker) UnlockIgnoreCreatedAt(ctx context.Context) error {
 	logger.Infof(lklog, "GlobalLocker.UnlockIgnoreCreatedAt() started.")
-	return l.unlockInternal(ignoreCreatedAt)
+	return l.unlockInternal(ctx, ignoreCreatedAt)
 }
 
 func checkLock(a, b lockEntry, checkCreatedAtFlag bool) bool {
@@ -219,23 +219,23 @@ func (l *GlobalLocker) unlockInternalOnce(checkCreatedAtFlag bool) error {
 	return nil
 }
 
-func (l *GlobalLocker) unlockInternal(checkCreatedAtFlag bool) error {
+func (l *GlobalLocker) unlockInternal(ctx context.Context, checkCreatedAtFlag bool) error {
 	return gcutil.RetryIfNeeded(func() error {
 		return l.unlockInternalOnce(checkCreatedAtFlag)
 	}, lklog)
 }
 
-func (l *GlobalLocker) tryQueryOnce() (lockEntry, error) {
+func (l *GlobalLocker) tryQueryOnce(ctx context.Context) (lockEntry, error) {
 	var e lockEntry
 	start := time.Now()
 
-	cli, err := l.cfg.getClient(context.Background())
+	cli, err := l.cfg.getClient(ctx)
 	if err != nil {
 		return e, err
 	}
 	defer cli.Close()
 
-	dstx, err := cli.NewTransaction(context.Background())
+	dstx, err := cli.NewTransaction(ctx)
 	if err != nil {
 		return e, err
 	}
@@ -253,11 +253,14 @@ func (l *GlobalLocker) tryQueryOnce() (lockEntry, error) {
 	return e, nil
 }
 
-func (l *GlobalLocker) Query() (le lockEntry, err error) {
+func (l *GlobalLocker) Query(ctx context.Context) (lockEntry, error) {
 	logger.Infof(lklog, "GlobalLocker.Query() started.")
-	err = gcutil.RetryIfNeeded(func() error {
-		le, err = l.tryQueryOnce()
+
+	var le lockEntry
+	err := gcutil.RetryIfNeeded(func() error {
+		var err error
+		le, err = l.tryQueryOnce(ctx)
 		return err
 	}, lklog)
-	return
+	return le, err
 }

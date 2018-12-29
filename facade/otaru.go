@@ -1,6 +1,7 @@
 package facade
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -94,7 +95,9 @@ func Mkfs(cfg *Config) error {
 
 	o.S = scheduler.NewScheduler()
 
-	if err := o.initCloudDatastore(cfg); err != nil {
+	ctx := context.Background()
+
+	if err := o.initCloudDatastore(ctx, cfg); err != nil {
 		return err
 	}
 	if err := o.initBlobStore(cfg, flags); err != nil {
@@ -113,7 +116,7 @@ func Mkfs(cfg *Config) error {
 	return nil
 }
 
-func Serve(cfg *Config, closeC <-chan error) error {
+func Serve(ctx context.Context, cfg *Config) error {
 	o := &Otaru{}
 	defer o.Close()
 
@@ -136,7 +139,7 @@ func Serve(cfg *Config, closeC <-chan error) error {
 	o.S = scheduler.NewScheduler()
 	o.R = scheduler.NewRepetitiveJobRunner(o.S)
 
-	if err := o.initCloudDatastore(cfg); err != nil {
+	if err := o.initCloudDatastore(ctx, cfg); err != nil {
 		return fmt.Errorf("initCloudDatastore: %v", err)
 	}
 	if err := o.initBlobStore(cfg, flags); err != nil {
@@ -221,13 +224,9 @@ func Serve(cfg *Config, closeC <-chan error) error {
 			return fmt.Errorf("Fuse error: %v", err)
 		}
 
-	case err := <-closeC:
-		if err == nil {
-			logger.Infof(mylog, "Shutdown requested.")
-			return nil
-		} else {
-			return fmt.Errorf("Shutdown requested. Cause: %v", err)
-		}
+	case <-ctx.Done():
+		logger.Infof(mylog, "Shutdown requested.")
+		return nil
 	}
 
 	return nil
@@ -245,7 +244,7 @@ func (o *Otaru) initCrypt(cfg *Config) error {
 	return nil
 }
 
-func (o *Otaru) initCloudDatastore(cfg *Config) error {
+func (o *Otaru) initCloudDatastore(ctx context.Context, cfg *Config) error {
 	if !cfg.LocalDebug {
 		var err error
 		// FIXME: move below
@@ -255,7 +254,7 @@ func (o *Otaru) initCloudDatastore(cfg *Config) error {
 		}
 		o.DSCfg = datastore.NewConfig(cfg.ProjectName, cfg.BucketName, o.C, o.Tsrc)
 		o.GL = datastore.NewGlobalLocker(o.DSCfg, GenHostName(), "FIXME: fill info")
-		if err := o.GL.Lock(o.ReadOnly); err != nil {
+		if err := o.GL.Lock(ctx, o.ReadOnly); err != nil {
 			return fmt.Errorf("Failed to acquire global lock: %v", err)
 		}
 	}
@@ -340,6 +339,7 @@ func (o *Otaru) initINodeDBIO(cfg *Config, flags int) error {
 
 func (o *Otaru) Close() error {
 	errs := []error{}
+	ctx := context.Background()
 
 	if o.R != nil {
 		o.R.Stop()
@@ -377,7 +377,7 @@ func (o *Otaru) Close() error {
 	}
 
 	if o.GL != nil && !o.ReadOnly {
-		if err := o.GL.Unlock(); err != nil {
+		if err := o.GL.Unlock(ctx); err != nil {
 			errs = append(errs, err)
 		}
 	}

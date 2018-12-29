@@ -1,7 +1,7 @@
 package main
 
 import (
-	"errors"
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -45,7 +45,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	closeC := make(chan error)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, os.Interrupt)
@@ -53,15 +53,15 @@ func main() {
 	go func() {
 		for s := range sigC {
 			logger.Warningf(mylog, "Received signal: %v", s)
-			closeC <- fmt.Errorf("Received singal: %v", s)
+			cancel()
 		}
 	}()
 	logger.Registry().AddOutput(logger.HandleCritical(func() {
 		logger.Warningf(mylog, "Starting shutdown due to critical event.")
-		closeC <- errors.New("Critical log event.")
+		cancel()
 	}))
 
-	if err := facade.Serve(cfg, closeC); err != nil {
+	if err := facade.Serve(ctx, cfg); err != nil {
 		logger.Warningf(mylog, "facade.Serve end: %v", err)
 	}
 }
