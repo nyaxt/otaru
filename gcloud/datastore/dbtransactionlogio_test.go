@@ -2,6 +2,7 @@ package datastore_test
 
 import (
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/nyaxt/otaru/testutils"
 	"github.com/nyaxt/otaru/util"
 )
+
+var muTest sync.Mutex
 
 func init() { testutils.EnsureLogger() }
 
@@ -26,6 +29,9 @@ func testDBTransactionIO() *datastore.DBTransactionLogIO {
 var stableT = time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
 
 func TestDBTransactionIO_PutQuery(t *testing.T) {
+	muTest.Lock()
+	defer muTest.Unlock()
+
 	txio := testDBTransactionIO()
 
 	if err := txio.DeleteAllTransactions(); err != nil {
@@ -91,6 +97,9 @@ func TestDBTransactionIO_PutQuery(t *testing.T) {
 }
 
 func TestDBTransactionIO_DeleteAll_IsIsolated(t *testing.T) {
+	muTest.Lock()
+	defer muTest.Unlock()
+
 	key1 := authtu.TestBucketName()
 	key2 := authtu.TestBucketName() + "-2"
 
@@ -152,6 +161,9 @@ func TestDBTransactionIO_DeleteAll_IsIsolated(t *testing.T) {
 }
 
 func TestDBTransactionIO_BigTx(t *testing.T) {
+	muTest.Lock()
+	defer muTest.Unlock()
+
 	txio := testDBTransactionIO()
 
 	if err := txio.DeleteAllTransactions(); err != nil {
@@ -174,6 +186,9 @@ func TestDBTransactionIO_BigTx(t *testing.T) {
 }
 
 func TestDBTransactionIO_ReadOnly(t *testing.T) {
+	muTest.Lock()
+	defer muTest.Unlock()
+
 	rootKeyStr := authtu.TestBucketName()
 	txio := datastore.NewDBTransactionLogIO(authtu.TestDSConfig(rootKeyStr), flags.O_RDONLY)
 

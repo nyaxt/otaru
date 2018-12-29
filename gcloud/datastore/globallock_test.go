@@ -13,6 +13,9 @@ const (
 )
 
 func TestGlobalLocker_LockUnlock(t *testing.T) {
+	muTest.Lock()
+	defer muTest.Unlock()
+
 	l := datastore.NewGlobalLocker(authtu.TestDSConfig(authtu.TestBucketName()), "otaru-unittest", "unittest desuyo-")
 
 	if err := l.ForceUnlock(); err != nil {
@@ -30,6 +33,9 @@ func TestGlobalLocker_LockUnlock(t *testing.T) {
 }
 
 func TestGlobalLocker_ActAsMutex(t *testing.T) {
+	muTest.Lock()
+	defer muTest.Unlock()
+
 	l1 := datastore.NewGlobalLocker(authtu.TestDSConfig(authtu.TestBucketName()), "otaru-unittest-1", "hogefuga")
 	l2 := datastore.NewGlobalLocker(authtu.TestDSConfig(authtu.TestBucketName()), "otaru-unittest-2", "foobar")
 	l3 := datastore.NewGlobalLocker(authtu.TestDSConfig(authtu.TestBucketName()), "otaru-unittest-3", "readonly")
@@ -58,6 +64,9 @@ func TestGlobalLocker_ActAsMutex(t *testing.T) {
 }
 
 func TestGlobalLocker_ForceUnlock(t *testing.T) {
+	muTest.Lock()
+	defer muTest.Unlock()
+
 	l1 := datastore.NewGlobalLocker(authtu.TestDSConfig(authtu.TestBucketName()), "otaru-unittest-1", "hogefuga")
 	l2 := datastore.NewGlobalLocker(authtu.TestDSConfig(authtu.TestBucketName()), "otaru-unittest-2", "foobar")
 
@@ -96,6 +105,9 @@ func TestGlobalLocker_ForceUnlock(t *testing.T) {
 }
 
 func TestGlobalLocker_ReadOnlyLock(t *testing.T) {
+	muTest.Lock()
+	defer muTest.Unlock()
+
 	lw := datastore.NewGlobalLocker(authtu.TestDSConfig(authtu.TestBucketName()), "otaru-unittest-1", "hogefuga")
 	lr := datastore.NewGlobalLocker(authtu.TestDSConfig(authtu.TestBucketName()), "otaru-unittest-ro", "readonly")
 
