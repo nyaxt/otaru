@@ -176,20 +176,20 @@ func TestAuth_NoAuth(t *testing.T) {
 	}
 
 	t.Run("grpc", func(t *testing.T) {
+		ctx := context.Background()
+
 		ci, err := cli.ConnectionInfoFromHost(host)
 		if err != nil {
 			t.Fatalf("ConnectionInfoFromHost: %v", err)
 		}
 
-		conn, err := ci.DialGrpc()
+		conn, err := ci.DialGrpc(ctx)
 		if err != nil {
 			t.Fatalf("DialGrpc: %v", err)
 		}
 		defer conn.Close()
 
 		ssc := pb.NewSystemInfoServiceClient(conn)
-
-		ctx := context.Background()
 
 		if _, err = ssc.AuthTestAdmin(ctx, &pb.AuthTestRequest{}); err != nil {
 			t.Errorf("AuthTestAdmin: %v.", err)
@@ -219,20 +219,20 @@ func TestAuth_NoToken(t *testing.T) {
 	}
 
 	t.Run("grpc", func(t *testing.T) {
+		ctx := context.Background()
+
 		ci, err := cli.ConnectionInfoFromHost(host)
 		if err != nil {
 			t.Fatalf("ConnectionInfoFromHost: %v", err)
 		}
 
-		conn, err := ci.DialGrpc()
+		conn, err := ci.DialGrpc(ctx)
 		if err != nil {
 			t.Fatalf("DialGrpc: %v", err)
 		}
 		defer conn.Close()
 
 		ssc := pb.NewSystemInfoServiceClient(conn)
-
-		ctx := context.Background()
 
 		if _, err = ssc.AuthTestAdmin(ctx, &pb.AuthTestRequest{}); err == nil {
 			t.Errorf("AuthTestAdmin should fail.")
@@ -262,20 +262,20 @@ func TestAuth_ValidToken(t *testing.T) {
 	}
 
 	t.Run("grpc", func(t *testing.T) {
+		ctx := context.Background()
+
 		ci, err := cli.ConnectionInfoFromHost(host)
 		if err != nil {
 			t.Fatalf("ConnectionInfoFromHost: %v", err)
 		}
 
-		conn, err := ci.DialGrpc()
+		conn, err := ci.DialGrpc(ctx)
 		if err != nil {
 			t.Fatalf("DialGrpc: %v", err)
 		}
 		defer conn.Close()
 
 		ssc := pb.NewSystemInfoServiceClient(conn)
-
-		ctx := context.Background()
 
 		if _, err = ssc.AuthTestAdmin(ctx, &pb.AuthTestRequest{}); err == nil {
 			t.Errorf("AuthTestAdmin should fail.")
@@ -304,20 +304,20 @@ func TestAuth_AlgNoneToken(t *testing.T) {
 		AuthToken:        jwt_testutils.AlgNoneToken,
 	}
 	t.Run("grpc", func(t *testing.T) {
+		ctx := context.Background()
+
 		ci, err := cli.ConnectionInfoFromHost(host)
 		if err != nil {
 			t.Fatalf("ConnectionInfoFromHost: %v", err)
 		}
 
-		conn, err := ci.DialGrpc()
+		conn, err := ci.DialGrpc(ctx)
 		if err != nil {
 			t.Fatalf("DialGrpc: %v", err)
 		}
 		defer conn.Close()
 
 		ssc := pb.NewSystemInfoServiceClient(conn)
-
-		ctx := context.Background()
 
 		if _, err = ssc.AuthTestAdmin(ctx, &pb.AuthTestRequest{}); err == nil {
 			t.Errorf("AuthTestAdmin should fail.")

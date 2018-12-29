@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -110,13 +111,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx := context.Background()
+
 	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, tsrc)
 	l := datastore.NewGlobalLocker(dscfg, "otaru-deleteallblobs", facade.GenHostName())
-	if err := l.Lock(notReadOnly); err != nil {
+	if err := l.Lock(ctx, notReadOnly); err != nil {
 		logger.Infof(mylog, "Failed to acquire global lock: %v", err)
 		return
 	}
-	defer l.Unlock()
+	defer l.Unlock(ctx)
 
 	if err := clearGCS(cfg.ProjectName, cfg.BucketName, tsrc); err != nil {
 		logger.Infof(mylog, "Failed to clear bucket \"%s\": %v", cfg.BucketName, err)

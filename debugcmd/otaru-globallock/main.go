@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -63,26 +64,28 @@ func main() {
 	}
 	l := datastore.NewGlobalLocker(dscfg, "otaru-globallock-cli", info)
 
+	ctx := context.Background()
+
 	switch flag.Arg(0) {
 	case "lock":
 		readOnly := false
-		if err := l.Lock(readOnly); err != nil {
+		if err := l.Lock(ctx, readOnly); err != nil {
 			logger.Infof(mylog, "Lock failed: %v", err)
 		}
 	case "unlock":
 		if *flagForce {
-			if err := l.ForceUnlock(); err != nil {
+			if err := l.ForceUnlock(ctx); err != nil {
 				logger.Infof(mylog, "ForceUnlock failed: %v", err)
 				os.Exit(1)
 			}
 		} else {
-			if err := l.UnlockIgnoreCreatedAt(); err != nil {
+			if err := l.UnlockIgnoreCreatedAt(ctx); err != nil {
 				logger.Infof(mylog, "Unlock failed: %v", err)
 				os.Exit(1)
 			}
 		}
 	case "query":
-		entry, err := l.Query()
+		entry, err := l.Query(ctx)
 		if err != nil {
 			logger.Infof(mylog, "Query failed: %v", err)
 			os.Exit(1)
