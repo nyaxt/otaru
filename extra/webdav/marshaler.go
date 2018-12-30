@@ -22,15 +22,15 @@ type PropStatMarshaler struct{}
 
 type collection struct{}
 type davresp struct {
-	XMLName      xml.Name   `xml:"D:response"`
-	Href         string     `xml:"D:href"`
-	DispName     string     `xml:"D:propstat>D:prop>D:displayname"`
-	CreationDate string     `xml:"D:propstat>D:prop>D:creationdate"`
-	ContentType  string     `xml:"D:propstat>D:prop>D:getcontenttype"`
-	Size         int64      `xml:"D:propstat>D:prop>D:getcontentlength"`
-	Collection   collection `xml:"D:propstat>D:prop>D:resourcetype>D:collection,omitempty"`
-	LastModified string     `xml:"D:propstat>D:prop>D:getlastmodified"`
-	Status       string     `xml:"D:propstat>D:status"`
+	XMLName      xml.Name    `xml:"D:response"`
+	Href         string      `xml:"D:href"`
+	DispName     string      `xml:"D:propstat>D:prop>D:displayname"`
+	CreationDate string      `xml:"D:propstat>D:prop>D:creationdate"`
+	ContentType  string      `xml:"D:propstat>D:prop>D:getcontenttype"`
+	Size         int64       `xml:"D:propstat>D:prop>D:getcontentlength"`
+	Collection   *collection `xml:"D:propstat>D:prop>D:resourcetype>D:collection,omitempty"`
+	LastModified string      `xml:"D:propstat>D:prop>D:getlastmodified"`
+	Status       string      `xml:"D:propstat>D:status"`
 }
 
 func entryToResp(basepath string, entry *Entry, toplevel bool) *davresp {
@@ -49,7 +49,7 @@ func entryToResp(basepath string, entry *Entry, toplevel bool) *davresp {
 		Status:       StatusOk,
 	}
 	if entry.IsDir {
-		r.Collection = collection{}
+		r.Collection = &collection{}
 	} else {
 		r.ContentType = mime.TypeByExtension(filepath.Ext(entry.Name))
 	}
