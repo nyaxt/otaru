@@ -149,7 +149,13 @@ class BrowseFS extends HTMLElement {
     if (this.path_ == val)
       return;
 
-    val = val.replace(/\/*\s*$/, '/');
+    val = val.trim();
+    if (val.length < 2) {
+      val = "//";
+    }
+    if (val !== "//") {
+      val = val.replace(/\/*$/, '/');
+    }
 
     const e = new Event('pathChanged');
     e.oldPath = this.path_;
@@ -866,11 +872,11 @@ class BrowseFS extends HTMLElement {
   }
 
   async copySelection() {
-    this.moveOrCopySelection_(kCopy); 
+    this.moveOrCopySelection_(kCopy);
   }
 
   async moveSelection() {
-    this.moveOrCopySelection_(kMove); 
+    this.moveOrCopySelection_(kMove);
   }
 
   async moveOrCopySelection_(moveOrCopy) {
