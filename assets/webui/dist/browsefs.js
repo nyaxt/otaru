@@ -57,7 +57,7 @@ const actionDefMap = {
     labels: ['→'],
     action: (browsefs, entry) => {
       const curr = browsefs.path;
-      const next = curr.replace(/\/?$/, '/') + entry.name;
+      const next = curr.replace(/\/?$/, '/') + entry.name + "/";
       browsefs.path = next;
     },
   },
@@ -148,6 +148,8 @@ class BrowseFS extends HTMLElement {
   set path(val) {
     if (this.path_ == val)
       return;
+
+    val = val.replace(/\/*\s*$/, '/');
 
     const e = new Event('pathChanged');
     e.oldPath = this.path_;
@@ -379,6 +381,7 @@ class BrowseFS extends HTMLElement {
       if (cr)
         cr.toggleSelection();
     } else if (e.key === ' ') {
+      e.preventDefault();
       let cr = this.cursorRow;
       if (cr)
         cr.toggleSelection();
@@ -842,8 +845,8 @@ class BrowseFS extends HTMLElement {
       const items = [];
       const itemLabels = [];
       for (let r of selectedRows) {
-        items.push(this.path + r.data.name);
-        itemLabels.push(`rm: "${r.data.name}"`);
+        items.push(r.data.opath);
+        itemLabels.push(`rm: "${r.data.opath}"`);
       }
       this.setConfirmDetailItems_(itemLabels);
       await this.openConfirm_(`Delete: ${selectedRows.length} item(s)`);
@@ -890,7 +893,7 @@ class BrowseFS extends HTMLElement {
       const items = [];
       const itemLabels = [];
       for (let r of selectedRows) {
-        const src = this.path + r.data.name;
+        const src = r.data.opath;
         const dest = this.counterpart.path + r.data.name;
         items.push({src, dest});
         itemLabels.push(`${moveOrCopy}: "${src}" -> "${dest}"`);

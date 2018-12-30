@@ -105,6 +105,7 @@ body {
   display: block;
 
   flex-grow: 1;
+  height: 100px; /* workaround: layout flexbox by container size not content size */
 }
 
 .section--selected.section--split {
