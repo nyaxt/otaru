@@ -368,6 +368,8 @@ class BrowseFS extends HTMLElement {
       this.cursorIndex = this.cursorIndex + this.numVisibleRows;
     } else if (e.key === 'PageUp') {
       this.cursorIndex = Math.max(this.cursorIndex - this.numVisibleRows, 0);
+    } else if (e.key === 'Escape') {
+      this.query = null;
     } else {
       unhandled = true;
     }
@@ -377,7 +379,7 @@ class BrowseFS extends HTMLElement {
   }
 
   async onKeyPress_(e) {
-    if (preview.isOpen || !this.hasFocus)// || this.classList.contains(kFilteredClass))
+    if (preview.isOpen || !this.hasFocus || document.activeElement.tagName === "INPUT")
       return;
     if (this.hasModalDialog) {
       if (e.key === 'Enter') {
@@ -702,7 +704,7 @@ class BrowseFS extends HTMLElement {
         const pathSrc = this.path + oldFileName;
         const pathDest = this.path + newFileName;
 
-        const result = await fsMv(pathSrc, pathDest);
+        const result = await fsMoveOrCopy(kMove, pathSrc, pathDest);
         r.data.name = newFileName;
       }
     } catch(e) {
