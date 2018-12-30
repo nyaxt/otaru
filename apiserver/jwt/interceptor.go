@@ -53,15 +53,20 @@ func NewJWTAuthProviderFromFile(path string) (*JWTAuthProvider, error) {
 	return NewJWTAuthProvider(pk), nil
 }
 
-func (p *JWTAuthProvider) UserInfoFromAuthHeader(auth string) (*UserInfo, error) {
-	if p.pubkey == nil && auth == "" {
+func TokenStringFromAuthHeader(auth string) (string, error) {
+	if auth == "" {
+		return "", nil
+	}
+	if !strings.HasPrefix(auth, BearerPrefix) {
+		return "", errors.New("Unsupported authroization type.")
+	}
+	return auth[len(BearerPrefix):], nil
+}
+
+func (p *JWTAuthProvider) UserInfoFromTokenString(tokenString string) (*UserInfo, error) {
+	if p.pubkey == nil && tokenString == "" {
 		return NoauthUserInfo, nil
 	}
-
-	if !strings.HasPrefix(auth, BearerPrefix) {
-		return nil, errors.New("Unsupported authroization type.")
-	}
-	tokenString := auth[len(BearerPrefix):]
 
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
@@ -127,7 +132,12 @@ func (p *JWTAuthProvider) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 				return nil, grpc.Errorf(codes.Unauthenticated, "Invalid number of authorization values.")
 			}
 
-			ui, err := p.UserInfoFromAuthHeader(auths[0])
+			tokenstr, err := TokenStringFromAuthHeader(auths[0])
+			if err != nil {
+				return nil, grpc.Errorf(codes.Unauthenticated, "%v", err)
+			}
+
+			ui, err := p.UserInfoFromTokenString(tokenstr)
 			if err != nil {
 				return nil, grpc.Errorf(codes.Unauthenticated, "%v", err)
 			}

@@ -63,7 +63,12 @@ func (c *content) Seek(offset int64, whence int) (int64, error) {
 
 func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, id inodedb.ID, filename string) {
 	auth := r.Header.Get("Authorization")
-	ui, err := fh.jwtauth.UserInfoFromAuthHeader(auth)
+	tokenstr, err := jwt.TokenStringFromAuthHeader(auth)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	ui, err := fh.jwtauth.UserInfoFromTokenString(tokenstr)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -109,7 +114,12 @@ func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, id inode
 
 func (fh *fileHandler) servePut(w http.ResponseWriter, r *http.Request, id inodedb.ID, filename string) {
 	auth := r.Header.Get("Authorization")
-	ui, err := fh.jwtauth.UserInfoFromAuthHeader(auth)
+	tokenstr, err := jwt.TokenStringFromAuthHeader(auth)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	ui, err := fh.jwtauth.UserInfoFromTokenString(tokenstr)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return

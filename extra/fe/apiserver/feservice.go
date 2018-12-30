@@ -209,7 +209,7 @@ func (s *feService) Download(ctx context.Context, req *pb.DownloadRequest) (*pb.
 		return nil, grpc.Errorf(codes.Internal, "Error Stat()ing destination path: %v", err)
 	}
 
-	r, err := cli.NewReader(opathSrc, cli.WithCliConfig(s.cfg), cli.WithContext(ctx))
+	r, err := cli.NewReader(opathSrc, cli.WithCliConfig(s.cfg), cli.WithContext(ctx)) //, cli.WithTokenOverride(token))
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, "Failed to init reader: %v", err)
 	}

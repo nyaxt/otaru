@@ -27,7 +27,12 @@ func copyHeader(d, s http.Header) {
 
 func (ap *apiproxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	auth := r.Header.Get("Authorization")
-	ui, err := ap.jwtauth.UserInfoFromAuthHeader(auth)
+	tokenstr, err := jwt.TokenStringFromAuthHeader(auth)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	ui, err := ap.jwtauth.UserInfoFromTokenString(tokenstr)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return

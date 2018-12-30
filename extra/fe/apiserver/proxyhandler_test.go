@@ -20,7 +20,7 @@ import (
 
 const (
 	testBeListenAddr = "localhost:20246"
-	testFeListenAddr = "localhost:20247"
+	testFeListenAddr = "localhost:20249"
 )
 
 var certFile string
