@@ -14,6 +14,7 @@ const filenameVfsGen = "assets_vfsgen.go"
 func main() {
 	fs := http.Dir("dist")
 
+	log.Printf("webui assets_generate.go")
 	err := vfsgen.Generate(fs, vfsgen.Options{
 		Filename:     filenameVfsGen,
 		PackageName:  "webui",
