@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/naoina/toml"
 
@@ -30,7 +31,8 @@ type Host struct {
 	ExpectedCertFile   string
 	OverrideServerName string
 
-	AuthToken string
+	AuthToken     string
+	AuthTokenFile string
 }
 
 type FeConfig struct {
@@ -85,10 +87,25 @@ func NewConfig(configdir string) (*CliConfig, error) {
 	if err := toml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("Failed to parse config file: %v", err)
 	}
-	for _, h := range cfg.Host {
+	for vhost, h := range cfg.Host {
+		h.ApiEndpoint = os.ExpandEnv(h.ApiEndpoint)
 		h.ExpectedCertFile = os.ExpandEnv(h.ExpectedCertFile)
-		if h.ExpectedCertFile == "" {
-			h.ExpectedCertFile = possibleCertFile
+		h.OverrideServerName = os.ExpandEnv(h.OverrideServerName)
+		h.AuthToken = os.ExpandEnv(h.AuthToken)
+		h.AuthTokenFile = os.ExpandEnv(h.AuthTokenFile)
+
+		if h.AuthToken == "" {
+			if h.AuthTokenFile != "" {
+				bs, err := ioutil.ReadFile(h.AuthTokenFile)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to read token file %q: %v", h.AuthTokenFile, vhost)
+				}
+				h.AuthToken = strings.TrimSpace(string(bs))
+			}
+		} else {
+			if h.AuthTokenFile != "" {
+				return nil, fmt.Errorf("AuthToken and AuthTokenFile are both specified for host %q.", vhost)
+			}
 		}
 	}
 	cfg.Fe.CertFile = os.ExpandEnv(cfg.Fe.CertFile)
