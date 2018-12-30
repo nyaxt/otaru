@@ -49,7 +49,15 @@ func Serve(cfg *cli.CliConfig, closeC <-chan struct{}) error {
 		logger.Infof(mylog, "Basic auth enabled.")
 		handler = &BasicAuthHandler{wcfg.BasicAuthUser, wcfg.BasicAuthPassword, handler}
 	}
-	loghandler := logger.HttpHandler(accesslog, logger.Info, handler)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte("ok\n"))
+	})
+	mux.Handle("/", handler)
+
+	loghandler := logger.HttpHandler(accesslog, logger.Info, mux)
 
 	// Note: This doesn't enable h2. Reconsider this if there is a webdav client w/ h2 support.
 	httpsrv := http.Server{
