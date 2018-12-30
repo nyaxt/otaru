@@ -53,7 +53,7 @@ func (ap *apiproxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cli := &http.Client{
+	hcli := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: ci.TLSConfig,
 		},
@@ -77,8 +77,9 @@ func (ap *apiproxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	copyHeader(preq.Header, r.Header)
 
-	presp, err := cli.Do(preq)
+	presp, err := hcli.Do(preq)
 	if err != nil {
+		logger.Warningf(mylog, "Failed to issue request: %v", err)
 		http.Error(w, "Failed to issue request.", http.StatusInternalServerError)
 		return
 	}
