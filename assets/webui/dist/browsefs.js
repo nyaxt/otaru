@@ -15,6 +15,7 @@ const kDialogCancelled = 'modal dialog cancelled.';
 const kFocusClass = 'hasfocus';
 const kModalClass = 'modal';
 const kDisabledClass = 'disabled';
+const kFilteredClass = 'filtered';
 const kPromptActiveClass = 'promptactive';
 const kConfirmActiveClass = 'confirmactive';
 const kConfirmProcessingClass = 'confirmprocessing';
@@ -204,11 +205,11 @@ class BrowseFS extends HTMLElement {
     this.query_ = val;
     window.setTimeout(() => {
       if (this.query_ === null) {
-        this.classList.remove('filtered');
+        this.classList.remove(kFilteredClass);
         return;
       }
 
-      this.classList.add('filtered');
+      this.classList.add(kFilteredClass);
       this.queryInput_.value = val;
       this.queryInput_.focus();
 
@@ -289,7 +290,8 @@ class BrowseFS extends HTMLElement {
         if (cr && cr.triggerAction)
           cr.triggerAction();
 
-        return true;
+        e.stopPropagation();
+        return false;
       }
       if (e.key === 'Escape') {
         this.query = null;
@@ -350,14 +352,32 @@ class BrowseFS extends HTMLElement {
     window.addEventListener("DOMContentLoaded", () => {
       this.triggerUpdate();
     });
+    window.addEventListener('keydown', this.onKeyDown_.bind(this));
     window.addEventListener('keypress', this.onKeyPress_.bind(this));
     window.addEventListener('keyup', this.onKeyUp_.bind(this));
 
     this.connectedCallbackRun_ = true;
   }
 
+  async onKeyDown_(e) {
+    if (preview.isOpen || !this.hasFocus || this.hasModalDialog)
+      return;
+
+    let unhandled = false;
+    if (e.key === 'PageDown') {
+      this.cursorIndex = this.cursorIndex + this.numVisibleRows;
+    } else if (e.key === 'PageUp') {
+      this.cursorIndex = Math.max(this.cursorIndex - this.numVisibleRows, 0);
+    } else {
+      unhandled = true;
+    }
+
+    if (!unhandled)
+      e.stopPropagation();
+  }
+
   async onKeyPress_(e) {
-    if (preview.isOpen || !this.hasFocus)
+    if (preview.isOpen || !this.hasFocus)// || this.classList.contains(kFilteredClass))
       return;
     if (this.hasModalDialog) {
       if (e.key === 'Enter') {
@@ -366,6 +386,7 @@ class BrowseFS extends HTMLElement {
       return;
     }
 
+    let unhandled = false;
     if (e.key === 'j') {
       ++ this.cursorIndex;
     } else if (e.key === 'k') {
@@ -403,7 +424,12 @@ class BrowseFS extends HTMLElement {
       this.navigateParent();
     } else if (e.key === '?') {
       this.query = '';
+    } else {
+      unhandled = true;
     }
+
+    if (!unhandled)
+      e.stopPropagation();
   }
 
   async onKeyUp_(e) {
@@ -438,7 +464,7 @@ class BrowseFS extends HTMLElement {
     tr.classList.add('content__entry');
     tr.classList.add('browsefs__entry');
     tr.data = row;
-    tr.opath = `${this.path}/${row.name}`;
+    tr.opath = this.path + row.name;
     this.listTBody_.appendChild(tr);
 
     tr.toggleSelection = () => {
@@ -619,7 +645,7 @@ class BrowseFS extends HTMLElement {
     if (this.query_ === null)
       return;
 
-    const query = this.query_;
+    let query = this.query_;
     if (query === '')
       query = '.';
     const filterRe = new RegExp(query);
@@ -851,8 +877,8 @@ class BrowseFS extends HTMLElement {
       const items = [];
       const itemLabels = [];
       for (let r of selectedRows) {
-        items.push(r.data.opath);
-        itemLabels.push(`rm: "${r.data.opath}"`);
+        items.push(r.opath);
+        itemLabels.push(`rm: "${r.opath}"`);
       }
       this.setConfirmDetailItems_(itemLabels);
       await this.openConfirm_(`Delete: ${selectedRows.length} item(s)`);
@@ -865,7 +891,11 @@ class BrowseFS extends HTMLElement {
       this.closeConfirm_();
       this.triggerUpdate();
     } catch (e) {
-      alert(e);
+      if (e === kDialogCancelled) {
+        console.log(`delete cancelled.`);
+      } else {
+        console.log(`delete failed: ${e}`);
+      }
     } finally {
       this.closeConfirm_();
     }
@@ -899,7 +929,7 @@ class BrowseFS extends HTMLElement {
       const items = [];
       const itemLabels = [];
       for (let r of selectedRows) {
-        const src = r.data.opath;
+        const src = r.opath;
         const dest = this.counterpart.path + r.data.name;
         items.push({src, dest});
         itemLabels.push(`${moveOrCopy}: "${src}" -> "${dest}"`);

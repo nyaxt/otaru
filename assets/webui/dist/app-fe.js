@@ -57,13 +57,7 @@ window.addEventListener('DOMContentLoaded', () => {
   focusfs.hasFocus = true;
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'PageDown') {
-      focusfs.cursorIndex = focusfs.cursorIndex + focusfs.numVisibleRows;
-    } else if (e.key === 'PageUp') {
-      focusfs.cursorIndex = Math.max(focusfs.cursorIndex - focusfs.numVisibleRows, 0);
-    } else {
-      console.log(`keydown ${e.key}`);
-    }
+    console.log(`keydown ${e.key}`);
   });
   document.addEventListener('keypress', e => {
     if (e.target instanceof HTMLInputElement)
