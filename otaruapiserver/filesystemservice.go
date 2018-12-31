@@ -283,6 +283,36 @@ func (svc *fileSystemService) WriteFile(ctx context.Context, req *pb.WriteFileRe
 	return &pb.WriteFileResponse{}, nil
 }
 
+func (svc *fileSystemService) Rename(ctx context.Context, req *pb.RenameRequest) (*pb.RenameResponse, error) {
+	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+		return nil, err
+	}
+
+	parentSrc := filepath.Dir(req.PathSrc)
+	parentDest := filepath.Dir(req.PathDest)
+
+	srcDirId, err := svc.fs.FindNodeFullPath(parentSrc)
+	if err != nil {
+		return nil, grpc.Errorf(codes.InvalidArgument, "Failed to find src parent %q: %v", parentSrc, err)
+	}
+	destDirId, err := svc.fs.FindNodeFullPath(parentDest)
+	if err != nil {
+		return nil, grpc.Errorf(codes.InvalidArgument, "Failed to find dest parent %q: %v", parentDest, err)
+	}
+
+	srcName := filepath.Base(req.PathSrc)
+	dstName := filepath.Base(req.PathDest)
+
+	if err := svc.fs.Rename(srcDirId, srcName, destDirId, dstName); err != nil {
+		if util.IsNotExist(err) {
+			return nil, grpc.Errorf(codes.NotFound, "Target does not exist")
+		}
+		return nil, grpc.Errorf(codes.Internal, "Rename failed: %v", err)
+	}
+
+	return &pb.RenameResponse{}, nil
+}
+
 func InstallFileSystemService(fs *filesystem.FileSystem) apiserver.Option {
 	svc := &fileSystemService{fs}
 

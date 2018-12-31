@@ -264,6 +264,32 @@
         ]
       }
     },
+    "/api/v1/filesystem/node/rename": {
+      "post": {
+        "operationId": "Rename",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbRenameResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pbRenameRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FileSystemService"
+        ]
+      }
+    },
     "/api/v1/filesystem/node/rm": {
       "post": {
         "operationId": "Remove",
@@ -860,6 +886,20 @@
       }
     },
     "pbRemoveResponse": {
+      "type": "object"
+    },
+    "pbRenameRequest": {
+      "type": "object",
+      "properties": {
+        "path_src": {
+          "type": "string"
+        },
+        "path_dest": {
+          "type": "string"
+        }
+      }
+    },
+    "pbRenameResponse": {
       "type": "object"
     },
     "pbSetCategoryResponse": {

@@ -75,6 +75,14 @@ message RemoveRequest {
 message RemoveResponse {
 }
 
+message RenameRequest {
+  string path_src = 1;
+  string path_dest = 2;
+}
+
+message RenameResponse {
+}
+
 message FindNodeFullPathRequest {
   string path = 1;
 }
@@ -155,6 +163,13 @@ service FileSystemService {
   rpc WriteFile(WriteFileRequest) returns (WriteFileResponse) {
     option (google.api.http) = {
       put: "/api/v1/filesystem/file/{id}"
+      body: "*"
+    };
+  }
+
+  rpc Rename(RenameRequest) returns (RenameResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/filesystem/node/rename"
       body: "*"
     };
   }

@@ -214,6 +214,17 @@ const fsMoveOrCopy = async (moveOrCopy, src, dest) => {
       }
     }
 
+    if (hostSrc === hostDest) {
+      if (moveOrCopy === kCopy) {
+        throw "not implemented"; 
+      } else {
+        return await rpc(fsopEndpoint('node/rename', hostSrc), {
+          method: 'POST',
+          body: {pathSrc, pathDest},
+        });
+      }
+    }
+
     const op = moveOrCopy === kCopy ? 'remote_cp' : 'remote_mv';
     return await rpc(`api/v1/fe/local/${op}`, {
       method: 'POST',

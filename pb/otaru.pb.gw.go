@@ -189,6 +189,19 @@ func request_FileSystemService_WriteFile_0(ctx context.Context, marshaler runtim
 
 }
 
+func request_FileSystemService_Rename_0(ctx context.Context, marshaler runtime.Marshaler, client FileSystemServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq RenameRequest
+	var metadata runtime.ServerMetadata
+
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.Rename(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
 func request_BlobstoreService_GetConfig_0(ctx context.Context, marshaler runtime.Marshaler, client BlobstoreServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetBlobstoreConfigRequest
 	var metadata runtime.ServerMetadata
@@ -527,6 +540,26 @@ func RegisterFileSystemServiceHandlerClient(ctx context.Context, mux *runtime.Se
 
 	})
 
+	mux.Handle("POST", pattern_FileSystemService_Rename_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_FileSystemService_Rename_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_FileSystemService_Rename_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
@@ -544,6 +577,8 @@ var (
 	pattern_FileSystemService_ReadFile_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "filesystem", "file", "id"}, ""))
 
 	pattern_FileSystemService_WriteFile_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "filesystem", "file", "id"}, ""))
+
+	pattern_FileSystemService_Rename_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "filesystem", "node", "rename"}, ""))
 )
 
 var (
@@ -560,6 +595,8 @@ var (
 	forward_FileSystemService_ReadFile_0 = runtime.ForwardResponseMessage
 
 	forward_FileSystemService_WriteFile_0 = runtime.ForwardResponseMessage
+
+	forward_FileSystemService_Rename_0 = runtime.ForwardResponseMessage
 )
 
 // RegisterBlobstoreServiceHandlerFromEndpoint is same as RegisterBlobstoreServiceHandler but
