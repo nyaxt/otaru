@@ -193,7 +193,7 @@ func NewReader(pathstr string, options ...Option) (Reader, error) {
 		return fileReader{f}, nil
 	}
 
-	cinfo, err := QueryConnectionInfo(opts.cfg, p.Vhost)
+	cinfo, err := opts.QueryConnectionInfo(p.Vhost)
 	if err != nil {
 		return nil, err
 	}

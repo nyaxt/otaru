@@ -141,7 +141,7 @@ func NewWriter(pathstr string, ofs ...Option) (io.WriteCloser, error) {
 		return nil, err
 	}
 
-	cinfo, err := QueryConnectionInfo(opts.cfg, p.Vhost)
+	cinfo, err := opts.QueryConnectionInfo(p.Vhost)
 	if err != nil {
 		return nil, err
 	}

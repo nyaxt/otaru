@@ -29,7 +29,7 @@ func QueryConnectionInfo(cfg *CliConfig, vhost string) (*ConnectionInfo, error) 
 		return nil, ErrUnknownVhost
 	}
 
-	ci, err := ConnectionInfoFromHost(h)
+	ci, err := connectionInfoFromHost(h)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func QueryConnectionInfo(cfg *CliConfig, vhost string) (*ConnectionInfo, error) 
 	return ci, nil
 }
 
-func ConnectionInfoFromHost(h *Host) (*ConnectionInfo, error) {
+func connectionInfoFromHost(h *Host) (*ConnectionInfo, error) {
 	var tc *tls.Config
 	if h.ExpectedCertFile != "" {
 		certfile := h.ExpectedCertFile

@@ -103,11 +103,13 @@ func testCliConfig(host *cli.Host) *cli.CliConfig {
 	}}
 }
 
-func genHttpReadTest(host *cli.Host, inode inodedb.ID, expectSuccess bool) func(*testing.T) {
+func genHttpReadTest(cfg *cli.CliConfig, inode inodedb.ID, expectSuccess bool) func(*testing.T) {
 	return func(t *testing.T) {
-		ci, err := cli.ConnectionInfoFromHost(host)
+		t.Helper()
+
+		ci, err := cli.QueryConnectionInfo(cfg, "default")
 		if err != nil {
-			t.Fatalf("ConnectionInfoFromHost: %v", err)
+			t.Fatalf("QueryConnectionInfo: %v", err)
 		}
 
 		r, err := cli.NewReaderHttpForTesting(ci, uint64(inode))
@@ -137,32 +139,45 @@ func genHttpReadTest(host *cli.Host, inode inodedb.ID, expectSuccess bool) func(
 	}
 }
 
-func genHttpWriteTest(host *cli.Host, inode inodedb.ID, expectSuccess bool) func(*testing.T) {
+func genHttpWriteTest(cfg *cli.CliConfig, inode inodedb.ID, expectSuccess bool) func(*testing.T) {
 	return func(t *testing.T) {
-		ci, err := cli.ConnectionInfoFromHost(host)
-		if err != nil {
-			t.Fatalf("ConnectionInfoFromHost: %v", err)
-		}
+		t.Helper()
 
-		w, err := cli.NewWriterHttpForTesting(ci, uint64(inode))
-		if expectSuccess {
-			if err != nil {
-				t.Fatalf("cli.NewWriterHttpForTesting: %v", err)
-			}
-		} else {
-			if err == nil {
-				w.Close()
-				t.Errorf("cli.NewWriterHttpForTesting unexpected success.")
-				return
-			}
+		ci, err := cli.QueryConnectionInfo(cfg, "default")
+		if err != nil {
+			t.Errorf("QueryConnectionInfo: %v", err)
 			return
 		}
 
-		if _, err := w.Write(testutils.HogeFugaPiyo); err != nil {
-			t.Fatalf("w.Write: %v", err)
+		w, err := cli.NewWriterHttpForTesting(ci, uint64(inode))
+		if err != nil {
+			t.Errorf("cli.NewWriterHttpForTesting: %v", err)
+			return
 		}
 
-		w.Close()
+		_, err = w.Write(testutils.HogeFugaPiyo)
+		if expectSuccess {
+			if err != nil {
+				t.Fatalf("w.Write: %v", err)
+			}
+		} else {
+			if err != nil {
+				w.Close()
+				return
+			}
+		}
+
+		err = w.Close()
+		if expectSuccess {
+			if err != nil {
+				t.Errorf("w.Close: %v", err)
+			}
+		} else {
+			if err == nil {
+				t.Errorf("cli.NewReaderHttpForTesting unexpected success.")
+				return
+			}
+		}
 	}
 }
 
@@ -170,17 +185,17 @@ func TestAuth_NoAuth(t *testing.T) {
 	ts := runTestServer(t, nil)
 	defer ts.Terminate()
 
-	host := &cli.Host{
+	cfg := testCliConfig(&cli.Host{
 		ApiEndpoint:      testListenAddr,
 		ExpectedCertFile: certFile,
-	}
+	})
 
 	t.Run("grpc", func(t *testing.T) {
 		ctx := context.Background()
 
-		ci, err := cli.ConnectionInfoFromHost(host)
+		ci, err := cli.QueryConnectionInfo(cfg, "default")
 		if err != nil {
-			t.Fatalf("ConnectionInfoFromHost: %v", err)
+			t.Fatalf("QueryConnectionInfo: %v", err)
 		}
 
 		conn, err := ci.DialGrpc(ctx)
@@ -204,8 +219,8 @@ func TestAuth_NoAuth(t *testing.T) {
 		}
 	})
 
-	t.Run("httpRead", genHttpReadTest(host, ts.inodeRead, true))
-	t.Run("httpWrite", genHttpWriteTest(host, ts.inodeWrite, true))
+	t.Run("httpRead", genHttpReadTest(cfg, ts.inodeRead, true))
+	t.Run("httpWrite", genHttpWriteTest(cfg, ts.inodeWrite, true))
 
 }
 
@@ -213,17 +228,17 @@ func TestAuth_NoToken(t *testing.T) {
 	ts := runTestServer(t, jwt_testutils.Pubkey)
 	defer ts.Terminate()
 
-	host := &cli.Host{
+	cfg := testCliConfig(&cli.Host{
 		ApiEndpoint:      testListenAddr,
 		ExpectedCertFile: certFile,
-	}
+	})
 
 	t.Run("grpc", func(t *testing.T) {
 		ctx := context.Background()
 
-		ci, err := cli.ConnectionInfoFromHost(host)
+		ci, err := cli.QueryConnectionInfo(cfg, "default")
 		if err != nil {
-			t.Fatalf("ConnectionInfoFromHost: %v", err)
+			t.Fatalf("QueryConnectionInfo: %v", err)
 		}
 
 		conn, err := ci.DialGrpc(ctx)
@@ -247,26 +262,26 @@ func TestAuth_NoToken(t *testing.T) {
 		}
 	})
 
-	t.Run("httpRead", genHttpReadTest(host, ts.inodeRead, false))
-	t.Run("httpWrite", genHttpReadTest(host, ts.inodeWrite, false))
+	t.Run("httpRead", genHttpReadTest(cfg, ts.inodeRead, false))
+	t.Run("httpWrite", genHttpWriteTest(cfg, ts.inodeWrite, false))
 }
 
-func TestAuth_ValidToken(t *testing.T) {
+func TestAuth_ValidReadOnlyToken(t *testing.T) {
 	ts := runTestServer(t, jwt_testutils.Pubkey)
 	defer ts.Terminate()
 
-	host := &cli.Host{
+	cfg := testCliConfig(&cli.Host{
 		ApiEndpoint:      testListenAddr,
 		ExpectedCertFile: certFile,
 		AuthToken:        jwt_testutils.ReadOnlyToken,
-	}
+	})
 
 	t.Run("grpc", func(t *testing.T) {
 		ctx := context.Background()
 
-		ci, err := cli.ConnectionInfoFromHost(host)
+		ci, err := cli.QueryConnectionInfo(cfg, "default")
 		if err != nil {
-			t.Fatalf("ConnectionInfoFromHost: %v", err)
+			t.Fatalf("QueryConnectionInfo: %v", err)
 		}
 
 		conn, err := ci.DialGrpc(ctx)
@@ -290,25 +305,25 @@ func TestAuth_ValidToken(t *testing.T) {
 		}
 	})
 
-	t.Run("httpRead", genHttpReadTest(host, ts.inodeRead, true))
-	t.Run("httpWrite", genHttpWriteTest(host, ts.inodeWrite, true))
+	t.Run("httpRead", genHttpReadTest(cfg, ts.inodeRead, true))
+	t.Run("httpWrite", genHttpWriteTest(cfg, ts.inodeWrite, false))
 }
 
 func TestAuth_AlgNoneToken(t *testing.T) {
 	ts := runTestServer(t, jwt_testutils.Pubkey)
 	defer ts.Terminate()
 
-	host := &cli.Host{
+	cfg := testCliConfig(&cli.Host{
 		ApiEndpoint:      testListenAddr,
 		ExpectedCertFile: certFile,
 		AuthToken:        jwt_testutils.AlgNoneToken,
-	}
+	})
 	t.Run("grpc", func(t *testing.T) {
 		ctx := context.Background()
 
-		ci, err := cli.ConnectionInfoFromHost(host)
+		ci, err := cli.QueryConnectionInfo(cfg, "default")
 		if err != nil {
-			t.Fatalf("ConnectionInfoFromHost: %v", err)
+			t.Fatalf("QueryConnectionInfo: %v", err)
 		}
 
 		conn, err := ci.DialGrpc(ctx)
@@ -332,6 +347,6 @@ func TestAuth_AlgNoneToken(t *testing.T) {
 		}
 	})
 
-	t.Run("httpRead", genHttpReadTest(host, ts.inodeRead, false))
-	t.Run("httpWrite", genHttpReadTest(host, ts.inodeWrite, false))
+	t.Run("httpRead", genHttpReadTest(cfg, ts.inodeRead, false))
+	t.Run("httpWrite", genHttpWriteTest(cfg, ts.inodeWrite, false))
 }
