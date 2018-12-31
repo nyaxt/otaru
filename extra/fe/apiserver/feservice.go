@@ -209,7 +209,8 @@ func (s *feService) Download(ctx context.Context, req *pb.DownloadRequest) (*pb.
 		return nil, grpc.Errorf(codes.Internal, "Error Stat()ing destination path: %v", err)
 	}
 
-	r, err := cli.NewReader(opathSrc, cli.WithCliConfig(s.cfg), cli.WithContext(ctx)) //, cli.WithTokenOverride(token))
+	tokenstr := jwt.JWTTokenStringFromContext(ctx)
+	r, err := cli.NewReader(opathSrc, cli.WithCliConfig(s.cfg), cli.WithContext(ctx), cli.WithOverrideToken(tokenstr))
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, "Failed to init reader: %v", err)
 	}
@@ -240,8 +241,6 @@ func (s *feService) Upload(ctx context.Context, req *pb.UploadRequest) (*pb.Uplo
 	}
 	opathDest := req.OpathDest
 
-	logger.Infof(mylog, "Upload %q -> %q", pathSrc, opathDest)
-
 	if _, err = os.Stat(pathSrc); err != nil {
 		if os.IsNotExist(err) {
 			return nil, grpc.Errorf(codes.FailedPrecondition, "Source path doesn't exist.")
@@ -255,7 +254,10 @@ func (s *feService) Upload(ctx context.Context, req *pb.UploadRequest) (*pb.Uplo
 	}
 	defer r.Close()
 
-	w, err := cli.NewWriter(opathDest, cli.WithCliConfig(s.cfg), cli.WithContext(ctx), cli.AllowOverwrite(req.AllowOverwrite))
+	tokenstr := jwt.JWTTokenStringFromContext(ctx)
+	logger.Infof(mylog, "tokenstr: %q", tokenstr)
+	logger.Infof(mylog, "Upload %q -> %q", pathSrc, opathDest)
+	w, err := cli.NewWriter(opathDest, cli.WithCliConfig(s.cfg), cli.WithContext(ctx), cli.AllowOverwrite(req.AllowOverwrite), cli.WithOverrideToken(tokenstr))
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, "Failed to init writer: %v", err)
 	}

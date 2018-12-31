@@ -706,6 +706,7 @@ class BrowseFS extends HTMLElement {
 
         const result = await fsMoveOrCopy(kMove, pathSrc, pathDest);
         r.data.name = newFileName;
+        r.opath = pathDest;
       }
     } catch(e) {
       if (e === kDialogCancelled) {
@@ -732,9 +733,10 @@ class BrowseFS extends HTMLElement {
   async openMkdirPrompt() {
     try {
       const dirname = await this.openPrompt_("Mkdir: ", "");
+      const mkdirpath = this.path + dirname;
 
-      const result = await fsMkdir(this.path + dirname);
-      this.triggerUpdate();
+      const result = await fsMkdir(mkdirpath);
+      this.path = mkdirpath + "/";
     } catch(e) {
       if (e === kDialogCancelled) {
         console.log(`mkdir cancelled.`);

@@ -37,7 +37,7 @@ func ForceGrpc() Option {
 	return func(o *options) { o.forceGrpc = true }
 }
 
-func OverrideToken(t string) Option {
+func WithOverrideToken(t string) Option {
 	return func(o *options) { o.overrideToken = t }
 }
 

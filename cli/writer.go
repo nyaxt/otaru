@@ -145,6 +145,7 @@ func NewWriter(pathstr string, ofs ...Option) (io.WriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+	logger.Infof(Log, "token %q", cinfo.AuthToken)
 	conn, err := cinfo.DialGrpc(opts.ctx)
 	if err != nil {
 		return nil, err

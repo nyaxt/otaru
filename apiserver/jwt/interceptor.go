@@ -109,6 +109,20 @@ func (p *JWTAuthProvider) UserInfoFromTokenString(tokenString string) (*UserInfo
 	return ui, nil
 }
 
+type jwtTokenKey struct{}
+
+func ContextWithJWTTokenString(ctx context.Context, tokenstr string) context.Context {
+	return context.WithValue(ctx, jwtTokenKey{}, tokenstr)
+}
+
+func JWTTokenStringFromContext(ctx context.Context) string {
+	tokenstr, ok := ctx.Value(jwtTokenKey{}).(string)
+	if !ok {
+		return ""
+	}
+	return tokenstr
+}
+
 func (p *JWTAuthProvider) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	if p.pubkey == nil {
 		return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
@@ -142,6 +156,7 @@ func (p *JWTAuthProvider) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 				return nil, grpc.Errorf(codes.Unauthenticated, "%v", err)
 			}
 
+			ctx = ContextWithJWTTokenString(ctx, tokenstr)
 			ctx = ContextWithUserInfo(ctx, ui)
 		}
 
