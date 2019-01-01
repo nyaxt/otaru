@@ -13,7 +13,7 @@ import (
 	"github.com/nyaxt/otaru/logger"
 )
 
-const MaxArchiveSize = 256 * 1024 * 1024 // 256MiB
+const MaxArchiveSize = 512 * 1024 * 1024 // 512MiB
 const MaxPreviewSize = 8 * 1024 * 1024   // 8MiB
 const MaxTextPreviewSize = 32 * 1024     // 32KiB
 

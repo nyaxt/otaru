@@ -105,6 +105,7 @@ func extract(w http.ResponseWriter, z *zip.Reader, idx int) error {
 	}
 
 	ext := path.Ext(z.File[idx].Name)
+	ext = strings.ToLower(ext)
 	if _, ok := allowedExt[ext]; !ok {
 		return fmt.Errorf("Refusing to serve ext %q", ext)
 	}
