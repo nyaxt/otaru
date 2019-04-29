@@ -41,20 +41,10 @@ func init() {
 	prometheus.MustRegister(issuedOps)
 }
 
-type GCSBlobStoreStats struct {
-	NumOpenWriter int `json:"num_open_writer"`
-	NumOpenReader int `json:"num_open_reader"`
-	NumListBlobs  int `json:"num_list_blobs"`
-	NumBlobSize   int `json:"num_blob_size"`
-	NumRemoveBlob int `json:"num_remove_blob"`
-}
-
 type GCSBlobStore struct {
 	flags      int
 	bucket     *storage.BucketHandle
 	bucketName string
-
-	stats GCSBlobStoreStats
 }
 
 var _ = blobstore.BlobStore(&GCSBlobStore{})
@@ -82,7 +72,6 @@ func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 		return nil, util.EACCES
 	}
 
-	bs.stats.NumOpenWriter++
 	issuedOpenWriterOps.WithLabelValues(bs.bucketName).Inc()
 	logger.Infof(mylog, "OpenWriter(bucketName: %q, %q)", bs.bucketName, blobpath)
 
@@ -105,7 +94,6 @@ func (w *Writer) Close() error {
 }
 
 func (bs *GCSBlobStore) tryOpenReaderOnce(blobpath string) (io.ReadCloser, error) {
-	bs.stats.NumOpenReader++
 	issuedOpenReaderOps.WithLabelValues(bs.bucketName).Inc()
 	logger.Infof(mylog, "OpenReader(bucketName: %q, %q)", bs.bucketName, blobpath)
 
@@ -135,7 +123,6 @@ func (bs *GCSBlobStore) Flags() int {
 var _ = blobstore.BlobLister(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) ListBlobs() ([]string, error) {
-	bs.stats.NumListBlobs++
 	issuedListBlobOps.WithLabelValues(bs.bucketName).Inc()
 	logger.Infof(mylog, "ListBlobs(bucketName: %q) started.", bs.bucketName)
 	defer func() {
@@ -162,7 +149,6 @@ func (bs *GCSBlobStore) ListBlobs() ([]string, error) {
 var _ = blobstore.BlobSizer(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) BlobSize(blobpath string) (int64, error) {
-	bs.stats.NumBlobSize++
 	issuedBlobSizeOps.WithLabelValues(bs.bucketName).Inc()
 
 	object := bs.bucket.Object(blobpath)
@@ -185,7 +171,6 @@ func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
 		return util.EACCES
 	}
 
-	bs.stats.NumRemoveBlob++
 	issuedRemoveBlobOps.WithLabelValues(bs.bucketName).Inc()
 	logger.Infof(mylog, "RemoveBlob(bucketName: %q, %q)", bs.bucketName, blobpath)
 
@@ -197,5 +182,3 @@ func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
 }
 
 func (*GCSBlobStore) ImplName() string { return "GCSBlobStore" }
-
-func (bs *GCSBlobStore) GetStats() GCSBlobStoreStats { return bs.stats }
