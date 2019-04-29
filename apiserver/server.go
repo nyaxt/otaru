@@ -10,7 +10,9 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -191,6 +193,7 @@ func Serve(opt ...Option) error {
 	}
 
 	uics := []grpc.UnaryServerInterceptor{
+		grpc_prometheus.UnaryServerInterceptor,
 		opts.jwtauth.UnaryServerInterceptor(),
 		grpc_ctxtags.UnaryServerInterceptor(
 			grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.TagBasedRequestFieldExtractor("log_fields")),
@@ -210,6 +213,7 @@ func Serve(opt ...Option) error {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte("ok\n"))
 	})
+	mux.Handle("/metrics", promhttp.Handler())
 	if err := serveApiGateway(mux, &opts, certtext); err != nil {
 		return err
 	}

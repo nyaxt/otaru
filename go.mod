@@ -12,6 +12,7 @@ require (
 	github.com/google/martian v2.1.0+incompatible // indirect
 	github.com/googleapis/gax-go v2.0.2+incompatible // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
+	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.6.3
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348 // indirect
@@ -20,9 +21,9 @@ require (
 	github.com/nyaxt/fuse v0.0.0-20171213112031-b89602e08173
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/prometheus/client_golang v0.8.0
 	github.com/rs/cors v1.6.0
 	github.com/stretchr/testify v1.2.2 // indirect
-	github.com/theckman/go-flock v0.7.0
 	github.com/tinylib/msgp v1.1.0 // indirect
 	go.opencensus.io v0.18.0 // indirect
 	golang.org/x/crypto v0.0.0-20181203042331-505ab145d0a9
