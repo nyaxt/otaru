@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"cloud.google.com/go/storage"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/iterator"
@@ -13,10 +14,32 @@ import (
 	oflags "github.com/nyaxt/otaru/flags"
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/logger"
+	oprometheus "github.com/nyaxt/otaru/prometheus"
 	"github.com/nyaxt/otaru/util"
 )
 
 var mylog = logger.Registry().Category("gcsblobstore")
+
+const promSubsystem = "gcsblobstore"
+
+var issuedOps = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "issued_ops"),
+		Help: "Number of Google Cloud Storage operations issued, partitioned by bucket name and operation type",
+	},
+	[]string{"optype", "bucketName"},
+)
+var (
+	issuedOpenWriterOps = issuedOps.MustCurryWith(prometheus.Labels{"optype": "openWriter"})
+	issuedOpenReaderOps = issuedOps.MustCurryWith(prometheus.Labels{"optype": "openReader"})
+	issuedBlobSizeOps   = issuedOps.MustCurryWith(prometheus.Labels{"optype": "blobSize"})
+	issuedListBlobOps   = issuedOps.MustCurryWith(prometheus.Labels{"optype": "listBlob"})
+	issuedRemoveBlobOps = issuedOps.MustCurryWith(prometheus.Labels{"optype": "RemoveBlob"})
+)
+
+func init() {
+	prometheus.MustRegister(issuedOps)
+}
 
 type GCSBlobStoreStats struct {
 	NumOpenWriter int `json:"num_open_writer"`
@@ -60,6 +83,7 @@ func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 	}
 
 	bs.stats.NumOpenWriter++
+	issuedOpenWriterOps.WithLabelValues(bs.bucketName).Inc()
 	logger.Infof(mylog, "OpenWriter(bucketName: %q, %q)", bs.bucketName, blobpath)
 
 	obj := bs.bucket.Object(blobpath)
@@ -82,6 +106,7 @@ func (w *Writer) Close() error {
 
 func (bs *GCSBlobStore) tryOpenReaderOnce(blobpath string) (io.ReadCloser, error) {
 	bs.stats.NumOpenReader++
+	issuedOpenReaderOps.WithLabelValues(bs.bucketName).Inc()
 	logger.Infof(mylog, "OpenReader(bucketName: %q, %q)", bs.bucketName, blobpath)
 
 	obj := bs.bucket.Object(blobpath)
@@ -111,6 +136,7 @@ var _ = blobstore.BlobLister(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) ListBlobs() ([]string, error) {
 	bs.stats.NumListBlobs++
+	issuedListBlobOps.WithLabelValues(bs.bucketName).Inc()
 	logger.Infof(mylog, "ListBlobs(bucketName: %q) started.", bs.bucketName)
 	defer func() {
 		logger.Infof(mylog, "ListBlobs(bucketName: %q) done.", bs.bucketName)
@@ -137,6 +163,7 @@ var _ = blobstore.BlobSizer(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) BlobSize(blobpath string) (int64, error) {
 	bs.stats.NumBlobSize++
+	issuedBlobSizeOps.WithLabelValues(bs.bucketName).Inc()
 
 	object := bs.bucket.Object(blobpath)
 	attrs, err := object.Attrs(context.Background())
@@ -159,6 +186,7 @@ func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
 	}
 
 	bs.stats.NumRemoveBlob++
+	issuedRemoveBlobOps.WithLabelValues(bs.bucketName).Inc()
 	logger.Infof(mylog, "RemoveBlob(bucketName: %q, %q)", bs.bucketName, blobpath)
 
 	object := bs.bucket.Object(blobpath)
