@@ -27,8 +27,9 @@ type GCSBlobStoreStats struct {
 }
 
 type GCSBlobStore struct {
-	flags  int
-	bucket *storage.BucketHandle
+	flags      int
+	bucket     *storage.BucketHandle
+	bucketName string
 
 	stats GCSBlobStoreStats
 }
@@ -43,8 +44,9 @@ func NewGCSBlobStore(projectName string, bucketName string, tsrc oauth2.TokenSou
 	bucket := client.Bucket(bucketName)
 
 	return &GCSBlobStore{
-		flags:  flags,
-		bucket: bucket,
+		flags:      flags,
+		bucket:     bucket,
+		bucketName: bucketName,
 	}, nil
 }
 
@@ -58,6 +60,7 @@ func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 	}
 
 	bs.stats.NumOpenWriter++
+	logger.Infof(mylog, "OpenWriter(bucketName: %q, %q)", bs.bucketName, blobpath)
 
 	obj := bs.bucket.Object(blobpath)
 	gcsw := obj.NewWriter(context.Background())
@@ -79,6 +82,7 @@ func (w *Writer) Close() error {
 
 func (bs *GCSBlobStore) tryOpenReaderOnce(blobpath string) (io.ReadCloser, error) {
 	bs.stats.NumOpenReader++
+	logger.Infof(mylog, "OpenReader(bucketName: %q, %q)", bs.bucketName, blobpath)
 
 	obj := bs.bucket.Object(blobpath)
 	rc, err := obj.NewReader(context.Background())
@@ -107,6 +111,10 @@ var _ = blobstore.BlobLister(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) ListBlobs() ([]string, error) {
 	bs.stats.NumListBlobs++
+	logger.Infof(mylog, "ListBlobs(bucketName: %q) started.", bs.bucketName)
+	defer func() {
+		logger.Infof(mylog, "ListBlobs(bucketName: %q) done.", bs.bucketName)
+	}()
 
 	ret := make([]string, 0)
 
@@ -139,6 +147,7 @@ func (bs *GCSBlobStore) BlobSize(blobpath string) (int64, error) {
 		return -1, err
 	}
 
+	logger.Infof(mylog, "BlobSize(bucketName: %q, %q) -> %d", bs.bucketName, blobpath, attrs.Size)
 	return attrs.Size, nil
 }
 
@@ -150,6 +159,7 @@ func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
 	}
 
 	bs.stats.NumRemoveBlob++
+	logger.Infof(mylog, "RemoveBlob(bucketName: %q, %q)", bs.bucketName, blobpath)
 
 	object := bs.bucket.Object(blobpath)
 	if err := object.Delete(context.Background()); err != nil {
