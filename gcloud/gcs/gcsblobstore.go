@@ -5,6 +5,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/iterator"
@@ -22,24 +23,34 @@ var mylog = logger.Registry().Category("gcsblobstore")
 
 const promSubsystem = "gcsblobstore"
 
-var issuedOps = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "issued_ops"),
-		Help: "Number of Google Cloud Storage operations issued, partitioned by bucket name and operation type",
-	},
-	[]string{"optype", "bucketName"},
-)
 var (
-	issuedOpenWriterOps = issuedOps.MustCurryWith(prometheus.Labels{"optype": "openWriter"})
-	issuedOpenReaderOps = issuedOps.MustCurryWith(prometheus.Labels{"optype": "openReader"})
-	issuedBlobSizeOps   = issuedOps.MustCurryWith(prometheus.Labels{"optype": "blobSize"})
-	issuedListBlobOps   = issuedOps.MustCurryWith(prometheus.Labels{"optype": "listBlob"})
-	issuedRemoveBlobOps = issuedOps.MustCurryWith(prometheus.Labels{"optype": "RemoveBlob"})
-)
+	issuedOps = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "issued_ops"),
+			Help: "Number of Google Cloud Storage operations issued, partitioned by bucket name and operation type",
+		},
+		[]string{"optype", "bucketName"})
+	issuedOpenWriterOps  = issuedOps.MustCurryWith(prometheus.Labels{"optype": "openWriter"})
+	issuedOpenReaderOps  = issuedOps.MustCurryWith(prometheus.Labels{"optype": "openReader"})
+	issuedCloseWriterOps = issuedOps.MustCurryWith(prometheus.Labels{"optype": "closeWriter"})
+	issuedCloseReaderOps = issuedOps.MustCurryWith(prometheus.Labels{"optype": "closeReader"})
+	issuedBlobSizeOps    = issuedOps.MustCurryWith(prometheus.Labels{"optype": "blobSize"})
+	issuedListBlobOps    = issuedOps.MustCurryWith(prometheus.Labels{"optype": "listBlob"})
+	issuedRemoveBlobOps  = issuedOps.MustCurryWith(prometheus.Labels{"optype": "RemoveBlob"})
 
-func init() {
-	prometheus.MustRegister(issuedOps)
-}
+	readBytes = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "read_bytes"),
+			Help: "Number of bytes read from Google Cloud Storage",
+		},
+		[]string{"bucketName"})
+	writtenBytes = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "written_bytes"),
+			Help: "Number of bytes written to Google Cloud Storage",
+		},
+		[]string{"bucketName"})
+)
 
 type GCSBlobStore struct {
 	flags      int
@@ -64,7 +75,8 @@ func NewGCSBlobStore(projectName string, bucketName string, tsrc oauth2.TokenSou
 }
 
 type Writer struct {
-	gcsw *storage.Writer
+	gcsw       *storage.Writer
+	bucketName string
 }
 
 func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
@@ -78,19 +90,26 @@ func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 	obj := bs.bucket.Object(blobpath)
 	gcsw := obj.NewWriter(context.Background())
 	gcsw.ContentType = "application/octet-stream"
-	return &Writer{gcsw}, nil
+	return &Writer{gcsw, bs.bucketName}, nil
 }
 
 func (w *Writer) Write(p []byte) (int, error) {
+	writtenBytes.WithLabelValues(w.bucketName).Add(float64(len(p)))
 	return w.gcsw.Write(p)
 }
 
 func (w *Writer) Close() error {
+	issuedCloseWriterOps.WithLabelValues(w.bucketName).Inc()
 	if err := w.gcsw.Close(); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+type Reader struct {
+	rc         io.ReadCloser
+	bucketName string
 }
 
 func (bs *GCSBlobStore) tryOpenReaderOnce(blobpath string) (io.ReadCloser, error) {
@@ -105,7 +124,7 @@ func (bs *GCSBlobStore) tryOpenReaderOnce(blobpath string) (io.ReadCloser, error
 		}
 		return nil, err
 	}
-	return rc, nil
+	return &Reader{rc, bs.bucketName}, nil
 }
 
 func (bs *GCSBlobStore) OpenReader(blobpath string) (rc io.ReadCloser, err error) {
@@ -114,6 +133,16 @@ func (bs *GCSBlobStore) OpenReader(blobpath string) (rc io.ReadCloser, err error
 		return err
 	}, mylog)
 	return
+}
+
+func (r *Reader) Read(p []byte) (int, error) {
+	readBytes.WithLabelValues(r.bucketName).Add(float64(len(p)))
+	return r.rc.Read(p)
+}
+
+func (r *Reader) Close() error {
+	issuedCloseReaderOps.WithLabelValues(r.bucketName).Inc()
+	return r.rc.Close()
 }
 
 func (bs *GCSBlobStore) Flags() int {
