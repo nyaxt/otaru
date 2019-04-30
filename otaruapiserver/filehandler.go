@@ -135,17 +135,20 @@ func (fh *fileHandler) servePut(w http.ResponseWriter, r *http.Request, id inode
 		http.Error(w, "Failed to open file", http.StatusInternalServerError)
 		return
 	}
-	defer h.Close()
 
 	// FIXME: parse offset
 	offset := int64(0)
 	nw, err := io.Copy(&blobstore.OffsetWriter{h, offset}, r.Body)
 	if err != nil {
+		h.Close()
+
 		logger.Debugf(mylog, "servePut(id: %v). io.Copy failed: %v", id, err)
 		http.Error(w, "Failed to write file", http.StatusInternalServerError)
 		return
 	}
 	logger.Debugf(mylog, "servePut(id: %v). written %d", id, nw)
+
+	h.Close()
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Write([]byte("\"ok\""))
