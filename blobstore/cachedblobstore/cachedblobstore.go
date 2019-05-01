@@ -82,13 +82,7 @@ func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore,
 }
 
 func (cbs *CachedBlobStore) RestoreState(c *btncrypt.Cipher) error {
-	errs := []error{}
-
-	if err := cbs.bever.RestoreStateFromBlobstore(c, cbs.backendbs); err != nil {
-		errs = append(errs, err)
-	}
-
-	return util.ToErrors(errs)
+	return cbs.bever.RestoreStateFromBlobstore(c, cbs.cachebs)
 }
 
 type SaveStateTask struct {
@@ -106,13 +100,7 @@ func (t SaveStateTask) String() string {
 }
 
 func (cbs *CachedBlobStore) SaveState(c *btncrypt.Cipher) error {
-	errs := []error{}
-
-	if err := cbs.bever.SaveStateToBlobstore(c, cbs.backendbs); err != nil {
-		errs = append(errs, err)
-	}
-
-	return util.ToErrors(errs)
+	return cbs.bever.SaveStateToBlobstore(c, cbs.cachebs)
 }
 
 func (cbs *CachedBlobStore) Sync() error {

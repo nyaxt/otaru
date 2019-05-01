@@ -62,10 +62,18 @@ func (sio *DBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) <-chan error {
 		defer close(errC)
 
 		ssbp := sio.loc.GenerateBlobpath()
-		if err := statesnapshot.SaveBytes(ssbp, sio.c, sio.bs, buf); err != nil {
+		wc, err := sio.bs.OpenWriter(ssbp)
+		if err != nil {
 			errC <- err
 			return
 		}
+
+		if err := statesnapshot.SaveBytes(wc, sio.c, buf); err != nil {
+			wc.Close()
+			errC <- err
+			return
+		}
+		wc.Close()
 
 		if err := sio.loc.Put(ssbp, int64(s.Version())); err != nil {
 			errC <- err
@@ -90,16 +98,23 @@ func (sio *DBStateSnapshotIO) restoreNthSnapshot(i int) (*inodedb.DBState, error
 	}
 
 	var state *inodedb.DBState
+	rc, err := sio.bs.OpenReader(ssbp)
+	if err != nil {
+		return nil, err
+	}
+
 	err = statesnapshot.Restore(
-		ssbp, sio.c, sio.bs,
+		rc, sio.c,
 		func(dec *gob.Decoder) error {
 			var err error
 			state, err = inodedb.DecodeDBStateFromGob(dec)
 			return err
 		})
 	if err != nil {
+		rc.Close()
 		return nil, err
 	}
+	rc.Close()
 
 	if inodedb.TxID(txid) != state.Version() {
 		logger.Warningf(mylog, "SSLocator TxID mismatch. SSLocator %v != Actual SS %v", inodedb.TxID(txid), state.Version())

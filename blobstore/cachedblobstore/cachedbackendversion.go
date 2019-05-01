@@ -8,6 +8,7 @@ import (
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/version"
 	"github.com/nyaxt/otaru/btncrypt"
+	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/metadata/statesnapshot"
@@ -85,9 +86,16 @@ func (cbv *CachedBackendVersion) decodeCacheFromGob(dec *gob.Decoder) error {
 	return nil
 }
 
-func (cbv *CachedBackendVersion) RestoreStateFromBlobstore(c *btncrypt.Cipher, bs blobstore.BlobStore) error {
+func (cbv *CachedBackendVersion) RestoreStateFromBlobstore(c *btncrypt.Cipher, bs blobstore.RandomAccessBlobStore) error {
+	bp := metadata.VersionCacheBlobpath
+	h, err := bs.Open(bp, flags.O_RDONLY)
+	if err != nil {
+		return err
+	}
+	defer h.Close()
+
 	return statesnapshot.Restore(
-		metadata.VersionCacheBlobpath, c, bs,
+		&blobstore.OffsetReader{h, 0}, c,
 		func(dec *gob.Decoder) error { return cbv.decodeCacheFromGob(dec) },
 	)
 }
@@ -102,9 +110,16 @@ func (cbv *CachedBackendVersion) encodeCacheToGob(enc *gob.Encoder) error {
 	return nil
 }
 
-func (cbv *CachedBackendVersion) SaveStateToBlobstore(c *btncrypt.Cipher, bs blobstore.BlobStore) error {
+func (cbv *CachedBackendVersion) SaveStateToBlobstore(c *btncrypt.Cipher, bs blobstore.RandomAccessBlobStore) error {
+	bp := metadata.VersionCacheBlobpath
+	h, err := bs.Open(bp, flags.O_RDWRCREATE)
+	if err != nil {
+		return err
+	}
+	defer h.Close()
+
 	return statesnapshot.Save(
-		metadata.VersionCacheBlobpath, c, bs,
+		&blobstore.OffsetWriter{h, 0}, c,
 		func(enc *gob.Encoder) error { return cbv.encodeCacheToGob(enc) },
 	)
 }

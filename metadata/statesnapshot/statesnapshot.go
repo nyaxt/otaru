@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
 	"github.com/nyaxt/otaru/logger"
@@ -16,15 +15,11 @@ import (
 
 var mylog = logger.Registry().Category("statess")
 
-func SaveBytes(blobpath string, c *btncrypt.Cipher, bs blobstore.BlobStore, p []byte) error {
-	w, err := bs.OpenWriter(blobpath)
-	if err != nil {
-		return err
-	}
+func SaveBytes(w io.Writer, c *btncrypt.Cipher, p []byte) error {
 	cw, err := chunkstore.NewChunkWriter(w, c, chunkstore.ChunkHeader{
 		PayloadLen:     uint32(len(p)),
 		PayloadVersion: 1,
-		OrigFilename:   blobpath,
+		OrigFilename:   "statesnapshot",
 		OrigOffset:     0,
 	})
 	if err != nil {
@@ -38,9 +33,6 @@ func SaveBytes(blobpath string, c *btncrypt.Cipher, bs blobstore.BlobStore, p []
 
 	if err := cw.Close(); err != nil {
 		es = append(es, fmt.Errorf("Failed to close ChunkWriter: %v", err))
-	}
-	if err := w.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close blobhandle: %v", err))
 	}
 
 	if err := util.ToErrors(es); err != nil {
@@ -70,24 +62,18 @@ func EncodeBytes(cb EncodeCallback) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func Save(blobpath string, c *btncrypt.Cipher, bs blobstore.BlobStore, cb EncodeCallback) error {
+func Save(w io.Writer, c *btncrypt.Cipher, cb EncodeCallback) error {
 	p, err := EncodeBytes(cb)
 	if err != nil {
 		return err
 	}
 
-	return SaveBytes(blobpath, c, bs, p)
+	return SaveBytes(w, c, p)
 }
 
 type DecodeCallback func(dec *gob.Decoder) error
 
-func Restore(blobpath string, c *btncrypt.Cipher, bs blobstore.BlobStore, cb DecodeCallback) error {
-	r, err := bs.OpenReader(blobpath)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
+func Restore(r io.Reader, c *btncrypt.Cipher, cb DecodeCallback) error {
 	cr, err := chunkstore.NewChunkReader(r, c)
 	if err != nil {
 		return err
@@ -108,9 +94,6 @@ func Restore(blobpath string, c *btncrypt.Cipher, bs blobstore.BlobStore, cb Dec
 	}
 	if err := zr.Close(); err != nil {
 		es = append(es, fmt.Errorf("Failed to close zlib Reader: %v", err))
-	}
-	if err := r.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close BlobHandle: %v", err))
 	}
 
 	if err := util.ToErrors(es); err != nil {
