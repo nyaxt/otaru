@@ -63,9 +63,13 @@ func TokenStringFromAuthHeader(auth string) (string, error) {
 	return auth[len(BearerPrefix):], nil
 }
 
+func (p *JWTAuthProvider) IsEnabled() bool {
+	return p.pubkey != nil
+}
+
 func (p *JWTAuthProvider) UserInfoFromTokenString(tokenString string) (*UserInfo, error) {
-	if p.pubkey == nil && tokenString == "" {
-		return NoauthUserInfo, nil
+	if !p.IsEnabled() {
+		panic("NoJWTAuth cannot extract UserInfoFromTokenString.")
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
@@ -124,7 +128,7 @@ func JWTTokenStringFromContext(ctx context.Context) string {
 }
 
 func (p *JWTAuthProvider) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	if p.pubkey == nil {
+	if !p.IsEnabled() {
 		return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 			ctx = ContextWithUserInfo(ctx, NoauthUserInfo)
 			resp, err := handler(ctx, req)
