@@ -23,8 +23,10 @@ const RecordOpenHandleStackTraceForDebugging = false
 
 var (
 	writebackOnCloseCounter = promauto.NewCounter(prometheus.CounterOpts{
-		Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "writeback_on_close_count"),
-		Help: "Number of CachedBlobEntry.Close() which triggered cache writeback.",
+		Namespace: oprometheus.Namespace,
+		Subsystem: promSubsystem,
+		Name:      "writeback_on_close_count",
+		Help:      "Number of CachedBlobEntry.Close() which triggered cache writeback.",
 	})
 )
 

@@ -24,8 +24,10 @@ const promSubsystem = "filebs"
 var (
 	issuedOps = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "issued_ops"),
-			Help: "Number of FileBlobStore operations issued, partitioned by base dir and operation type",
+			Namespace: oprometheus.Namespace,
+			Subsystem: promSubsystem,
+			Name:      "issued_ops",
+			Help:      "Number of FileBlobStore operations issued, partitioned by base dir and operation type",
 		},
 		[]string{"optype", "base"})
 	issuedOpen       = issuedOps.MustCurryWith(prometheus.Labels{"optype": "openHandle"})
@@ -39,14 +41,18 @@ var (
 
 	blobhReadBytes = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "blobh_read_bytes"),
-			Help: "Number of bytes read via FileBlobHandle",
+			Namespace: oprometheus.Namespace,
+			Subsystem: promSubsystem,
+			Name:      "blobh_read_bytes",
+			Help:      "Number of bytes read via FileBlobHandle",
 		},
 		[]string{"base"})
 	blobhWrittenBytes = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "blobh_written_bytes"),
-			Help: "Number of bytes written via FileBlobHandle",
+			Namespace: oprometheus.Namespace,
+			Subsystem: promSubsystem,
+			Name:      "blobh_written_bytes",
+			Help:      "Number of bytes written via FileBlobHandle",
 		},
 		[]string{"base"})
 )

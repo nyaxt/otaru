@@ -27,8 +27,10 @@ const promSubsystem = "cachedbs"
 var (
 	issuedOps = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "issued_ops"),
-			Help: "Number of CacheBlobStore operations issued, partitioned by operation type",
+			Namespace: oprometheus.Namespace,
+			Subsystem: promSubsystem,
+			Name:      "issued_ops",
+			Help:      "Number of CacheBlobStore operations issued, partitioned by operation type",
 		},
 		[]string{"optype"})
 	issuedOpen        = issuedOps.WithLabelValues("open")

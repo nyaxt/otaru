@@ -21,14 +21,17 @@ import (
 
 var (
 	saveStateCounter = promauto.NewCounter(prometheus.CounterOpts{
-		Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "cbver_state_save"),
-		Help: "Number of times CachedBackedVersion.SaveStateToBlobstore() was called.",
+		Namespace: oprometheus.Namespace,
+		Subsystem: promSubsystem,
+		Name:      "cbver_state_save",
+		Help:      "Number of times CachedBackedVersion.SaveStateToBlobstore() was called.",
 	})
 	restoreStateCounter = promauto.NewCounter(prometheus.CounterOpts{
-		Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "cbver_state_restore"),
-		Help: "Number of times CachedBackedVersion.RestoreStateFromBlobstore() was called.",
+		Namespace: oprometheus.Namespace,
+		Subsystem: promSubsystem,
+		Name:      "cbver_state_restore",
+		Help:      "Number of times CachedBackedVersion.RestoreStateFromBlobstore() was called.",
 	})
-
 	numCacheEntriesGauge = promauto.NewGauge(prometheus.GaugeOpts{
 		Namespace: oprometheus.Namespace,
 		Subsystem: promSubsystem,
@@ -59,6 +62,7 @@ func (cbv *CachedBackendVersion) Set(blobpath string, ver version.Version) {
 	defer cbv.mu.Unlock()
 
 	cbv.cache[blobpath] = ver
+	cbv.updateNumCacheEntriesGauge()
 }
 
 func (cbv *CachedBackendVersion) Query(blobpath string) (version.Version, error) {
@@ -107,6 +111,7 @@ func (cbv *CachedBackendVersion) decodeCacheFromGob(dec *gob.Decoder) error {
 	if err := dec.Decode(&cbv.cache); err != nil {
 		return fmt.Errorf("Failed to decode cache map: %v", err)
 	}
+	cbv.updateNumCacheEntriesGauge()
 	return nil
 }
 

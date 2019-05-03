@@ -26,8 +26,10 @@ const promSubsystem = "gcsblobstore"
 var (
 	issuedOps = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "issued_ops"),
-			Help: "Number of Google Cloud Storage operations issued, partitioned by bucket name and operation type",
+			Namespace: oprometheus.Namespace,
+			Subsystem: promSubsystem,
+			Name:      "issued_ops",
+			Help:      "Number of Google Cloud Storage operations issued, partitioned by bucket name and operation type",
 		},
 		[]string{"optype", "bucketName"})
 	issuedOpenWriterOps  = issuedOps.MustCurryWith(prometheus.Labels{"optype": "openWriter"})
@@ -40,14 +42,18 @@ var (
 
 	readBytes = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "read_bytes"),
-			Help: "Number of bytes read from Google Cloud Storage",
+			Namespace: oprometheus.Namespace,
+			Subsystem: promSubsystem,
+			Name:      "read_bytes",
+			Help:      "Number of bytes read from Google Cloud Storage",
 		},
 		[]string{"bucketName"})
 	writtenBytes = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "written_bytes"),
-			Help: "Number of bytes written to Google Cloud Storage",
+			Namespace: oprometheus.Namespace,
+			Subsystem: promSubsystem,
+			Name:      "written_bytes",
+			Help:      "Number of bytes written to Google Cloud Storage",
 		},
 		[]string{"bucketName"})
 )
