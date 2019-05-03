@@ -32,6 +32,14 @@ var (
 		Name:      "cbver_state_restore",
 		Help:      "Number of times CachedBackedVersion.RestoreStateFromBlobstore() was called.",
 	})
+	queryHitMissVec = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: oprometheus.Namespace,
+		Subsystem: promSubsystem,
+		Name:      "cbver_query_count",
+		Help:      "Counts CachedBackedVersion.Query() hit/miss.",
+	}, []string{"hitmiss"})
+	queryHitCounter      = queryHitMissVec.WithLabelValues("hit")
+	queryMissCounter     = queryHitMissVec.WithLabelValues("miss")
 	numCacheEntriesGauge = promauto.NewGauge(prometheus.GaugeOpts{
 		Namespace: oprometheus.Namespace,
 		Subsystem: promSubsystem,
@@ -70,6 +78,7 @@ func (cbv *CachedBackendVersion) Query(blobpath string) (version.Version, error)
 	defer cbv.mu.Unlock() // FIXME: unlock earlier?
 
 	if ver, ok := cbv.cache[blobpath]; ok {
+		queryHitCounter.Inc()
 		logger.Debugf(mylog, "return cached ver for \"%s\" -> %d", blobpath, ver)
 		return ver, nil
 	}
@@ -92,6 +101,7 @@ func (cbv *CachedBackendVersion) Query(blobpath string) (version.Version, error)
 		return -1, fmt.Errorf("Failed to query backend blob ver: %v", err)
 	}
 
+	queryMissCounter.Inc()
 	cbv.cache[blobpath] = ver
 	cbv.updateNumCacheEntriesGauge()
 	return ver, nil
