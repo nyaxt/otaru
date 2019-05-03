@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/version"
 	"github.com/nyaxt/otaru/btncrypt"
@@ -12,7 +15,26 @@ import (
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/metadata/statesnapshot"
+	oprometheus "github.com/nyaxt/otaru/prometheus"
 	"github.com/nyaxt/otaru/util"
+)
+
+var (
+	saveStateCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "cbver_state_save"),
+		Help: "Number of times CachedBackedVersion.SaveStateToBlobstore() was called.",
+	})
+	restoreStateCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "cbver_state_restore"),
+		Help: "Number of times CachedBackedVersion.RestoreStateFromBlobstore() was called.",
+	})
+
+	numCacheEntriesGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: oprometheus.Namespace,
+		Subsystem: promSubsystem,
+		Name:      "cbver_num_cache_entries",
+		Help:      "Number of cached version entries in CachedBackedVersion.",
+	})
 )
 
 type CachedBackendVersion struct {
@@ -67,6 +89,7 @@ func (cbv *CachedBackendVersion) Query(blobpath string) (version.Version, error)
 	}
 
 	cbv.cache[blobpath] = ver
+	cbv.updateNumCacheEntriesGauge()
 	return ver, nil
 }
 
@@ -74,6 +97,7 @@ func (cbv *CachedBackendVersion) Delete(blobpath string) {
 	cbv.mu.Lock()
 	defer cbv.mu.Unlock()
 	delete(cbv.cache, blobpath)
+	cbv.updateNumCacheEntriesGauge()
 }
 
 func (cbv *CachedBackendVersion) decodeCacheFromGob(dec *gob.Decoder) error {
@@ -87,6 +111,8 @@ func (cbv *CachedBackendVersion) decodeCacheFromGob(dec *gob.Decoder) error {
 }
 
 func (cbv *CachedBackendVersion) RestoreStateFromBlobstore(c *btncrypt.Cipher, bs blobstore.RandomAccessBlobStore) error {
+	restoreStateCounter.Inc()
+
 	bp := metadata.VersionCacheBlobpath
 	h, err := bs.Open(bp, flags.O_RDONLY)
 	if err != nil {
@@ -111,6 +137,8 @@ func (cbv *CachedBackendVersion) encodeCacheToGob(enc *gob.Encoder) error {
 }
 
 func (cbv *CachedBackendVersion) SaveStateToBlobstore(c *btncrypt.Cipher, bs blobstore.RandomAccessBlobStore) error {
+	saveStateCounter.Inc()
+
 	bp := metadata.VersionCacheBlobpath
 	h, err := bs.Open(bp, flags.O_RDWRCREATE)
 	if err != nil {
@@ -124,13 +152,6 @@ func (cbv *CachedBackendVersion) SaveStateToBlobstore(c *btncrypt.Cipher, bs blo
 	)
 }
 
-type CbvStats struct {
-	NumCache int `json:"num_cache"`
-}
-
-func (cbv *CachedBackendVersion) GetStats() CbvStats {
-	cbv.mu.Lock()
-	defer cbv.mu.Unlock()
-
-	return CbvStats{NumCache: len(cbv.cache)}
+func (cbv *CachedBackendVersion) updateNumCacheEntriesGauge() {
+	numCacheEntriesGauge.Set(float64(len(cbv.cache)))
 }

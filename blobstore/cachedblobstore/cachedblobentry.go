@@ -7,16 +7,26 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/net/context"
 
 	"github.com/nyaxt/otaru/blobstore"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/logger"
+	oprometheus "github.com/nyaxt/otaru/prometheus"
 	"github.com/nyaxt/otaru/util"
 	"github.com/nyaxt/otaru/util/cancellable"
 )
 
 const RecordOpenHandleStackTraceForDebugging = false
+
+var (
+	writebackOnCloseCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "writeback_on_close_count"),
+		Help: "Number of CachedBlobEntry.Close() which triggered cache writeback.",
+	})
+)
 
 type CacheEntryState int
 
@@ -644,7 +654,7 @@ func (be *CachedBlobEntry) writeBackWithLock(wbc writeBackCaller) error {
 	}
 	logger.Infof(mylog, "writeBack blob \"%s\" cache ver %d overwriting backend ver %d.", be.blobpath, cachever, bever)
 	if wbc == callerClose {
-		be.cbs.stats.NumWritebackOnClose++
+		writebackOnCloseCounter.Inc()
 	}
 
 	// unlock be.mu while writeback

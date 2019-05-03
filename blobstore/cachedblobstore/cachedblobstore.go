@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/net/context"
 
 	"github.com/nyaxt/otaru/blobstore"
@@ -13,15 +15,29 @@ import (
 	"github.com/nyaxt/otaru/btncrypt"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/logger"
+	oprometheus "github.com/nyaxt/otaru/prometheus"
 	"github.com/nyaxt/otaru/scheduler"
 	"github.com/nyaxt/otaru/util"
 )
 
 var mylog = logger.Registry().Category("cachedbs")
 
-type CachedBlobStoreStats struct {
-	NumWritebackOnClose int `json:num_writeback_on_close`
-}
+const promSubsystem = "cachedbs"
+
+var (
+	issuedOps = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "issued_ops"),
+			Help: "Number of CacheBlobStore operations issued, partitioned by operation type",
+		},
+		[]string{"optype"})
+	issuedOpen        = issuedOps.WithLabelValues("open")
+	issuedListBlobs   = issuedOps.WithLabelValues("listBlobs")
+	issuedBlobSize    = issuedOps.WithLabelValues("blobSize")
+	issuedRemoveBlob  = issuedOps.WithLabelValues("removeBlob")
+	issuedTotalSize   = issuedOps.WithLabelValues("totalSize")
+	issuedReduceCache = issuedOps.WithLabelValues("reduceCache")
+)
 
 type CachedBlobStore struct {
 	backendbs blobstore.BlobStore
@@ -36,7 +52,6 @@ type CachedBlobStore struct {
 	entriesmgr CachedBlobEntriesManager
 	usagestats *CacheUsageStats
 	syncer     *CacheSyncer
-	stats      CachedBlobStoreStats
 }
 
 func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore, s *scheduler.Scheduler, flags int, queryVersion version.QueryFunc) (*CachedBlobStore, error) {
@@ -60,7 +75,6 @@ func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore,
 		bever:        NewCachedBackendVersion(backendbs, queryVersion),
 		entriesmgr:   NewCachedBlobEntriesManager(),
 		usagestats:   NewCacheUsageStats(),
-		stats:        CachedBlobStoreStats{},
 	}
 	if fl.IsWriteAllowed(flags) {
 		cbs.syncer = NewCacheSyncer(&cbs.entriesmgr, defaultNumWorkers)
@@ -168,6 +182,7 @@ func (cbs *CachedBlobStore) Open(blobpath string, flags int) (blobstore.BlobHand
 		return nil, util.EACCES
 	}
 
+	issuedOpen.Inc()
 	cbs.usagestats.ObserveOpen(blobpath, flags)
 	be, err := cbs.entriesmgr.OpenEntry(blobpath, cbs)
 	if err != nil {
@@ -185,6 +200,8 @@ func (*CachedBlobStore) ImplName() string { return "CachedBlobStore" }
 var _ = blobstore.BlobLister(&CachedBlobStore{})
 
 func (cbs *CachedBlobStore) ListBlobs() ([]string, error) {
+	issuedListBlobs.Inc()
+
 	belister, ok := cbs.backendbs.(blobstore.BlobLister)
 	if !ok {
 		return nil, fmt.Errorf("Backendbs \"%v\" doesn't support listing blobs.", util.TryGetImplName(cbs.backendbs))
@@ -216,6 +233,8 @@ func (cbs *CachedBlobStore) ListBlobs() ([]string, error) {
 var _ = blobstore.BlobRemover(&CachedBlobStore{})
 
 func (cbs *CachedBlobStore) RemoveBlob(blobpath string) error {
+	issuedRemoveBlob.Inc()
+
 	backendrm, ok := cbs.backendbs.(blobstore.BlobRemover)
 	if !ok {
 		return fmt.Errorf("Backendbs \"%v\" doesn't support removing blobs.", util.TryGetImplName(cbs.backendbs))
@@ -244,6 +263,8 @@ func (cbs *CachedBlobStore) RemoveBlob(blobpath string) error {
 }
 
 func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, dryrun bool) error {
+	issuedReduceCache.Inc()
+
 	start := time.Now()
 
 	tsizer, ok := cbs.cachebs.(blobstore.TotalSizer)
@@ -308,20 +329,6 @@ func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, 
 		humanize.IBytes(uint64(totalSizeBefore)), humanize.IBytes(uint64(totalSizeAfter)),
 		dryrun, time.Since(start))
 	return nil
-}
-
-type Stats struct {
-	CacheUsageStatsView  `json:"usage_stats"`
-	CbvStats             `json:"cbv_stats"`
-	CachedBlobStoreStats `json:"stats"`
-}
-
-func (cbs *CachedBlobStore) GetStats() Stats {
-	return Stats{
-		CacheUsageStatsView:  cbs.usagestats.View(),
-		CbvStats:             cbs.bever.GetStats(),
-		CachedBlobStoreStats: cbs.stats,
-	}
 }
 
 func (cbs *CachedBlobStore) CloseEntryForTesting(blobpath string) {
