@@ -5,9 +5,33 @@ import (
 	"sort"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/logger"
+	oprometheus "github.com/nyaxt/otaru/prometheus"
 	"github.com/nyaxt/otaru/util"
+)
+
+var (
+	openEntryHitMiss = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: oprometheus.Namespace,
+			Subsystem: promSubsystem,
+			Name:      "open_entry_count",
+			Help:      "Counts CachedBlobEntriesManager.OpenEntry() existing entry hit/miss.",
+		},
+		[]string{"hitmiss"})
+	openEntryHitCounter  = openEntryHitMiss.WithLabelValues("hit")
+	openEntryMissCounter = openEntryHitMiss.WithLabelValues("miss")
+
+	numCacheEntriesGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: oprometheus.Namespace,
+		Subsystem: promSubsystem,
+		Name:      "num_cache_entries",
+		Help:      "Number of CachedBlobEntry(ies) in CachedBlobEntriesManager.",
+	})
 )
 
 type CachedBlobEntriesManager struct {
@@ -188,6 +212,7 @@ func (mgr *CachedBlobEntriesManager) RemoveBlob(blobpath string) (err error) {
 		}
 
 		delete(mgr.entries, blobpath)
+		mgr.updateNumCacheEntriesGauge()
 	}
 	<-ch
 	return
@@ -201,6 +226,7 @@ func (mgr *CachedBlobEntriesManager) OpenEntry(blobpath string, cbs *CachedBlobS
 		var ok bool
 		be, ok = mgr.entries[blobpath]
 		if ok {
+			openEntryHitCounter.Inc()
 			return
 		}
 
@@ -210,6 +236,8 @@ func (mgr *CachedBlobEntriesManager) OpenEntry(blobpath string, cbs *CachedBlobS
 
 		be = NewCachedBlobEntry(blobpath, cbs)
 		mgr.entries[blobpath] = be
+		openEntryMissCounter.Inc()
+		mgr.updateNumCacheEntriesGauge()
 	}
 	<-ch
 	return
@@ -222,6 +250,7 @@ func (mgr *CachedBlobEntriesManager) tryCloseEntry(be *CachedBlobEntry) {
 	}
 
 	delete(mgr.entries, be.blobpath)
+	mgr.updateNumCacheEntriesGauge()
 }
 
 func (mgr *CachedBlobEntriesManager) CloseEntryForTesting(blobpath string) {
@@ -306,7 +335,12 @@ func (mgr *CachedBlobEntriesManager) DropCacheEntry(blobpath string, cbs *Cached
 		}
 
 		delete(mgr.entries, blobpath)
+		mgr.updateNumCacheEntriesGauge()
 	}
 	<-ch
 	return
+}
+
+func (mgr *CachedBlobEntriesManager) updateNumCacheEntriesGauge() {
+	numCacheEntriesGauge.Set(float64(len(mgr.entries)))
 }

@@ -38,9 +38,9 @@ var (
 		Name:      "cbver_query_count",
 		Help:      "Counts CachedBackedVersion.Query() hit/miss.",
 	}, []string{"hitmiss"})
-	queryHitCounter      = queryHitMissVec.WithLabelValues("hit")
-	queryMissCounter     = queryHitMissVec.WithLabelValues("miss")
-	numCacheEntriesGauge = promauto.NewGauge(prometheus.GaugeOpts{
+	queryHitCounter           = queryHitMissVec.WithLabelValues("hit")
+	queryMissCounter          = queryHitMissVec.WithLabelValues("miss")
+	numBEVerCacheEntriesGauge = promauto.NewGauge(prometheus.GaugeOpts{
 		Namespace: oprometheus.Namespace,
 		Subsystem: promSubsystem,
 		Name:      "cbver_num_cache_entries",
@@ -168,5 +168,5 @@ func (cbv *CachedBackendVersion) SaveStateToBlobstore(c *btncrypt.Cipher, bs blo
 }
 
 func (cbv *CachedBackendVersion) updateNumCacheEntriesGauge() {
-	numCacheEntriesGauge.Set(float64(len(cbv.cache)))
+	numBEVerCacheEntriesGauge.Set(float64(len(cbv.cache)))
 }
