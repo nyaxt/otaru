@@ -251,7 +251,7 @@ func (f *FileBlobStore) RemoveBlob(blobpath string) error {
 
 	realpath := path.Join(f.base, blobpath)
 	err := os.Remove(realpath)
-	logger.Debugf(mylog, "RemoveBlob(fullpath) -> err: %v", realpath, err)
+	logger.Debugf(mylog, "RemoveBlob(fullpath: %q) -> err: %v", realpath, err)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return util.ENOENT
