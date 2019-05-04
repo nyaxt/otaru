@@ -32,6 +32,11 @@ var (
 		Name:      "num_cache_entries",
 		Help:      "Number of CachedBlobEntry(ies) in CachedBlobEntriesManager.",
 	})
+
+	entryStateGaugeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(oprometheus.Namespace, promSubsystem, "entry_state_count"),
+		"Number of CachedBlobEntry in each states.",
+		[]string{"state"}, nil)
 )
 
 type CachedBlobEntriesManager struct {
@@ -41,15 +46,22 @@ type CachedBlobEntriesManager struct {
 	entries map[string]*CachedBlobEntry
 }
 
+type cbeCollector struct {
+	cbemgr *CachedBlobEntriesManager
+}
+
 var _ = SyncCandidatesProvider(&CachedBlobEntriesManager{})
 
 const maxEntries = 128
 
-func NewCachedBlobEntriesManager() CachedBlobEntriesManager {
-	return CachedBlobEntriesManager{
+func NewCachedBlobEntriesManager() *CachedBlobEntriesManager {
+	cbemgr := &CachedBlobEntriesManager{
 		reqC:    make(chan func()),
 		entries: make(map[string]*CachedBlobEntry),
 	}
+	prometheus.MustRegister(cbeCollector{cbemgr})
+
+	return cbemgr
 }
 
 func (mgr *CachedBlobEntriesManager) Run() {
@@ -164,6 +176,75 @@ func (mgr *CachedBlobEntriesManager) FindSyncCandidates(n int) (scs []util.Synce
 		}
 	}
 	<-ch
+	return
+}
+
+func (c cbeCollector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- entryStateGaugeDesc
+}
+
+func (c cbeCollector) Collect(ch chan<- prometheus.Metric) {
+	var numUninitialized int
+	var numInvalidating int
+	var numErrored int
+	var numErroredClosed int
+	var numClean int
+	var numWriteInProgress int
+	var numWritebackInProgress int
+	var numStaleWritebackInProgress int
+	var numDirty int
+	var numDirtyClosing int
+	var numClosing int
+	var numClosed int
+
+	chM := make(chan struct{})
+	c.cbemgr.reqC <- func() {
+		defer close(chM)
+
+		for _, be := range c.cbemgr.entries {
+			switch be.state {
+			case CacheEntryUninitialized:
+				numUninitialized += 1
+			case CacheEntryInvalidating:
+				numInvalidating += 1
+			case CacheEntryErrored:
+				numErrored += 1
+			case CacheEntryErroredClosed:
+				numErroredClosed += 1
+			case CacheEntryClean:
+				numClean += 1
+			case CacheEntryWriteInProgress:
+				numWriteInProgress += 1
+			case CacheEntryWritebackInProgress:
+				numWritebackInProgress += 1
+			case CacheEntryStaleWritebackInProgress:
+				numStaleWritebackInProgress += 1
+			case CacheEntryDirty:
+				numDirty += 1
+			case CacheEntryDirtyClosing:
+				numDirtyClosing += 1
+			case CacheEntryClosing:
+				numClosing += 1
+			case CacheEntryClosed:
+				numClosed += 1
+			}
+		}
+	}
+	<-chM
+
+	ch <- prometheus.MustNewConstMetric(entryStateGaugeDesc, prometheus.GaugeValue, float64(numUninitialized), "uninitialized")
+	ch <- prometheus.MustNewConstMetric(entryStateGaugeDesc, prometheus.GaugeValue, float64(numInvalidating), "invalidating")
+	ch <- prometheus.MustNewConstMetric(entryStateGaugeDesc, prometheus.GaugeValue, float64(numErrored), "errored")
+	ch <- prometheus.MustNewConstMetric(entryStateGaugeDesc, prometheus.GaugeValue, float64(numErroredClosed), "erroredClosed")
+	ch <- prometheus.MustNewConstMetric(entryStateGaugeDesc, prometheus.GaugeValue, float64(numClean), "clean")
+	ch <- prometheus.MustNewConstMetric(entryStateGaugeDesc, prometheus.GaugeValue, float64(numWriteInProgress), "writeInProgress")
+	ch <- prometheus.MustNewConstMetric(entryStateGaugeDesc, prometheus.GaugeValue, float64(numWritebackInProgress), "writebackInProgress")
+	ch <- prometheus.MustNewConstMetric(entryStateGaugeDesc, prometheus.GaugeValue, float64(numStaleWritebackInProgress), "staleWritebackInProgress")
+	ch <- prometheus.MustNewConstMetric(entryStateGaugeDesc, prometheus.GaugeValue, float64(numDirty), "dirty")
+	ch <- prometheus.MustNewConstMetric(entryStateGaugeDesc, prometheus.GaugeValue, float64(numDirtyClosing), "dirtyClosing")
+	ch <- prometheus.MustNewConstMetric(entryStateGaugeDesc, prometheus.GaugeValue, float64(numClosing), "closing")
+	ch <- prometheus.MustNewConstMetric(entryStateGaugeDesc, prometheus.GaugeValue, float64(numClosed), "closed")
+
 	return
 }
 

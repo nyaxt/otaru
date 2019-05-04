@@ -51,7 +51,7 @@ type CachedBlobStore struct {
 	queryVersion version.QueryFunc
 	bever        *CachedBackendVersion
 
-	entriesmgr CachedBlobEntriesManager
+	entriesmgr *CachedBlobEntriesManager
 	usagestats *CacheUsageStats
 	syncer     *CacheSyncer
 }
@@ -79,7 +79,7 @@ func New(backendbs blobstore.BlobStore, cachebs blobstore.RandomAccessBlobStore,
 		usagestats:   NewCacheUsageStats(),
 	}
 	if fl.IsWriteAllowed(flags) {
-		cbs.syncer = NewCacheSyncer(&cbs.entriesmgr, defaultNumWorkers)
+		cbs.syncer = NewCacheSyncer(cbs.entriesmgr, defaultNumWorkers)
 	}
 
 	if _, ok := cachebs.(blobstore.BlobRemover); !ok {
