@@ -54,12 +54,16 @@ var _ = SyncCandidatesProvider(&CachedBlobEntriesManager{})
 
 const maxEntries = 128
 
+var PrometheusRegisterer prometheus.Registerer = prometheus.DefaultRegisterer
+
 func NewCachedBlobEntriesManager() *CachedBlobEntriesManager {
 	cbemgr := &CachedBlobEntriesManager{
 		reqC:    make(chan func()),
 		entries: make(map[string]*CachedBlobEntry),
 	}
-	prometheus.MustRegister(cbeCollector{cbemgr})
+	if PrometheusRegisterer != nil {
+		PrometheusRegisterer.MustRegister(cbeCollector{cbemgr})
+	}
 
 	return cbemgr
 }

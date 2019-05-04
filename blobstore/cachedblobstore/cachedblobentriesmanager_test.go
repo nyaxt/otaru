@@ -10,6 +10,10 @@ import (
 	"github.com/nyaxt/otaru/util"
 )
 
+func init() {
+	cachedblobstore.PrometheusRegisterer = nil
+}
+
 func TestCachedBlobEntriesManager_RunQuit(t *testing.T) {
 	mgr := cachedblobstore.NewCachedBlobEntriesManager()
 	go mgr.Run()
