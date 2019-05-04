@@ -28,6 +28,22 @@ var (
 		Name:      "writeback_on_close_count",
 		Help:      "Number of CachedBlobEntry.Close() which triggered cache writeback.",
 	})
+
+	initialEntryState = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: oprometheus.Namespace,
+		Subsystem: promSubsystem,
+		Name:      "initial_entry_state",
+		Help:      "Counts each CacheEntryState of new initialized CachedBlobEntry.",
+	}, []string{"state"})
+	initialEntryStateFailedToOpenCache            = initialEntryState.WithLabelValues("failedToOpenCache")
+	initialEntryStateFailedToQueryCachedBlobVer   = initialEntryState.WithLabelValues("failedToQueryCachedBlobVer")
+	initialEntryStateFailedToQueryBackendBlobVer  = initialEntryState.WithLabelValues("failedToQueryBackendBlobVer")
+	initialEntryStateCacheNewerThanBackend        = initialEntryState.WithLabelValues("cacheNewerThanBackend")
+	initialEntryStateClean                        = initialEntryState.WithLabelValues("clean")
+	initialEntryStateFailedToQueryBackendBlobSize = initialEntryState.WithLabelValues("failedToQueryBackendBlobSize")
+	initialEntryStateBackendZeroLength            = initialEntryState.WithLabelValues("backendBlobHasZeroLength")
+	initialEntryStateNewEntry                     = initialEntryState.WithLabelValues("newEntry")
+	initialEntryStateStale                        = initialEntryState.WithLabelValues("stale")
 )
 
 type CacheEntryState int
@@ -125,7 +141,7 @@ func NewCachedBlobEntry(blobpath string, cbs *CachedBlobStore) *CachedBlobEntry 
 }
 
 func (be *CachedBlobEntry) updateState(newState CacheEntryState) {
-	logger.Debugf(mylog, "Cache state \"%s\": %v -> %v", be.blobpath, be.state, newState)
+	logger.Debugf(mylog, "Cache state %q: %v -> %v", be.blobpath, be.state, newState)
 	switch be.state {
 	case CacheEntryUninitialized:
 		switch newState {
@@ -211,7 +227,7 @@ func (be *CachedBlobEntry) updateState(newState CacheEntryState) {
 	return
 
 Unexpected:
-	logger.Panicf(mylog, "Unexpected cache state \"%s\": %v -> %v", be.blobpath, be.state, newState)
+	logger.Panicf(mylog, "Unexpected cache state %q: %v -> %v", be.blobpath, be.state, newState)
 
 	be.state = newState
 	return
@@ -391,18 +407,21 @@ func (be *CachedBlobEntry) initializeWithLock() error {
 	cachebh, err := cbs.cachebs.Open(be.blobpath, fl.O_RDWRCREATE)
 	if err != nil {
 		be.updateState(CacheEntryErrored)
+		initialEntryStateFailedToOpenCache.Inc()
 		go be.CloseWithLogErr(abandonAndClose)
 		return fmt.Errorf("Failed to open cache blob: %v", err)
 	}
 	cachever, err := cbs.queryVersion(&blobstore.OffsetReader{cachebh, 0})
 	if err != nil {
 		be.updateState(CacheEntryErrored)
+		initialEntryStateFailedToQueryCachedBlobVer.Inc()
 		go be.CloseWithLogErr(abandonAndClose)
 		return fmt.Errorf("Failed to query cached blob ver: %v", err)
 	}
 	backendver, err := cbs.bever.Query(be.blobpath)
 	if err != nil {
 		be.updateState(CacheEntryErrored)
+		initialEntryStateFailedToQueryBackendBlobVer.Inc()
 		go be.CloseWithLogErr(abandonAndClose)
 		return err
 	}
@@ -411,30 +430,42 @@ func (be *CachedBlobEntry) initializeWithLock() error {
 	be.handles = make(map[*CachedBlobHandle]struct{})
 
 	if cachever > backendver {
-		logger.Warningf(mylog, "Cache for blob \"%s\" ver %v is newer than backend %v when open. Previous sync stopped?",
+		logger.Warningf(mylog, "Cache for blob %q ver %v is newer than backend %v when open. Previous sync stopped?",
 			be.blobpath, cachever, backendver)
 		be.updateState(CacheEntryClean)
 		be.updateState(CacheEntryWriteInProgress)
 		be.updateState(CacheEntryDirty)
 		be.bloblen = cachebh.Size()
 		be.validlen = be.bloblen
+		initialEntryStateCacheNewerThanBackend.Inc()
 	} else if cachever == backendver {
 		be.updateState(CacheEntryClean)
 		be.bloblen = cachebh.Size()
 		be.validlen = be.bloblen
+		initialEntryStateClean.Inc()
 	} else {
 		blobsizer := cbs.backendbs.(blobstore.BlobSizer)
 		be.bloblen, err = blobsizer.BlobSize(be.blobpath)
 		if err != nil {
 			be.updateState(CacheEntryErrored)
 			go be.CloseWithLogErr(abandonAndClose)
+			initialEntryStateFailedToQueryBackendBlobSize.Inc()
 			return fmt.Errorf("Failed to query backend blobsize: %v", err)
 		}
 		if be.bloblen == 0 {
 			be.updateState(CacheEntryClean)
+			// FIXME: Do we ever reach here?
+			initialEntryStateBackendZeroLength.Inc()
 		} else {
 			be.updateState(CacheEntryInvalidating)
 			be.validlen = 0
+
+			if cachever == 0 {
+				initialEntryStateNewEntry.Inc()
+			} else {
+				initialEntryStateStale.Inc()
+			}
+
 			cbs.s.RunImmediately(&InvalidateCacheTask{be}, nil)
 		}
 	}
