@@ -558,7 +558,7 @@ class BrowseFS extends HTMLElement {
         const {host, path} = parseOtaruPath(opath);
         const entries = await fsLs(host, path);
 
-        const sortSel = $('.browsefs__sort').value;
+        const sortSel = this.sortSelect_.value;
         const sortFunc = sortFuncMap[sortSel];
 
         if (entries.length === 0) {
