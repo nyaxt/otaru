@@ -28,14 +28,20 @@ func Put(ctx context.Context, cfg *CliConfig, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to open source file: \"%s\". err: %v", localpathstr, err)
 	}
-	defer f.Close()
 
 	w, err := NewWriter(pathstr, WithCliConfig(cfg), WithContext(ctx))
 	if err != nil {
+		f.Close()
 		return err
 	}
 
 	if _, err := io.Copy(w, f); err != nil {
+		return err
+	}
+	if err := w.Close(); err != nil {
+		return err
+	}
+	if err := f.Close(); err != nil {
 		return err
 	}
 	return nil

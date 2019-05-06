@@ -66,17 +66,21 @@ func Get(ctx context.Context, cfg *CliConfig, args []string) error {
 		w, err := os.OpenFile(dest, os.O_RDWR|os.O_CREATE, 0644) // FIXME: r.Stat().FileMode
 		if err != nil {
 			r.Close()
-			return fmt.Errorf("%v", err)
+			return fmt.Errorf("Failed to open dest file: %v", err)
 		}
 		logger.Infof(Log, "Remote %s -> Local %s", srcstr, dest)
 
 		if _, err := io.Copy(w, r); err != nil {
 			r.Close()
 			w.Close()
-			return fmt.Errorf("%v", err)
+			return fmt.Errorf("io.Copy failed: %v", err)
 		}
-		r.Close()
-		w.Close()
+		if err := r.Close(); err != nil {
+			return fmt.Errorf("Failed to Close(src): %v", err)
+		}
+		if err := w.Close(); err != nil {
+			return fmt.Errorf("Failed to Close(dest): %v", err)
+		}
 	}
 	return nil
 }
