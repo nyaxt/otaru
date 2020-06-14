@@ -416,7 +416,7 @@ class BrowseFS extends HTMLElement {
         cr.toggleSelection();
 
       this.cursorIndex = this.cursorIndex + 1;
-    } else if (e.key === 'Delete') {
+    } else if (e.key === 'Delete' || e.key === '-') {
       this.deleteSelection();
     } else if (e.key === 'Enter') {
       let cr = this.cursorRow;

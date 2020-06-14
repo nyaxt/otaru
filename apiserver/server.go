@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
-	"github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
@@ -226,7 +226,7 @@ func Serve(opt ...Option) error {
 
 	lis, err := net.Listen("tcp", opts.listenAddr)
 	if err != nil {
-		return fmt.Errorf("Failed to listen \"%s\": %v", opts.listenAddr, err)
+		return fmt.Errorf("Failed to listen %q: %v", opts.listenAddr, err)
 	}
 	closed := false
 	if opts.closeC != nil {
