@@ -63,6 +63,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (e.target instanceof HTMLInputElement)
       return true;
 
+    console.log(`doc keypress ${e.key}`);
     if (preview.isOpen) {
       if (e.key === 'j') {
         ++ preview.cursorIndex;

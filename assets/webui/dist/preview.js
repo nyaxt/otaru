@@ -20,7 +20,7 @@ const innerHTMLTable = `<table class="content__table"><tbody></tbody></table>`;
 
 class OtaruPreview extends HTMLElement {
   constructor() {
-    super(); 
+    super();
 
     this.cursorIndex_ = -1;
     this.tbody_ = null;
@@ -28,7 +28,7 @@ class OtaruPreview extends HTMLElement {
   }
 
   connectedCallback() {
-    this.innerHTML = innerHTMLSource; 
+    this.innerHTML = innerHTMLSource;
     this.classList.add('preview');
     this.classList.add('hidden');
 
@@ -39,7 +39,7 @@ class OtaruPreview extends HTMLElement {
     this.img_ = this.querySelector('.preview__img');
 
     this.closeBtn_.addEventListener('click', () => {
-      this.close(); 
+      this.close();
     });
   }
 
@@ -49,7 +49,7 @@ class OtaruPreview extends HTMLElement {
 
   async open(opath) {
     this.opath_ = opath;
-    this.classList.remove('hidden'); 
+    this.classList.remove('hidden');
     this.contentDiv_.innerText = "loading";
     this.titleDiv_.innerText = opath;
 
@@ -59,26 +59,30 @@ class OtaruPreview extends HTMLElement {
       const tbody = this.contentDiv_.querySelector('tbody');
       this.tbody_ = tbody;
 
-      for (let e of resp) {
-        let tr = document.createElement('tr');
+      resp.forEach((e, idx) => {
+        const tr = document.createElement('tr');
         tr.classList.add('content__entry');
         tr.classList.add('preview__entry');
         tr.data = e;
 
-        let tdName = document.createElement('td');
+        const tdName = document.createElement('td');
         tdName.classList.add('content__cell');
         tdName.classList.add('preview__cell--name');
         tdName.innerText = e['name'];
         tr.appendChild(tdName);
 
-        let tdSize = document.createElement('td');
+        const tdSize = document.createElement('td');
         tdSize.classList.add('content__cell');
         tdSize.classList.add('preview__cell--size');
         tdSize.innerText = formatBlobSize(e['size']);
         tr.appendChild(tdSize);
 
+        tr.addEventListener('click', ev => {
+          this.cursorIndex = idx;
+        });
+
         tbody.appendChild(tr);
-      }
+      });
 
       this.cursorIndex = 0;
     } else {

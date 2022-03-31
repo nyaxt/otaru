@@ -458,6 +458,8 @@ class BrowseFS extends HTMLElement {
       if (updatePath == this.path)
         break;
     }
+    this.updateFilterLocked_();
+    this.updateCursor();
     this.inflightUpdate_ = false;
   }
 
@@ -593,7 +595,6 @@ class BrowseFS extends HTMLElement {
 
       tr.textContent = e.message;
     }
-    this.updateCursor();
   }
 
   getVisibleRows_(extrasel = '') {
@@ -644,13 +645,21 @@ class BrowseFS extends HTMLElement {
   }
 
   onFilterTimer_() {
+    if (this.inflightUpdate_)
+      return;
+
+    this.updateFilterLocked_();
+    this.updateCursor();
+  }
+
+  updateFilterLocked_() {
     if (this.query_ === null)
       return;
 
     let query = this.query_;
     if (query === '')
       query = '.';
-    const filterRe = new RegExp(query);
+    const filterRe = new RegExp(query, 'i');
 
     for (let tr of this.listTBody_.querySelectorAll("tr")) {
       const match = tr.data.name.match(filterRe);
@@ -661,7 +670,6 @@ class BrowseFS extends HTMLElement {
       tr.classList.add(kMatchClass);
     }
     this.cursorIndex_ = 0;
-    this.updateCursor();
   }
 
   getSelectedRows_() {
