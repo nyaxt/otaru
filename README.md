@@ -1,6 +1,4 @@
 # otaru
-[![Circle CI](https://circleci.com/gh/nyaxt/otaru/tree/master.svg?style=shield&circle-token=99fc14b26125325054679985cf796989fcc1b8be)](https://circleci.com/gh/nyaxt/otaru/tree/master)
-
 Otaru is a cloud-backed filesystem for archiving your files. Otaru is optimized for storing personal collection of 10MB-10GB-ish files, such as book scan pdfs and disk image dumps.
 
 For more details, see [Design Doc](https://docs.google.com/document/d/1j57oi9LrB8Viycwx3a9B5_Bgc9tzRir3RyBr6gwBu5g/edit?usp=sharing)
@@ -68,7 +66,7 @@ Below command will generate self-signed X.509 certificate and key pair at `~/.ot
     $ OTARUDIR=~/.otaru scripts/gcloud_setup.bash
 
 ### Mount!
-    
+
     $ OTARUDIR=~/.otaru out/otaru-mkfs
     $ OTARUDIR=~/.otaru out/otaru-server
 
