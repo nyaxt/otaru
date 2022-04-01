@@ -1,51 +1,34 @@
 module github.com/nyaxt/otaru
 
 require (
-	cloud.google.com/go v0.34.0
-	github.com/beorn7/perks v1.0.0 // indirect
+	cloud.google.com/go/datastore v1.6.0
+	cloud.google.com/go/iam v0.3.0 // indirect
+	cloud.google.com/go/storage v1.21.0
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/dustin/go-humanize v1.0.0
-	github.com/fluent/fluent-logger-golang v1.4.0
-	github.com/go-logfmt/logfmt v0.4.0 // indirect
-	github.com/gogo/protobuf v1.2.1 // indirect
-	github.com/golang/protobuf v1.3.1
-	github.com/google/martian v2.1.0+incompatible // indirect
-	github.com/googleapis/gax-go v2.0.2+incompatible // indirect
-	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
+	github.com/fluent/fluent-logger-golang v1.9.0
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/protobuf v1.5.2
+	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/grpc-ecosystem/grpc-gateway v1.6.3
-	github.com/kisielk/errcheck v1.2.0 // indirect
-	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
-	github.com/kr/pretty v0.1.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348 // indirect
 	github.com/naoina/go-stringutil v0.1.0 // indirect
 	github.com/naoina/toml v0.1.1
 	github.com/nyaxt/fuse v0.0.0-20171213112031-b89602e08173
-	github.com/philhofer/fwd v1.0.0 // indirect
-	github.com/pkg/errors v0.8.1 // indirect
-	github.com/prometheus/client_golang v0.9.2
-	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90 // indirect
-	github.com/prometheus/common v0.3.0 // indirect
-	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
-	github.com/rs/cors v1.6.0
-	github.com/sirupsen/logrus v1.4.1 // indirect
-	github.com/stretchr/objx v0.2.0 // indirect
-	github.com/tinylib/msgp v1.1.0 // indirect
-	go.opencensus.io v0.18.0 // indirect
-	golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734
-	golang.org/x/net v0.0.0-20190424112056-4829fb13d2c6
-	golang.org/x/oauth2 v0.0.0-20181203162652-d668ce993890
-	golang.org/x/sys v0.0.0-20190429094411-2cc0cad0ac78 // indirect
-	golang.org/x/text v0.3.2 // indirect
-	golang.org/x/tools v0.0.0-20190428024724-550556f78a90 // indirect
-	google.golang.org/api v0.0.0-20181229000844-f26a60c56f14
-	google.golang.org/appengine v1.4.0 // indirect
-	google.golang.org/genproto v0.0.0-20181221175505-bd9b4fb69e2f
-	google.golang.org/grpc v1.17.0
-	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
+	github.com/prometheus/client_golang v1.12.1
+	github.com/prometheus/common v0.33.0 // indirect
+	github.com/rs/cors v1.8.2
+	github.com/tinylib/msgp v1.1.6 // indirect
+	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064
+	golang.org/x/net v0.0.0-20220325170049-de3da57026de
+	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
+	golang.org/x/sys v0.0.0-20220330033206-e17cdc41300f // indirect
+	google.golang.org/api v0.74.0
+	google.golang.org/genproto v0.0.0-20220329172620-7be39ac1afc7
+	google.golang.org/grpc v1.45.0
 	gopkg.in/dgrijalva/jwt-go.v3 v3.2.0
-	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
 
 go 1.13
