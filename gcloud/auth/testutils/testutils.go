@@ -2,21 +2,21 @@ package testutils
 
 import (
 	"log"
-	"os"
 
 	"golang.org/x/oauth2"
 
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/gcloud/auth"
 	"github.com/nyaxt/otaru/gcloud/datastore"
-	tu "github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/testutils"
 )
 
-var CredentialsFilePath = os.Getenv("OTARU_TEST_CREDENTIALS_FILE")
+var CredentialsFilePath string
 
 func init() {
+	CredentialsFilePath = facade.FindGCPServiceAccountJSON("")
 	if CredentialsFilePath == "" {
-		panic("OTARU_TEST_CREDENTIALS_FILE env missing")
+		panic("Failed to find Google Cloud service account json file.")
 	}
 }
 
@@ -39,5 +39,5 @@ func TestTokenSource() oauth2.TokenSource {
 
 func TestDSConfig(rootKeyStr string) *datastore.Config {
 	projectName := TestConfig().ProjectName
-	return datastore.NewConfig(projectName, rootKeyStr, tu.TestCipher(), TestTokenSource())
+	return datastore.NewConfig(projectName, rootKeyStr, testutils.TestCipher(), TestTokenSource())
 }

@@ -19,7 +19,6 @@ import (
 
 type Config struct {
 	PasswordFile                 string
-	TestBucketName               string
 	ProjectName                  string
 	BucketName                   string
 	UseSeparateBucketForMetadata bool
@@ -72,6 +71,29 @@ func DefaultConfigDir() string {
 	return path.Join(os.Getenv("HOME"), ".otaru")
 }
 
+func FindGCPServiceAccountJSON(configdir string) string {
+	candidates := []string{
+		path.Join(configdir, "credentials.json"),
+		os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"),
+	}
+
+	for _, c := range candidates {
+		if c == "" {
+			continue
+		}
+		fi, err := os.Stat(c)
+		if err != nil {
+			continue
+		}
+		if fi.IsDir() {
+			continue
+		}
+
+		return c
+	}
+	return ""
+}
+
 func NewConfig(configdir string) (*Config, error) {
 	if err := util.IsDir(configdir); err != nil {
 		return nil, fmt.Errorf("configdir \"%s\" is not a dir: %v", configdir, err)
@@ -91,7 +113,6 @@ func NewConfig(configdir string) (*Config, error) {
 		CacheDir:                     "/var/cache/otaru",
 		CacheHighWatermarkInBytes:    math.MaxInt64,
 		CacheLowWatermarkInBytes:     math.MaxInt64,
-		CredentialsFilePath:          path.Join(configdir, "credentials.json"),
 		GCPeriod:                     15 * 60,
 		ApiServer: ApiServerConfig{
 			ListenAddr:  ":10246",
@@ -103,6 +124,12 @@ func NewConfig(configdir string) (*Config, error) {
 
 	if err := toml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("Failed to parse config file: %v", err)
+	}
+	if cfg.CredentialsFilePath == "" {
+		cfg.CredentialsFilePath = FindGCPServiceAccountJSON(configdir)
+		if cfg.CredentialsFilePath == "" {
+			return nil, fmt.Errorf("Failed to find Google Cloud service account json.")
+		}
 	}
 
 	cfg.CacheDir = os.ExpandEnv(cfg.CacheDir)

@@ -107,7 +107,7 @@ func TestFeService(t *testing.T) {
 
 	cfg := &cli.CliConfig{
 		Host: map[string]*cli.Host{
-			"hostfoo": &cli.Host{
+			"hostfoo": {
 				ApiEndpoint: testBeListenAddr,
 				CACert:      testca.CACert,
 			},
