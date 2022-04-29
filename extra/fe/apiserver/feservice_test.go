@@ -20,6 +20,7 @@ import (
 	"github.com/nyaxt/otaru/otaruapiserver"
 	opb "github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/testutils/testca"
 )
 
 type mockFsBackend struct {
@@ -41,7 +42,7 @@ func runMockFsBackend() *mockFsBackend {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testBeListenAddr),
-			apiserver.X509KeyPair(certFile, keyFile),
+			apiserver.X509KeyPair(testca.CertPEM, testca.KeyPEM),
 			apiserver.CloseChannel(m.closeC),
 			otaruapiserver.InstallFileSystemService(fs),
 			otaruapiserver.InstallFileHandler(fs, jwtauth),
@@ -107,8 +108,8 @@ func TestFeService(t *testing.T) {
 	cfg := &cli.CliConfig{
 		Host: map[string]*cli.Host{
 			"hostfoo": &cli.Host{
-				ApiEndpoint:      testBeListenAddr,
-				ExpectedCertFile: certFile,
+				ApiEndpoint: testBeListenAddr,
+				CACert:      testca.CACert,
 			},
 		},
 		LocalRootPath: rootPath,
@@ -122,7 +123,7 @@ func TestFeService(t *testing.T) {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testFeListenAddr),
-			apiserver.X509KeyPair(certFile, keyFile),
+			apiserver.X509KeyPair(testca.CertPEM, testca.KeyPEM),
 			apiserver.CloseChannel(closeC),
 			feapiserver.InstallFeService(cfg),
 		); err != nil {
@@ -134,13 +135,9 @@ func TestFeService(t *testing.T) {
 	// FIXME: wait until Serve to actually start accepting conns
 	time.Sleep(100 * time.Millisecond)
 
-	certtext, err := ioutil.ReadFile(certFile)
+	tc, err := cli.TLSConfigFromCert(testca.Cert)
 	if err != nil {
-		t.Fatalf("Failed to read specified cert file: %s", certFile)
-	}
-	tc, err := cli.TLSConfigFromCertText(certtext)
-	if err != nil {
-		t.Fatalf("TLSConfigFromCertText: %v", err)
+		t.Fatalf("TLSConfigFromCert: %v", err)
 	}
 	ci := cli.ConnectionInfo{
 		ApiEndpoint: testFeListenAddr,

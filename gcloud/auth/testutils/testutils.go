@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"log"
+	"os"
 
 	"golang.org/x/oauth2"
 
@@ -11,38 +12,29 @@ import (
 	tu "github.com/nyaxt/otaru/testutils"
 )
 
-var testConfigCached *facade.Config
+var CredentialsFilePath = os.Getenv("OTARU_TEST_CREDENTIALS_FILE")
+
+func init() {
+	if CredentialsFilePath == "" {
+		panic("OTARU_TEST_CREDENTIALS_FILE env missing")
+	}
+}
+
+const TestBucketName = "otaru-dev-unittest"
 
 func TestConfig() *facade.Config {
-	if testConfigCached != nil {
-		return testConfigCached
+	return &facade.Config{
+		ProjectName:         "otaru-dev",
+		CredentialsFilePath: CredentialsFilePath,
 	}
-
-	cfg, err := facade.NewConfig(facade.DefaultConfigDir())
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
-
-	testConfigCached = cfg
-	return testConfigCached
 }
 
 func TestTokenSource() oauth2.TokenSource {
-	cfg := TestConfig()
-
-	clisrc, err := auth.GetGCloudTokenSource(cfg.CredentialsFilePath)
+	clisrc, err := auth.GetGCloudTokenSource(CredentialsFilePath)
 	if err != nil {
 		log.Fatalf("Failed to create TestTokenSource: %v", err)
 	}
 	return clisrc
-}
-
-func TestBucketName() string {
-	name := TestConfig().TestBucketName
-	if len(name) == 0 {
-		log.Fatalf("Please specify \"test_bucket_name\" in config.toml to run gcloud tests.")
-	}
-	return name
 }
 
 func TestDSConfig(rootKeyStr string) *datastore.Config {

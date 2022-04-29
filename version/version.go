@@ -3,27 +3,27 @@ package version
 import (
 	"fmt"
 	"runtime"
-	"time"
+	"runtime/debug"
 )
 
-var BuildTime time.Time
-var BuildTimeString string
+var BuildVersion string = "<unknown>"
+var BuildSum string = "<unknown>"
 
 func init() {
-	BuildTime = time.Unix(BUILD_TIME, 0)
-	BuildTimeString = BuildTime.Format("Mon Jan 2 15:04:05 -0700 MST 2006")
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		BuildVersion = bi.Main.Version
+		BuildSum = bi.Main.Sum
+	}
 }
 
 func DumpBuildInfo() string {
 	return fmt.Sprintf(""+
-		"Git commit: %s\n"+
-		"Build host: %s\n"+
-		"Build time: %s\n"+
+		"Version: %s\n"+
+		"Sum: %s\n"+
 		"Go version: %s\n"+
 		"OS/Arch:    %s/%s\n",
-		GIT_COMMIT,
-		BUILD_HOST,
-		BuildTimeString,
+		BuildVersion,
+		BuildSum,
 		runtime.Version(),
 		runtime.GOOS, runtime.GOARCH,
 	)

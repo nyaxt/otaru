@@ -8,8 +8,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"io/ioutil"
-	"os"
-	"path"
 	"testing"
 	"time"
 
@@ -22,19 +20,13 @@ import (
 	"github.com/nyaxt/otaru/otaruapiserver"
 	"github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/testutils/testca"
 )
 
 const testListenAddr = "localhost:30246"
 
-var certFile string
-var keyFile string
-
 func init() {
 	testutils.EnsureLogger()
-
-	otarudir := os.Getenv("OTARUDIR")
-	certFile = path.Join(otarudir, "cert.pem")
-	keyFile = path.Join(otarudir, "cert-key.pem")
 }
 
 type testServer struct {
@@ -75,7 +67,7 @@ func runTestServer(t *testing.T, pubkey *ecdsa.PublicKey) *testServer {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testListenAddr),
-			apiserver.X509KeyPair(certFile, keyFile),
+			apiserver.X509KeyPair(testca.CertPEM, testca.KeyPEM),
 			apiserver.CloseChannel(ts.closeC),
 			apiserver.JWTAuthProvider(jwtauth),
 			otaruapiserver.InstallSystemService(),
@@ -186,8 +178,8 @@ func TestAuth_NoAuth(t *testing.T) {
 	defer ts.Terminate()
 
 	cfg := testCliConfig(&cli.Host{
-		ApiEndpoint:      testListenAddr,
-		ExpectedCertFile: certFile,
+		ApiEndpoint: testListenAddr,
+		CACert:      testca.CACert,
 	})
 
 	t.Run("grpc", func(t *testing.T) {
@@ -229,8 +221,8 @@ func TestAuth_NoToken(t *testing.T) {
 	defer ts.Terminate()
 
 	cfg := testCliConfig(&cli.Host{
-		ApiEndpoint:      testListenAddr,
-		ExpectedCertFile: certFile,
+		ApiEndpoint: testListenAddr,
+		CACert:      testca.CACert,
 	})
 
 	t.Run("grpc", func(t *testing.T) {
@@ -271,9 +263,9 @@ func TestAuth_ValidReadOnlyToken(t *testing.T) {
 	defer ts.Terminate()
 
 	cfg := testCliConfig(&cli.Host{
-		ApiEndpoint:      testListenAddr,
-		ExpectedCertFile: certFile,
-		AuthToken:        jwt_testutils.ReadOnlyToken,
+		ApiEndpoint: testListenAddr,
+		CACert:      testca.CACert,
+		AuthToken:   jwt_testutils.ReadOnlyToken,
 	})
 
 	t.Run("grpc", func(t *testing.T) {
@@ -314,9 +306,9 @@ func TestAuth_AlgNoneToken(t *testing.T) {
 	defer ts.Terminate()
 
 	cfg := testCliConfig(&cli.Host{
-		ApiEndpoint:      testListenAddr,
-		ExpectedCertFile: certFile,
-		AuthToken:        jwt_testutils.AlgNoneToken,
+		ApiEndpoint: testListenAddr,
+		CACert:      testca.CACert,
+		AuthToken:   jwt_testutils.AlgNoneToken,
 	})
 	t.Run("grpc", func(t *testing.T) {
 		ctx := context.Background()

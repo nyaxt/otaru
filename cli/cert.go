@@ -3,37 +3,19 @@ package cli
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 
 	"github.com/nyaxt/otaru/logger"
 )
 
-func TLSConfigFromCertText(certtext []byte) (*tls.Config, error) {
+func TLSConfigFromCert(cert *x509.Certificate) (*tls.Config, error) {
 	cp := x509.NewCertPool()
+	cp.AddCert(cert)
 
-	serverNames := []string{}
-	for len(certtext) > 0 {
-		var block *pem.Block
-		block, certtext = pem.Decode(certtext)
-		if block == nil {
-			break
-		}
-		if block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
-			continue
-		}
-
-		c, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			continue
-		}
-
-		cp.AddCert(c)
-
-		// Subject Alt Name DNSNames are preferred over CommonName, since CommonName is ignored when SAN available.
-		serverNames = append(serverNames, c.DNSNames...)
-		serverNames = append(serverNames, c.Subject.CommonName)
-	}
+	// Subject Alt Name DNSNames are preferred over CommonName, since CommonName is ignored when SAN available.
+	var serverNames []string
+	serverNames = append(serverNames, cert.DNSNames...)
+	serverNames = append(serverNames, cert.Subject.CommonName)
 
 	if len(serverNames) == 0 {
 		return nil, fmt.Errorf("Failed to find any valid server name from given certs.")

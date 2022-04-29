@@ -53,7 +53,6 @@ func (*systemService) GetVersion(ctx context.Context, in *pb.GetVersionRequest) 
 	return &pb.VersionResponse{
 		GitCommit: version.GIT_COMMIT,
 		BuildHost: version.BUILD_HOST,
-		BuildTime: version.BuildTimeString,
 	}, nil
 }
 

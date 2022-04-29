@@ -1,0 +1,15 @@
+---
+# kmgm PKI CA config
+setup:
+  subject:
+    commonName: otaru dev CA
+    organization: ""
+    organizationalUnit: ""
+    country: JP
+    locality: ""
+    province: Tokyo
+    streetAddress: ""
+    postalCode: ""
+  validity: farfuture
+  keyType: ecdsa
+noDefault: true

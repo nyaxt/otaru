@@ -18,7 +18,7 @@ import (
 func testGCSBlobStore(f int) *gcs.GCSBlobStore {
 	bs, err := gcs.NewGCSBlobStore(
 		authtu.TestConfig().ProjectName,
-		authtu.TestBucketName(),
+		authtu.TestBucketName,
 		authtu.TestTokenSource(),
 		f,
 	)

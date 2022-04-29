@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -39,7 +41,35 @@ func QueryConnectionInfo(cfg *CliConfig, vhost string) (*ConnectionInfo, error) 
 
 func connectionInfoFromHost(h *Host) (*ConnectionInfo, error) {
 	var tc *tls.Config
-	if h.ExpectedCertFile != "" {
+
+	if h.CACert == nil && h.CACertFile != "" {
+		certpem, err := ioutil.ReadFile(h.CACertFile)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to read specified CACert file: %s", h.CACertFile)
+		}
+
+		block, _ := pem.Decode(certpem)
+		if block == nil {
+			return nil, fmt.Errorf("Failed to parse specified cert file")
+		}
+
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		h.CACert = cert
+	}
+
+	if h.CACert != nil {
+		cp := x509.NewCertPool()
+		cp.AddCert(h.CACert)
+
+		tc = &tls.Config{RootCAs: cp}
+	} else if h.ExpectedCertFile != "" {
+		// FIXME: This is obsolete non-sense. Remove
+		logger.Infof(Log, "The use of ExpectedCertFile is deprecated!")
+
 		certfile := h.ExpectedCertFile
 		certtext, err := ioutil.ReadFile(certfile)
 		if err != nil {
@@ -47,15 +77,27 @@ func connectionInfoFromHost(h *Host) (*ConnectionInfo, error) {
 		}
 		logger.Debugf(Log, "Expecting server cert to match: %v", certfile)
 
-		tc, err = TLSConfigFromCertText(certtext)
+		block, _ := pem.Decode(certtext)
+		if block == nil {
+			return nil, fmt.Errorf("Failed to parse specified cert file")
+		}
+
+		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
 			return nil, err
 		}
-	} else if h.OverrideServerName != "" {
-		tc = &tls.Config{ServerName: h.OverrideServerName}
+
+		tc, err = TLSConfigFromCert(cert)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		logger.Debugf(Log, "No server cert expectation given for %q.", h.ApiEndpoint)
 		tc = &tls.Config{}
+	}
+
+	if h.OverrideServerName != "" {
+		tc.ServerName = h.OverrideServerName
 	}
 
 	return &ConnectionInfo{

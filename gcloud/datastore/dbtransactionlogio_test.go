@@ -23,7 +23,7 @@ func testDBTransactionIOWithRootKey(rootKeyStr string) *datastore.DBTransactionL
 }
 
 func testDBTransactionIO() *datastore.DBTransactionLogIO {
-	return testDBTransactionIOWithRootKey(authtu.TestBucketName())
+	return testDBTransactionIOWithRootKey(authtu.TestBucketName)
 }
 
 var stableT = time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
@@ -100,8 +100,8 @@ func TestDBTransactionIO_DeleteAll_IsIsolated(t *testing.T) {
 	muTest.Lock()
 	defer muTest.Unlock()
 
-	key1 := authtu.TestBucketName()
-	key2 := authtu.TestBucketName() + "-2"
+	key1 := authtu.TestBucketName
+	key2 := authtu.TestBucketName + "-2"
 
 	txio := testDBTransactionIOWithRootKey(key1)
 	txio2 := testDBTransactionIOWithRootKey(key2)
@@ -189,7 +189,7 @@ func TestDBTransactionIO_ReadOnly(t *testing.T) {
 	muTest.Lock()
 	defer muTest.Unlock()
 
-	rootKeyStr := authtu.TestBucketName()
+	rootKeyStr := authtu.TestBucketName
 	txio := datastore.NewDBTransactionLogIO(authtu.TestDSConfig(rootKeyStr), flags.O_RDONLY)
 
 	err := txio.DeleteAllTransactions()

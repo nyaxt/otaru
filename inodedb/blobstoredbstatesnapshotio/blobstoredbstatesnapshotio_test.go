@@ -15,7 +15,7 @@ import (
 
 func init() { tu.EnsureLogger() }
 
-func testRootKey() string { return authtu.TestBucketName() + "-blobstoredbstatesnapshotio_test" }
+func testRootKey() string { return authtu.TestBucketName + "-blobstoredbstatesnapshotio_test" }
 
 func TestSS_SaveRestore(t *testing.T) {
 	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(testRootKey()), flags.O_RDWRCREATE)

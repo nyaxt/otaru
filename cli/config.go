@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -33,6 +34,9 @@ type Host struct {
 
 	AuthToken     string
 	AuthTokenFile string
+
+	CACert     *x509.Certificate
+	CACertFile string
 }
 
 type FeConfig struct {

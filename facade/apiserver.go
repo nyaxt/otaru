@@ -34,7 +34,7 @@ func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) ([]apiserver.Option,
 
 	options := []apiserver.Option{
 		apiserver.ListenAddr(cfg.ListenAddr),
-		apiserver.X509KeyPair(cfg.CertFile, cfg.KeyFile),
+		apiserver.X509KeyPairPath(cfg.CertFile, cfg.KeyFile),
 		apiserver.CORSAllowedOrigins(cfg.CORSAllowedOrigins),
 		apiserver.SetWebUI(webuifs, "/index.otaru-server.html"),
 		apiserver.SetSwaggerJson(json.Assets, "/otaru.swagger.json"),

@@ -17,7 +17,7 @@ func TestINodeDBSSLocator_PutLocate(t *testing.T) {
 	muTest.Lock()
 	defer muTest.Unlock()
 
-	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(authtu.TestBucketName()), flags.O_RDWRCREATE)
+	loc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(authtu.TestBucketName), flags.O_RDWRCREATE)
 
 	if _, err := loc.DeleteAll(context.Background(), false); err != nil {
 		t.Errorf("DeleteAll failed unexpectedly: %v", err)
@@ -106,7 +106,7 @@ func TestINodeDBSSLocator_ReadOnly(t *testing.T) {
 	defer muTest.Unlock()
 
 	// prep
-	wloc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(authtu.TestBucketName()), flags.O_RDWRCREATE)
+	wloc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(authtu.TestBucketName), flags.O_RDWRCREATE)
 	deleteAll := func() {
 		if _, err := wloc.DeleteAll(context.Background(), false); err != nil {
 			t.Errorf("DeleteAll failed unexpectedly: %v", err)
@@ -121,7 +121,7 @@ func TestINodeDBSSLocator_ReadOnly(t *testing.T) {
 		return
 	}
 
-	rloc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(authtu.TestBucketName()), flags.O_RDONLY)
+	rloc := datastore.NewINodeDBSSLocator(authtu.TestDSConfig(authtu.TestBucketName), flags.O_RDONLY)
 
 	// Locate should succeed
 	bp, txid, err := rloc.Locate(0)

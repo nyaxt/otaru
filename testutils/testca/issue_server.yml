@@ -1,0 +1,12 @@
+---
+issue:
+  subject:
+    commonName: otaru test server
+    organization: otaru
+  subjectAltNames:
+  - localhost
+  validity: farfuture
+  keyType: ecdsa
+  keyUsage:
+    preset: tlsClientServer
+noDefault: true

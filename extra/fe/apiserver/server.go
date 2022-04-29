@@ -37,7 +37,7 @@ func BuildApiServerOptions(cfg *cli.CliConfig) ([]apiserver.Option, error) {
 
 	opts := []apiserver.Option{
 		apiserver.ListenAddr(cfg.Fe.ListenAddr),
-		apiserver.X509KeyPair(cfg.Fe.CertFile, cfg.Fe.KeyFile),
+		apiserver.X509KeyPairPath(cfg.Fe.CertFile, cfg.Fe.KeyFile),
 		apiserver.SetSwaggerJson(json.Assets, "/otaru-fe.swagger.json"),
 		apiserver.SetWebUI(webuifs, "/index.otaru-fe.html"),
 		apiserver.JWTAuthProvider(jwtauth),

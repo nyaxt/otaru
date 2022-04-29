@@ -354,7 +354,6 @@ message GetVersionRequest {
 message VersionResponse {
   string git_commit = 1;
   string build_host = 2;
-  string build_time = 3;
 }
 
 message WhoamiRequest {

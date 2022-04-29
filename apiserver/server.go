@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -41,6 +42,9 @@ type options struct {
 	certFile string
 	keyFile  string
 
+	certBytes []byte
+	keyBytes  []byte
+
 	allowedOrigins []string
 
 	jwtauth *jwt.JWTAuthProvider
@@ -63,7 +67,14 @@ func ListenAddr(listenAddr string) Option {
 	return func(o *options) { o.listenAddr = listenAddr }
 }
 
-func X509KeyPair(certFile, keyFile string) Option {
+func X509KeyPair(certbs, keybs []byte) Option {
+	return func(o *options) {
+		o.certBytes = certbs
+		o.keyBytes = keybs
+	}
+}
+
+func X509KeyPairPath(certFile, keyFile string) Option {
 	return func(o *options) {
 		o.certFile = certFile
 		o.keyFile = keyFile
@@ -141,8 +152,13 @@ func serveSwagger(mux *http.ServeMux) {
 	mux.Handle(prefix, http.StripPrefix(prefix, uisrv))
 }
 
-func serveApiGateway(mux *http.ServeMux, opts *options, certtext []byte) error {
-	tc, err := cli.TLSConfigFromCertText(certtext)
+func serveApiGateway(mux *http.ServeMux, opts *options, tlscert tls.Certificate) error {
+	cert, err := x509.ParseCertificate(tlscert.Certificate[0])
+	if err != nil {
+		return err
+	}
+
+	tc, err := cli.TLSConfigFromCert(cert)
 	if err != nil {
 		return err
 	}
@@ -171,16 +187,25 @@ func Serve(opt ...Option) error {
 		o(&opts)
 	}
 
-	certtext, err := ioutil.ReadFile(opts.certFile)
-	if err != nil {
-		return fmt.Errorf("Failed to load TLS cert file %q: %v", opts.certFile, err)
-	}
-	keytext, err := ioutil.ReadFile(opts.keyFile)
-	if err != nil {
-		return fmt.Errorf("Failed to load TLS key file: %v", err)
+	if opts.certBytes == nil {
+		bs, err := ioutil.ReadFile(opts.certFile)
+		if err != nil {
+			return fmt.Errorf("Failed to load TLS cert file %q: %v", opts.certFile, err)
+		}
+
+		opts.certBytes = bs
 	}
 
-	cert, err := tls.X509KeyPair(certtext, keytext)
+	if opts.keyBytes == nil {
+		bs, err := ioutil.ReadFile(opts.keyFile)
+		if err != nil {
+			return fmt.Errorf("Failed to load TLS key file: %v", err)
+		}
+
+		opts.keyBytes = bs
+	}
+
+	cert, err := tls.X509KeyPair(opts.certBytes, opts.keyBytes)
 	if err != nil {
 		return fmt.Errorf("Failed to create X509KeyPair: %v", err)
 	}
@@ -214,7 +239,7 @@ func Serve(opt ...Option) error {
 		w.Write([]byte("ok\n"))
 	})
 	mux.Handle("/metrics", promhttp.Handler())
-	if err := serveApiGateway(mux, &opts, certtext); err != nil {
+	if err := serveApiGateway(mux, &opts, cert); err != nil {
 		return err
 	}
 	for _, hook := range opts.muxhooks {

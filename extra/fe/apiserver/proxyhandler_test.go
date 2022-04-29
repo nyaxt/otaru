@@ -6,8 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
-	"path"
 	"testing"
 	"time"
 
@@ -16,6 +14,7 @@ import (
 	"github.com/nyaxt/otaru/cli"
 	feapiserver "github.com/nyaxt/otaru/extra/fe/apiserver"
 	"github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/testutils/testca"
 )
 
 const (
@@ -23,15 +22,8 @@ const (
 	testFeListenAddr = "localhost:20249"
 )
 
-var certFile string
-var keyFile string
-
 func init() {
 	testutils.EnsureLogger()
-
-	otarudir := os.Getenv("OTARUDIR")
-	certFile = path.Join(otarudir, "cert.pem")
-	keyFile = path.Join(otarudir, "cert-key.pem")
 }
 
 type mockRequest struct {
@@ -57,7 +49,7 @@ func runMockBackend() *mockBackend {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testBeListenAddr),
-			apiserver.X509KeyPair(certFile, keyFile),
+			apiserver.X509KeyPair(testca.CertPEM, testca.KeyPEM),
 			apiserver.JWTAuthProvider(jwt_testutils.JWTAuthProvider),
 			apiserver.CloseChannel(m.closeC),
 			apiserver.AddMuxHook(func(mux *http.ServeMux) {
@@ -102,8 +94,8 @@ func TestProxyHandler(t *testing.T) {
 	cfg := &cli.CliConfig{
 		Host: map[string]*cli.Host{
 			"hostfoo": &cli.Host{
-				ApiEndpoint:      testBeListenAddr,
-				ExpectedCertFile: certFile,
+				ApiEndpoint: testBeListenAddr,
+				CACert:      testca.CACert,
 			},
 		},
 	}
@@ -115,7 +107,7 @@ func TestProxyHandler(t *testing.T) {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testFeListenAddr),
-			apiserver.X509KeyPair(certFile, keyFile),
+			apiserver.X509KeyPair(testca.CertPEM, testca.KeyPEM),
 			apiserver.CloseChannel(closeC),
 			apiserver.JWTAuthProvider(jwt_testutils.JWTAuthProvider),
 			feapiserver.InstallProxyHandler(cfg, jwt_testutils.JWTAuthProvider),
@@ -133,11 +125,7 @@ func TestProxyHandler(t *testing.T) {
 	// FIXME: wait until Serve to actually start accepting conns
 	time.Sleep(100 * time.Millisecond)
 
-	c, err := testutils.TLSHTTPClient(certFile)
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
+	c := testca.TLSHTTPClient
 
 	t.Run("Unauth_Get", func(t *testing.T) {
 		resp, err := c.Get("https://" + testFeListenAddr + "/proxy/hostfoo/a/b/c?query=param&foo=bar")

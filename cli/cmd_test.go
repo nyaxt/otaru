@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/otaruapiserver"
 	tu "github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/testutils/testca"
 )
 
 const testListenAddr = "localhost:20247"
@@ -26,14 +26,12 @@ var testdir string
 func TestMain(m *testing.M) {
 	tu.EnsureLogger()
 
-	otarudir := os.Getenv("OTARUDIR")
-	certFile := path.Join(otarudir, "cert.pem")
 	cfg = &cli.CliConfig{
 		Host: map[string]*cli.Host{
 			"default": &cli.Host{
-				ApiEndpoint:      testListenAddr,
-				ExpectedCertFile: certFile,
-				AuthToken:        jwt_testutils.AdminToken,
+				ApiEndpoint: testListenAddr,
+				CACert:      testca.CACert,
+				AuthToken:   jwt_testutils.AdminToken,
 			},
 		},
 	}
@@ -58,16 +56,12 @@ func withApiServer(t *testing.T, f func()) {
 
 	fs := tu.TestFileSystem()
 
-	otarudir := os.Getenv("OTARUDIR")
-	certFile := path.Join(otarudir, "cert.pem")
-	keyFile := path.Join(otarudir, "cert-key.pem")
-
 	closeC := make(chan struct{})
 	joinC := make(chan struct{})
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testListenAddr),
-			apiserver.X509KeyPair(certFile, keyFile),
+			apiserver.X509KeyPair(testca.CertPEM, testca.KeyPEM),
 			apiserver.JWTAuthProvider(jwt_testutils.JWTAuthProvider),
 			otaruapiserver.InstallFileSystemService(fs),
 			otaruapiserver.InstallFileHandler(fs, jwt_testutils.JWTAuthProvider),
