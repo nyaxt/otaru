@@ -13,10 +13,16 @@ jobs:
         go-version: '>= 1.18'
     - name: Checkout code
       uses: actions/checkout@v2
+    - name: Unpack test GCP service account
+      env:
+        OTARU_GITHUB_CI: ${{ secrets.OTARU_GITHUB_CI }}
+      run: |
+        echo -n $OTARU_GITHUB_CI | base64 -d > /tmp/otaru-github-ci.json
     - name: Test
       run: go test ./...
       env:
         SKIP_FUSE_TEST: "1"
+        GOOGLE_APPLICATION_CREDENTIALS: "/tmp/otaru-github-ci.json"
   release_docker:
     needs: [unit_tests]
     if: contains(github.ref, 'tags/v')
