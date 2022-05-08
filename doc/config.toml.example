@@ -60,11 +60,3 @@ cache_low_watermark = "18GB"
 
 # - Log levels at startup. The log levels can be dynamically configured via webui.
 log_level = {"*" = "Debug", "bfuse" = "Info", "scheduler" = "Info"}
-
-# Fluentd log forwarder config
-[fluent]
-# - Target fluentd hostname. Fluentd log forwarder enabled if this is non-empty
-# fluent_host = "localhost"
-
-# - Target fluentd port (default 24224)
-# fluent_port = 24224

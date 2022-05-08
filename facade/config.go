@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 
 	"github.com/dustin/go-humanize"
-	gfluent "github.com/fluent/fluent-logger-golang/fluent"
 	"github.com/naoina/toml"
 
 	"github.com/nyaxt/otaru/logger"
@@ -46,7 +45,6 @@ type Config struct {
 	// Run GC every "GCPeriod" seconds.
 	GCPeriod int64 `toml:"gc_period"`
 
-	Fluent    gfluent.Config
 	Logger    loggerconfig.Config
 	ApiServer ApiServerConfig
 }
@@ -220,11 +218,6 @@ func NewConfig(configdir string) (*Config, error) {
 	); err != nil {
 		return nil, err
 	}
-
-	if cfg.Fluent.TagPrefix == "" {
-		cfg.Fluent.TagPrefix = "otaru"
-	}
-	cfg.Fluent.MaxRetry = math.MaxInt32
 
 	if err := loggerconfig.Apply(mylog, cfg.Logger); err != nil {
 		return nil, err

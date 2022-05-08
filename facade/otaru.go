@@ -120,10 +120,6 @@ func Serve(ctx context.Context, cfg *Config) error {
 	o := &Otaru{}
 	defer o.Close()
 
-	if err := SetupFluentLogger(cfg); err != nil {
-		return fmt.Errorf("Failed to setup fluentd logger: %v", err)
-	}
-
 	o.ReadOnly = cfg.ReadOnly
 
 	flags := oflags.O_RDWRCREATE
