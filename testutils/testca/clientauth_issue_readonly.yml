@@ -1,0 +1,9 @@
+---
+issue:
+  subject:
+    commonName: readonly bob
+  validity: farfuture
+  keyType: ecdsa
+  keyUsage:
+    preset: tlsClient
+noDefault: true

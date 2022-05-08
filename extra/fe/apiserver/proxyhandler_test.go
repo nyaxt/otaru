@@ -2,7 +2,8 @@ package apiserver_test
 
 import (
 	"bytes"
-	"fmt"
+	"crypto/tls"
+	"crypto/x509"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -10,7 +11,6 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru/apiserver"
-	"github.com/nyaxt/otaru/apiserver/jwt/jwt_testutils"
 	"github.com/nyaxt/otaru/cli"
 	feapiserver "github.com/nyaxt/otaru/extra/fe/apiserver"
 	"github.com/nyaxt/otaru/testutils"
@@ -49,8 +49,8 @@ func runMockBackend() *mockBackend {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testBeListenAddr),
-			apiserver.X509KeyPair(testca.CertPEM, testca.KeyPEM),
-			apiserver.JWTAuthProvider(jwt_testutils.JWTAuthProvider),
+			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
+			apiserver.ClientCACert(testca.ClientAuthCACert),
 			apiserver.CloseChannel(m.closeC),
 			apiserver.AddMuxHook(func(mux *http.ServeMux) {
 				mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -90,12 +90,19 @@ func (m *mockBackend) Terminate() {
 	<-m.joinC
 }
 
+const (
+	basicuser     = "proxyuser"
+	basicpassword = "proxypassword"
+)
+
 func TestProxyHandler(t *testing.T) {
 	cfg := &cli.CliConfig{
 		Host: map[string]*cli.Host{
-			"hostfoo": &cli.Host{
+			"hostfoo": {
 				ApiEndpoint: testBeListenAddr,
 				CACert:      testca.CACert,
+				Cert:        testca.ClientAuthAdminCert,
+				Key:         testca.ClientAuthAdminKey.Parsed,
 			},
 		},
 	}
@@ -107,10 +114,9 @@ func TestProxyHandler(t *testing.T) {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testFeListenAddr),
-			apiserver.X509KeyPair(testca.CertPEM, testca.KeyPEM),
+			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
 			apiserver.CloseChannel(closeC),
-			apiserver.JWTAuthProvider(jwt_testutils.JWTAuthProvider),
-			feapiserver.InstallProxyHandler(cfg, jwt_testutils.JWTAuthProvider),
+			feapiserver.InstallProxyHandler(cfg, basicuser, basicpassword),
 		); err != nil {
 			t.Errorf("Serve failed: %v", err)
 		}
@@ -125,36 +131,22 @@ func TestProxyHandler(t *testing.T) {
 	// FIXME: wait until Serve to actually start accepting conns
 	time.Sleep(100 * time.Millisecond)
 
-	c := testca.TLSHTTPClient
-
-	t.Run("Unauth_Get", func(t *testing.T) {
-		resp, err := c.Get("https://" + testFeListenAddr + "/proxy/hostfoo/a/b/c?query=param&foo=bar")
-		if err != nil {
-			t.Errorf("http.Get: %v", err)
-			return
-		}
-		if resp.StatusCode != http.StatusUnauthorized {
-			t.Errorf("Unexpected status code: %v", resp.Status)
-		}
-
-		if _, err = ioutil.ReadAll(resp.Body); err != nil {
-			t.Errorf("ReadAll(http.Get resp.Body): %v", err)
-			return
-		}
-		resp.Body.Close()
-
-		reqs := m.PopReqs()
-		if len(reqs) != 0 {
-			t.Fatalf("lem(reqs) %d", len(reqs))
-		}
-	})
+	cp := x509.NewCertPool()
+	cp.AddCert(testca.CACert)
+	c := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: cp,
+			},
+		},
+	}
 
 	t.Run("Get", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodGet, "https://"+testFeListenAddr+"/proxy/hostfoo/a/b/c?query=param&foo=bar", nil)
 		if err != nil {
 			t.Fatalf("http.NewRequest: %v", err)
 		}
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", jwt_testutils.ReadOnlyToken))
+		req.SetBasicAuth(basicuser, basicpassword)
 
 		resp, err := c.Do(req)
 		if err != nil {
@@ -192,8 +184,8 @@ func TestProxyHandler(t *testing.T) {
 		if err != nil {
 			t.Fatalf("http.NewRequest: %v", err)
 		}
+		req.SetBasicAuth(basicuser, basicpassword)
 		req.Header.Set("Content-Type", "text/plain")
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", jwt_testutils.ReadOnlyToken))
 
 		resp, err := c.Do(req)
 		if err != nil {

@@ -1,10 +1,10 @@
 package apiserver
 
 import (
+	"crypto"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"strings"
@@ -39,15 +39,12 @@ type MuxHook func(mux *http.ServeMux)
 type options struct {
 	listenAddr string
 
-	certFile string
-	keyFile  string
+	cert *x509.Certificate
+	key  crypto.PrivateKey
 
-	certBytes []byte
-	keyBytes  []byte
+	clientCACert *x509.Certificate
 
 	allowedOrigins []string
-
-	jwtauth *jwt.JWTAuthProvider
 
 	serviceRegistry []serviceRegistryEntry
 	accesslogger    logger.Logger
@@ -58,7 +55,6 @@ type options struct {
 var defaultOptions = options{
 	serviceRegistry: []serviceRegistryEntry{},
 	accesslogger:    logger.Registry().Category("http-apiserver"),
-	jwtauth:         jwt.NoJWTAuth,
 }
 
 type Option func(*options)
@@ -67,17 +63,16 @@ func ListenAddr(listenAddr string) Option {
 	return func(o *options) { o.listenAddr = listenAddr }
 }
 
-func X509KeyPair(certbs, keybs []byte) Option {
+func TLSCertKey(cert *x509.Certificate, key crypto.PrivateKey) Option {
 	return func(o *options) {
-		o.certBytes = certbs
-		o.keyBytes = keybs
+		o.cert = cert
+		o.key = key
 	}
 }
 
-func X509KeyPairPath(certFile, keyFile string) Option {
+func ClientCACert(cert *x509.Certificate) Option {
 	return func(o *options) {
-		o.certFile = certFile
-		o.keyFile = keyFile
+		o.clientCACert = cert
 	}
 }
 
@@ -113,12 +108,6 @@ func CORSAllowedOrigins(allowedOrigins []string) Option {
 	return func(o *options) { o.allowedOrigins = allowedOrigins }
 }
 
-func JWTAuthProvider(jwtauth *jwt.JWTAuthProvider) Option {
-	return func(o *options) {
-		o.jwtauth = jwtauth
-	}
-}
-
 func RegisterService(
 	registerServiceServer func(*grpc.Server),
 	registerProxy func(ctx context.Context, mux *gwruntime.ServeMux, endpoint string, opts []grpc.DialOption) error,
@@ -152,16 +141,18 @@ func serveSwagger(mux *http.ServeMux) {
 	mux.Handle(prefix, http.StripPrefix(prefix, uisrv))
 }
 
-func serveApiGateway(mux *http.ServeMux, opts *options, tlscert tls.Certificate) error {
-	cert, err := x509.ParseCertificate(tlscert.Certificate[0])
-	if err != nil {
-		return err
-	}
+func serveApiGateway(mux *http.ServeMux, opts *options) error {
+	// FIXME: impersonate
 
-	tc, err := cli.TLSConfigFromCert(cert)
+	tc, err := cli.TLSConfigFromCert(opts.cert)
 	if err != nil {
 		return err
 	}
+	tc.Certificates = []tls.Certificate{{
+		Certificate: [][]byte{opts.cert.Raw},
+		PrivateKey:  opts.key,
+	}}
+
 	cred := credentials.NewTLS(tc)
 	gwdialopts := []grpc.DialOption{grpc.WithTransportCredentials(cred)}
 
@@ -187,39 +178,24 @@ func Serve(opt ...Option) error {
 		o(&opts)
 	}
 
-	if opts.certBytes == nil {
-		bs, err := ioutil.ReadFile(opts.certFile)
-		if err != nil {
-			return fmt.Errorf("Failed to load TLS cert file %q: %v", opts.certFile, err)
-		}
-
-		opts.certBytes = bs
+	cert := &tls.Certificate{
+		Certificate: [][]byte{opts.cert.Raw},
+		PrivateKey:  opts.key,
 	}
+	grpcCredentials := credentials.NewServerTLSFromCert(cert)
 
-	if opts.keyBytes == nil {
-		bs, err := ioutil.ReadFile(opts.keyFile)
-		if err != nil {
-			return fmt.Errorf("Failed to load TLS key file: %v", err)
-		}
-
-		opts.keyBytes = bs
-	}
-
-	cert, err := tls.X509KeyPair(opts.certBytes, opts.keyBytes)
-	if err != nil {
-		return fmt.Errorf("Failed to create X509KeyPair: %v", err)
-	}
-	grpcCredentials := credentials.NewServerTLSFromCert(&cert)
-
-	if opts.jwtauth == jwt.NoJWTAuth {
-		logger.Infof(mylog, "Authentication is disabled. Any request to the server will treated as if it were from role \"admin\".")
+	var clientAuthEnabled bool
+	if opts.clientCACert != nil {
+		logger.Infof(mylog, "Client certificate authentication is enabled.")
+		clientAuthEnabled = true
 	} else {
-		logger.Infof(mylog, "Authentication is enabled.")
+		logger.Infof(mylog, "Client certificate authentication is disabled. Any request to the server will treated as if it were from role \"admin\".")
+		clientAuthEnabled = false
 	}
 
 	uics := []grpc.UnaryServerInterceptor{
 		grpc_prometheus.UnaryServerInterceptor,
-		opts.jwtauth.UnaryServerInterceptor(),
+		jwt.JWTAuthProvider{Disabled: !clientAuthEnabled}.UnaryServerInterceptor(),
 		grpc_ctxtags.UnaryServerInterceptor(
 			grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.TagBasedRequestFieldExtractor("log_fields")),
 		),
@@ -236,10 +212,10 @@ func Serve(opt ...Option) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte("ok\n"))
+		_, _ = w.Write([]byte("ok\n"))
 	})
 	mux.Handle("/metrics", promhttp.Handler())
-	if err := serveApiGateway(mux, &opts, cert); err != nil {
+	if err := serveApiGateway(mux, &opts); err != nil {
 		return err
 	}
 	for _, hook := range opts.muxhooks {
@@ -263,12 +239,25 @@ func Serve(opt ...Option) error {
 	}
 
 	httpHandler := logger.HttpHandler(opts.accesslogger, logger.Info, c.Handler(mux))
+	cliauthtype := tls.NoClientCert
+	var clicp *x509.CertPool
+	if clientAuthEnabled {
+		//cliauthtype = tls.VerifyClientCertIfGiven
+		cliauthtype = tls.RequireAndVerifyClientCert
+
+		clicp = x509.NewCertPool()
+		clicp.AddCert(opts.clientCACert)
+		// clicp.AddCert(opts.cert)
+	}
+
 	httpServer := &http.Server{
 		Addr:    opts.listenAddr,
 		Handler: grpcHttpMux(grpcServer, httpHandler),
 		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{cert},
+			Certificates: []tls.Certificate{*cert},
 			NextProtos:   []string{"h2"},
+			ClientAuth:   cliauthtype,
+			ClientCAs:    clicp,
 		},
 	}
 

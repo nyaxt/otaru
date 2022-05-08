@@ -1,6 +1,8 @@
 package facade
 
 import (
+	"crypto"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -15,6 +17,7 @@ import (
 	"github.com/nyaxt/otaru/logger"
 	loggerconfig "github.com/nyaxt/otaru/logger/config"
 	"github.com/nyaxt/otaru/util"
+	"github.com/nyaxt/otaru/util/readpem"
 )
 
 type Config struct {
@@ -55,12 +58,15 @@ type ApiServerConfig struct {
 	// Install debug handlers if enabled.
 	EnableDebug bool
 
-	WebUIRootPath      string `toml:"webui_root_path"`
-	CertFile           string
-	KeyFile            string
-	CORSAllowedOrigins []string `toml:"cors_allowed_origins"`
+	Cert             *x509.Certificate
+	CertFile         string
+	Key              crypto.PrivateKey
+	KeyFile          string
+	ClientCACert     *x509.Certificate
+	ClientCACertFile string
 
-	JwtPubkeyFile string
+	WebUIRootPath      string   `toml:"webui_root_path"`
+	CORSAllowedOrigins []string `toml:"cors_allowed_origins"`
 }
 
 func DefaultConfigDir() string {
@@ -115,10 +121,11 @@ func NewConfig(configdir string) (*Config, error) {
 		CacheLowWatermarkInBytes:     math.MaxInt64,
 		GCPeriod:                     15 * 60,
 		ApiServer: ApiServerConfig{
-			ListenAddr:  ":10246",
-			EnableDebug: false,
-			CertFile:    path.Join(configdir, "cert.pem"),
-			KeyFile:     path.Join(configdir, "cert-key.pem"),
+			ListenAddr:       ":10246",
+			EnableDebug:      false,
+			CertFile:         path.Join(configdir, "cert.pem"),
+			KeyFile:          path.Join(configdir, "cert-key.pem"),
+			ClientCACertFile: path.Join(configdir, "clientauth-ca.pem"),
 		},
 	}
 
@@ -192,9 +199,27 @@ func NewConfig(configdir string) (*Config, error) {
 		}
 	}
 
-	cfg.ApiServer.CertFile = os.ExpandEnv(cfg.ApiServer.CertFile)
-	cfg.ApiServer.KeyFile = os.ExpandEnv(cfg.ApiServer.KeyFile)
-	cfg.ApiServer.JwtPubkeyFile = os.ExpandEnv(cfg.ApiServer.JwtPubkeyFile)
+	if err := readpem.ReadCertificateFile(
+		"ApiServer.Cert",
+		cfg.ApiServer.CertFile,
+		&cfg.ApiServer.Cert,
+	); err != nil {
+		return nil, err
+	}
+	if err := readpem.ReadKeyFile(
+		"ApiServer.Key",
+		cfg.ApiServer.KeyFile,
+		&cfg.ApiServer.Key,
+	); err != nil {
+		return nil, err
+	}
+	if err := readpem.ReadCertificateFile(
+		"ApiServer.ClientCACert",
+		cfg.ApiServer.ClientCACertFile,
+		&cfg.ApiServer.ClientCACert,
+	); err != nil {
+		return nil, err
+	}
 
 	if cfg.Fluent.TagPrefix == "" {
 		cfg.Fluent.TagPrefix = "otaru"

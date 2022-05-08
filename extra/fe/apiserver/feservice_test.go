@@ -3,6 +3,7 @@ package apiserver_test
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru/apiserver"
-	"github.com/nyaxt/otaru/apiserver/jwt"
 	"github.com/nyaxt/otaru/cli"
 	opath "github.com/nyaxt/otaru/cli/path"
 	feapiserver "github.com/nyaxt/otaru/extra/fe/apiserver"
@@ -37,15 +37,15 @@ func runMockFsBackend() *mockFsBackend {
 		joinC:  make(chan struct{}),
 		fs:     fs,
 	}
-	jwtauth := jwt.NoJWTAuth
 
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testBeListenAddr),
-			apiserver.X509KeyPair(testca.CertPEM, testca.KeyPEM),
+			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
+			apiserver.ClientCACert(testca.ClientAuthCACert),
 			apiserver.CloseChannel(m.closeC),
 			otaruapiserver.InstallFileSystemService(fs),
-			otaruapiserver.InstallFileHandler(fs, jwtauth),
+			otaruapiserver.InstallFileHandler(fs),
 		); err != nil {
 			panic(err)
 		}
@@ -110,6 +110,8 @@ func TestFeService(t *testing.T) {
 			"hostfoo": {
 				ApiEndpoint: testBeListenAddr,
 				CACert:      testca.CACert,
+				Cert:        testca.ClientAuthAdminCert,
+				Key:         testca.ClientAuthAdminKey.Parsed,
 			},
 		},
 		LocalRootPath: rootPath,
@@ -123,7 +125,8 @@ func TestFeService(t *testing.T) {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testFeListenAddr),
-			apiserver.X509KeyPair(testca.CertPEM, testca.KeyPEM),
+			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
+			apiserver.ClientCACert(testca.ClientAuthCACert),
 			apiserver.CloseChannel(closeC),
 			feapiserver.InstallFeService(cfg),
 		); err != nil {
@@ -139,6 +142,10 @@ func TestFeService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TLSConfigFromCert: %v", err)
 	}
+	tc.Certificates = []tls.Certificate{{
+		Certificate: [][]byte{testca.ClientAuthAdminCert.Raw},
+		PrivateKey:  testca.ClientAuthAdminKey.Parsed,
+	}}
 	ci := cli.ConnectionInfo{
 		ApiEndpoint: testFeListenAddr,
 		TLSConfig:   tc,

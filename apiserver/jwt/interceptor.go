@@ -2,21 +2,16 @@ package jwt
 
 import (
 	"context"
-	"crypto/ecdsa"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
-	"fmt"
-	"io/ioutil"
 	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
-	jwt "gopkg.in/dgrijalva/jwt-go.v3"
-
-	"github.com/nyaxt/otaru/logger"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/peer"
 )
-
-var mylog = logger.Registry().Category("jwt")
 
 const (
 	AuthorizationKey = "authorization"
@@ -24,147 +19,65 @@ const (
 )
 
 type JWTAuthProvider struct {
-	pubkey *ecdsa.PublicKey
+	Disabled bool
 }
 
-var NoJWTAuth = &JWTAuthProvider{pubkey: nil}
+func UserInfoFromClientCert(cert *x509.Certificate) UserInfo {
+	cn := cert.Subject.CommonName
 
-func NewJWTAuthProvider(pubkey *ecdsa.PublicKey) *JWTAuthProvider {
-	if pubkey == nil {
-		panic("Valid pubkey must be provided!")
+	a := strings.SplitN(cn, " ", 2)
+	rolestr := a[0]
+	user := rolestr
+	if len(a) > 1 {
+		user = a[1]
 	}
-	return &JWTAuthProvider{pubkey: pubkey}
+
+	return UserInfo{Role: RoleFromStr(rolestr), User: user}
 }
 
-func NewJWTAuthProviderFromFile(path string) (*JWTAuthProvider, error) {
-	var pk *ecdsa.PublicKey
-	if path != "" {
-		keytext, err := ioutil.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to load ECDSA public key file %q: %v", path, err)
-		}
+var ErrZeroVerifiedChains = errors.New("JWTAuthProvider could not find a client cert.")
+var ErrZeroVerifiedChains2 = errors.New("JWTAuthProvider requires len(VerifiedChains[0]) > 0.")
 
-		pk, err = jwt.ParseECPublicKeyFromPEM(keytext)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to parse ECDSA public key %q: %v", path, err)
-		}
+func UserInfoFromTLSConnectionState(tcs *tls.ConnectionState) (UserInfo, error) {
+	vcs := tcs.VerifiedChains
+	if len(vcs) == 0 {
+		return AnonymousUserInfo, ErrZeroVerifiedChains
+	}
+	vc := vcs[0]
+	if len(vc) == 0 {
+		return AnonymousUserInfo, ErrZeroVerifiedChains2
 	}
 
-	return NewJWTAuthProvider(pk), nil
+	return UserInfoFromClientCert(vc[0]), nil
 }
 
-func TokenStringFromAuthHeader(auth string) (string, error) {
-	if auth == "" {
-		return "", nil
-	}
-	if !strings.HasPrefix(auth, BearerPrefix) {
-		return "", errors.New("Unsupported authroization type.")
-	}
-	return auth[len(BearerPrefix):], nil
-}
-
-func (p *JWTAuthProvider) IsEnabled() bool {
-	return p.pubkey != nil
-}
-
-func (p *JWTAuthProvider) UserInfoFromTokenString(tokenString string) (*UserInfo, error) {
-	if !p.IsEnabled() {
-		panic("NoJWTAuth cannot extract UserInfoFromTokenString.")
-	}
-
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
-
-		return p.pubkey, nil
-	})
-	if err != nil {
-		return nil, errors.New("Failed to parse jwt token")
-	}
-
-	claims, ok := token.Claims.(*Claims)
-	if !ok || !token.Valid {
-		return nil, errors.New("Failed to validate jwt token")
-	}
-
-	if !claims.VerifyAudience(OtaruAudience, true) {
-		return nil, errors.New("Failed to validate jwt token audience.")
-	}
-
-	if claims.NotBefore == 0 {
-		return nil, errors.New("The jwt token is missing \"nbf\" claim.")
-	}
-	if claims.ExpiresAt == 0 {
-		return nil, errors.New("The jwt token is missing \"exp\" claim.")
-	}
-	if err := claims.Valid(); err != nil {
-		return nil, errors.New("The jwt token is not valid at this time.")
-	}
-
-	if claims.Subject == "" {
-		return nil, errors.New("The jwt token is missing \"sub\" claim.")
-	}
-
-	ui, err := NewUserInfo(claims.Role, claims.Subject)
-	if err != nil {
-		return nil, err
-	}
-	return ui, nil
-}
-
-type jwtTokenKey struct{}
-
-func ContextWithJWTTokenString(ctx context.Context, tokenstr string) context.Context {
-	return context.WithValue(ctx, jwtTokenKey{}, tokenstr)
-}
-
-func JWTTokenStringFromContext(ctx context.Context) string {
-	tokenstr, ok := ctx.Value(jwtTokenKey{}).(string)
-	if !ok {
-		return ""
-	}
-	return tokenstr
-}
-
-func (p *JWTAuthProvider) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	if !p.IsEnabled() {
+func (p JWTAuthProvider) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
+	if p.Disabled {
 		return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 			ctx = ContextWithUserInfo(ctx, NoauthUserInfo)
-			resp, err := handler(ctx, req)
-			return resp, err
+			return handler(ctx, req)
 		}
 	}
 
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		md, ok := metadata.FromIncomingContext(ctx)
+		p, ok := peer.FromContext(ctx)
 		if !ok {
-			return nil, grpc.Errorf(codes.Unauthenticated, "JwtInterceptor requires metadata.")
+			return nil, grpc.Errorf(codes.Unauthenticated, "JWTAuthProvider requires metadata.")
+		}
+		if p.AuthInfo == nil {
+			return nil, grpc.Errorf(codes.Unauthenticated, "JWTAuthProvider requires grpc Peer with AuthInfo.")
+		}
+		ti, ok := p.AuthInfo.(credentials.TLSInfo)
+		if !ok {
+			return nil, grpc.Errorf(codes.Unauthenticated, "JWTAuthProvider requires grpc Peer with credentails.TLSInfo.")
 		}
 
-		auths := md.Get(AuthorizationKey)
-		if len(auths) == 0 {
-			// ctx not modified
-		} else {
-			if len(auths) != 1 {
-				return nil, grpc.Errorf(codes.Unauthenticated, "Invalid number of authorization values.")
-			}
-
-			tokenstr, err := TokenStringFromAuthHeader(auths[0])
-			if err != nil {
-				return nil, grpc.Errorf(codes.Unauthenticated, "%v", err)
-			}
-
-			ui, err := p.UserInfoFromTokenString(tokenstr)
-			if err != nil {
-				return nil, grpc.Errorf(codes.Unauthenticated, "%v", err)
-			}
-
-			ctx = ContextWithJWTTokenString(ctx, tokenstr)
-			ctx = ContextWithUserInfo(ctx, ui)
+		ui, err := UserInfoFromTLSConnectionState(&ti.State)
+		if err != nil {
+			return nil, grpc.Errorf(codes.Unauthenticated, "%v", err)
 		}
 
-		resp, err := handler(ctx, req)
-		return resp, err
+		ctx = ContextWithUserInfo(ctx, ui)
+		return handler(ctx, req)
 	}
 }

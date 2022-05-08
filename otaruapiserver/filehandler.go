@@ -21,8 +21,7 @@ import (
 )
 
 type fileHandler struct {
-	fs      *filesystem.FileSystem
-	jwtauth *jwt.JWTAuthProvider
+	fs *filesystem.FileSystem
 }
 
 type content struct {
@@ -61,23 +60,10 @@ func (c *content) Seek(offset int64, whence int) (int64, error) {
 	return c.offset, nil
 }
 
-func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, id inodedb.ID, filename string) {
-	if fh.jwtauth.IsEnabled() {
-		auth := r.Header.Get("Authorization")
-		tokenstr, err := jwt.TokenStringFromAuthHeader(auth)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
-			return
-		}
-		ui, err := fh.jwtauth.UserInfoFromTokenString(tokenstr)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
-			return
-		}
-		if ui.Role < jwt.RoleReadOnly {
-			http.Error(w, "", http.StatusForbidden)
-			return
-		}
+func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, ui jwt.UserInfo, id inodedb.ID, filename string) {
+	if ui.Role < jwt.RoleReadOnly {
+		http.Error(w, "", http.StatusForbidden)
+		return
 	}
 
 	h, err := fh.fs.OpenFile(id, flags.O_RDONLY)
@@ -114,23 +100,10 @@ func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, id inode
 	http.ServeContent(w, r, filename, a.ModifiedT, c)
 }
 
-func (fh *fileHandler) servePut(w http.ResponseWriter, r *http.Request, id inodedb.ID, filename string) {
-	if fh.jwtauth.IsEnabled() {
-		auth := r.Header.Get("Authorization")
-		tokenstr, err := jwt.TokenStringFromAuthHeader(auth)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
-			return
-		}
-		ui, err := fh.jwtauth.UserInfoFromTokenString(tokenstr)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
-			return
-		}
-		if ui.Role < jwt.RoleAdmin {
-			http.Error(w, "", http.StatusForbidden)
-			return
-		}
+func (fh *fileHandler) servePut(w http.ResponseWriter, r *http.Request, ui jwt.UserInfo, id inodedb.ID, filename string) {
+	if ui.Role < jwt.RoleAdmin {
+		http.Error(w, "", http.StatusForbidden)
+		return
 	}
 
 	h, err := fh.fs.OpenFile(id, flags.O_WRONLY)
@@ -159,6 +132,14 @@ func (fh *fileHandler) servePut(w http.ResponseWriter, r *http.Request, id inode
 }
 
 func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	tlsui, err := jwt.UserInfoFromTLSConnectionState(r.TLS)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	ui := tlsui
+	logger.Debugf(mylog, "ui: %+v", ui)
+
 	// path: /inodeid/filename
 	args := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
 
@@ -180,18 +161,20 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "GET" || r.Method == "HEAD" {
-		fh.serveGet(w, r, id, filename)
+		fh.serveGet(w, r, ui, id, filename)
 	} else if r.Method == "PUT" {
-		fh.servePut(w, r, id, filename)
+		fh.servePut(w, r, ui, id, filename)
 	} else {
 		http.Error(w, "Unsupported method", http.StatusBadRequest)
 		return
 	}
 }
 
-func InstallFileHandler(fs *filesystem.FileSystem, jwtauth *jwt.JWTAuthProvider) apiserver.Option {
+func InstallFileHandler(fs *filesystem.FileSystem) apiserver.Option {
 	return apiserver.AddMuxHook(func(mux *http.ServeMux) {
 		filePrefix := "/file/"
-		mux.Handle(filePrefix, http.StripPrefix(filePrefix, &fileHandler{fs, jwtauth}))
+		mux.Handle(filePrefix, http.StripPrefix(filePrefix, &fileHandler{
+			fs: fs,
+		}))
 	})
 }

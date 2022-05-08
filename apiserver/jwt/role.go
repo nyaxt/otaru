@@ -1,16 +1,5 @@
 package jwt
 
-import (
-	jwt "gopkg.in/dgrijalva/jwt-go.v3"
-)
-
-const OtaruAudience = "otaru"
-
-type Claims struct {
-	Role string `json:"role"`
-	jwt.StandardClaims
-}
-
 type Role int
 
 const (
@@ -34,6 +23,13 @@ var roleToStr = map[Role]string{
 func IsValidRoleStr(s string) bool {
 	_, ok := strToRole[s]
 	return ok
+}
+
+func RoleFromStr(s string) Role {
+	if r, ok := strToRole[s]; ok {
+		return r
+	}
+	return RoleAnonymous
 }
 
 func (r Role) String() string {

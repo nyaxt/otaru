@@ -50,16 +50,13 @@ func newReaderHttp(cinfo *ConnectionInfo, id uint64) (Reader, error) {
 		},
 		URL: url,
 	}
-	if cinfo.AuthToken != "" {
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", cinfo.AuthToken))
-	}
 	resp, err := cli.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to issue Http GET request: %v", err)
 	}
 	if resp.StatusCode != 200 {
 		resp.Body.Close()
-		return nil, fmt.Errorf("server responded w/ status code %d", resp.StatusCode)
+		return nil, fmt.Errorf("server responded w/ status code %d: %s", resp.StatusCode, resp.Status)
 	}
 
 	clstr := resp.Header.Get("Content-Length")

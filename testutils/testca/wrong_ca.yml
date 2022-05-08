@@ -2,9 +2,8 @@
 # kmgm PKI CA config
 setup:
   subject:
-    commonName: otaru dev CA
-    country: JP
-    province: Tokyo
+    commonName: wrong CA
+    country: US
   validity: farfuture
   keyType: ecdsa
 noDefault: true

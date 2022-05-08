@@ -9,10 +9,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/oauth"
 
 	"github.com/nyaxt/otaru/logger"
 )
@@ -22,7 +20,6 @@ var ErrUnknownVhost = errors.New("Unknown vhost.")
 type ConnectionInfo struct {
 	ApiEndpoint string
 	TLSConfig   *tls.Config
-	AuthToken   string
 }
 
 func QueryConnectionInfo(cfg *CliConfig, vhost string) (*ConnectionInfo, error) {
@@ -41,25 +38,6 @@ func QueryConnectionInfo(cfg *CliConfig, vhost string) (*ConnectionInfo, error) 
 
 func connectionInfoFromHost(h *Host) (*ConnectionInfo, error) {
 	var tc *tls.Config
-
-	if h.CACert == nil && h.CACertFile != "" {
-		certpem, err := ioutil.ReadFile(h.CACertFile)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read specified CACert file: %s", h.CACertFile)
-		}
-
-		block, _ := pem.Decode(certpem)
-		if block == nil {
-			return nil, fmt.Errorf("Failed to parse specified cert file")
-		}
-
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-
-		h.CACert = cert
-	}
 
 	if h.CACert != nil {
 		cp := x509.NewCertPool()
@@ -96,6 +74,14 @@ func connectionInfoFromHost(h *Host) (*ConnectionInfo, error) {
 		tc = &tls.Config{}
 	}
 
+	if h.Cert != nil {
+		logger.Debugf(Log, "Configuring client cert: cn=%s", h.Cert.Subject.CommonName)
+		tc.Certificates = []tls.Certificate{{
+			Certificate: [][]byte{h.Cert.Raw},
+			PrivateKey:  h.Key,
+		}}
+	}
+
 	if h.OverrideServerName != "" {
 		tc.ServerName = h.OverrideServerName
 	}
@@ -103,19 +89,14 @@ func connectionInfoFromHost(h *Host) (*ConnectionInfo, error) {
 	return &ConnectionInfo{
 		ApiEndpoint: h.ApiEndpoint,
 		TLSConfig:   tc,
-		AuthToken:   h.AuthToken,
 	}, nil
 }
 
 func (ci *ConnectionInfo) DialGrpc(ctx context.Context) (*grpc.ClientConn, error) {
+	logger.Debugf(Log, "about to dial %s with len(tlsc.Certificates)=%d", ci.ApiEndpoint, len(ci.TLSConfig.Certificates))
+
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(ci.TLSConfig)),
-	}
-	if ci.AuthToken != "" {
-		ts := oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: ci.AuthToken})
-		opts = append(opts,
-			grpc.WithPerRPCCredentials(oauth.TokenSource{ts}))
 	}
 	conn, err := grpc.DialContext(ctx, ci.ApiEndpoint, opts...)
 	if err != nil {

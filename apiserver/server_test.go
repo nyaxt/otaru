@@ -22,7 +22,8 @@ func TestServe_Healthz(t *testing.T) {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testListenAddr),
-			apiserver.X509KeyPair(testca.CertPEM, testca.KeyPEM),
+			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
+			apiserver.ClientCACert(testca.ClientAuthCACert),
 			apiserver.CloseChannel(closeC),
 		); err != nil {
 			t.Errorf("Serve failed: %v", err)

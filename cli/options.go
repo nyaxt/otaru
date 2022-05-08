@@ -9,7 +9,6 @@ type options struct {
 	ctx            context.Context
 	forceGrpc      bool
 	allowOverwrite bool
-	overrideToken  string
 }
 
 var defaultOptions = options{
@@ -37,18 +36,11 @@ func ForceGrpc() Option {
 	return func(o *options) { o.forceGrpc = true }
 }
 
-func WithOverrideToken(t string) Option {
-	return func(o *options) { o.overrideToken = t }
-}
-
 func (o *options) QueryConnectionInfo(vhost string) (*ConnectionInfo, error) {
 	ci, err := QueryConnectionInfo(o.cfg, vhost)
 	if err != nil {
 		return nil, err
 	}
 
-	if o.overrideToken != "" {
-		ci.AuthToken = o.overrideToken
-	}
 	return ci, nil
 }

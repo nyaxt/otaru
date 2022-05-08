@@ -8,43 +8,28 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-type userInfoKey struct{}
-
 type UserInfo struct {
 	Role
 	User string
 }
 
-func NewUserInfo(rolestr, user string) (*UserInfo, error) {
-	role, ok := strToRole[rolestr]
-	if !ok {
-		return nil, fmt.Errorf("Invalid role %q.", rolestr)
-	}
-
-	return &UserInfo{Role: role, User: user}, nil
+func (ui UserInfo) String() string {
+	return fmt.Sprintf("%s [role=%v]", ui.User, ui.Role)
 }
 
-var AnonymousUserInfo *UserInfo
-var NoauthUserInfo *UserInfo
+var (
+	AnonymousUserInfo = UserInfo{Role: RoleAnonymous, User: "anonymous"}
+	NoauthUserInfo    = UserInfo{Role: RoleAdmin, User: "auth-disabled"}
+)
 
-func init() {
-	var err error
-	AnonymousUserInfo, err = NewUserInfo("anonymous", "anonymous")
-	if err != nil {
-		panic("AnonymousUserInfo")
-	}
-	NoauthUserInfo, err = NewUserInfo("admin", "auth-disabled")
-	if err != nil {
-		panic("NoauthUserInfo")
-	}
-}
+type userInfoKey struct{}
 
-func ContextWithUserInfo(ctx context.Context, ui *UserInfo) context.Context {
+func ContextWithUserInfo(ctx context.Context, ui UserInfo) context.Context {
 	return context.WithValue(ctx, userInfoKey{}, ui)
 }
 
-func UserInfoFromContext(ctx context.Context) *UserInfo {
-	ui, ok := ctx.Value(userInfoKey{}).(*UserInfo)
+func UserInfoFromContext(ctx context.Context) UserInfo {
+	ui, ok := ctx.Value(userInfoKey{}).(UserInfo)
 	if !ok {
 		return AnonymousUserInfo
 	}
@@ -54,7 +39,7 @@ func UserInfoFromContext(ctx context.Context) *UserInfo {
 func RequireRoleGRPC(ctx context.Context, req Role) error {
 	ui := UserInfoFromContext(ctx)
 	if ui.Role < req {
-		return grpc.Errorf(codes.PermissionDenied, "")
+		return grpc.Errorf(codes.PermissionDenied, "Action requires role %v, but you are %v", req, ui)
 	}
 
 	return nil

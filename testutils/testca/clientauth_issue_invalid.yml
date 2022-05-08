@@ -1,0 +1,9 @@
+---
+issue:
+  subject:
+    commonName: invalid charlie
+  validity: farfuture
+  keyType: ecdsa
+  keyUsage:
+    preset: tlsClient
+noDefault: true

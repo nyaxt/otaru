@@ -6,14 +6,11 @@ package otaruapiserver_test
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"io/ioutil"
 	"testing"
 	"time"
 
 	"github.com/nyaxt/otaru/apiserver"
-	ojwt "github.com/nyaxt/otaru/apiserver/jwt"
-	jwt_testutils "github.com/nyaxt/otaru/apiserver/jwt/jwt_testutils"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/inodedb"
@@ -37,7 +34,14 @@ type testServer struct {
 	joinC      chan struct{}
 }
 
-func runTestServer(t *testing.T, pubkey *ecdsa.PublicKey) *testServer {
+type Auth int
+
+const (
+	NoAuth Auth = iota
+	EnableClientAuth
+)
+
+func runTestServer(t *testing.T, auth Auth) *testServer {
 	t.Helper()
 
 	ts := &testServer{
@@ -60,19 +64,18 @@ func runTestServer(t *testing.T, pubkey *ecdsa.PublicKey) *testServer {
 	ts.inodeRead = inodeRead
 	ts.inodeWrite = inodeWrite
 
-	jwtauth := ojwt.NoJWTAuth
-	if pubkey != nil {
-		jwtauth = ojwt.NewJWTAuthProvider(pubkey)
-	}
 	go func() {
-		if err := apiserver.Serve(
+		opts := []apiserver.Option{
 			apiserver.ListenAddr(testListenAddr),
-			apiserver.X509KeyPair(testca.CertPEM, testca.KeyPEM),
+			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
 			apiserver.CloseChannel(ts.closeC),
-			apiserver.JWTAuthProvider(jwtauth),
 			otaruapiserver.InstallSystemService(),
-			otaruapiserver.InstallFileHandler(ts.fs, jwtauth),
-		); err != nil {
+			otaruapiserver.InstallFileHandler(ts.fs),
+		}
+		if auth == EnableClientAuth {
+			opts = append(opts, apiserver.ClientCACert(testca.ClientAuthCACert))
+		}
+		if err := apiserver.Serve(opts...); err != nil {
 			panic(err)
 		}
 		close(ts.joinC)
@@ -174,7 +177,7 @@ func genHttpWriteTest(cfg *cli.CliConfig, inode inodedb.ID, expectSuccess bool) 
 }
 
 func TestAuth_NoAuth(t *testing.T) {
-	ts := runTestServer(t, nil)
+	ts := runTestServer(t, NoAuth)
 	defer ts.Terminate()
 
 	cfg := testCliConfig(&cli.Host{
@@ -211,13 +214,14 @@ func TestAuth_NoAuth(t *testing.T) {
 		}
 	})
 
-	t.Run("httpRead", genHttpReadTest(cfg, ts.inodeRead, true))
-	t.Run("httpWrite", genHttpWriteTest(cfg, ts.inodeWrite, true))
+	// FileHandler has no support for NoAuth
+	t.Run("httpRead", genHttpReadTest(cfg, ts.inodeRead, false))
+	t.Run("httpWrite", genHttpWriteTest(cfg, ts.inodeWrite, false))
 
 }
 
-func TestAuth_NoToken(t *testing.T) {
-	ts := runTestServer(t, jwt_testutils.Pubkey)
+func TestAuth_NoClientCert(t *testing.T) {
+	ts := runTestServer(t, EnableClientAuth)
 	defer ts.Terminate()
 
 	cfg := testCliConfig(&cli.Host{
@@ -249,8 +253,8 @@ func TestAuth_NoToken(t *testing.T) {
 			t.Errorf("AuthTestReadOnly should fail.")
 		}
 
-		if _, err = ssc.AuthTestAnonymous(ctx, &pb.AuthTestRequest{}); err != nil {
-			t.Errorf("AuthTestAnonymous: %v.", err)
+		if _, err = ssc.AuthTestAnonymous(ctx, &pb.AuthTestRequest{}); err == nil {
+			t.Error("AuthTestAnonymous should fail.")
 		}
 	})
 
@@ -259,13 +263,14 @@ func TestAuth_NoToken(t *testing.T) {
 }
 
 func TestAuth_ValidReadOnlyToken(t *testing.T) {
-	ts := runTestServer(t, jwt_testutils.Pubkey)
+	ts := runTestServer(t, EnableClientAuth)
 	defer ts.Terminate()
 
 	cfg := testCliConfig(&cli.Host{
 		ApiEndpoint: testListenAddr,
 		CACert:      testca.CACert,
-		AuthToken:   jwt_testutils.ReadOnlyToken,
+		Cert:        testca.ClientAuthReadOnlyCert,
+		Key:         testca.ClientAuthReadOnlyKey.Parsed,
 	})
 
 	t.Run("grpc", func(t *testing.T) {
@@ -301,15 +306,15 @@ func TestAuth_ValidReadOnlyToken(t *testing.T) {
 	t.Run("httpWrite", genHttpWriteTest(cfg, ts.inodeWrite, false))
 }
 
-func TestAuth_AlgNoneToken(t *testing.T) {
-	ts := runTestServer(t, jwt_testutils.Pubkey)
+func TestAuth_InvalidCert(t *testing.T) {
+	ts := runTestServer(t, EnableClientAuth)
 	defer ts.Terminate()
 
 	cfg := testCliConfig(&cli.Host{
 		ApiEndpoint: testListenAddr,
 		CACert:      testca.CACert,
-		AuthToken:   jwt_testutils.AlgNoneToken,
 	})
+
 	t.Run("grpc", func(t *testing.T) {
 		ctx := context.Background()
 
@@ -335,7 +340,7 @@ func TestAuth_AlgNoneToken(t *testing.T) {
 		}
 
 		if _, err = ssc.AuthTestAnonymous(ctx, &pb.AuthTestRequest{}); err == nil {
-			t.Errorf("AuthTestAnonymous should fail.")
+			t.Error("AuthTestAnonymous should fail.")
 		}
 	})
 

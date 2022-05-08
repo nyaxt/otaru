@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -53,16 +54,19 @@ func newWriterHttp(cinfo *ConnectionInfo, id uint64) (io.WriteCloser, error) {
 			Body:          pr,
 			ContentLength: -1, // FIXME
 		}
-		if cinfo.AuthToken != "" {
-			req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", cinfo.AuthToken))
-		}
 		resp, err := cli.Do(req)
 		if err != nil {
 			errC <- err
 			return
 		}
 		if resp.StatusCode != 200 {
-			errC <- fmt.Errorf("server responded w/ status code %d", resp.StatusCode)
+			defer resp.Body.Close()
+			if bs, err := ioutil.ReadAll(resp.Body); err == nil {
+				errC <- fmt.Errorf("server responded w/ status code %d: %s", resp.StatusCode, string(bs))
+
+			} else {
+				errC <- fmt.Errorf("server responded w/ status code %d: <no body>", resp.StatusCode)
+			}
 			return
 		}
 	}()
@@ -145,7 +149,6 @@ func NewWriter(pathstr string, ofs ...Option) (io.WriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger.Infof(Log, "token %q", cinfo.AuthToken)
 	conn, err := cinfo.DialGrpc(opts.ctx)
 	if err != nil {
 		return nil, err

@@ -122,9 +122,6 @@ func (m ContentServerMarshaler) WriteResponse(w http.ResponseWriter, basepath st
 		Header: map[string][]string{},
 		URL:    url,
 	}
-	if m.CInfo.AuthToken != "" {
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", m.CInfo.AuthToken))
-	}
 	req.Header.Add("Range", m.OrigReq.Header.Get("Range"))
 
 	resp, err := cli.Do(req)

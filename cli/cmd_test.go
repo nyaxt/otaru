@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru/apiserver"
-	"github.com/nyaxt/otaru/apiserver/jwt/jwt_testutils"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/otaruapiserver"
 	tu "github.com/nyaxt/otaru/testutils"
@@ -21,20 +20,24 @@ import (
 const testListenAddr = "localhost:20247"
 
 var cfg *cli.CliConfig
+
+func init() {
+	cfg = &cli.CliConfig{
+		Host: map[string]*cli.Host{
+			"default": {
+				ApiEndpoint: testListenAddr,
+				CACert:      testca.CACert,
+				Cert:        testca.ClientAuthAdminCert,
+				Key:         testca.ClientAuthAdminKey.Parsed,
+			},
+		},
+	}
+}
+
 var testdir string
 
 func TestMain(m *testing.M) {
 	tu.EnsureLogger()
-
-	cfg = &cli.CliConfig{
-		Host: map[string]*cli.Host{
-			"default": &cli.Host{
-				ApiEndpoint: testListenAddr,
-				CACert:      testca.CACert,
-				AuthToken:   jwt_testutils.AdminToken,
-			},
-		},
-	}
 
 	// populate test data
 	var err error
@@ -61,10 +64,10 @@ func withApiServer(t *testing.T, f func()) {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testListenAddr),
-			apiserver.X509KeyPair(testca.CertPEM, testca.KeyPEM),
-			apiserver.JWTAuthProvider(jwt_testutils.JWTAuthProvider),
+			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
+			apiserver.ClientCACert(testca.ClientAuthCACert),
 			otaruapiserver.InstallFileSystemService(fs),
-			otaruapiserver.InstallFileHandler(fs, jwt_testutils.JWTAuthProvider),
+			otaruapiserver.InstallFileHandler(fs),
 			apiserver.CloseChannel(closeC),
 		); err != nil {
 			t.Errorf("Serve failed: %v", err)
@@ -87,7 +90,7 @@ func TestBasic(t *testing.T) {
 		defer cancel()
 
 		if err := cli.Put(ctx, cfg, []string{"put", filepath.Join(testdir, "hello.txt"), "/hello.txt"}); err != nil {
-			t.Errorf("cli.Put failed: %v", err)
+			t.Fatalf("cli.Put failed: %v", err)
 		}
 
 		getpath := filepath.Join(testdir, "hello_get.txt")
@@ -96,7 +99,7 @@ func TestBasic(t *testing.T) {
 		}
 		b, err := ioutil.ReadFile(getpath)
 		if err != nil {
-			t.Errorf("ioutil.ReadFile(getpath): %v", err)
+			t.Fatalf("ioutil.ReadFile(getpath): %v", err)
 		}
 		if !bytes.Equal(b, tu.HelloWorld) {
 			t.Errorf("PRead content != PWrite content: %v", b)

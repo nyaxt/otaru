@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/nyaxt/otaru/basicauth"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/logger"
 )
@@ -47,7 +48,11 @@ func Serve(cfg *cli.CliConfig, closeC <-chan struct{}) error {
 		logger.Warningf(mylog, "Basic auth not enabled!")
 	} else {
 		logger.Infof(mylog, "Basic auth enabled.")
-		handler = &BasicAuthHandler{wcfg.BasicAuthUser, wcfg.BasicAuthPassword, handler}
+		handler = &basicauth.Handler{
+			User:     wcfg.BasicAuthUser,
+			Password: wcfg.BasicAuthPassword,
+			Handler:  handler,
+		}
 	}
 
 	mux := http.NewServeMux()

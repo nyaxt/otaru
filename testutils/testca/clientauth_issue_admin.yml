@@ -1,0 +1,9 @@
+---
+issue:
+  subject:
+    commonName: admin alice
+  validity: farfuture
+  keyType: ecdsa
+  keyUsage:
+    preset: tlsClient
+noDefault: true

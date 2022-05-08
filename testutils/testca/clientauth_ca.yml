@@ -2,7 +2,7 @@
 # kmgm PKI CA config
 setup:
   subject:
-    commonName: otaru dev CA
+    commonName: otaru dev clientauth CA
     country: JP
     province: Tokyo
   validity: farfuture
