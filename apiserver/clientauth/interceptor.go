@@ -1,4 +1,4 @@
-package jwt
+package clientauth
 
 import (
 	"context"
@@ -18,7 +18,7 @@ const (
 	BearerPrefix     = "Bearer "
 )
 
-type JWTAuthProvider struct {
+type AuthProvider struct {
 	Disabled bool
 }
 
@@ -35,8 +35,8 @@ func UserInfoFromClientCert(cert *x509.Certificate) UserInfo {
 	return UserInfo{Role: RoleFromStr(rolestr), User: user}
 }
 
-var ErrZeroVerifiedChains = errors.New("JWTAuthProvider could not find a client cert.")
-var ErrZeroVerifiedChains2 = errors.New("JWTAuthProvider requires len(VerifiedChains[0]) > 0.")
+var ErrZeroVerifiedChains = errors.New("AuthProvider could not find a client cert.")
+var ErrZeroVerifiedChains2 = errors.New("AuthProvider requires len(VerifiedChains[0]) > 0.")
 
 func UserInfoFromTLSConnectionState(tcs *tls.ConnectionState) (UserInfo, error) {
 	vcs := tcs.VerifiedChains
@@ -51,7 +51,7 @@ func UserInfoFromTLSConnectionState(tcs *tls.ConnectionState) (UserInfo, error) 
 	return UserInfoFromClientCert(vc[0]), nil
 }
 
-func (p JWTAuthProvider) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
+func (p AuthProvider) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	if p.Disabled {
 		return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 			ctx = ContextWithUserInfo(ctx, NoauthUserInfo)
@@ -62,14 +62,14 @@ func (p JWTAuthProvider) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		p, ok := peer.FromContext(ctx)
 		if !ok {
-			return nil, grpc.Errorf(codes.Unauthenticated, "JWTAuthProvider requires metadata.")
+			return nil, grpc.Errorf(codes.Unauthenticated, "AuthProvider requires metadata.")
 		}
 		if p.AuthInfo == nil {
-			return nil, grpc.Errorf(codes.Unauthenticated, "JWTAuthProvider requires grpc Peer with AuthInfo.")
+			return nil, grpc.Errorf(codes.Unauthenticated, "AuthProvider requires grpc Peer with AuthInfo.")
 		}
 		ti, ok := p.AuthInfo.(credentials.TLSInfo)
 		if !ok {
-			return nil, grpc.Errorf(codes.Unauthenticated, "JWTAuthProvider requires grpc Peer with credentails.TLSInfo.")
+			return nil, grpc.Errorf(codes.Unauthenticated, "AuthProvider requires grpc Peer with credentails.TLSInfo.")
 		}
 
 		ui, err := UserInfoFromTLSConnectionState(&ti.State)

@@ -1,4 +1,4 @@
-package jwt
+package clientauth
 
 type Role int
 

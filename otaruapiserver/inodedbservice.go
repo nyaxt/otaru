@@ -6,7 +6,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"github.com/nyaxt/otaru/apiserver"
-	"github.com/nyaxt/otaru/apiserver/jwt"
+	"github.com/nyaxt/otaru/apiserver/clientauth"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/pb"
 )
@@ -16,7 +16,7 @@ type inodedbService struct {
 }
 
 func (svc *inodedbService) GetINodeDBStats(ctx context.Context, req *pb.GetINodeDBStatsRequest) (*pb.GetINodeDBStatsResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 

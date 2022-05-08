@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	jwt "github.com/nyaxt/otaru/apiserver/jwt"
+	"github.com/nyaxt/otaru/apiserver/clientauth"
 	apiserver_logger "github.com/nyaxt/otaru/apiserver/logger"
 	"github.com/nyaxt/otaru/assets/swaggerui"
 	"github.com/nyaxt/otaru/cli"
@@ -195,7 +195,7 @@ func Serve(opt ...Option) error {
 
 	uics := []grpc.UnaryServerInterceptor{
 		grpc_prometheus.UnaryServerInterceptor,
-		jwt.JWTAuthProvider{Disabled: !clientAuthEnabled}.UnaryServerInterceptor(),
+		clientauth.AuthProvider{Disabled: !clientAuthEnabled}.UnaryServerInterceptor(),
 		grpc_ctxtags.UnaryServerInterceptor(
 			grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.TagBasedRequestFieldExtractor("log_fields")),
 		),

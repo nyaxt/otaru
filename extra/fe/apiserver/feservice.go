@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"github.com/nyaxt/otaru/apiserver"
-	"github.com/nyaxt/otaru/apiserver/jwt"
+	"github.com/nyaxt/otaru/apiserver/clientauth"
 	"github.com/nyaxt/otaru/cli"
 	opath "github.com/nyaxt/otaru/cli/path"
 	"github.com/nyaxt/otaru/extra/fe/pb"
@@ -27,7 +27,7 @@ type feService struct {
 }
 
 func (s *feService) ListHosts(ctx context.Context, req *pb.ListHostsRequest) (*pb.ListHostsResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleReadOnly); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleReadOnly); err != nil {
 		return nil, err
 	}
 
@@ -35,7 +35,7 @@ func (s *feService) ListHosts(ctx context.Context, req *pb.ListHostsRequest) (*p
 }
 
 func (s *feService) ListLocalDir(ctx context.Context, req *pb.ListLocalDirRequest) (*pb.ListLocalDirResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleReadOnly); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleReadOnly); err != nil {
 		return nil, err
 	}
 
@@ -68,7 +68,7 @@ func (s *feService) ListLocalDir(ctx context.Context, req *pb.ListLocalDirReques
 }
 
 func (s *feService) MkdirLocal(ctx context.Context, req *pb.MkdirLocalRequest) (*pb.MkdirLocalResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 
@@ -94,7 +94,7 @@ func (s *feService) MkdirLocal(ctx context.Context, req *pb.MkdirLocalRequest) (
 }
 
 func (s *feService) CopyLocal(ctx context.Context, req *pb.CopyLocalRequest) (*pb.CopyLocalResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 
@@ -146,7 +146,7 @@ func (s *feService) CopyLocal(ctx context.Context, req *pb.CopyLocalRequest) (*p
 }
 
 func (s *feService) MoveLocal(ctx context.Context, req *pb.MoveLocalRequest) (*pb.MoveLocalResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 
@@ -184,7 +184,7 @@ func (s *feService) MoveLocal(ctx context.Context, req *pb.MoveLocalRequest) (*p
 }
 
 func (s *feService) Download(ctx context.Context, req *pb.DownloadRequest) (*pb.DownloadResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 
@@ -230,7 +230,7 @@ func (s *feService) Download(ctx context.Context, req *pb.DownloadRequest) (*pb.
 }
 
 func (s *feService) Upload(ctx context.Context, req *pb.UploadRequest) (*pb.UploadResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 
@@ -268,7 +268,7 @@ func (s *feService) Upload(ctx context.Context, req *pb.UploadRequest) (*pb.Uplo
 }
 
 func (s *feService) RemoteMove(ctx context.Context, req *pb.RemoteMoveRequest) (*pb.RemoteMoveResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 
@@ -278,7 +278,7 @@ func (s *feService) RemoteMove(ctx context.Context, req *pb.RemoteMoveRequest) (
 }
 
 func (s *feService) RemoveLocal(ctx context.Context, req *pb.RemoveLocalRequest) (*pb.RemoveLocalResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 

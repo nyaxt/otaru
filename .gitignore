@@ -5,7 +5,6 @@ out/*
 otaru-cli
 otaru-fe
 otaru-fuzzymv
-otaru-genjwttoken
 otaru-globallock
 otaru-mkfs
 otaru-server

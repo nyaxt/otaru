@@ -6,7 +6,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"github.com/nyaxt/otaru/apiserver"
-	"github.com/nyaxt/otaru/apiserver/jwt"
+	"github.com/nyaxt/otaru/apiserver/clientauth"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/logger/logbuf"
 	"github.com/nyaxt/otaru/pb"
@@ -17,7 +17,7 @@ type loggerService struct {
 }
 
 func (*loggerService) GetCategories(ctx context.Context, req *pb.GetCategoriesRequest) (*pb.GetCategoriesResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 
@@ -35,7 +35,7 @@ func (*loggerService) GetCategories(ctx context.Context, req *pb.GetCategoriesRe
 }
 
 func (*loggerService) SetCategory(ctx context.Context, req *pb.SetCategoryRequest) (*pb.SetCategoryResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 
@@ -50,7 +50,7 @@ func (*loggerService) SetCategory(ctx context.Context, req *pb.SetCategoryReques
 }
 
 func (s *loggerService) QueryLogs(ctx context.Context, req *pb.QueryLogsRequest) (*pb.QueryLogsResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 
@@ -71,7 +71,7 @@ func (s *loggerService) QueryLogs(ctx context.Context, req *pb.QueryLogsRequest)
 }
 
 func (s *loggerService) GetLatestLogEntryId(ctx context.Context, req *pb.GetLatestLogEntryIdRequest) (*pb.GetLatestLogEntryIdResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 

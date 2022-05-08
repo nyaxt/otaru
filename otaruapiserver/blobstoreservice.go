@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/nyaxt/otaru/apiserver"
-	"github.com/nyaxt/otaru/apiserver/jwt"
+	"github.com/nyaxt/otaru/apiserver/clientauth"
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/cachedblobstore"
 	"github.com/nyaxt/otaru/flags"
@@ -24,7 +24,7 @@ type blobstoreService struct {
 }
 
 func (svc *blobstoreService) GetConfig(ctx context.Context, in *pb.GetBlobstoreConfigRequest) (*pb.GetBlobstoreConfigResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 
@@ -42,7 +42,7 @@ func (svc *blobstoreService) GetConfig(ctx context.Context, in *pb.GetBlobstoreC
 }
 
 func (svc *blobstoreService) GetEntries(ctx context.Context, in *pb.GetEntriesRequest) (*pb.GetEntriesResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 
@@ -69,7 +69,7 @@ func (svc *blobstoreService) GetEntries(ctx context.Context, in *pb.GetEntriesRe
 }
 
 func (svc *blobstoreService) ReduceCache(ctx context.Context, req *pb.ReduceCacheRequest) (*pb.ReduceCacheResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 

@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/nyaxt/otaru/apiserver"
-	"github.com/nyaxt/otaru/apiserver/jwt"
+	"github.com/nyaxt/otaru/apiserver/clientauth"
 	"github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/util/countfds"
 	"github.com/nyaxt/otaru/version"
@@ -17,7 +17,7 @@ import (
 type systemService struct{}
 
 func (*systemService) GetSystemInfo(ctx context.Context, in *pb.GetSystemInfoRequest) (*pb.SystemInfoResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 
@@ -57,7 +57,7 @@ func (*systemService) GetVersion(ctx context.Context, in *pb.GetVersionRequest) 
 }
 
 func (*systemService) Whoami(ctx context.Context, in *pb.WhoamiRequest) (*pb.WhoamiResponse, error) {
-	ui := jwt.UserInfoFromContext(ctx)
+	ui := clientauth.UserInfoFromContext(ctx)
 
 	return &pb.WhoamiResponse{
 		Role: ui.Role.String(),
@@ -66,7 +66,7 @@ func (*systemService) Whoami(ctx context.Context, in *pb.WhoamiRequest) (*pb.Who
 }
 
 func (*systemService) AuthTestAnonymous(ctx context.Context, in *pb.AuthTestRequest) (*pb.AuthTestResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAnonymous); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAnonymous); err != nil {
 		return nil, err
 	}
 
@@ -74,7 +74,7 @@ func (*systemService) AuthTestAnonymous(ctx context.Context, in *pb.AuthTestRequ
 }
 
 func (*systemService) AuthTestReadOnly(ctx context.Context, in *pb.AuthTestRequest) (*pb.AuthTestResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleReadOnly); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleReadOnly); err != nil {
 		return nil, err
 	}
 
@@ -82,7 +82,7 @@ func (*systemService) AuthTestReadOnly(ctx context.Context, in *pb.AuthTestReque
 }
 
 func (*systemService) AuthTestAdmin(ctx context.Context, in *pb.AuthTestRequest) (*pb.AuthTestResponse, error) {
-	if err := jwt.RequireRoleGRPC(ctx, jwt.RoleAdmin); err != nil {
+	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {
 		return nil, err
 	}
 

@@ -1,6 +1,6 @@
 package otaruapiserver_test
 
-// auth_test.go is conceptually the tests for github.com/nyaxt/otaru/apiserve/jwt
+// auth_test.go is conceptually the tests for github.com/nyaxt/otaru/apiserve/clientauth
 // , but since it relies on otaruapiserver.SystemService, it is placed here.
 
 import (

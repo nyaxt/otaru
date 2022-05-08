@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/nyaxt/otaru/apiserver"
-	"github.com/nyaxt/otaru/apiserver/jwt"
+	"github.com/nyaxt/otaru/apiserver/clientauth"
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/flags"
@@ -60,8 +60,8 @@ func (c *content) Seek(offset int64, whence int) (int64, error) {
 	return c.offset, nil
 }
 
-func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, ui jwt.UserInfo, id inodedb.ID, filename string) {
-	if ui.Role < jwt.RoleReadOnly {
+func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, ui clientauth.UserInfo, id inodedb.ID, filename string) {
+	if ui.Role < clientauth.RoleReadOnly {
 		http.Error(w, "", http.StatusForbidden)
 		return
 	}
@@ -100,8 +100,8 @@ func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, ui jwt.U
 	http.ServeContent(w, r, filename, a.ModifiedT, c)
 }
 
-func (fh *fileHandler) servePut(w http.ResponseWriter, r *http.Request, ui jwt.UserInfo, id inodedb.ID, filename string) {
-	if ui.Role < jwt.RoleAdmin {
+func (fh *fileHandler) servePut(w http.ResponseWriter, r *http.Request, ui clientauth.UserInfo, id inodedb.ID, filename string) {
+	if ui.Role < clientauth.RoleAdmin {
 		http.Error(w, "", http.StatusForbidden)
 		return
 	}
@@ -132,7 +132,7 @@ func (fh *fileHandler) servePut(w http.ResponseWriter, r *http.Request, ui jwt.U
 }
 
 func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	tlsui, err := jwt.UserInfoFromTLSConnectionState(r.TLS)
+	tlsui, err := clientauth.UserInfoFromTLSConnectionState(r.TLS)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
