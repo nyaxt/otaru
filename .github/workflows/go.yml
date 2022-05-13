@@ -35,4 +35,4 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - uses: imjasonh/setup-ko@v0.4
-      - run: ko publish ./cmd/otaru
+      - run: ko publish ./cmd/otaru-server
