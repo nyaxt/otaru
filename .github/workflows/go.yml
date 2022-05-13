@@ -25,7 +25,7 @@ jobs:
         GOOGLE_APPLICATION_CREDENTIALS: "/tmp/otaru-github-ci.json"
   release_docker:
     needs: [unit_tests]
-    if: contains(github.ref, 'tags/v')
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
