@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/inodedb"

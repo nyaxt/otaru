@@ -7,8 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"context"
+
 	"cloud.google.com/go/datastore"
-	"golang.org/x/net/context"
 	"google.golang.org/api/iterator"
 
 	"github.com/nyaxt/otaru/btncrypt"

@@ -3,7 +3,7 @@ package inodedbssgc
 import (
 	"fmt"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/nyaxt/otaru/scheduler"
 	"github.com/nyaxt/otaru/util"

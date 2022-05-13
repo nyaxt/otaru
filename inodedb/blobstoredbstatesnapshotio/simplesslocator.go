@@ -3,7 +3,7 @@ package blobstoredbstatesnapshotio
 import (
 	"fmt"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/nyaxt/otaru/metadata"
 )

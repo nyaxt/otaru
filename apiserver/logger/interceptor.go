@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
+
 	"google.golang.org/grpc"
 
 	"github.com/nyaxt/otaru/logger"

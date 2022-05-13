@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -8,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
@@ -16,14 +16,14 @@ import (
 	"github.com/nyaxt/otaru/apiserver/clientauth"
 	"github.com/nyaxt/otaru/cli"
 	opath "github.com/nyaxt/otaru/cli/path"
-	"github.com/nyaxt/otaru/extra/fe/pb"
 	"github.com/nyaxt/otaru/logger"
-	otarupb "github.com/nyaxt/otaru/pb"
+	"github.com/nyaxt/otaru/pb"
 )
 
 type feService struct {
 	cfg    *cli.CliConfig
 	hnames []string
+	pb.UnimplementedFeServiceServer
 }
 
 func (s *feService) ListHosts(ctx context.Context, req *pb.ListHostsRequest) (*pb.ListHostsResponse, error) {
@@ -50,9 +50,9 @@ func (s *feService) ListLocalDir(ctx context.Context, req *pb.ListLocalDirReques
 	}
 	es := make([]*pb.FileInfo, 0, len(fis))
 	for _, fi := range fis {
-		t := otarupb.INodeType_FILE
+		t := pb.INodeType_FILE
 		if fi.IsDir() {
-			t = otarupb.INodeType_DIR
+			t = pb.INodeType_DIR
 		}
 		e := &pb.FileInfo{
 			Name:         fi.Name(),

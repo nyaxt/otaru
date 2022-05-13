@@ -1,7 +1,8 @@
 package otaruapiserver
 
 import (
-	"golang.org/x/net/context"
+	"context"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
@@ -14,6 +15,7 @@ import (
 
 type loggerService struct {
 	lbuf *logbuf.LogBuf
+	pb.UnimplementedLoggerServiceServer
 }
 
 func (*loggerService) GetCategories(ctx context.Context, req *pb.GetCategoriesRequest) (*pb.GetCategoriesResponse, error) {
@@ -86,7 +88,7 @@ func InstallLoggerService() apiserver.Option {
 	logger.Registry().AddOutput(lbuf)
 
 	return apiserver.RegisterService(
-		func(s *grpc.Server) { pb.RegisterLoggerServiceServer(s, &loggerService{lbuf}) },
+		func(s *grpc.Server) { pb.RegisterLoggerServiceServer(s, &loggerService{lbuf: lbuf}) },
 		pb.RegisterLoggerServiceHandlerFromEndpoint,
 	)
 }

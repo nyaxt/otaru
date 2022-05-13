@@ -9,9 +9,10 @@ import (
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
 
+	"context"
+
 	bfuse "github.com/nyaxt/fuse"
 	bfs "github.com/nyaxt/fuse/fs"
-	"golang.org/x/net/context"
 )
 
 type DirNode struct {

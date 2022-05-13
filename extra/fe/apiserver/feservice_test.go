@@ -15,10 +15,9 @@ import (
 	"github.com/nyaxt/otaru/cli"
 	opath "github.com/nyaxt/otaru/cli/path"
 	feapiserver "github.com/nyaxt/otaru/extra/fe/apiserver"
-	"github.com/nyaxt/otaru/extra/fe/pb"
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/otaruapiserver"
-	opb "github.com/nyaxt/otaru/pb"
+	"github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/testutils"
 	"github.com/nyaxt/otaru/testutils/testca"
 )
@@ -206,7 +205,7 @@ func TestFeService(t *testing.T) {
 		if resp.Entry[0].Name != "hoge" {
 			tt.Fatalf("resp.Entry: %+v", resp.Entry)
 		}
-		if resp.Entry[0].Type != opb.INodeType_DIR {
+		if resp.Entry[0].Type != pb.INodeType_DIR {
 			tt.Fatalf("resp.Entry: %+v", resp.Entry)
 		}
 	})

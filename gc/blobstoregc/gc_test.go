@@ -6,7 +6,7 @@ import (
 
 	"github.com/nyaxt/otaru/gc/blobstoregc"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type MockGCBlobStore struct {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type CancelledErr struct {

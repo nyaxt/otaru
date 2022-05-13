@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/nyaxt/otaru/flags"
 	authtu "github.com/nyaxt/otaru/gcloud/auth/testutils"

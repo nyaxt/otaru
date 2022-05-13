@@ -4,8 +4,9 @@ import (
 	"errors"
 	"time"
 
+	"context"
+
 	"cloud.google.com/go/datastore"
-	"golang.org/x/net/context"
 	"google.golang.org/api/iterator"
 
 	oflags "github.com/nyaxt/otaru/flags"

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"

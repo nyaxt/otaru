@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
@@ -24,6 +25,7 @@ const MaxReadLen = 1024 * 1024
 
 type fileSystemService struct {
 	fs *filesystem.FileSystem
+	pb.UnimplementedFileSystemServiceServer
 }
 
 func type2pb(t inodedb.Type) pb.INodeType {
@@ -314,7 +316,7 @@ func (svc *fileSystemService) Rename(ctx context.Context, req *pb.RenameRequest)
 }
 
 func InstallFileSystemService(fs *filesystem.FileSystem) apiserver.Option {
-	svc := &fileSystemService{fs}
+	svc := &fileSystemService{fs: fs}
 
 	return apiserver.RegisterService(
 		func(s *grpc.Server) { pb.RegisterFileSystemServiceServer(s, svc) },

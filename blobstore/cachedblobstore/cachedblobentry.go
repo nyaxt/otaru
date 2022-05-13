@@ -7,9 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"context"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"golang.org/x/net/context"
 
 	"github.com/nyaxt/otaru/blobstore"
 	fl "github.com/nyaxt/otaru/flags"

@@ -3,8 +3,9 @@ package datastore
 import (
 	"github.com/nyaxt/otaru/btncrypt"
 
+	"context"
+
 	"cloud.google.com/go/datastore"
-	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 )

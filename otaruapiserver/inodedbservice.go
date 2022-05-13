@@ -1,7 +1,8 @@
 package otaruapiserver
 
 import (
-	"golang.org/x/net/context"
+	"context"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
@@ -13,6 +14,7 @@ import (
 
 type inodedbService struct {
 	h inodedb.DBHandler
+	pb.UnimplementedINodeDBServiceServer
 }
 
 func (svc *inodedbService) GetINodeDBStats(ctx context.Context, req *pb.GetINodeDBStatsRequest) (*pb.GetINodeDBStatsResponse, error) {
@@ -38,7 +40,7 @@ func (svc *inodedbService) GetINodeDBStats(ctx context.Context, req *pb.GetINode
 
 func InstallINodeDBService(h inodedb.DBHandler) apiserver.Option {
 	return apiserver.RegisterService(
-		func(s *grpc.Server) { pb.RegisterINodeDBServiceServer(s, &inodedbService{h}) },
+		func(s *grpc.Server) { pb.RegisterINodeDBServiceServer(s, &inodedbService{h: h}) },
 		pb.RegisterINodeDBServiceHandlerFromEndpoint,
 	)
 }

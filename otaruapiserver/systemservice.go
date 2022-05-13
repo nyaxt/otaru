@@ -4,7 +4,8 @@ import (
 	"os"
 	"runtime"
 
-	"golang.org/x/net/context"
+	"context"
+
 	"google.golang.org/grpc"
 
 	"github.com/nyaxt/otaru/apiserver"
@@ -14,7 +15,9 @@ import (
 	"github.com/nyaxt/otaru/version"
 )
 
-type systemService struct{}
+type systemService struct {
+	pb.UnimplementedSystemInfoServiceServer
+}
 
 func (*systemService) GetSystemInfo(ctx context.Context, in *pb.GetSystemInfoRequest) (*pb.SystemInfoResponse, error) {
 	if err := clientauth.RequireRoleGRPC(ctx, clientauth.RoleAdmin); err != nil {

@@ -5,8 +5,9 @@ import (
 	"math"
 	"time"
 
+	"context"
+
 	"github.com/dustin/go-humanize"
-	"golang.org/x/net/context"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/logger"

@@ -6,7 +6,6 @@ import (
 	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/assets/webui"
 	"github.com/nyaxt/otaru/cli"
-	"github.com/nyaxt/otaru/extra/fe/pb/json"
 	"github.com/nyaxt/otaru/extra/fe/preview"
 	"github.com/nyaxt/otaru/logger"
 )
@@ -27,7 +26,7 @@ func BuildApiServerOptions(cfg *cli.CliConfig) ([]apiserver.Option, error) {
 	opts := []apiserver.Option{
 		apiserver.ListenAddr(cfg.Fe.ListenAddr),
 		apiserver.TLSCertKey(cfg.Fe.Cert, cfg.Fe.Key),
-		apiserver.SetSwaggerJson(json.Assets, "/otaru-fe.swagger.json"),
+		// apiserver.SetSwaggerJson(json.Assets, "/otaru-fe.swagger.json"),
 		apiserver.SetWebUI(webuifs, "/index.otaru-fe.html"),
 		preview.Install(cfg),
 		InstallFeService(cfg),

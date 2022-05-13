@@ -1,10 +1,10 @@
 package otaruapiserver
 
 import (
+	"context"
 	"math"
 
 	"github.com/dustin/go-humanize"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
 	"github.com/nyaxt/otaru/apiserver"
@@ -21,6 +21,8 @@ type blobstoreService struct {
 	s   *scheduler.Scheduler
 	bbs blobstore.BlobStore
 	cbs *cachedblobstore.CachedBlobStore
+
+	pb.UnimplementedBlobstoreServiceServer
 }
 
 func (svc *blobstoreService) GetConfig(ctx context.Context, in *pb.GetBlobstoreConfigRequest) (*pb.GetBlobstoreConfigResponse, error) {

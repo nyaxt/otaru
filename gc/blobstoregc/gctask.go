@@ -3,7 +3,7 @@ package blobstoregc
 import (
 	"fmt"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/scheduler"
