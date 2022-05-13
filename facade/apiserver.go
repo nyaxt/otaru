@@ -1,8 +1,6 @@
 package facade
 
 import (
-	"net/http"
-
 	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/assets/webui"
 	"github.com/nyaxt/otaru/logger"
@@ -11,13 +9,9 @@ import (
 )
 
 func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) ([]apiserver.Option, error) {
-	var webuifs http.FileSystem
 	override := cfg.WebUIRootPath
-	if override == "" {
-		webuifs = webui.Assets
-	} else {
+	if override != "" {
 		logger.Infof(mylog, "Overriding embedded WebUI and serving WebUI at %s", override)
-		webuifs = http.Dir(override)
 	}
 
 	options := []apiserver.Option{
@@ -25,7 +19,7 @@ func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) ([]apiserver.Option,
 		apiserver.TLSCertKey(cfg.Cert, cfg.Key),
 		apiserver.ClientCACert(cfg.ClientCACert),
 		apiserver.CORSAllowedOrigins(cfg.CORSAllowedOrigins),
-		apiserver.SetWebUI(webuifs, "/index.otaru-server.html"),
+		apiserver.SetDefaultHandler(webui.WebUIHandler(override, "/index.otaru-server.html")),
 		apiserver.SetSwaggerJson(json.Assets, "/otaru.swagger.json"),
 		otaruapiserver.InstallBlobstoreService(o.S, o.DefaultBS, o.CBS),
 		otaruapiserver.InstallFileHandler(o.FS),

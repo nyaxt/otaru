@@ -1,8 +1,6 @@
 package apiserver
 
 import (
-	"net/http"
-
 	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/assets/webui"
 	"github.com/nyaxt/otaru/cli"
@@ -14,20 +12,16 @@ var mylog = logger.Registry().Category("fe-apiserver")
 var accesslog = logger.Registry().Category("http-fe")
 
 func BuildApiServerOptions(cfg *cli.CliConfig) ([]apiserver.Option, error) {
-	var webuifs http.FileSystem
 	override := cfg.Fe.WebUIRootPath
-	if override == "" {
-		webuifs = webui.Assets
-	} else {
+	if override != "" {
 		logger.Infof(mylog, "Overriding embedded WebUI and serving WebUI at %s", override)
-		webuifs = http.Dir(override)
 	}
 
 	opts := []apiserver.Option{
 		apiserver.ListenAddr(cfg.Fe.ListenAddr),
 		apiserver.TLSCertKey(cfg.Fe.Cert, cfg.Fe.Key),
 		// apiserver.SetSwaggerJson(json.Assets, "/otaru-fe.swagger.json"),
-		apiserver.SetWebUI(webuifs, "/index.otaru-fe.html"),
+		apiserver.SetDefaultHandler(webui.WebUIHandler(override, "/index.otaru-fe.html")),
 		preview.Install(cfg),
 		InstallFeService(cfg),
 		InstallProxyHandler(cfg, cfg.Fe.BasicAuthUser, cfg.Fe.BasicAuthPassword),

@@ -80,14 +80,9 @@ func AddMuxHook(h MuxHook) Option {
 	return func(o *options) { o.muxhooks = append(o.muxhooks, h) }
 }
 
-func SetWebUI(fs http.FileSystem, indexpath string) Option {
+func SetDefaultHandler(h http.Handler) Option {
 	return AddMuxHook(func(mux *http.ServeMux) {
-		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/" {
-				r.URL.Path = indexpath
-			}
-			http.FileServer(fs).ServeHTTP(w, r)
-		})
+		mux.Handle("/", h)
 	})
 }
 
