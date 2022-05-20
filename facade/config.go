@@ -61,7 +61,7 @@ type ApiServerConfig struct {
 	Key              crypto.PrivateKey
 	KeyFile          string
 	ClientCACert     *x509.Certificate
-	ClientCACertFile string
+	ClientCACertFile string `toml:"client_ca_cert_file"`
 
 	WebUIRootPath      string   `toml:"webui_root_path"`
 	CORSAllowedOrigins []string `toml:"cors_allowed_origins"`
