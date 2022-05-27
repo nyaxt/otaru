@@ -210,13 +210,9 @@ func Serve(opt ...Option) error {
 		_, _ = w.Write([]byte("ok\n"))
 	})
 	mux.Handle("/metrics", promhttp.Handler())
-	if err := serveApiGateway(mux, &opts); err != nil {
-		return err
-	}
 	for _, hook := range opts.muxhooks {
 		hook(mux)
 	}
-	serveSwagger(mux)
 
 	c := cors.New(cors.Options{AllowedOrigins: opts.allowedOrigins})
 
@@ -237,8 +233,7 @@ func Serve(opt ...Option) error {
 	cliauthtype := tls.NoClientCert
 	var clicp *x509.CertPool
 	if clientAuthEnabled {
-		//cliauthtype = tls.VerifyClientCertIfGiven
-		cliauthtype = tls.RequireAndVerifyClientCert
+		cliauthtype = tls.VerifyClientCertIfGiven
 
 		clicp = x509.NewCertPool()
 		clicp.AddCert(opts.clientCACert)
