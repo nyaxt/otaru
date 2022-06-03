@@ -47,6 +47,9 @@ func ReadCertificatesFile(configkey, path string, pcerts *[]*x509.Certificate) e
 		}
 		cs = append(cs, c)
 	}
+	if len(cs) == 0 {
+		return fmt.Errorf("Failed to find any certificate on %sFile %q", configkey, path)
+	}
 
 	*pcerts = cs
 	return nil
@@ -64,7 +67,11 @@ func ReadCertificateFile(configkey, path string, pcert **x509.Certificate) error
 	if err := ReadCertificatesFile(configkey, path, &cs); err != nil {
 		return err
 	}
-	if len(cs) != 1 {
+	if len(cs) == 0 {
+		return nil
+	}
+
+	if len(cs) > 1 {
 		return fmt.Errorf("Expected 1 certificate on %sFile: %q, but got %d certificates", configkey, path, len(cs))
 	}
 	*pcert = cs[0]
