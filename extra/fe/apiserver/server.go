@@ -19,8 +19,9 @@ func BuildApiServerOptions(cfg *cli.CliConfig) ([]apiserver.Option, error) {
 
 	opts := []apiserver.Option{
 		apiserver.ListenAddr(cfg.Fe.ListenAddr),
-		apiserver.TLSCertKey(cfg.Fe.Cert, cfg.Fe.Key),
+		apiserver.TLSCertKey(cfg.Fe.Certs, cfg.Fe.Key),
 		// apiserver.SetSwaggerJson(json.Assets, "/otaru-fe.swagger.json"),
+		apiserver.ServeApiGateway(true),
 		apiserver.SetDefaultHandler(webui.WebUIHandler(override, "/index.otaru-fe.html")),
 		preview.Install(cfg),
 		InstallFeService(cfg),

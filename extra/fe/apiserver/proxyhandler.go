@@ -46,6 +46,7 @@ func (ap *apiproxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			TLSClientConfig: ci.TLSConfig,
 		},
 	}
+	logger.Debugf(mylog, "tc.RootCAs: %+v", ci.TLSConfig.RootCAs)
 	url := &url.URL{
 		Scheme:   "https",
 		Host:     ci.ApiEndpoint,

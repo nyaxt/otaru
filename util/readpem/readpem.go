@@ -2,6 +2,7 @@ package readpem
 
 import (
 	"crypto"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -9,8 +10,8 @@ import (
 	"os"
 )
 
-func ReadCertificateFile(configkey, path string, pcert **x509.Certificate) error {
-	if *pcert != nil {
+func ReadCertificatesFile(configkey, path string, pcerts *[]*x509.Certificate) error {
+	if len(*pcerts) != 0 {
 		if path != "" {
 			return fmt.Errorf("%[1]s and %[1]sFile are both specified", configkey)
 		}
@@ -27,13 +28,46 @@ func ReadCertificateFile(configkey, path string, pcert **x509.Certificate) error
 		return fmt.Errorf("Failed to read %sFile %q: %w", configkey, path, err)
 	}
 
-	block, _ := pem.Decode(bs)
-	c, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return fmt.Errorf("Failed to parse %sFile %q: %w", configkey, path, err)
+	var cs []*x509.Certificate
+
+	for len(bs) > 0 {
+		var block *pem.Block
+		block, bs = pem.Decode(bs)
+		if block == nil {
+			break
+		}
+
+		if block.Type != "CERTIFICATE" {
+			return fmt.Errorf("%d-th PEM block on %sFile %q is not CERTIFICATE", len(cs)+1, configkey, path)
+		}
+
+		c, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return fmt.Errorf("Failed to parse %d-th PEM block on %sFile %q: %w", len(cs)+1, configkey, path, err)
+		}
+		cs = append(cs, c)
 	}
 
-	*pcert = c
+	*pcerts = cs
+	return nil
+}
+
+func ReadCertificateFile(configkey, path string, pcert **x509.Certificate) error {
+	if *pcert != nil {
+		if path != "" {
+			return fmt.Errorf("%[1]s and %[1]sFile are both specified", configkey)
+		}
+		return nil
+	}
+
+	var cs []*x509.Certificate
+	if err := ReadCertificatesFile(configkey, path, &cs); err != nil {
+		return err
+	}
+	if len(cs) != 1 {
+		return fmt.Errorf("Expected 1 certificate on %sFile: %q, but got %d certificates", configkey, path, len(cs))
+	}
+	*pcert = cs[0]
 	return nil
 }
 
@@ -68,4 +102,15 @@ func ReadKeyFile(configkey, path string, pkey *crypto.PrivateKey) error {
 
 	*pkey = k
 	return nil
+}
+
+func TLSCertificate(certs []*x509.Certificate, key crypto.PrivateKey) tls.Certificate {
+	certDers := make([][]byte, len(certs))
+	for i, c := range certs {
+		certDers[i] = c.Raw
+	}
+	return tls.Certificate{
+		Certificate: certDers,
+		PrivateKey:  key,
+	}
 }

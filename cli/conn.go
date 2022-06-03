@@ -4,10 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -37,43 +35,14 @@ func QueryConnectionInfo(cfg *CliConfig, vhost string) (*ConnectionInfo, error) 
 }
 
 func connectionInfoFromHost(h *Host) (*ConnectionInfo, error) {
-	var tc *tls.Config
+	var tc tls.Config
 
 	if h.CACert != nil {
 		cp := x509.NewCertPool()
 		cp.AddCert(h.CACert)
 
-		tc = &tls.Config{RootCAs: cp}
-	} else if h.ExpectedCertFile != "" {
-		// FIXME: This is obsolete non-sense. Remove
-		logger.Infof(Log, "The use of ExpectedCertFile is deprecated!")
-
-		certfile := h.ExpectedCertFile
-		certtext, err := ioutil.ReadFile(certfile)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read specified cert file: %s", certfile)
-		}
-		logger.Debugf(Log, "Expecting server cert to match: %v", certfile)
-
-		block, _ := pem.Decode(certtext)
-		if block == nil {
-			return nil, fmt.Errorf("Failed to parse specified cert file")
-		}
-
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-
-		tc, err = TLSConfigFromCert(cert)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		logger.Debugf(Log, "No server cert expectation given for %q.", h.ApiEndpoint)
-		tc = &tls.Config{}
+		tc.RootCAs = cp
 	}
-
 	if h.Cert != nil {
 		logger.Debugf(Log, "Configuring client cert: cn=%s", h.Cert.Subject.CommonName)
 		tc.Certificates = []tls.Certificate{{
@@ -81,14 +50,13 @@ func connectionInfoFromHost(h *Host) (*ConnectionInfo, error) {
 			PrivateKey:  h.Key,
 		}}
 	}
-
 	if h.OverrideServerName != "" {
 		tc.ServerName = h.OverrideServerName
 	}
 
 	return &ConnectionInfo{
 		ApiEndpoint: h.ApiEndpoint,
-		TLSConfig:   tc,
+		TLSConfig:   &tc,
 	}, nil
 }
 

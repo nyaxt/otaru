@@ -6,25 +6,7 @@ const kHostNoProxy = '[noproxy]';
 const kCopy = 'copy';
 const kMove = 'move';
 
-let apiprefix = `${window.document.location.origin}/`;
-(() => {
-  const apiprefix_input = $("#apiprefix");
-  apiprefix_input.value = apiprefix;
-  apiprefix_input.addEventListener("change", ev => {
-    apiprefix = apiprefix_input.value;
-  });
-})();
-
-const kAuthTokenKey = 'authtoken';
-let authtoken = window.localStorage.getItem(kAuthTokenKey) || '';
-(() => {
-  const authtoken_input = $("#authtoken");
-  authtoken_input.value = authtoken;
-  authtoken_input.addEventListener("change", ev => {
-    authtoken = authtoken_input.value;
-    window.localStorage.setItem(kAuthTokenKey, authtoken);
-  });
-})();
+const apiprefix = `${window.document.location.origin}/`;
 
 const rpcUrl = (endpoint, opts = {}) => {
   const url = new URL(endpoint, apiprefix);
@@ -43,7 +25,6 @@ const rpc = async (endpoint, opts = {}) => {
 
   const fetchOpts = {mode: 'cors', cache: 'reload'};
   const headers = new Headers();
-  headers.append('Authorization', `Bearer ${authtoken}`);
   for (let k of propagateKeys) {
     if (opts[k] === undefined)
       continue;
@@ -216,7 +197,7 @@ const fsMoveOrCopy = async (moveOrCopy, src, dest) => {
 
     if (hostSrc === hostDest) {
       if (moveOrCopy === kCopy) {
-        throw "not implemented"; 
+        throw "not implemented";
       } else {
         return await rpc(fsopEndpoint('node/rename', hostSrc), {
           method: 'POST',

@@ -16,7 +16,7 @@ func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) ([]apiserver.Option,
 
 	options := []apiserver.Option{
 		apiserver.ListenAddr(cfg.ListenAddr),
-		apiserver.TLSCertKey(cfg.Cert, cfg.Key),
+		apiserver.TLSCertKey(cfg.Certs, cfg.Key),
 		apiserver.ClientCACert(cfg.ClientCACert),
 		apiserver.CORSAllowedOrigins(cfg.CORSAllowedOrigins),
 		apiserver.SetDefaultHandler(webui.WebUIHandler(override, "/index.otaru-server.html")),

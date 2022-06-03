@@ -64,7 +64,7 @@ func withApiServer(t *testing.T, f func()) {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testListenAddr),
-			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
+			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
 			apiserver.ClientCACert(testca.ClientAuthCACert),
 			otaruapiserver.InstallFileSystemService(fs),
 			otaruapiserver.InstallFileHandler(fs),

@@ -22,7 +22,7 @@ func TestServe_Healthz(t *testing.T) {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testListenAddr),
-			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
+			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
 			apiserver.ClientCACert(testca.ClientAuthCACert),
 			apiserver.CloseChannel(closeC),
 		); err != nil {

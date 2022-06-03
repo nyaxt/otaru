@@ -40,7 +40,7 @@ func runMockFsBackend() *mockFsBackend {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testBeListenAddr),
-			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
+			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
 			apiserver.ClientCACert(testca.ClientAuthCACert),
 			apiserver.CloseChannel(m.closeC),
 			otaruapiserver.InstallFileSystemService(fs),
@@ -124,7 +124,7 @@ func TestFeService(t *testing.T) {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testFeListenAddr),
-			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
+			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
 			apiserver.ClientCACert(testca.ClientAuthCACert),
 			apiserver.CloseChannel(closeC),
 			feapiserver.InstallFeService(cfg),

@@ -49,7 +49,7 @@ func runMockBackend() *mockBackend {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testBeListenAddr),
-			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
+			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
 			apiserver.ClientCACert(testca.ClientAuthCACert),
 			apiserver.CloseChannel(m.closeC),
 			apiserver.AddMuxHook(func(mux *http.ServeMux) {
@@ -114,7 +114,7 @@ func TestProxyHandler(t *testing.T) {
 	go func() {
 		if err := apiserver.Serve(
 			apiserver.ListenAddr(testFeListenAddr),
-			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
+			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
 			apiserver.CloseChannel(closeC),
 			feapiserver.InstallProxyHandler(cfg, basicuser, basicpassword),
 		); err != nil {

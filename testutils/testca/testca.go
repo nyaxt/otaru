@@ -27,6 +27,7 @@ var (
 	CACertPEM []byte
 	CACert    *x509.Certificate
 
+	Certs    []*x509.Certificate
 	CertPool *x509.CertPool
 
 	//go:embed clientauth_admin.pem
@@ -157,4 +158,6 @@ func init() {
 		panic(err)
 	}
 	ClientAuthCACert = c
+
+	Certs = []*x509.Certificate{Cert, CACert}
 }

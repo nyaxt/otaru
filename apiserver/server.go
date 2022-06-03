@@ -24,6 +24,7 @@ import (
 	"github.com/nyaxt/otaru/assets/swaggerui"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/util/readpem"
 )
 
 var LogCategory = logger.Registry().Category("apiserver")
@@ -39,12 +40,14 @@ type MuxHook func(mux *http.ServeMux)
 type options struct {
 	listenAddr string
 
-	cert *x509.Certificate
-	key  crypto.PrivateKey
+	certs []*x509.Certificate
+	key   crypto.PrivateKey
 
 	clientCACert *x509.Certificate
 
 	allowedOrigins []string
+
+	serveApiGateway bool
 
 	serviceRegistry []serviceRegistryEntry
 	accesslogger    logger.Logger
@@ -53,6 +56,7 @@ type options struct {
 }
 
 var defaultOptions = options{
+	serveApiGateway: false,
 	serviceRegistry: []serviceRegistryEntry{},
 	accesslogger:    logger.Registry().Category("http-apiserver"),
 }
@@ -63,9 +67,9 @@ func ListenAddr(listenAddr string) Option {
 	return func(o *options) { o.listenAddr = listenAddr }
 }
 
-func TLSCertKey(cert *x509.Certificate, key crypto.PrivateKey) Option {
+func TLSCertKey(certs []*x509.Certificate, key crypto.PrivateKey) Option {
 	return func(o *options) {
-		o.cert = cert
+		o.certs = certs
 		o.key = key
 	}
 }
@@ -73,6 +77,12 @@ func TLSCertKey(cert *x509.Certificate, key crypto.PrivateKey) Option {
 func ClientCACert(cert *x509.Certificate) Option {
 	return func(o *options) {
 		o.clientCACert = cert
+	}
+}
+
+func ServeApiGateway(b bool) Option {
+	return func(o *options) {
+		o.serveApiGateway = b
 	}
 }
 
@@ -137,14 +147,14 @@ func serveSwagger(mux *http.ServeMux) {
 }
 
 func serveApiGateway(mux *http.ServeMux, opts *options) error {
-	// FIXME: impersonate
+	c := opts.certs[0]
 
-	tc, err := cli.TLSConfigFromCert(opts.cert)
+	tc, err := cli.TLSConfigFromCert(c)
 	if err != nil {
 		return err
 	}
 	tc.Certificates = []tls.Certificate{{
-		Certificate: [][]byte{opts.cert.Raw},
+		Certificate: [][]byte{c.Raw},
 		PrivateKey:  opts.key,
 	}}
 
@@ -173,11 +183,8 @@ func Serve(opt ...Option) error {
 		o(&opts)
 	}
 
-	cert := &tls.Certificate{
-		Certificate: [][]byte{opts.cert.Raw},
-		PrivateKey:  opts.key,
-	}
-	grpcCredentials := credentials.NewServerTLSFromCert(cert)
+	tc := readpem.TLSCertificate(opts.certs, opts.key)
+	grpcCredentials := credentials.NewServerTLSFromCert(&tc)
 
 	var clientAuthEnabled bool
 	if opts.clientCACert != nil {
@@ -213,6 +220,9 @@ func Serve(opt ...Option) error {
 	for _, hook := range opts.muxhooks {
 		hook(mux)
 	}
+	if opts.serveApiGateway {
+		serveApiGateway(mux, &opts)
+	}
 
 	c := cors.New(cors.Options{AllowedOrigins: opts.allowedOrigins})
 
@@ -237,14 +247,16 @@ func Serve(opt ...Option) error {
 
 		clicp = x509.NewCertPool()
 		clicp.AddCert(opts.clientCACert)
-		// clicp.AddCert(opts.cert)
+		if opts.serveApiGateway {
+			clicp.AddCert(opts.certs[0])
+		}
 	}
 
 	httpServer := &http.Server{
 		Addr:    opts.listenAddr,
 		Handler: grpcHttpMux(grpcServer, httpHandler),
 		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{*cert},
+			Certificates: []tls.Certificate{tc},
 			NextProtos:   []string{"h2"},
 			ClientAuth:   cliauthtype,
 			ClientCAs:    clicp,

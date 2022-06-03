@@ -6,7 +6,6 @@
 <nav class="nav">
   <h1 class="nav__item nav__item--logo">Otaru</h1>
   <a class="nav__item nav__tab nav__tab--browsefs" href="#browsefs">browse fs</a>
-  <a class="nav__item nav__tab" href="#settings-fe">settings</a>
 </nav>
 <otaru-infobar></otaru-infobar>
 <otaru-preview id="preview"></otaru-preview>
@@ -14,17 +13,5 @@
   <browse-fs id="leftfs" class='split--leftpane'></browse-fs>
   <div class='splitbar'></div>
   <browse-fs id="rightfs" class='split--rightpane'></browse-fs>
-</section>
-<section class="section section--settings-fe">
-  <div class="kvview">
-    <div class="kvview__item">
-      <label class="kvview__label" for="apiprefix">Otaru API Server: </label>
-      <input class="kvview__value" type="text" id="apiprefix">
-    </div>
-    <div class="kvview__item">
-      <label class="kvview__label" for="apiprefix">Authentication Token: </label>
-      <input class="kvview__value" type="text" id="authtoken">
-    </div>
-  </div>
 </section>
 <script type="module" src="./app-fe.js"></script>

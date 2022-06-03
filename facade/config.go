@@ -56,8 +56,8 @@ type ApiServerConfig struct {
 	// Install debug handlers if enabled.
 	EnableDebug bool
 
-	Cert             *x509.Certificate
-	CertFile         string
+	Certs            []*x509.Certificate
+	CertsFile        string
 	Key              crypto.PrivateKey
 	KeyFile          string
 	ClientCACert     *x509.Certificate
@@ -121,7 +121,7 @@ func NewConfig(configdir string) (*Config, error) {
 		ApiServer: ApiServerConfig{
 			ListenAddr:       ":10246",
 			EnableDebug:      false,
-			CertFile:         path.Join(configdir, "cert.pem"),
+			CertsFile:        path.Join(configdir, "cert.pem"),
 			KeyFile:          path.Join(configdir, "cert-key.pem"),
 			ClientCACertFile: path.Join(configdir, "clientauth-ca.pem"),
 		},
@@ -197,10 +197,10 @@ func NewConfig(configdir string) (*Config, error) {
 		}
 	}
 
-	if err := readpem.ReadCertificateFile(
+	if err := readpem.ReadCertificatesFile(
 		"ApiServer.Cert",
-		cfg.ApiServer.CertFile,
-		&cfg.ApiServer.Cert,
+		cfg.ApiServer.CertsFile,
+		&cfg.ApiServer.Certs,
 	); err != nil {
 		return nil, err
 	}

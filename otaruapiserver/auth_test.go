@@ -67,7 +67,7 @@ func runTestServer(t *testing.T, auth Auth) *testServer {
 	go func() {
 		opts := []apiserver.Option{
 			apiserver.ListenAddr(testListenAddr),
-			apiserver.TLSCertKey(testca.Cert, testca.Key.Parsed),
+			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
 			apiserver.CloseChannel(ts.closeC),
 			otaruapiserver.InstallSystemService(),
 			otaruapiserver.InstallFileHandler(ts.fs),

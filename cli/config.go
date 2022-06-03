@@ -3,7 +3,6 @@ package cli
 import (
 	"crypto"
 	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -14,6 +13,7 @@ import (
 
 	opath "github.com/nyaxt/otaru/cli/path"
 	"github.com/nyaxt/otaru/util"
+	"github.com/nyaxt/otaru/util/readpem"
 )
 
 var ErrNoLocalPathDefined = errors.New("No local root path is defined.")
@@ -36,7 +36,7 @@ type Host struct {
 	OverrideServerName string
 
 	CACert     *x509.Certificate
-	CACertFile string
+	CACertFile string `toml:"ca_cert_file"`
 	Cert       *x509.Certificate
 	CertFile   string
 	Key        crypto.PrivateKey
@@ -47,10 +47,10 @@ type FeConfig struct {
 	ListenAddr    string
 	WebUIRootPath string `toml:"webui_root_path"`
 
-	Cert     *x509.Certificate
-	CertFile string
-	Key      crypto.PrivateKey
-	KeyFile  string
+	Certs     []*x509.Certificate
+	CertsFile string
+	Key       crypto.PrivateKey
+	KeyFile   string
 
 	BasicAuthUser     string
 	BasicAuthPassword string
@@ -59,75 +59,13 @@ type FeConfig struct {
 type WebdavConfig struct {
 	ListenAddr string
 
-	Cert     *x509.Certificate
-	CertFile string
-	Key      crypto.PrivateKey
-	KeyFile  string
+	Certs     []*x509.Certificate
+	CertsFile string
+	Key       crypto.PrivateKey
+	KeyFile   string
 
 	BasicAuthUser     string
 	BasicAuthPassword string
-}
-
-func readCertificateFile(configkey, path string, pcert **x509.Certificate) error {
-	if *pcert != nil {
-		if path != "" {
-			return fmt.Errorf("%[1]s and %[1]sFile are both specified", configkey)
-		}
-		return nil
-	}
-
-	if path == "" {
-		return nil
-	}
-	path = os.ExpandEnv(path)
-
-	bs, err := ioutil.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("Failed to read %sFile %q: %w", configkey, path, err)
-	}
-
-	block, _ := pem.Decode(bs)
-	c, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return fmt.Errorf("Failed to parse %sFile %q: %w", configkey, path, err)
-	}
-
-	*pcert = c
-	return nil
-}
-
-func readKeyFile(configkey, path string, pkey *crypto.PrivateKey) error {
-	if *pkey != nil {
-		if path != "" {
-			return fmt.Errorf("%[1]s and %[1]sFile are both specified", configkey)
-		}
-		return nil
-	}
-
-	if path == "" {
-		return nil
-	}
-	path = os.ExpandEnv(path)
-
-	bs, err := ioutil.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("Failed to read %sFile %q: %w", configkey, path, err)
-	}
-
-	block, _ := pem.Decode(bs)
-
-	var k crypto.PrivateKey
-	if eck, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
-		k = eck
-	} else if p1k, err := x509.ParsePKCS1PrivateKey(block.Bytes); err == nil {
-		k = p1k
-	} else {
-		return fmt.Errorf("Failed to parse %sFile %q as EC nor PKCS1 private key", configkey, path)
-	}
-
-	*pkey = k
-	return nil
-
 }
 
 func NewConfig(configdir string) (*CliConfig, error) {
@@ -143,18 +81,18 @@ func NewConfig(configdir string) (*CliConfig, error) {
 		return nil, fmt.Errorf("Failed to read config file: %v", err)
 	}
 
-	possibleCertFile := path.Join(configdir, "cert.pem")
-	if util.IsRegular(possibleCertFile) != nil {
-		possibleCertFile = ""
+	possibleCertsFile := path.Join(configdir, "cert.pem")
+	if util.IsRegular(possibleCertsFile) != nil {
+		possibleCertsFile = ""
 	}
 	cfg := CliConfig{
 		Fe: FeConfig{
 			ListenAddr: ":10247",
-			CertFile:   possibleCertFile,
+			CertsFile:  possibleCertsFile,
 			KeyFile:    path.Join(configdir, "cert-key.pem"),
 		},
 		Webdav: WebdavConfig{
-			CertFile:      possibleCertFile,
+			CertsFile:     possibleCertsFile,
 			KeyFile:       path.Join(configdir, "cert-key.pem"),
 			BasicAuthUser: "readonly",
 		},
@@ -166,34 +104,36 @@ func NewConfig(configdir string) (*CliConfig, error) {
 		h.ApiEndpoint = os.ExpandEnv(h.ApiEndpoint)
 		h.ExpectedCertFile = os.ExpandEnv(h.ExpectedCertFile)
 		h.OverrideServerName = os.ExpandEnv(h.OverrideServerName)
-		if err := readCertificateFile("CACert", h.CACertFile, &h.CACert); err != nil {
+		if err := readpem.ReadCertificateFile("CACert", h.CACertFile, &h.CACert); err != nil {
 			return nil, fmt.Errorf("vhost %q: %w", vhost, err)
 		}
-		if err := readCertificateFile("Cert", h.CertFile, &h.Cert); err != nil {
+		if err := readpem.ReadCertificateFile("Cert", h.CertFile, &h.Cert); err != nil {
 			return nil, fmt.Errorf("vhost %q: %w", vhost, err)
 		}
-		if err := readKeyFile("Key", h.KeyFile, &h.Key); err != nil {
+		if err := readpem.ReadKeyFile("Key", h.KeyFile, &h.Key); err != nil {
 			return nil, fmt.Errorf("vhost %q: %w", vhost, err)
 		}
 	}
-	if err := readCertificateFile("Fe.Cert", cfg.Fe.CertFile, &cfg.Fe.Cert); err != nil {
+	if err := readpem.ReadCertificatesFile("Fe.Certs", cfg.Fe.CertsFile, &cfg.Fe.Certs); err != nil {
 		return nil, err
 	}
-	if err := readKeyFile("Fe.Key", cfg.Fe.KeyFile, &cfg.Fe.Key); err != nil {
+	if err := readpem.ReadKeyFile("Fe.Key", cfg.Fe.KeyFile, &cfg.Fe.Key); err != nil {
 		return nil, err
 	}
-	if err := readCertificateFile("Webdav.Cert", cfg.Webdav.CertFile, &cfg.Webdav.Cert); err != nil {
+	if err := readpem.ReadCertificatesFile("Webdav.Cert", cfg.Webdav.CertsFile, &cfg.Webdav.Certs); err != nil {
 		return nil, err
 	}
-	if err := readKeyFile("Webdav.Key", cfg.Webdav.KeyFile, &cfg.Webdav.Key); err != nil {
+	if err := readpem.ReadKeyFile("Webdav.Key", cfg.Webdav.KeyFile, &cfg.Webdav.Key); err != nil {
 		return nil, err
 	}
 
+	cfg.LocalRootPath = os.ExpandEnv(cfg.LocalRootPath)
 	if cfg.LocalRootPath != "" {
 		if err := util.IsDir(cfg.LocalRootPath); err != nil {
 			return nil, fmt.Errorf("local_root_path %q is not a dir: %v", cfg.LocalRootPath, err)
 		}
 	}
+	cfg.TrashDirPath = os.ExpandEnv(cfg.TrashDirPath)
 	if cfg.TrashDirPath != "" {
 		if err := util.IsDir(cfg.TrashDirPath); err != nil {
 			return nil, fmt.Errorf("trash_dir_path %q is not a dir: %v", cfg.TrashDirPath, err)

@@ -10,6 +10,7 @@ import (
 	"github.com/nyaxt/otaru/basicauth"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/logger"
+	"github.com/nyaxt/otaru/util/readpem"
 )
 
 var mylog = logger.Registry().Category("fe-webdav")
@@ -39,11 +40,6 @@ func Serve(cfg *cli.CliConfig, closeC <-chan struct{}) error {
 		}()
 	}
 
-	cert, err := tls.LoadX509KeyPair(wcfg.CertFile, wcfg.KeyFile)
-	if err != nil {
-		return fmt.Errorf("Failed to load webdav {cert,key} pair: %v", err)
-	}
-
 	if wcfg.BasicAuthPassword == "" {
 		logger.Warningf(mylog, "Basic auth not enabled!")
 	} else {
@@ -65,11 +61,12 @@ func Serve(cfg *cli.CliConfig, closeC <-chan struct{}) error {
 	loghandler := logger.HttpHandler(accesslog, logger.Info, mux)
 
 	// Note: This doesn't enable h2. Reconsider this if there is a webdav client w/ h2 support.
+	tc := readpem.TLSCertificate(wcfg.Certs, wcfg.Key)
 	httpsrv := http.Server{
 		Addr:    wcfg.ListenAddr,
 		Handler: loghandler,
 		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{cert},
+			Certificates: []tls.Certificate{tc},
 			NextProtos:   []string{"http/1.1"},
 		},
 	}
