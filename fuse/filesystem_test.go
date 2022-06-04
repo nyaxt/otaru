@@ -3,6 +3,7 @@ package fuse_test
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -83,11 +84,11 @@ func fusetestCommon(t *testing.T, fs *filesystem.FileSystem, f func(mountpoint s
 
 	bfuse.Unmount(mountpoint)
 
+	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan bool)
 	ready := make(chan bool)
-	closeC := make(chan struct{})
 	go func() {
-		if err := fuse.Serve("otaru-test", mountpoint, fs, ready, closeC); err != nil {
+		if err := fuse.Serve(ctx, "otaru-test", mountpoint, fs, ready); err != nil {
 			t.Errorf("fuse.Serve err: %v", err)
 			close(ready)
 		}
@@ -97,7 +98,7 @@ func fusetestCommon(t *testing.T, fs *filesystem.FileSystem, f func(mountpoint s
 
 	f(mountpoint)
 
-	close(closeC)
+	cancel()
 	<-done
 }
 

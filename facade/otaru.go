@@ -8,6 +8,7 @@ import (
 	"path"
 	"time"
 
+	"go.uber.org/multierr"
 	"golang.org/x/oauth2"
 
 	"github.com/nyaxt/otaru/apiserver"
@@ -117,6 +118,8 @@ func Mkfs(cfg *Config) error {
 }
 
 func Serve(ctx context.Context, cfg *Config) error {
+	ctx, cancel := context.WithCancel(ctx)
+
 	o := &Otaru{}
 	defer o.Close()
 
@@ -181,51 +184,28 @@ func Serve(ctx context.Context, cfg *Config) error {
 		return fmt.Errorf("ApiServer config failed: %v", err)
 	}
 
-	apiCloseC := make(chan struct{})
-	defer close(apiCloseC)
-	apiErrC := make(chan error)
-	apiopts = append(apiopts, apiserver.CloseChannel(apiCloseC))
+	var apiErr error
 	go func() {
-		if err := apiserver.Serve(apiopts...); err != nil {
-			apiErrC <- err
+		if err := apiserver.Serve(ctx, apiopts...); err != nil {
+			cancel()
+			logger.Infof(mylog, "Apiserver error: %v", err)
+			apiErr = err
 		}
-		close(apiErrC)
 	}()
 
-	fuseErrC := make(chan error)
+	var fuseErr error
 	if cfg.FuseMountPoint != "" {
-		fuseCloseC := make(chan struct{})
-		defer close(fuseCloseC)
-
 		go func() {
-			if err := fuse.Serve(cfg.BucketName, cfg.FuseMountPoint, o.FS, nil, fuseCloseC); err != nil {
-				fuseErrC <- err
+			if err := fuse.Serve(ctx, cfg.BucketName, cfg.FuseMountPoint, o.FS, nil); err != nil {
+				cancel()
+				logger.Infof(mylog, "FUSE error: %v", err)
+				fuseErr = err
 			}
-			close(fuseErrC)
 		}()
 	}
 
-	select {
-	case err := <-apiErrC:
-		if err == nil {
-			logger.Infof(mylog, "Apiserver shutdown detected.")
-		} else {
-			return fmt.Errorf("Apiserver error: %v", err)
-		}
-
-	case err := <-fuseErrC:
-		if err == nil {
-			logger.Infof(mylog, "Fuse shutdown detected.")
-		} else {
-			return fmt.Errorf("Fuse error: %v", err)
-		}
-
-	case <-ctx.Done():
-		logger.Infof(mylog, "Shutdown requested.")
-		return nil
-	}
-
-	return nil
+	<-ctx.Done()
+	return multierr.Combine(apiErr, fuseErr)
 }
 
 func (o *Otaru) initCrypt(cfg *Config) error {

@@ -59,16 +59,15 @@ func withApiServer(t *testing.T, f func()) {
 
 	fs := tu.TestFileSystem()
 
-	closeC := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
 	joinC := make(chan struct{})
 	go func() {
-		if err := apiserver.Serve(
+		if err := apiserver.Serve(ctx,
 			apiserver.ListenAddr(testListenAddr),
 			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
 			apiserver.ClientCACert(testca.ClientAuthCACert),
 			otaruapiserver.InstallFileSystemService(fs),
 			otaruapiserver.InstallFileHandler(fs),
-			apiserver.CloseChannel(closeC),
 		); err != nil {
 			t.Errorf("Serve failed: %v", err)
 		}
@@ -80,7 +79,7 @@ func withApiServer(t *testing.T, f func()) {
 
 	f()
 
-	close(closeC)
+	cancel()
 	<-joinC
 }
 

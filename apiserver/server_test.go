@@ -2,6 +2,7 @@ package apiserver_test
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"io/ioutil"
 	"testing"
@@ -17,14 +18,13 @@ const testListenAddr = "localhost:20246"
 func init() { testutils.EnsureLogger() }
 
 func TestServe_Healthz(t *testing.T) {
-	closeC := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
 	joinC := make(chan struct{})
 	go func() {
-		if err := apiserver.Serve(
+		if err := apiserver.Serve(ctx,
 			apiserver.ListenAddr(testListenAddr),
 			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
 			apiserver.ClientCACert(testca.ClientAuthCACert),
-			apiserver.CloseChannel(closeC),
 		); err != nil {
 			t.Errorf("Serve failed: %v", err)
 		}
@@ -37,18 +37,18 @@ func TestServe_Healthz(t *testing.T) {
 	resp, err := testca.TLSHTTPClient.Get("https://" + testListenAddr + "/healthz")
 	if err != nil {
 		t.Errorf("http.Get: %v", err)
-		return
+		t.FailNow()
 	}
 	cont, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		t.Errorf("ReadAll(http.Get resp.Body): %v", err)
-		return
+		t.FailNow()
 	}
 	if !bytes.Equal(cont, []byte("ok\n")) {
 		t.Errorf("unexpected content: %v", cont)
 	}
 	resp.Body.Close()
 
-	close(closeC)
+	cancel()
 	<-joinC
 }

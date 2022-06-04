@@ -2,6 +2,7 @@ package apiserver_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"io/ioutil"
@@ -33,25 +34,25 @@ type mockRequest struct {
 }
 
 type mockBackend struct {
-	closeC chan struct{}
+	cancel context.CancelFunc
 	joinC  chan struct{}
 
 	Reqs []mockRequest
 }
 
 func runMockBackend() *mockBackend {
+	ctx, cancel := context.WithCancel(context.Background())
 	m := &mockBackend{
-		closeC: make(chan struct{}),
+		cancel: cancel,
 		joinC:  make(chan struct{}),
 		Reqs:   []mockRequest{},
 	}
 
 	go func() {
-		if err := apiserver.Serve(
+		if err := apiserver.Serve(ctx,
 			apiserver.ListenAddr(testBeListenAddr),
 			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
 			apiserver.ClientCACert(testca.ClientAuthCACert),
-			apiserver.CloseChannel(m.closeC),
 			apiserver.AddMuxHook(func(mux *http.ServeMux) {
 				mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 					mr := mockRequest{
@@ -86,7 +87,7 @@ func (m *mockBackend) PopReqs() (reqs []mockRequest) {
 }
 
 func (m *mockBackend) Terminate() {
-	close(m.closeC)
+	m.cancel()
 	<-m.joinC
 }
 
@@ -109,13 +110,12 @@ func TestProxyHandler(t *testing.T) {
 
 	m := runMockBackend()
 
-	closeC := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
 	joinC := make(chan struct{})
 	go func() {
-		if err := apiserver.Serve(
+		if err := apiserver.Serve(ctx,
 			apiserver.ListenAddr(testFeListenAddr),
 			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
-			apiserver.CloseChannel(closeC),
 			feapiserver.InstallProxyHandler(cfg, basicuser, basicpassword),
 		); err != nil {
 			t.Errorf("Serve failed: %v", err)
@@ -123,9 +123,9 @@ func TestProxyHandler(t *testing.T) {
 		close(joinC)
 	}()
 	defer func() {
-		close(closeC)
+		cancel()
 		<-joinC
-		defer m.Terminate()
+		m.Terminate()
 	}()
 
 	// FIXME: wait until Serve to actually start accepting conns

@@ -1,18 +1,17 @@
 package fuse
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"time"
 
+	bfuse "github.com/nyaxt/fuse"
+	bfs "github.com/nyaxt/fuse/fs"
+
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
-
-	"context"
-
-	bfuse "github.com/nyaxt/fuse"
-	bfs "github.com/nyaxt/fuse/fs"
 )
 
 var mylog = logger.Registry().Category("fuse")
@@ -47,7 +46,7 @@ func (fs FileSystem) Statfs(ctx context.Context, req *bfuse.StatfsRequest, resp 
 	return nil
 }
 
-func Serve(bucketName string, mountpoint string, ofs *filesystem.FileSystem, ready chan<- bool, closeC <-chan struct{}) error {
+func Serve(ctx context.Context, bucketName string, mountpoint string, ofs *filesystem.FileSystem, ready chan<- bool) error {
 	fsName := fmt.Sprintf("otaru+gs://%s", bucketName)
 	volName := fmt.Sprintf("Otaru %s", bucketName)
 
@@ -83,7 +82,7 @@ func Serve(bucketName string, mountpoint string, ofs *filesystem.FileSystem, rea
 	}
 
 	go func() {
-		<-closeC
+		<-ctx.Done()
 		Unmount(mountpoint)
 	}()
 

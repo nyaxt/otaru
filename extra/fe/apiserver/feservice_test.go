@@ -23,7 +23,7 @@ import (
 )
 
 type mockFsBackend struct {
-	closeC chan struct{}
+	cancel context.CancelFunc
 	joinC  chan struct{}
 	fs     *filesystem.FileSystem
 }
@@ -31,18 +31,18 @@ type mockFsBackend struct {
 func runMockFsBackend() *mockFsBackend {
 	fs := testutils.TestFileSystem()
 
+	ctx, cancel := context.WithCancel(context.Background())
 	m := &mockFsBackend{
-		closeC: make(chan struct{}),
+		cancel: cancel,
 		joinC:  make(chan struct{}),
 		fs:     fs,
 	}
 
 	go func() {
-		if err := apiserver.Serve(
+		if err := apiserver.Serve(ctx,
 			apiserver.ListenAddr(testBeListenAddr),
 			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
 			apiserver.ClientCACert(testca.ClientAuthCACert),
-			apiserver.CloseChannel(m.closeC),
 			otaruapiserver.InstallFileSystemService(fs),
 			otaruapiserver.InstallFileHandler(fs),
 		); err != nil {
@@ -55,7 +55,7 @@ func runMockFsBackend() *mockFsBackend {
 }
 
 func (m *mockFsBackend) Terminate() {
-	close(m.closeC)
+	m.cancel()
 	<-m.joinC
 }
 
@@ -119,14 +119,13 @@ func TestFeService(t *testing.T) {
 
 	m := runMockFsBackend()
 
-	closeC := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
 	joinC := make(chan struct{})
 	go func() {
-		if err := apiserver.Serve(
+		if err := apiserver.Serve(ctx,
 			apiserver.ListenAddr(testFeListenAddr),
 			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
 			apiserver.ClientCACert(testca.ClientAuthCACert),
-			apiserver.CloseChannel(closeC),
 			feapiserver.InstallFeService(cfg),
 		); err != nil {
 			t.Errorf("Serve failed: %v", err)
@@ -329,7 +328,7 @@ func TestFeService(t *testing.T) {
 		checkFileContents(t, filepath.Join(rootPath, "upldl", "existing.txt"), []byte("existing"))
 	})
 
-	close(closeC)
+	cancel()
 	<-joinC
 
 	m.Terminate()

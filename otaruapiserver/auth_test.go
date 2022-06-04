@@ -30,7 +30,7 @@ type testServer struct {
 	fs         *filesystem.FileSystem
 	inodeRead  inodedb.ID
 	inodeWrite inodedb.ID
-	closeC     chan struct{}
+	cancel     context.CancelFunc
 	joinC      chan struct{}
 }
 
@@ -44,9 +44,10 @@ const (
 func runTestServer(t *testing.T, auth Auth) *testServer {
 	t.Helper()
 
+	ctx, cancel := context.WithCancel(context.Background())
 	ts := &testServer{
 		fs:     testutils.TestFileSystem(),
-		closeC: make(chan struct{}),
+		cancel: cancel,
 		joinC:  make(chan struct{}),
 	}
 
@@ -68,14 +69,13 @@ func runTestServer(t *testing.T, auth Auth) *testServer {
 		opts := []apiserver.Option{
 			apiserver.ListenAddr(testListenAddr),
 			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
-			apiserver.CloseChannel(ts.closeC),
 			otaruapiserver.InstallSystemService(),
 			otaruapiserver.InstallFileHandler(ts.fs),
 		}
 		if auth == EnableClientAuth {
 			opts = append(opts, apiserver.ClientCACert(testca.ClientAuthCACert))
 		}
-		if err := apiserver.Serve(opts...); err != nil {
+		if err := apiserver.Serve(ctx, opts...); err != nil {
 			panic(err)
 		}
 		close(ts.joinC)
@@ -88,7 +88,7 @@ func runTestServer(t *testing.T, auth Auth) *testServer {
 }
 
 func (ts *testServer) Terminate() {
-	close(ts.closeC)
+	ts.cancel()
 	<-ts.joinC
 }
 

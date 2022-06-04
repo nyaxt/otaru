@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -52,7 +53,6 @@ type options struct {
 	serviceRegistry []serviceRegistryEntry
 	accesslogger    logger.Logger
 	muxhooks        []MuxHook
-	closeC          <-chan struct{}
 }
 
 var defaultOptions = options{
@@ -105,10 +105,6 @@ func SetSwaggerJson(fs http.FileSystem, path string) Option {
 	})
 }
 
-func CloseChannel(c <-chan struct{}) Option {
-	return func(o *options) { o.closeC = c }
-}
-
 func CORSAllowedOrigins(allowedOrigins []string) Option {
 	return func(o *options) { o.allowedOrigins = allowedOrigins }
 }
@@ -146,7 +142,7 @@ func serveSwagger(mux *http.ServeMux) {
 	mux.Handle(prefix, http.StripPrefix(prefix, uisrv))
 }
 
-func serveApiGateway(mux *http.ServeMux, opts *options) error {
+func serveApiGateway(ctx context.Context, mux *http.ServeMux, opts *options) error {
 	c := opts.certs[0]
 
 	tc, err := cli.TLSConfigFromCert(c)
@@ -161,7 +157,6 @@ func serveApiGateway(mux *http.ServeMux, opts *options) error {
 	cred := credentials.NewTLS(tc)
 	gwdialopts := []grpc.DialOption{grpc.WithTransportCredentials(cred)}
 
-	ctx := context.Background()
 	gwmux := gwruntime.NewServeMux()
 	loopbackaddr := opts.listenAddr
 	if strings.HasPrefix(loopbackaddr, ":") {
@@ -177,7 +172,7 @@ func serveApiGateway(mux *http.ServeMux, opts *options) error {
 	return nil
 }
 
-func Serve(opt ...Option) error {
+func Serve(ctx context.Context, opt ...Option) error {
 	opts := defaultOptions
 	for _, o := range opt {
 		o(&opts)
@@ -221,7 +216,9 @@ func Serve(opt ...Option) error {
 		hook(mux)
 	}
 	if opts.serveApiGateway {
-		serveApiGateway(mux, &opts)
+		if err := serveApiGateway(ctx, mux, &opts); err != nil {
+			return err
+		}
 	}
 
 	c := cors.New(cors.Options{AllowedOrigins: opts.allowedOrigins})
@@ -229,14 +226,6 @@ func Serve(opt ...Option) error {
 	lis, err := net.Listen("tcp", opts.listenAddr)
 	if err != nil {
 		return fmt.Errorf("Failed to listen %q: %v", opts.listenAddr, err)
-	}
-	closed := false
-	if opts.closeC != nil {
-		go func() {
-			<-opts.closeC
-			closed = true
-			lis.Close()
-		}()
 	}
 
 	httpHandler := logger.HttpHandler(opts.accesslogger, logger.Info, c.Handler(mux))
@@ -263,11 +252,13 @@ func Serve(opt ...Option) error {
 		},
 	}
 
-	if err := httpServer.Serve(tls.NewListener(lis, httpServer.TLSConfig)); err != nil {
-		if closed {
-			// Suppress "use of closed network connection" error if we intentionally closed the listener.
-			return nil
-		}
+	go func() {
+		<-ctx.Done()
+		httpServer.Close()
+		lis.Close()
+	}()
+	err = httpServer.Serve(tls.NewListener(lis, httpServer.TLSConfig))
+	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil

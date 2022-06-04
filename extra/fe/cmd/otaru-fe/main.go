@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -24,15 +25,17 @@ func Usage() {
 	flag.PrintDefaults()
 }
 
-func serve(cfg *cli.CliConfig) error {
+func serve(ctx context.Context, cfg *cli.CliConfig) error {
 	opts, err := fe_apiserver.BuildApiServerOptions(cfg)
 	if err != nil {
 		return err
 	}
-	return apiserver.Serve(opts...)
+	return apiserver.Serve(ctx, opts...)
 }
 
 func main() {
+	ctx := context.Background()
+
 	flag.Usage = Usage
 	flag.Parse()
 	if *flagVersion {
@@ -49,7 +52,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	if err = serve(cfg); err != nil {
+	if err := serve(ctx, cfg); err != nil {
 		logger.Criticalf(cli.Log, "%v", err)
 		os.Exit(1)
 	}
