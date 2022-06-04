@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go.uber.org/multierr"
+
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
@@ -69,14 +71,12 @@ func NewCacheSyncer(provider SyncCandidatesProvider, numWorkers int) *CacheSynce
 func (cs *CacheSyncer) SyncAll(ss []util.Syncer) error {
 	errC := make(chan error, 16)
 	cs.syncAllC <- syncAllCmd{ss, errC}
-	es := make([]error, 0, len(ss))
+	var me error
 	for i := 0; i < len(ss); i++ {
 		e := <-errC
-		if e != nil {
-			es = append(es, e)
-		}
+		me = multierr.Append(me, e)
 	}
-	return util.ToErrors(es)
+	return me
 }
 
 func (cs *CacheSyncer) Quit() {

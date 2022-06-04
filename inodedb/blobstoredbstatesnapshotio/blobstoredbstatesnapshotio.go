@@ -1,11 +1,12 @@
 package blobstoredbstatesnapshotio
 
 import (
+	"context"
 	"encoding/gob"
 	"fmt"
 	"time"
 
-	"context"
+	"go.uber.org/multierr"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
@@ -165,8 +166,7 @@ func (sio *DBStateSnapshotIO) DeleteOldSnapshots(ctx context.Context, dryRun boo
 		return fmt.Errorf("SSLocator.DeleteOld failed: %v", err)
 	}
 
-	errs := []error{}
-
+	var me error
 	if dryRun {
 		for _, bp := range bps {
 			logger.Infof(mylog, "Not actually deleting snapshot blob \"%s\" in dry run.", bp)
@@ -176,13 +176,13 @@ func (sio *DBStateSnapshotIO) DeleteOldSnapshots(ctx context.Context, dryRun boo
 			logger.Infof(mylog, "Deleting snapshot blob \"%s\".", bp)
 			if err := bdeleter.RemoveBlob(bp); err != nil {
 				logger.Warningf(mylog, "Error removing blob \"%s\": %v", bp, err)
-				errs = append(errs, err)
+				me = multierr.Append(me, err)
 			}
 		}
 	}
 
 	logger.Infof(mylog, "DeleteOldSnapshots(dryRun: %t) took %v", dryRun, time.Since(start))
-	return util.ToErrors(errs)
+	return err
 }
 
 func (sio *DBStateSnapshotIO) String() string {

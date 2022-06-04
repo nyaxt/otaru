@@ -11,6 +11,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"go.uber.org/multierr"
 
 	"github.com/nyaxt/otaru/blobstore"
 	fl "github.com/nyaxt/otaru/flags"
@@ -814,17 +815,17 @@ Loop:
 		}
 	}()
 
-	errs := []error{}
+	var me error
 	for i := 0; i < 2; i++ {
 		if err := <-errC; err != nil {
-			errs = append(errs, err)
+			me = multierr.Append(me, err)
 		}
 	}
 
 	be.syncCount++
 	be.lastSync = time.Now()
 	logger.Infof(mylog, "Sync entry \"%s\" took %v", be.blobpath, be.lastSync.Sub(start))
-	return util.ToErrors(errs)
+	return me
 }
 
 type CloseMode int

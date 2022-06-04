@@ -314,7 +314,7 @@ func (o *Otaru) initINodeDBIO(cfg *Config, flags int) error {
 }
 
 func (o *Otaru) Close() error {
-	errs := []error{}
+	var me error
 	ctx := context.Background()
 
 	if o.R != nil {
@@ -327,7 +327,7 @@ func (o *Otaru) Close() error {
 
 	if o.FS != nil && !o.ReadOnly {
 		if err := o.FS.Sync(); err != nil {
-			errs = append(errs, err)
+			me = multierr.Append(me, err)
 		}
 	}
 
@@ -337,28 +337,28 @@ func (o *Otaru) Close() error {
 
 	if o.IDBBE != nil && !o.ReadOnly {
 		if err := o.IDBBE.Sync(); err != nil {
-			errs = append(errs, err)
+			me = multierr.Append(me, err)
 		}
 	}
 
 	if o.CBS != nil {
 		if !o.ReadOnly {
 			if err := o.CBS.SaveState(o.C); err != nil {
-				errs = append(errs, err)
+				me = multierr.Append(me, err)
 			}
 		}
 		if err := o.CBS.Quit(); err != nil {
-			errs = append(errs, err)
+			me = multierr.Append(me, err)
 		}
 	}
 
 	if o.GL != nil && !o.ReadOnly {
 		if err := o.GL.Unlock(ctx); err != nil {
-			errs = append(errs, err)
+			me = multierr.Append(me, err)
 		}
 	}
 
-	return util.ToErrors(errs)
+	return me
 }
 
 func (o *Otaru) GetBlobstoreGCTask(dryrun bool) scheduler.Task {

@@ -3,6 +3,8 @@ package chunkstore
 import (
 	"fmt"
 
+	"go.uber.org/multierr"
+
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	fl "github.com/nyaxt/otaru/flags"
@@ -117,25 +119,25 @@ const (
 )
 
 func (cfio *ChunkedFileIO) closeCachedChunkIO() error {
-	var errs []error
+	var ret error
 
 	if cfio.cachedCio != nil {
 		if err := cfio.cachedCio.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("Failed to close previously cached cio (blobpath: \"%s\"): %v", cfio.cachedCioBlobpath, err))
+			ret = multierr.Append(ret, fmt.Errorf("Failed to close previously cached cio (blobpath: \"%s\"): %v", cfio.cachedCioBlobpath, err))
 		}
 
 		cfio.cachedCio = nil
 	}
 	if cfio.cachedBh != nil {
 		if err := cfio.cachedBh.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("Failed to close previously cached bh (blobpath: \"%s\"): %v", cfio.cachedCioBlobpath, err))
+			ret = multierr.Append(ret, fmt.Errorf("Failed to close previously cached bh (blobpath: \"%s\"): %v", cfio.cachedCioBlobpath, err))
 		}
 
 		cfio.cachedBh = nil
 	}
 	cfio.cachedCioBlobpath = ""
 
-	return util.ToErrors(errs)
+	return ret
 }
 
 func (cfio *ChunkedFileIO) openChunkIO(blobpath string, isNewChunk bool, offset int64) (blobstore.BlobHandle, error) {

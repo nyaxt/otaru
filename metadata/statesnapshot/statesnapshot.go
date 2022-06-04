@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"io"
 
+	"go.uber.org/multierr"
+
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
 	"github.com/nyaxt/otaru/logger"
-	"github.com/nyaxt/otaru/util"
 )
 
 var mylog = logger.Registry().Category("statess")
@@ -26,19 +27,14 @@ func SaveBytes(w io.Writer, c *btncrypt.Cipher, p []byte) error {
 		return err
 	}
 
-	es := []error{}
+	var me error
 	if _, err := cw.Write(p); err != nil {
-		es = append(es, fmt.Errorf("Failed to write to ChunkWriter: %v", err))
+		me = multierr.Append(me, fmt.Errorf("Failed to write to ChunkWriter: %w", err))
 	}
-
 	if err := cw.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close ChunkWriter: %v", err))
+		me = multierr.Append(me, fmt.Errorf("Failed to close ChunkWriter: %w", err))
 	}
-
-	if err := util.ToErrors(es); err != nil {
-		return err
-	}
-	return nil
+	return me
 }
 
 type EncodeCallback func(enc *gob.Encoder) error
@@ -48,16 +44,16 @@ func EncodeBytes(cb EncodeCallback) ([]byte, error) {
 	zw := zlib.NewWriter(&buf)
 	enc := gob.NewEncoder(zw)
 
-	es := []error{}
+	var me error
 	if err := cb(enc); err != nil {
-		es = append(es, fmt.Errorf("Failed to encode state: %v", err))
+		me = multierr.Append(me, fmt.Errorf("Failed to encode state: %w", err))
 	}
 	if err := zw.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close zlib Writer: %v", err))
+		me = multierr.Append(me, fmt.Errorf("Failed to close zlib Writer: %w", err))
 	}
 
-	if err := util.ToErrors(es); err != nil {
-		return nil, err
+	if me != nil {
+		return nil, me
 	}
 	return buf.Bytes(), nil
 }
@@ -88,16 +84,12 @@ func Restore(r io.Reader, c *btncrypt.Cipher, cb DecodeCallback) error {
 	logger.Debugf(mylog, "statesnapshot.Restore: zlib init success!")
 	dec := gob.NewDecoder(zr)
 
-	es := []error{}
+	var me error
 	if err := cb(dec); err != nil {
-		es = append(es, fmt.Errorf("Failed to decode state: %v", err))
+		me = multierr.Append(me, fmt.Errorf("Failed to decode state: %w", err))
 	}
 	if err := zr.Close(); err != nil {
-		es = append(es, fmt.Errorf("Failed to close zlib Reader: %v", err))
+		me = multierr.Append(me, fmt.Errorf("Failed to close zlib Reader: %w", err))
 	}
-
-	if err := util.ToErrors(es); err != nil {
-		return err
-	}
-	return nil
+	return err
 }

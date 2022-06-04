@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/multierr"
+
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
@@ -98,11 +100,10 @@ func (fs *FileSystem) snapshotOpenFiles() []*OpenFile {
 }
 
 func (fs *FileSystem) Sync() error {
-	es := []error{}
-
+	var me error
 	if s, ok := fs.idb.(util.Syncer); ok {
 		if err := s.Sync(); err != nil {
-			es = append(es, fmt.Errorf("Failed to sync INodeDB: %v", err))
+			me = multierr.Append(me, fmt.Errorf("Failed to sync INodeDB: %v", err))
 		}
 	}
 
@@ -111,7 +112,7 @@ func (fs *FileSystem) Sync() error {
 		of.Sync()
 	}
 
-	return util.ToErrors(es)
+	return me
 }
 
 func (fs *FileSystem) TotalSize() (int64, error) {
