@@ -68,10 +68,6 @@ type ApiServerConfig struct {
 }
 
 func DefaultConfigDir() string {
-	if otarudir := os.Getenv("OTARUDIR"); len(otarudir) > 0 {
-		return otarudir
-	}
-
 	return path.Join(os.Getenv("HOME"), ".otaru")
 }
 
