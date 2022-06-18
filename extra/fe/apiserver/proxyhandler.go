@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/url"
@@ -82,7 +83,7 @@ func (ap *apiproxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func InstallProxyHandler(cfg *cli.CliConfig, basicuser, basicpassword string) apiserver.Option {
-	return apiserver.AddMuxHook(func(mux *http.ServeMux) {
+	return apiserver.AddMuxHook(func(_ context.Context, mux *http.ServeMux) error {
 		mux.Handle("/proxy/", basicauth.Handler{
 			User:     basicuser,
 			Password: basicpassword,
@@ -90,5 +91,6 @@ func InstallProxyHandler(cfg *cli.CliConfig, basicuser, basicpassword string) ap
 				cfg: cfg,
 			},
 		})
+		return nil
 	})
 }

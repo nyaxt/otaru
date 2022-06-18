@@ -1,6 +1,7 @@
 package otaruapiserver
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"mime"
@@ -171,10 +172,11 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func InstallFileHandler(fs *filesystem.FileSystem) apiserver.Option {
-	return apiserver.AddMuxHook(func(mux *http.ServeMux) {
+	return apiserver.AddMuxHook(func(_ context.Context, mux *http.ServeMux) error {
 		filePrefix := "/file/"
 		mux.Handle(filePrefix, http.StripPrefix(filePrefix, &fileHandler{
 			fs: fs,
 		}))
+		return nil
 	})
 }

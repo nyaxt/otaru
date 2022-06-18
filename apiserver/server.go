@@ -36,7 +36,7 @@ type serviceRegistryEntry struct {
 	registerProxy         func(ctx context.Context, mux *gwruntime.ServeMux, endpoint string, opts []grpc.DialOption) error
 }
 
-type MuxHook func(mux *http.ServeMux)
+type MuxHook func(ctx context.Context, mux *http.ServeMux) error
 
 type options struct {
 	listenAddr string
@@ -91,17 +91,19 @@ func AddMuxHook(h MuxHook) Option {
 }
 
 func SetDefaultHandler(h http.Handler) Option {
-	return AddMuxHook(func(mux *http.ServeMux) {
+	return AddMuxHook(func(_ context.Context, mux *http.ServeMux) error {
 		mux.Handle("/", h)
+		return nil
 	})
 }
 
 func SetSwaggerJson(fs http.FileSystem, path string) Option {
-	return AddMuxHook(func(mux *http.ServeMux) {
+	return AddMuxHook(func(_ context.Context, mux *http.ServeMux) error {
 		mux.HandleFunc("/otaru.swagger.json", func(w http.ResponseWriter, r *http.Request) {
 			r.URL.Path = path
 			http.FileServer(fs).ServeHTTP(w, r)
 		})
+		return nil
 	})
 }
 
@@ -213,7 +215,10 @@ func Serve(ctx context.Context, opt ...Option) error {
 	})
 	mux.Handle("/metrics", promhttp.Handler())
 	for _, hook := range opts.muxhooks {
-		hook(mux)
+		err := hook(ctx, mux)
+		if err != nil {
+			return err
+		}
 	}
 	if opts.serveApiGateway {
 		if err := serveApiGateway(ctx, mux, &opts); err != nil {

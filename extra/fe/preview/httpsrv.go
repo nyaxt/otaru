@@ -84,7 +84,8 @@ func Install(cfg *cli.CliConfig) apiserver.Option {
 		zp:  &zipPreviewer{cfg},
 	}
 
-	return apiserver.AddMuxHook(func(mux *http.ServeMux) {
+	return apiserver.AddMuxHook(func(_ context.Context, mux *http.ServeMux) error {
 		mux.Handle("/preview", s)
+		return nil
 	})
 }

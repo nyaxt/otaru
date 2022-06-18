@@ -91,7 +91,7 @@ const fsopEndpoint = (op, host) => {
   else if (host === kHostLocal)
     return `api/v1/fe/local/${op}`;
 
-  return `proxy/${host}/api/v1/filesystem/${op}`;
+  return `apigw/${host}/api/v1/filesystem/${op}`;
 };
 
 const reOtaruPath = /^\/\/([\w\[\]]+)(\/.*)$/

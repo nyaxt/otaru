@@ -26,15 +26,11 @@ func QueryConnectionInfo(cfg *CliConfig, vhost string) (*ConnectionInfo, error) 
 		return nil, ErrUnknownVhost
 	}
 
-	ci, err := connectionInfoFromHost(h)
-	if err != nil {
-		return nil, err
-	}
-
+	ci := ConnectionInfoFromHost(h)
 	return ci, nil
 }
 
-func connectionInfoFromHost(h *Host) (*ConnectionInfo, error) {
+func ConnectionInfoFromHost(h *Host) *ConnectionInfo {
 	var tc tls.Config
 
 	if h.CACert != nil {
@@ -57,7 +53,7 @@ func connectionInfoFromHost(h *Host) (*ConnectionInfo, error) {
 	return &ConnectionInfo{
 		ApiEndpoint: h.ApiEndpoint,
 		TLSConfig:   &tc,
-	}, nil
+	}
 }
 
 func (ci *ConnectionInfo) DialGrpc(ctx context.Context) (*grpc.ClientConn, error) {
