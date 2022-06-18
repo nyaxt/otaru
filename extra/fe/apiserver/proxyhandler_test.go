@@ -53,7 +53,7 @@ func runMockBackend() *mockBackend {
 			apiserver.ListenAddr(testBeListenAddr),
 			apiserver.TLSCertKey(testca.Certs, testca.Key.Parsed),
 			apiserver.ClientCACert(testca.ClientAuthCACert),
-			apiserver.AddMuxHook(func(mux *http.ServeMux) {
+			apiserver.AddMuxHook(func(_ context.Context, mux *http.ServeMux) error {
 				mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 					mr := mockRequest{
 						URL:    *r.URL,
@@ -68,8 +68,9 @@ func runMockBackend() *mockBackend {
 					}
 					m.Reqs = append(m.Reqs, mr)
 					w.Header().Set("Content-Type", "text/plain")
-					w.Write([]byte("fuga\n"))
+					_, _ = w.Write([]byte("fuga\n"))
 				})
+				return nil
 			}),
 		); err != nil {
 			panic(err)

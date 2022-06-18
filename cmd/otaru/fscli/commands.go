@@ -27,7 +27,8 @@ var Commands = []*cli.Command{
 		},
 	},
 	{
-		Name: "attr",
+		Name:      "attr",
+		ArgsUsage: "otaru://vhost/path",
 		Action: func(c *cli.Context) error {
 			cfg, err := ocli.NewConfig(c.String("configDir"))
 			if err != nil {
@@ -42,7 +43,8 @@ var Commands = []*cli.Command{
 		},
 	},
 	{
-		Name: "get",
+		Name:      "get",
+		ArgsUsage: "otaru://vhost/path",
 		Action: func(c *cli.Context) error {
 			cfg, err := ocli.NewConfig(c.String("configDir"))
 			if err != nil {
@@ -57,7 +59,8 @@ var Commands = []*cli.Command{
 		},
 	},
 	{
-		Name: "put",
+		Name:      "put",
+		ArgsUsage: "hello.txt otaru://vhost/path",
 		Action: func(c *cli.Context) error {
 			cfg, err := ocli.NewConfig(c.String("configDir"))
 			if err != nil {

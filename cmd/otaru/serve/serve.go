@@ -16,21 +16,14 @@ var mylog = logger.Registry().Category("otaru-server")
 
 var Command = &cli.Command{
 	Name:  "serve",
-	Usage: "otaru gRPC server",
+	Usage: "Run otaru gRPC server",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "readonly",
 			Usage: "Mount as read-only mode. No changes to the filesystem is allowed.",
 		},
-		&cli.PathFlag{
-			Name:  "configDir",
-			Value: facade.DefaultConfigDir(),
-			Usage: "Config dirpath",
-		},
 	},
 	Action: func(c *cli.Context) error {
-		facade.BootstrapLogger()
-
 		cfg, err := facade.NewConfig(c.Path("configDir"))
 		if err != nil {
 			return err

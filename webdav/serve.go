@@ -1,6 +1,7 @@
 package webdav
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -16,7 +17,7 @@ import (
 var mylog = logger.Registry().Category("fe-webdav")
 var accesslog = logger.Registry().Category("http-webdav")
 
-func Serve(cfg *cli.CliConfig, closeC <-chan struct{}) error {
+func Serve(ctx context.Context, cfg *cli.CliConfig) error {
 	wcfg := cfg.Webdav
 
 	var handler http.Handler
@@ -29,15 +30,6 @@ func Serve(cfg *cli.CliConfig, closeC <-chan struct{}) error {
 	lis, err := net.Listen("tcp", wcfg.ListenAddr)
 	if err != nil {
 		return fmt.Errorf("Failed to listen \"%s\": %v", wcfg.ListenAddr, err)
-	}
-
-	closed := false
-	if closeC != nil {
-		go func() {
-			<-closeC
-			closed = true
-			lis.Close()
-		}()
 	}
 
 	if wcfg.BasicAuthPassword == "" {
@@ -72,11 +64,13 @@ func Serve(cfg *cli.CliConfig, closeC <-chan struct{}) error {
 	}
 	tlis := tls.NewListener(lis, httpsrv.TLSConfig)
 
+	go func() {
+		<-ctx.Done()
+		httpsrv.Close()
+		lis.Close()
+	}()
+
 	if err := httpsrv.Serve(tlis); err != nil {
-		if closed {
-			// Suppress "use of closed network connection" error if we intentionally closed the listener.
-			return nil
-		}
 		return err
 	}
 	return nil

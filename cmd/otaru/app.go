@@ -10,6 +10,7 @@ import (
 
 	"github.com/nyaxt/otaru/cmd/otaru/fscli"
 	"github.com/nyaxt/otaru/cmd/otaru/serve"
+	"github.com/nyaxt/otaru/cmd/otaru/webdav"
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/version"
 )
@@ -41,9 +42,12 @@ func NewApp() *cli.App {
 	}
 	app.Commands = []*cli.Command{
 		serve.Command,
+		webdav.Command,
 	}
 	app.Commands = append(app.Commands, fscli.Commands...)
 	BeforeImpl := func(c *cli.Context) error {
+		facade.BootstrapLogger()
+
 		var logger *zap.Logger
 		if loggeri, ok := app.Metadata["Logger"]; ok {
 			logger = loggeri.(*zap.Logger)
