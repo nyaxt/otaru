@@ -29,9 +29,6 @@ import (
 	"github.com/nyaxt/otaru/util/readpem"
 )
 
-var LogCategory = logger.Registry().Category("apiserver")
-var mylog = LogCategory
-
 type serviceRegistryEntry struct {
 	registerServiceServer func(*grpc.Server)
 	registerProxy         func(ctx context.Context, mux *gwruntime.ServeMux, endpoint string, opts []grpc.DialOption) error
@@ -52,14 +49,14 @@ type options struct {
 	serveApiGateway bool
 
 	serviceRegistry []serviceRegistryEntry
-	accesslogger    logger.Logger
 	muxhooks        []MuxHook
+
+	logger *zap.Logger
 }
 
 var defaultOptions = options{
 	serveApiGateway: false,
 	serviceRegistry: []serviceRegistryEntry{},
-	accesslogger:    logger.Registry().Category("http-apiserver"),
 }
 
 type Option func(*options)
@@ -122,10 +119,6 @@ func RegisterService(
 	}
 }
 
-func AccessLogger(l logger.Logger) Option {
-	return func(o *options) { o.accesslogger = l }
-}
-
 // grpcHttpMux, serveSwagger, and Serve functions based on code from:
 // https://github.com/philips/grpc-gateway-example
 
@@ -176,12 +169,17 @@ func serveApiGateway(ctx context.Context, mux *http.ServeMux, opts *options) err
 }
 
 func Serve(ctx context.Context, opt ...Option) error {
-	s := zap.S().Named("apiserver.Serve")
-
 	opts := defaultOptions
 	for _, o := range opt {
 		o(&opts)
 	}
+
+	l := opts.logger
+	if l == nil {
+		l = zap.L()
+	}
+	l = l.Named("apiserver.Serve")
+	s := l.Sugar()
 
 	tc := readpem.TLSCertificate(opts.certs, opts.key)
 	grpcCredentials := credentials.NewServerTLSFromCert(&tc)
@@ -236,7 +234,7 @@ func Serve(ctx context.Context, opt ...Option) error {
 		return fmt.Errorf("Failed to listen %q: %v", opts.listenAddr, err)
 	}
 
-	httpHandler := logger.HttpHandler(s.Desugar(), c.Handler(mux))
+	httpHandler := logger.HttpHandler(l, c.Handler(mux))
 	cliauthtype := tls.NoClientCert
 	var clicp *x509.CertPool
 	if clientAuthEnabled {
