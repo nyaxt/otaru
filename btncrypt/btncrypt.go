@@ -12,6 +12,7 @@ import (
 
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
+	"go.uber.org/zap"
 )
 
 var mylog = logger.Registry().Category("btncrypt")
@@ -89,7 +90,7 @@ func (c *Cipher) EncryptedFrameSize(payloadLen int) int {
 func (c *Cipher) EncryptFrame(dst []byte, p []byte) []byte {
 	expectedLen := c.EncryptedFrameSize(len(p))
 	if cap(dst) < expectedLen {
-		logger.Panicf(mylog, "dst should be large enough to hold encyrpted frame! cap(dst) = %d, expectedLen = %d", cap(dst), expectedLen)
+		zap.S().Panicf("dst should be large enough to hold encyrpted frame! cap(dst) = %d, expectedLen = %d", cap(dst), expectedLen)
 	}
 
 	dst = dst[:c.gcm.NonceSize()]
@@ -97,7 +98,7 @@ func (c *Cipher) EncryptFrame(dst []byte, p []byte) []byte {
 
 	dst = c.gcm.Seal(dst, dst, p, nil)
 	if len(dst) != expectedLen {
-		logger.Panicf(mylog, "EncryptedFrameSize mismatch. expected: %d, actual: %v", expectedLen, len(dst))
+		zap.S().Panicf("EncryptedFrameSize mismatch. expected: %d, actual: %v", expectedLen, len(dst))
 	}
 	return dst
 }
@@ -105,7 +106,7 @@ func (c *Cipher) EncryptFrame(dst []byte, p []byte) []byte {
 func (c *Cipher) DecryptFrame(dst []byte, p []byte) ([]byte, error) {
 	expectedLen := len(p) - c.FrameOverhead()
 	if cap(dst) < expectedLen {
-		logger.Panicf(mylog, "dst should be large enough to hold decyrpted frame! cap(dst) = %d, expectedLen = %d", cap(dst), expectedLen)
+		zap.S().Panicf("dst should be large enough to hold decyrpted frame! cap(dst) = %d, expectedLen = %d", cap(dst), expectedLen)
 	}
 
 	nonceSize := c.gcm.NonceSize()

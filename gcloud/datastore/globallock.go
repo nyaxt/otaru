@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
+	"go.uber.org/zap"
 
 	gcutil "github.com/nyaxt/otaru/gcloud/util"
 	"github.com/nyaxt/otaru/logger"
@@ -92,12 +93,12 @@ func (l *GlobalLocker) tryLockOnce(ctx context.Context, readOnly bool) error {
 		return err
 	}
 
-	logger.Infof(lklog, "GlobalLocker.tryLockOnce(%+v) took %s.", l.lockEntry, time.Since(start))
+	zap.S().Infof("GlobalLocker.tryLockOnce(%+v) took %s.", l.lockEntry, time.Since(start))
 	return nil
 }
 
 func (l *GlobalLocker) Lock(ctx context.Context, readOnly bool) error {
-	logger.Infof(lklog, "GlobalLocker.Lock(readOnly=%t) started.", readOnly)
+	zap.S().Infof("GlobalLocker.Lock(readOnly=%t) started.", readOnly)
 	return gcutil.RetryIfNeeded(func() error {
 		return l.tryLockOnce(ctx, readOnly)
 	}, lklog)
@@ -120,12 +121,12 @@ func (l *GlobalLocker) forceUnlockOnce(ctx context.Context) error {
 
 	var e lockEntry
 	if err := dstx.Get(l.lockEntryKey, &e); err != nil {
-		logger.Warningf(lklog, "GlobalLocker.ForceUnlock(): Force unlocking existing lock entry: %+v", e)
+		zap.S().Warnf("GlobalLocker.ForceUnlock(): Force unlocking existing lock entry: %+v", e)
 	}
 	if err := dstx.Delete(l.lockEntryKey); err != nil {
 		dstx.Rollback()
 		if err == datastore.ErrNoSuchEntity {
-			logger.Warningf(lklog, "GlobalLocker.ForceUnlock(): Warning: There was no global lock taken.")
+			zap.S().Warnf("GlobalLocker.ForceUnlock(): Warning: There was no global lock taken.")
 			return nil
 		}
 		return err
@@ -135,12 +136,12 @@ func (l *GlobalLocker) forceUnlockOnce(ctx context.Context) error {
 		return err
 	}
 
-	logger.Infof(lklog, "GlobalLocker.forceUnlockOnce() took %s.", time.Since(start))
+	zap.S().Infof("GlobalLocker.forceUnlockOnce() took %s.", time.Since(start))
 	return nil
 }
 
 func (l *GlobalLocker) ForceUnlock(ctx context.Context) error {
-	logger.Infof(lklog, "GlobalLocker.ForceUnlock() started.")
+	zap.S().Infof("GlobalLocker.ForceUnlock() started.")
 	return gcutil.RetryIfNeeded(func() error {
 		return l.forceUnlockOnce(ctx)
 	}, lklog)
@@ -161,12 +162,12 @@ const (
 // If the lock was taken by other GlobalLocker, Unlock will fail with ErrLockTaken.
 // If there was no lock, Unlock will fail with ErrNoLock.
 func (l *GlobalLocker) Unlock(ctx context.Context) error {
-	logger.Infof(lklog, "GlobalLocker.Unlock() started.")
+	zap.S().Infof("GlobalLocker.Unlock() started.")
 	return l.unlockInternal(ctx, checkCreatedAt)
 }
 
 func (l *GlobalLocker) UnlockIgnoreCreatedAt(ctx context.Context) error {
-	logger.Infof(lklog, "GlobalLocker.UnlockIgnoreCreatedAt() started.")
+	zap.S().Infof("GlobalLocker.UnlockIgnoreCreatedAt() started.")
 	return l.unlockInternal(ctx, ignoreCreatedAt)
 }
 
@@ -215,7 +216,7 @@ func (l *GlobalLocker) unlockInternalOnce(checkCreatedAtFlag bool) error {
 		return err
 	}
 
-	logger.Infof(lklog, "GlobalLocker.unlockInternalOnce(%+v) took %s.", l.lockEntry, time.Since(start))
+	zap.S().Infof("GlobalLocker.unlockInternalOnce(%+v) took %s.", l.lockEntry, time.Since(start))
 	return nil
 }
 
@@ -249,12 +250,12 @@ func (l *GlobalLocker) tryQueryOnce(ctx context.Context) (lockEntry, error) {
 		}
 	}
 
-	logger.Infof(lklog, "GlobalLocker.tryQueryOnce() took %s.", time.Since(start))
+	zap.S().Infof("GlobalLocker.tryQueryOnce() took %s.", time.Since(start))
 	return e, nil
 }
 
 func (l *GlobalLocker) Query(ctx context.Context) (lockEntry, error) {
-	logger.Infof(lklog, "GlobalLocker.Query() started.")
+	zap.S().Infof("GlobalLocker.Query() started.")
 
 	var le lockEntry
 	err := gcutil.RetryIfNeeded(func() error {

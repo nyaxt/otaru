@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"go.uber.org/multierr"
+	"go.uber.org/zap"
 
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -81,26 +81,26 @@ func (cs *CacheSyncer) SyncAll(ss []util.Syncer) error {
 
 func (cs *CacheSyncer) Quit() {
 	joinC := make(chan struct{})
-	// logger.Debugf(mylog, "CacheSyncer Quit start")
+	// zap.S().Debugf("CacheSyncer Quit start")
 	cs.quitC <- joinC
 	close(cs.quitC)
 	<-joinC
-	// logger.Debugf(mylog, "CacheSyncer Quit end")
+	// zap.S().Debugf("CacheSyncer Quit end")
 }
 
 func (cs *CacheSyncer) workerMain(workerId int) {
 	cs.workerIsStarving[workerId] = isStarving
 	for cmd := range cs.workerC {
 		atomic.StoreInt32(&cs.workerIsStarving[workerId], isBusy)
-		logger.Debugf(mylog, "Worker[%d] syncing %v", workerId, cmd.s)
+		zap.S().Debugf("Worker[%d] syncing %v", workerId, cmd.s)
 		err := cmd.s.Sync()
 		if cmd.errC != nil {
 			cmd.errC <- err
 		}
 		if err != nil {
-			logger.Warningf(mylog, "Worker[%d] Sync failed %v err: %v", workerId, cmd.s, err)
+			zap.S().Warnf("Worker[%d] Sync failed %v err: %v", workerId, cmd.s, err)
 		}
-		logger.Debugf(mylog, "Worker[%d] Sync done %v", workerId, cmd.s)
+		zap.S().Debugf("Worker[%d] Sync done %v", workerId, cmd.s)
 		atomic.StoreInt32(&cs.workerIsStarving[workerId], isStarving)
 	}
 	cs.joinWorkerG.Done()
@@ -124,7 +124,7 @@ func (cs *CacheSyncer) producerMain() {
 		nextQueryC := time.After(CacheSyncerGracePeriod)
 		select {
 		case joinC := <-cs.quitC:
-			// logger.Debugf(mylog, "CacheSyncer quitC Recved")
+			// zap.S().Debugf("CacheSyncer quitC Recved")
 			if joinC != nil {
 				quitJoinC = joinC
 			}
@@ -143,11 +143,11 @@ func (cs *CacheSyncer) producerMain() {
 		starvingWorkerCount := cs.StarvingWorkerCount()
 		nfree := starvingWorkerCount
 		if nfree == 0 {
-			logger.Debugf(mylog, "All %d workers are busy.", cs.numWorkers)
+			zap.S().Debugf("All %d workers are busy.", cs.numWorkers)
 			continue
 		}
 
-		// logger.Debugf(mylog, "%d starving workers, %d pendingSyncCmds", nfree, len(pendingSyncCmds))
+		// zap.S().Debugf("%d starving workers, %d pendingSyncCmds", nfree, len(pendingSyncCmds))
 		nPopPending := util.IntMin(nfree, len(pendingSyncCmds))
 		for i := 0; i < nPopPending; i++ {
 			cs.workerC <- pendingSyncCmds[i]
@@ -157,14 +157,14 @@ func (cs *CacheSyncer) producerMain() {
 		cbes := []util.Syncer{}
 		if !DisableAutoSyncForTesting {
 			cbes = cs.provider.FindSyncCandidates(nfree)
-			logger.Debugf(mylog, "Found %d starving workers, found %d pending syncs, found %d sync candidates",
+			zap.S().Debugf("Found %d starving workers, found %d pending syncs, found %d sync candidates",
 				starvingWorkerCount, nPopPending, len(cbes))
 		}
 		for _, be := range cbes {
 			cs.workerC <- syncWorkerCmd{be, nil}
 		}
 
-		// logger.Debugf(mylog, "CacheSyncer quitJoinC non nil? %t", quitJoinC != nil)
+		// zap.S().Debugf("CacheSyncer quitJoinC non nil? %t", quitJoinC != nil)
 		if nPopPending == 0 && len(cbes) == 0 && quitJoinC != nil {
 			close(cs.workerC)
 			cs.joinWorkerG.Wait()

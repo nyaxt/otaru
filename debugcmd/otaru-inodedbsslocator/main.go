@@ -15,6 +15,7 @@ import (
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 var mylog = logger.Registry().Category("otaru-globallock")
@@ -44,26 +45,26 @@ func main() {
 	case "list", "purge":
 		break
 	default:
-		logger.Infof(mylog, "Unknown cmd: %v", flag.Arg(0))
+		zap.S().Infof("Unknown cmd: %v", flag.Arg(0))
 		Usage()
 		os.Exit(2)
 	}
 
 	cfg, err := facade.NewConfig(*flagConfigDir)
 	if err != nil {
-		logger.Infof(mylog, "%v", err)
+		zap.S().Infof("%v", err)
 		Usage()
 		os.Exit(1)
 	}
 
 	tsrc, err := auth.GetGCloudTokenSource(cfg.CredentialsFilePath)
 	if err != nil {
-		logger.Criticalf(mylog, "Failed to init GCloudTokenSource: %v", err)
+		zap.S().Errorf("Failed to init GCloudTokenSource: %v", err)
 	}
 	key := btncrypt.KeyFromPassword(cfg.Password)
 	c, err := btncrypt.NewCipher(key)
 	if err != nil {
-		logger.Criticalf(mylog, "Failed to init *btncrypt.Cipher: %v", err)
+		zap.S().Errorf("Failed to init *btncrypt.Cipher: %v", err)
 	}
 
 	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, tsrc)
@@ -77,15 +78,15 @@ func main() {
 			return
 		}
 		if sc.Text() != "deleteall" {
-			logger.Infof(mylog, "Cancelled.\n")
+			zap.S().Infof("Cancelled.\n")
 			os.Exit(1)
 		}
 
 		es, err := ssloc.DeleteAll(context.Background(), *flagDryRun)
 		if err != nil {
-			logger.Infof(mylog, "DeleteAll failed: %v", err)
+			zap.S().Infof("DeleteAll failed: %v", err)
 		}
-		logger.Infof(mylog, "DeleteAll deleted entries for blobpath: %v", es)
+		zap.S().Infof("DeleteAll deleted entries for blobpath: %v", es)
 		// FIXME: delete the entries from blobpath too
 
 	case "list":
@@ -95,13 +96,13 @@ func main() {
 			bp, txid, err := ssloc.Locate(history)
 			if err != nil {
 				if err == datastore.EEMPTY {
-					logger.Infof(mylog, "Locate(%d): no entry", history)
+					zap.S().Infof("Locate(%d): no entry", history)
 				} else {
-					logger.Infof(mylog, "Locate(%d) err: %v", history, err)
+					zap.S().Infof("Locate(%d) err: %v", history, err)
 				}
 				break histloop
 			}
-			logger.Infof(mylog, "Locate(%d) txid %v blobpath %v", history, inodedb.TxID(txid), bp)
+			zap.S().Infof("Locate(%d) txid %v blobpath %v", history, inodedb.TxID(txid), bp)
 
 			history++
 		}

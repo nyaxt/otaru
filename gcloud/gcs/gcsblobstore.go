@@ -8,6 +8,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -92,7 +93,7 @@ func (bs *GCSBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 	}
 
 	issuedOpenWriterOps.WithLabelValues(bs.bucketName).Inc()
-	logger.Infof(mylog, "OpenWriter(bucketName: %q, %q)", bs.bucketName, blobpath)
+	zap.S().Infof("OpenWriter(bucketName: %q, %q)", bs.bucketName, blobpath)
 
 	obj := bs.bucket.Object(blobpath)
 	gcsw := obj.NewWriter(context.Background())
@@ -121,7 +122,7 @@ type Reader struct {
 
 func (bs *GCSBlobStore) tryOpenReaderOnce(blobpath string) (io.ReadCloser, error) {
 	issuedOpenReaderOps.WithLabelValues(bs.bucketName).Inc()
-	logger.Infof(mylog, "OpenReader(bucketName: %q, %q)", bs.bucketName, blobpath)
+	zap.S().Infof("OpenReader(bucketName: %q, %q)", bs.bucketName, blobpath)
 
 	obj := bs.bucket.Object(blobpath)
 	rc, err := obj.NewReader(context.Background())
@@ -160,9 +161,9 @@ var _ = blobstore.BlobLister(&GCSBlobStore{})
 
 func (bs *GCSBlobStore) ListBlobs() ([]string, error) {
 	issuedListBlobOps.WithLabelValues(bs.bucketName).Inc()
-	logger.Infof(mylog, "ListBlobs(bucketName: %q) started.", bs.bucketName)
+	zap.S().Infof("ListBlobs(bucketName: %q) started.", bs.bucketName)
 	defer func() {
-		logger.Infof(mylog, "ListBlobs(bucketName: %q) done.", bs.bucketName)
+		zap.S().Infof("ListBlobs(bucketName: %q) done.", bs.bucketName)
 	}()
 
 	ret := make([]string, 0)
@@ -196,7 +197,7 @@ func (bs *GCSBlobStore) BlobSize(blobpath string) (int64, error) {
 		return -1, err
 	}
 
-	logger.Infof(mylog, "BlobSize(bucketName: %q, %q) -> %d", bs.bucketName, blobpath, attrs.Size)
+	zap.S().Infof("BlobSize(bucketName: %q, %q) -> %d", bs.bucketName, blobpath, attrs.Size)
 	return attrs.Size, nil
 }
 
@@ -208,7 +209,7 @@ func (bs *GCSBlobStore) RemoveBlob(blobpath string) error {
 	}
 
 	issuedRemoveBlobOps.WithLabelValues(bs.bucketName).Inc()
-	logger.Infof(mylog, "RemoveBlob(bucketName: %q, %q)", bs.bucketName, blobpath)
+	zap.S().Infof("RemoveBlob(bucketName: %q, %q)", bs.bucketName, blobpath)
 
 	object := bs.bucket.Object(blobpath)
 	if err := object.Delete(context.Background()); err != nil {

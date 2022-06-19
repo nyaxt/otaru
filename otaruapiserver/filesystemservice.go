@@ -8,6 +8,7 @@ import (
 
 	"context"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/util"
 )
@@ -35,7 +35,7 @@ func type2pb(t inodedb.Type) pb.INodeType {
 	case inodedb.DirNodeT:
 		return pb.INodeType_DIR
 	default:
-		logger.Panicf(mylog, "unknown inodedb.Type(%v)", t)
+		zap.S().Panicf("unknown inodedb.Type(%v)", t)
 		return pb.INodeType_FILE
 	}
 }

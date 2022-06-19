@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru/cli"
-	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 type Marshaler interface {
@@ -69,7 +69,7 @@ func (m PropStatMarshaler) WriteResponse(w http.ResponseWriter, basepath string,
 	w.Header().Set("Content-Type", "text/xml; charset=utf-8")
 	w.WriteHeader(http.StatusMultiStatus)
 	if _, err := w.Write([]byte(xml.Header)); err != nil {
-		logger.Infof(mylog, "Error while writing XML header: %v", err)
+		zap.S().Infof("Error while writing XML header: %v", err)
 		return
 	}
 
@@ -83,7 +83,7 @@ func (m PropStatMarshaler) WriteResponse(w http.ResponseWriter, basepath string,
 
 	ms := multistatus{D: "DAV:", Rs: rs}
 	if err := enc.Encode(ms); err != nil {
-		logger.Infof(mylog, "Error while writing XML: %v", err)
+		zap.S().Infof("Error while writing XML: %v", err)
 	}
 }
 
@@ -116,7 +116,7 @@ func (m ContentServerMarshaler) WriteResponse(w http.ResponseWriter, basepath st
 		Host:   m.CInfo.ApiEndpoint,
 		Path:   fmt.Sprintf("/file/%d/bin", entry.Id),
 	}
-	logger.Debugf(mylog, "requrl %v", url.String())
+	zap.S().Debugf("requrl %v", url.String())
 	req := &http.Request{
 		Method: "GET",
 		Header: map[string][]string{},

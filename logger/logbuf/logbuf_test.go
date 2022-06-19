@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 func TestLogBuf_WillAccept(t *testing.T) {
@@ -70,7 +71,7 @@ func helperWaitFlush(t *testing.T, lb *LogBuf, id int) {
 
 func TestLogBuf_Query(t *testing.T) {
 	lb := New(300)
-	logger.Debugf(lb, "msg1")
+	zap.S().Debugf("msg1")
 	helperWaitFlush(t, lb, 1)
 
 	es := lb.Query(0, []string{}, 100)
@@ -81,8 +82,8 @@ func TestLogBuf_Query(t *testing.T) {
 		t.Errorf("LatestEntryId")
 	}
 
-	logger.Infof(lb, "msg2")
-	logger.Warningf(lb, "msg3")
+	zap.S().Infof("msg2")
+	zap.S().Warnf("msg3")
 	helperWaitFlush(t, lb, 3)
 
 	es = lb.Query(0, []string{}, 100)

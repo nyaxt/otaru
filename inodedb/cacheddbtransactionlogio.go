@@ -2,6 +2,7 @@ package inodedb
 
 import (
 	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 var clog = logger.Registry().Category("cacheddbtxlogio")
@@ -56,7 +57,7 @@ func (txio *CachedDBTransactionLogIO) AppendTransaction(tx DBTransaction) error 
 
 func (txio *CachedDBTransactionLogIO) QueryTransactions(minID TxID) ([]DBTransaction, error) {
 	if minID < txio.oldestTxID {
-		logger.Debugf(clog, "Queried id range of \">= %d\" is not cached. Falling back to backend.", minID)
+		zap.S().Debugf("Queried id range of \">= %d\" is not cached. Falling back to backend.", minID)
 		return txio.be.QueryTransactions(minID)
 	}
 

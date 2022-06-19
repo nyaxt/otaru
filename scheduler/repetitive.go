@@ -7,8 +7,8 @@ import (
 
 	"context"
 
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
+	"go.uber.org/zap"
 )
 
 type repetitiveJob struct {
@@ -51,7 +51,7 @@ func NewRepetitiveJobRunner(sched *Scheduler) *RepetitiveJobRunner {
 }
 
 func (r *RepetitiveJobRunner) Stop() {
-	logger.Infof(mylog, "RepetitiveJobRunner stop start")
+	zap.S().Infof("RepetitiveJobRunner stop start")
 
 	r.muJobs.Lock()
 	defer r.muJobs.Unlock()
@@ -63,7 +63,7 @@ func (r *RepetitiveJobRunner) Stop() {
 
 		j.mu.Unlock()
 	}
-	logger.Infof(mylog, "RepetitiveJobRunner stop done")
+	zap.S().Infof("RepetitiveJobRunner stop done")
 }
 
 var minimumPeriod time.Duration = 300 * time.Millisecond
@@ -83,7 +83,7 @@ func (j *repetitiveJob) scheduleNext(s *Scheduler, v *JobView) {
 		nextT = j.lastScheduledAt.Add(j.period)
 
 		if nextT.Before(now) {
-			logger.Infof(mylog, "repetitiveJob %v failed to execute within period %v. Scheduling next job to run after minimum period %v.", j, j.period, minimumPeriod)
+			zap.S().Infof("repetitiveJob %v failed to execute within period %v. Scheduling next job to run after minimum period %v.", j, j.period, minimumPeriod)
 			nextT = now.Add(minimumPeriod)
 		}
 	} else {
@@ -136,7 +136,7 @@ func (r *RepetitiveJobRunner) RunEveryPeriod(t Task, period time.Duration) ID {
 	defer r.muJobs.Unlock()
 
 	if _, ok := r.jobs[j.id]; ok {
-		logger.Panicf(mylog, "repetitiveJob ID %v is already taken. received duplicate: %v", j.id, j)
+		zap.S().Panicf("repetitiveJob ID %v is already taken. received duplicate: %v", j.id, j)
 	}
 	r.jobs[j.id] = j
 

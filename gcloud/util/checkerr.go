@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/logger"
 )
@@ -36,7 +37,7 @@ func RetryIfNeeded(f func() error, mylog logger.Logger) (err error) {
 			return
 		}
 		if i < numRetries {
-			logger.Infof(mylog, "A Google Cloud API operation has failed after %s. Retrying %d / %d...", time.Since(start), i+1, numRetries)
+			zap.S().Infof("A Google Cloud API operation has failed after %s. Retrying %d / %d...", time.Since(start), i+1, numRetries)
 			time.Sleep(time.Duration(i) * time.Second)
 		}
 	}

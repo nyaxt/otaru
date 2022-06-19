@@ -9,6 +9,7 @@ import (
 	"time"
 
 	bfuse "github.com/nyaxt/fuse"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
@@ -253,7 +254,7 @@ const (
 )
 
 func (db *DB) RestoreVersion(version TxID) error {
-	logger.Infof(mylog, "RestoreVersion(%s) start.", version)
+	zap.S().Infof("RestoreVersion(%s) start.", version)
 
 	state, err := db.snapshotIO.RestoreSnapshot()
 	if err != nil {
@@ -264,12 +265,12 @@ func (db *DB) RestoreVersion(version TxID) error {
 	db.state = state
 
 	ssver := state.version
-	logger.Infof(mylog, "Restored snapshot of ver %d.", ssver)
+	zap.S().Infof("Restored snapshot of ver %d.", ssver)
 
 	if state.version > version {
 		return fmt.Errorf("Can't rollback to old version %d which is older than snapshot version %d", version, state.version)
 	}
-	logger.Infof(mylog, "RestoreVersion(%s): restored ver: %s", version, ssver)
+	zap.S().Infof("RestoreVersion(%s): restored ver: %s", version, ssver)
 
 	txlog, err := db.txLogIO.QueryTransactions(ssver + 1)
 	if txlog == nil || err != nil {
@@ -278,20 +279,20 @@ func (db *DB) RestoreVersion(version TxID) error {
 	}
 
 	for _, tx := range txlog {
-		logger.Debugf(mylog, "RestoreVersion(%s): apply tx ver %s", version, tx.TxID)
+		zap.S().Debugf("RestoreVersion(%s): apply tx ver %s", version, tx.TxID)
 		if _, err := db.applyTransactionInternal(tx, skipTxLog); err != nil {
 			db.state = oldState
 			return fmt.Errorf("Failed to replay tx: %v", err)
 		}
 	}
 
-	logger.Infof(mylog, "Fast forward txlog from ver %d to %d", ssver, state.version)
+	zap.S().Infof("Fast forward txlog from ver %d to %d", ssver, state.version)
 
 	return nil
 }
 
 func (db *DB) applyTransactionInternal(tx DBTransaction, writeTxLogFlag bool) (TxID, error) {
-	logger.Debugf(mylog, "applyTransactionInternal(%+v, writeTxLog: %t)", tx, writeTxLogFlag)
+	zap.S().Debugf("applyTransactionInternal(%+v, writeTxLog: %t)", tx, writeTxLogFlag)
 
 	if tx.TxID == AnyVersion {
 		tx.TxID = db.state.version + 1
@@ -302,7 +303,7 @@ func (db *DB) applyTransactionInternal(tx DBTransaction, writeTxLogFlag bool) (T
 	for _, op := range tx.Ops {
 		if err := op.Apply(db.state); err != nil {
 			if rerr := db.RestoreVersion(db.state.version); rerr != nil {
-				logger.Panicf(mylog, "Following Error: %v. DB rollback failed!!!: %v", err, rerr)
+				zap.S().Panicf("Following Error: %v. DB rollback failed!!!: %v", err, rerr)
 			}
 			return 0, err
 		}
@@ -310,7 +311,7 @@ func (db *DB) applyTransactionInternal(tx DBTransaction, writeTxLogFlag bool) (T
 	if writeTxLogFlag == writeTxLog {
 		if err := db.txLogIO.AppendTransaction(tx); err != nil {
 			if rerr := db.RestoreVersion(db.state.version); rerr != nil {
-				logger.Panicf(mylog, "Failed to write txlog: %v. DB rollback failed!!!: %v", err, rerr)
+				zap.S().Panicf("Failed to write txlog: %v. DB rollback failed!!!: %v", err, rerr)
 			}
 			return 0, fmt.Errorf("Failed to write txlog: %v", err)
 		}
@@ -373,7 +374,7 @@ func (db *DB) UnlockNode(nlock NodeLock) error {
 	}
 
 	if err := db.state.checkLock(nlock, true); err != nil {
-		logger.Warningf(mylog, "Unlock node failed: %v", err)
+		zap.S().Warnf("Unlock node failed: %v", err)
 		return err
 	}
 

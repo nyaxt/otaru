@@ -7,10 +7,9 @@ import (
 	"errors"
 	"fmt"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-
-	"github.com/nyaxt/otaru/logger"
 )
 
 var ErrUnknownVhost = errors.New("Unknown vhost.")
@@ -40,7 +39,7 @@ func ConnectionInfoFromHost(h *Host) *ConnectionInfo {
 		tc.RootCAs = cp
 	}
 	if h.Cert != nil {
-		logger.Debugf(Log, "Configuring client cert: cn=%s", h.Cert.Subject.CommonName)
+		zap.S().Infof("Configuring client cert: cn=%s", h.Cert.Subject.CommonName)
 		tc.Certificates = []tls.Certificate{{
 			Certificate: [][]byte{h.Cert.Raw},
 			PrivateKey:  h.Key,
@@ -57,7 +56,7 @@ func ConnectionInfoFromHost(h *Host) *ConnectionInfo {
 }
 
 func (ci *ConnectionInfo) DialGrpc(ctx context.Context) (*grpc.ClientConn, error) {
-	logger.Debugf(Log, "about to dial %s with len(tlsc.Certificates)=%d", ci.ApiEndpoint, len(ci.TLSConfig.Certificates))
+	zap.S().Infof("about to dial %s with len(tlsc.Certificates)=%d", ci.ApiEndpoint, len(ci.TLSConfig.Certificates))
 
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(ci.TLSConfig)),

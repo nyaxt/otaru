@@ -8,8 +8,8 @@ import (
 
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
+	"go.uber.org/zap"
 )
 
 func (fs *FileSystem) FindNodeFullPath(fullpath string) (inodedb.ID, error) {
@@ -90,7 +90,7 @@ func (fs *FileSystem) OpenFileFullPath(fullpath string, flags int, perm uint16) 
 	}
 
 	if id == 0 {
-		logger.Panicf(fslog, "inode id must != 0 here, but got %v", id)
+		zap.S().Panicf("inode id must != 0 here, but got %v", id)
 	}
 
 	fh, err := fs.OpenFile(id, flags)

@@ -9,6 +9,7 @@ import (
 	"path"
 
 	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 var Log = logger.Registry().Category("cli")
@@ -68,7 +69,7 @@ func Get(ctx context.Context, cfg *CliConfig, args []string) error {
 			r.Close()
 			return fmt.Errorf("Failed to open dest file: %v", err)
 		}
-		logger.Infof(Log, "Remote %s -> Local %s", srcstr, dest)
+		zap.S().Infof("Remote %s -> Local %s", srcstr, dest)
 
 		if _, err := io.Copy(w, r); err != nil {
 			r.Close()

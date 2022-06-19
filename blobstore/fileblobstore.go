@@ -10,6 +10,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"go.uber.org/zap"
 
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/logger"
@@ -70,7 +71,7 @@ func (h FileBlobHandle) PRead(p []byte, offset int64) error {
 			return err
 		}
 		if n == 0 {
-			logger.Warningf(mylog, "*os.File ReadAt returned len 0!: %v", h.Fp)
+			zap.S().Warnf("*os.File ReadAt returned len 0!: %v", h.Fp)
 			return io.EOF
 		}
 		p = p[n:]
@@ -89,7 +90,7 @@ func (h FileBlobHandle) PWrite(p []byte, offset int64) error {
 func (h FileBlobHandle) Size() int64 {
 	fi, err := h.Fp.Stat()
 	if err != nil {
-		logger.Panicf(mylog, "Stat failed: %v", err)
+		zap.S().Panicf("Stat failed: %v", err)
 	}
 
 	return fi.Size()
@@ -119,7 +120,7 @@ func NewFileBlobStore(base string, flags int) (*FileBlobStore, error) {
 	fi, err := os.Stat(base)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logger.Infof(mylog, "FileBlobStore mkdir basedir: %s", base)
+			zap.S().Infof("FileBlobStore mkdir basedir: %s", base)
 			if err := os.Mkdir(base, 0755); err != nil {
 				return nil, fmt.Errorf("Mkdir base \"%s\" failed: %v", base, err)
 			}
@@ -153,7 +154,7 @@ func (f *FileBlobStore) Open(blobpath string, flags int) (BlobHandle, error) {
 	realpath := path.Join(f.base, blobpath)
 
 	fp, err := os.OpenFile(realpath, flags&f.fmask, 0644)
-	logger.Debugf(mylog, "Open(fullpath: %q, flags: %s) -> err: %v", realpath, fl.FlagsToString(flags), err)
+	zap.S().Debugf("Open(fullpath: %q, flags: %s) -> err: %v", realpath, fl.FlagsToString(flags), err)
 	issuedOpen.WithLabelValues(f.base).Inc()
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -170,26 +171,26 @@ func (f *FileBlobStore) Flags() int {
 
 func (f *FileBlobStore) OpenWriter(blobpath string) (io.WriteCloser, error) {
 	if !fl.IsWriteAllowed(f.flags) {
-		logger.Debugf(mylog, "OpenWriter(blobpath: %q) -> err: EACCES", blobpath)
+		zap.S().Debugf("OpenWriter(blobpath: %q) -> err: EACCES", blobpath)
 		return nil, util.EACCES
 	}
 
 	realpath := path.Join(f.base, blobpath)
 	wc, err := os.Create(realpath)
-	logger.Debugf(mylog, "OpenWriter(fullpath: %q) -> err: %v", realpath, err)
+	zap.S().Debugf("OpenWriter(fullpath: %q) -> err: %v", realpath, err)
 	issuedOpenWriter.WithLabelValues(f.base).Inc()
 	return wc, err
 }
 
 func (f *FileBlobStore) OpenReader(blobpath string) (io.ReadCloser, error) {
 	if !fl.IsReadAllowed(f.flags) {
-		logger.Debugf(mylog, "OpenReader(blobpath: %q) -> err: EACCES", blobpath)
+		zap.S().Debugf("OpenReader(blobpath: %q) -> err: EACCES", blobpath)
 		return nil, util.EACCES
 	}
 
 	realpath := path.Join(f.base, blobpath)
 	rc, err := os.Open(realpath)
-	logger.Debugf(mylog, "OpenReader(fullpath: %q) -> err: %v", realpath, err)
+	zap.S().Debugf("OpenReader(fullpath: %q) -> err: %v", realpath, err)
 	issuedOpenReader.WithLabelValues(f.base).Inc()
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -224,7 +225,7 @@ func (f *FileBlobStore) ListBlobs() ([]string, error) {
 		blobs = append(blobs, fi.Name())
 	}
 
-	logger.Infof(mylog, "FileBlobStore.ListBlobs() found %d blobs, took %s.", len(blobs), time.Since(start))
+	zap.S().Infof("FileBlobStore.ListBlobs() found %d blobs, took %s.", len(blobs), time.Since(start))
 	return blobs, nil
 }
 
@@ -249,7 +250,7 @@ var _ = BlobRemover(&FileBlobStore{})
 
 func (f *FileBlobStore) RemoveBlob(blobpath string) error {
 	if !fl.IsWriteAllowed(f.flags) {
-		logger.Debugf(mylog, "RemoveBlob(blobpath: %q) -> err: EACCES", blobpath)
+		zap.S().Debugf("RemoveBlob(blobpath: %q) -> err: EACCES", blobpath)
 		return util.EACCES
 	}
 
@@ -257,7 +258,7 @@ func (f *FileBlobStore) RemoveBlob(blobpath string) error {
 
 	realpath := path.Join(f.base, blobpath)
 	err := os.Remove(realpath)
-	logger.Debugf(mylog, "RemoveBlob(fullpath: %q) -> err: %v", realpath, err)
+	zap.S().Debugf("RemoveBlob(fullpath: %q) -> err: %v", realpath, err)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return util.ENOENT
@@ -292,7 +293,7 @@ func (f *FileBlobStore) TotalSize() (int64, error) {
 		totalSize += fi.Size()
 	}
 
-	logger.Debugf(mylog, "FileBlobStore.TotalSize() was %s. took %s.", humanize.Bytes(uint64(totalSize)), time.Since(start))
+	zap.S().Debugf("FileBlobStore.TotalSize() was %s. took %s.", humanize.Bytes(uint64(totalSize)), time.Since(start))
 	return totalSize, nil
 }
 

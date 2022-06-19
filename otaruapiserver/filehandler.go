@@ -18,7 +18,7 @@ import (
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
-	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 type fileHandler struct {
@@ -49,7 +49,7 @@ func (c *content) Seek(offset int64, whence int) (int64, error) {
 		c.offset = offset
 		break
 	case io.SeekCurrent:
-		logger.Panicf(mylog, "No implemention for Seek(whence=io.SeekCurrent), as we don't expect net/http to use this")
+		zap.S().Panicf("No implemention for Seek(whence=io.SeekCurrent), as we don't expect net/http to use this")
 		break
 	case io.SeekEnd:
 		c.offset = c.size
@@ -69,7 +69,7 @@ func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, ui clien
 
 	h, err := fh.fs.OpenFile(id, flags.O_RDONLY)
 	if err != nil {
-		logger.Debugf(mylog, "serveGet(id: %v). OpenFile failed: %v", id, err)
+		zap.S().Debugf("serveGet(id: %v). OpenFile failed: %v", id, err)
 		http.Error(w, "Failed to open file", http.StatusInternalServerError)
 		return
 	}
@@ -77,7 +77,7 @@ func (fh *fileHandler) serveGet(w http.ResponseWriter, r *http.Request, ui clien
 
 	a, err := h.Attr()
 	if err != nil {
-		logger.Debugf(mylog, "serveGet(id: %v). Attr failed: %v", id, err)
+		zap.S().Debugf("serveGet(id: %v). Attr failed: %v", id, err)
 		http.Error(w, "Failed to attr", http.StatusInternalServerError)
 		return
 	}
@@ -109,7 +109,7 @@ func (fh *fileHandler) servePut(w http.ResponseWriter, r *http.Request, ui clien
 
 	h, err := fh.fs.OpenFile(id, flags.O_WRONLY)
 	if err != nil {
-		logger.Debugf(mylog, "servePut(id: %v). OpenFile failed: %v", id, err)
+		zap.S().Debugf("servePut(id: %v). OpenFile failed: %v", id, err)
 		http.Error(w, "Failed to open file", http.StatusInternalServerError)
 		return
 	}
@@ -120,11 +120,11 @@ func (fh *fileHandler) servePut(w http.ResponseWriter, r *http.Request, ui clien
 	if err != nil {
 		h.Close()
 
-		logger.Debugf(mylog, "servePut(id: %v). io.Copy failed: %v", id, err)
+		zap.S().Debugf("servePut(id: %v). io.Copy failed: %v", id, err)
 		http.Error(w, "Failed to write file", http.StatusInternalServerError)
 		return
 	}
-	logger.Debugf(mylog, "servePut(id: %v). written %d", id, nw)
+	zap.S().Debugf("servePut(id: %v). written %d", id, nw)
 
 	h.Close()
 
@@ -139,7 +139,7 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ui := tlsui
-	logger.Debugf(mylog, "ui: %+v", ui)
+	zap.S().Debugf("ui: %+v", ui)
 
 	// path: /inodeid/filename
 	args := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")

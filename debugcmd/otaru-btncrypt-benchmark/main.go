@@ -4,9 +4,11 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
-	tu "github.com/nyaxt/otaru/testutils"
 	"os"
 	"time"
+
+	tu "github.com/nyaxt/otaru/testutils"
+	"go.uber.org/zap"
 
 	"github.com/dustin/go-humanize"
 
@@ -35,15 +37,15 @@ func main() {
 
 	size, err := humanize.ParseBytes(*flagSize)
 	if err != nil {
-		logger.Criticalf(mylog, "Failed to parse size: %s", *flagSize)
+		zap.S().Errorf("Failed to parse size: %s", *flagSize)
 	}
-	logger.Infof(mylog, "Target blob size: %d", size)
+	zap.S().Infof("Target blob size: %d", size)
 	tstart := time.Now()
 	buf := make([]byte, size)
 	if _, err := rand.Read(buf); err != nil {
-		logger.Criticalf(mylog, "Failed to generate random seq: %v", err)
+		zap.S().Errorf("Failed to generate random seq: %v", err)
 	}
-	logger.Infof(mylog, "Preparing target took: %v", time.Since(tstart))
+	zap.S().Infof("Preparing target took: %v", time.Since(tstart))
 
 	var envelope []byte
 	{
@@ -52,13 +54,13 @@ func main() {
 		elapsed := time.Since(tstart)
 
 		if err != nil {
-			logger.Criticalf(mylog, "Failed to encrypt: %v", err)
+			zap.S().Errorf("Failed to encrypt: %v", err)
 		}
-		logger.Infof(mylog, "Encrypt took %v", elapsed)
+		zap.S().Infof("Encrypt took %v", elapsed)
 		sizeMB := (float64)(size) / (1000 * 1000)
 		MBps := sizeMB / elapsed.Seconds()
 		Mbps := MBps * 8
-		logger.Infof(mylog, "%v MB/s %v Mbps", MBps, Mbps)
+		zap.S().Infof("%v MB/s %v Mbps", MBps, Mbps)
 	}
 
 	{
@@ -67,12 +69,12 @@ func main() {
 		elapsed := time.Since(tstart)
 
 		if err != nil {
-			logger.Criticalf(mylog, "Failed to decrypt: %v", err)
+			zap.S().Errorf("Failed to decrypt: %v", err)
 		}
-		logger.Infof(mylog, "Decrypt took %v", elapsed)
+		zap.S().Infof("Decrypt took %v", elapsed)
 		sizeMB := (float64)(size) / (1000 * 1000)
 		MBps := sizeMB / elapsed.Seconds()
 		Mbps := MBps * 8
-		logger.Infof(mylog, "%v MB/s %v Mbps", MBps, Mbps)
+		zap.S().Infof("%v MB/s %v Mbps", MBps, Mbps)
 	}
 }

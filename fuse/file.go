@@ -9,7 +9,7 @@ import (
 
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/inodedb"
-	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 
 	"context"
 
@@ -55,7 +55,7 @@ func (n FileNode) Getattr(ctx context.Context, req *bfuse.GetattrRequest, resp *
 
 func (n FileNode) Setattr(ctx context.Context, req *bfuse.SetattrRequest, resp *bfuse.SetattrResponse) error {
 	if req.Valid.Size() {
-		logger.Debugf(mylog, "Setattr size %d", req.Size)
+		zap.S().Debugf("Setattr size %d", req.Size)
 		if req.Size > math.MaxInt64 {
 			return fmt.Errorf("specified size too big: %d", req.Size)
 		}
@@ -76,7 +76,7 @@ func (n FileNode) Setattr(ctx context.Context, req *bfuse.SetattrRequest, resp *
 }
 
 func (n FileNode) Open(ctx context.Context, req *bfuse.OpenRequest, resp *bfuse.OpenResponse) (bfs.Handle, error) {
-	logger.Debugf(mylog, "Open flags: %s", req.Flags.String())
+	zap.S().Debugf("Open flags: %s", req.Flags.String())
 
 	fh, err := n.fs.OpenFile(n.id, Bazil2OtaruFlags(req.Flags))
 	if err != nil {
@@ -98,7 +98,7 @@ type FileHandle struct {
 }
 
 func (fh FileHandle) Read(ctx context.Context, req *bfuse.ReadRequest, resp *bfuse.ReadResponse) error {
-	logger.Debugf(mylog, "Read offset %d size %d", req.Offset, req.Size)
+	zap.S().Debugf("Read offset %d size %d", req.Offset, req.Size)
 
 	if fh.h == nil {
 		return EBADF
@@ -115,7 +115,7 @@ func (fh FileHandle) Read(ctx context.Context, req *bfuse.ReadRequest, resp *bfu
 }
 
 func (fh FileHandle) Write(ctx context.Context, req *bfuse.WriteRequest, resp *bfuse.WriteResponse) error {
-	logger.Debugf(mylog, "Write offset %d size %d", req.Offset, len(req.Data))
+	zap.S().Debugf("Write offset %d size %d", req.Offset, len(req.Data))
 
 	if fh.h == nil {
 		return EBADF

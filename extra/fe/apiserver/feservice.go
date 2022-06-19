@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/nyaxt/otaru/apiserver/clientauth"
 	"github.com/nyaxt/otaru/cli"
 	opath "github.com/nyaxt/otaru/cli/path"
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/pb"
 )
 
@@ -77,7 +77,7 @@ func (s *feService) MkdirLocal(ctx context.Context, req *pb.MkdirLocalRequest) (
 		return nil, grpc.Errorf(codes.FailedPrecondition, "Failed to resolve local path: %v", err)
 	}
 
-	logger.Infof(mylog, "Mkdir %q", path)
+	zap.S().Infof("Mkdir %q", path)
 	_, err = os.Stat(path)
 	if err == nil {
 		return nil, grpc.Errorf(codes.FailedPrecondition, "Destination path already exists.")
@@ -107,7 +107,7 @@ func (s *feService) CopyLocal(ctx context.Context, req *pb.CopyLocalRequest) (*p
 		return nil, grpc.Errorf(codes.FailedPrecondition, "Failed to resolve local path: %v", err)
 	}
 
-	logger.Infof(mylog, "CopyLocal %q -> %q", pathSrc, pathDest)
+	zap.S().Infof("CopyLocal %q -> %q", pathSrc, pathDest)
 
 	fiSrc, err := os.Stat(pathSrc)
 	if err != nil {
@@ -159,7 +159,7 @@ func (s *feService) MoveLocal(ctx context.Context, req *pb.MoveLocalRequest) (*p
 		return nil, grpc.Errorf(codes.FailedPrecondition, "Failed to resolve local path: %v", err)
 	}
 
-	logger.Infof(mylog, "MoveLocal %q -> %q", pathSrc, pathDest)
+	zap.S().Infof("MoveLocal %q -> %q", pathSrc, pathDest)
 
 	if _, err = os.Stat(pathSrc); err != nil {
 		if os.IsNotExist(err) {
@@ -194,7 +194,7 @@ func (s *feService) Download(ctx context.Context, req *pb.DownloadRequest) (*pb.
 	}
 	opathSrc := req.OpathSrc
 
-	logger.Infof(mylog, "Download %q -> %q", opathSrc, pathDest)
+	zap.S().Infof("Download %q -> %q", opathSrc, pathDest)
 
 	fi, err := os.Stat(pathDest)
 	if err == nil {
@@ -253,7 +253,7 @@ func (s *feService) Upload(ctx context.Context, req *pb.UploadRequest) (*pb.Uplo
 	}
 	defer r.Close()
 
-	logger.Infof(mylog, "Upload %q -> %q", pathSrc, opathDest)
+	zap.S().Infof("Upload %q -> %q", pathSrc, opathDest)
 	w, err := cli.NewWriter(opathDest, cli.WithCliConfig(s.cfg), cli.WithContext(ctx), cli.AllowOverwrite(req.AllowOverwrite))
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, "Failed to init writer: %v", err)
@@ -287,7 +287,7 @@ func (s *feService) RemoveLocal(ctx context.Context, req *pb.RemoveLocalRequest)
 		return nil, grpc.Errorf(codes.FailedPrecondition, "Failed to resolve local path: %v", err)
 	}
 
-	logger.Infof(mylog, "Remove %q", path)
+	zap.S().Infof("Remove %q", path)
 	fi, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {

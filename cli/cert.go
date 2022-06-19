@@ -5,7 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 
-	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 func TLSConfigFromCert(cert *x509.Certificate) (*tls.Config, error) {
@@ -21,6 +21,6 @@ func TLSConfigFromCert(cert *x509.Certificate) (*tls.Config, error) {
 		return nil, fmt.Errorf("Failed to find any valid server name from given certs.")
 	}
 
-	logger.Infof(Log, "Found server names %v. Using the first entry for grpc loopback connection.", serverNames)
+	zap.S().Infof("Found server names %v. Using the first entry for grpc loopback connection.", serverNames)
 	return &tls.Config{ServerName: serverNames[0], RootCAs: cp}, nil
 }

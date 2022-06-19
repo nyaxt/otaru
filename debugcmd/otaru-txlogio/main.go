@@ -13,6 +13,7 @@ import (
 	"github.com/nyaxt/otaru/gcloud/datastore"
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 var mylog = logger.Registry().Category("otaru-txlogio")
@@ -37,7 +38,7 @@ func main() {
 
 	cfg, err := facade.NewConfig(*flagConfigDir)
 	if err != nil {
-		logger.Infof(mylog, "%v", err)
+		zap.S().Infof("%v", err)
 		Usage()
 		os.Exit(2)
 	}
@@ -67,20 +68,20 @@ func main() {
 		}
 		break
 	default:
-		logger.Infof(mylog, "Unknown cmd: %v", flag.Arg(0))
+		zap.S().Infof("Unknown cmd: %v", flag.Arg(0))
 		Usage()
 		os.Exit(2)
 	}
 
 	tsrc, err := auth.GetGCloudTokenSource(cfg.CredentialsFilePath)
 	if err != nil {
-		logger.Criticalf(mylog, "Failed to init GCloudClientSource: %v", err)
+		zap.S().Errorf("Failed to init GCloudClientSource: %v", err)
 	}
 
 	key := btncrypt.KeyFromPassword(cfg.Password)
 	c, err := btncrypt.NewCipher(key)
 	if err != nil {
-		logger.Criticalf(mylog, "Failed to init *btncrypt.Cipher: %v", err)
+		zap.S().Errorf("Failed to init *btncrypt.Cipher: %v", err)
 	}
 	dscfg := datastore.NewConfig(cfg.ProjectName, cfg.BucketName, c, tsrc)
 
@@ -89,21 +90,21 @@ func main() {
 	switch flag.Arg(0) {
 	case "purge":
 		if err := txlogio.DeleteAllTransactions(); err != nil {
-			logger.Infof(mylog, "DeleteAllTransactions() failed: %v", err)
+			zap.S().Infof("DeleteAllTransactions() failed: %v", err)
 		}
 
 	case "query":
-		logger.Infof(mylog, "Start QueryTransactions(%v)", minID)
+		zap.S().Infof("Start QueryTransactions(%v)", minID)
 		txs, err := txlogio.QueryTransactions(minID)
 		if err != nil {
-			logger.Infof(mylog, "QueryTransactions() failed: %v", err)
+			zap.S().Infof("QueryTransactions() failed: %v", err)
 		}
 		for _, tx := range txs {
 			fmt.Printf("%s\n", tx)
 		}
 
 	default:
-		logger.Infof(mylog, "Unknown cmd: %v", flag.Arg(0))
+		zap.S().Infof("Unknown cmd: %v", flag.Arg(0))
 		os.Exit(1)
 	}
 }

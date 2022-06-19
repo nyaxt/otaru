@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go.uber.org/multierr"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
@@ -70,10 +71,10 @@ func (fs *FileSystem) tryGetOrigPath(id inodedb.ID) string {
 
 	origpath, ok := fs.origpath[id]
 	if !ok {
-		logger.Warningf(fslog, "Failed to lookup orig path for ID %d", id)
+		zap.S().Warnf("Failed to lookup orig path for ID %d", id)
 		return "<unknown>"
 	}
-	// logger.Warningf(fslog, "Orig path for ID %d is \"%s\"", id, origpath)
+	// zap.S().Warnf("Orig path for ID %d is \"%s\"", id, origpath)
 	return origpath
 }
 
@@ -193,7 +194,7 @@ func (fs *FileSystem) createNode(dirID inodedb.ID, name string, typ inodedb.Type
 	}
 	defer func() {
 		if err := fs.idb.UnlockNode(nlock); err != nil {
-			logger.Warningf(fslog, "Failed to unlock node when creating file: %v", err)
+			zap.S().Warnf("Failed to unlock node when creating file: %v", err)
 		}
 	}()
 
@@ -291,7 +292,7 @@ func (valid ValidAttrFields) String() string {
 }
 
 func (fs *FileSystem) SetAttr(id inodedb.ID, a Attr, valid ValidAttrFields) error {
-	logger.Infof(fslog, "SetAttr id: %d, a: %+v, valid: %s", id, a, valid)
+	zap.S().Infof("SetAttr id: %d, a: %+v, valid: %s", id, a, valid)
 
 	ops := make([]inodedb.DBOperation, 0, 4)
 	if valid&UidValid != 0 {
@@ -359,7 +360,7 @@ func (fs *FileSystem) getOrCreateOpenFile(id inodedb.ID) *OpenFile {
 }
 
 func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
-	logger.Infof(fslog, "OpenFile(id: %v, flags rok: %t wok: %t)", id, fl.IsReadAllowed(flags), fl.IsWriteAllowed(flags))
+	zap.S().Infof("OpenFile(id: %v, flags rok: %t wok: %t)", id, fl.IsReadAllowed(flags), fl.IsWriteAllowed(flags))
 
 	tryLock := fl.IsWriteAllowed(flags)
 	if tryLock && !fl.IsWriteAllowed(fs.bs.Flags()) {
@@ -374,7 +375,7 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	ofIsInitialized := of.nlock.ID != 0
 	if ofIsInitialized && (of.nlock.HasTicket() || !tryLock) {
 		// No need to upgrade lock. Just use cached filehandle.
-		logger.Infof(fslog, "Using cached of for inode id: %v", id)
+		zap.S().Infof("Using cached of for inode id: %v", id)
 		return of.OpenHandleWithoutLock(flags), nil
 	}
 
@@ -385,7 +386,7 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	}
 	if v.GetType() != inodedb.FileNodeT {
 		if err := fs.idb.UnlockNode(nlock); err != nil {
-			logger.Warningf(fslog, "Unlock node failed for non-file node: %v", err)
+			zap.S().Warnf("Unlock node failed for non-file node: %v", err)
 		}
 
 		if v.GetType() == inodedb.DirNodeT {
@@ -449,11 +450,11 @@ func (of *OpenFile) OpenHandleWithoutLock(flags int) *FileHandle {
 
 func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 	if tgt.of == nil {
-		logger.Warningf(fslog, "Detected FileHandle double close!")
+		zap.S().Warnf("Detected FileHandle double close!")
 		return
 	}
 	if tgt.of != of {
-		logger.Criticalf(fslog, "Attempt to close handle for other OpenFile. tgt fh: %+v, of: %+v", tgt, of)
+		zap.S().Errorf("Attempt to close handle for other OpenFile. tgt fh: %+v, of: %+v", tgt, of)
 		return
 	}
 
@@ -481,7 +482,7 @@ func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 	wasLastWriteHandle := wasWriteHandle && !ofHasOtherWriteHandle
 	if wasLastWriteHandle {
 		if err := of.wc.Sync(of.cfio); err != nil {
-			logger.Criticalf(fslog, "FileWriteCache sync failed: %v", err)
+			zap.S().Errorf("FileWriteCache sync failed: %v", err)
 		}
 
 		// Note: if len(of.handles) == 0, below will create cfio just to be closed immediately below
@@ -491,7 +492,7 @@ func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 
 	if len(of.handles) == 0 {
 		if err := of.cfio.Close(); err != nil {
-			logger.Warningf(fslog, "Closing ChunkedFileIO when all handles closed failed: %v", err)
+			zap.S().Warnf("Closing ChunkedFileIO when all handles closed failed: %v", err)
 		}
 
 		id := of.nlock.ID
@@ -502,21 +503,21 @@ func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 }
 
 func (of *OpenFile) downgradeToReadLock() {
-	logger.Infof(fslog, "Downgrade %v to read lock.", of)
+	zap.S().Infof("Downgrade %v to read lock.", of)
 	// Note: assumes of.mu is Lock()-ed
 
 	if !of.nlock.HasTicket() {
-		logger.Warningf(fslog, "Attempt to downgrade node lock, but no excl lock found. of: %v", of)
+		zap.S().Warnf("Attempt to downgrade node lock, but no excl lock found. of: %v", of)
 		return
 	}
 
 	if err := of.fs.idb.UnlockNode(of.nlock); err != nil {
-		logger.Warningf(fslog, "Unlocking node to downgrade to read lock failed: %v", err)
+		zap.S().Warnf("Unlocking node to downgrade to read lock failed: %v", err)
 	}
 	of.nlock.Ticket = inodedb.NoTicket
 
 	if err := of.cfio.Close(); err != nil {
-		logger.Warningf(fslog, "Closing ChunkedFileIO when downgrading to read lock failed: %v", err)
+		zap.S().Warnf("Closing ChunkedFileIO when downgrading to read lock failed: %v", err)
 	}
 
 	caio := NewINodeDBChunksArrayIO(of.fs.idb, of.nlock)
@@ -639,7 +640,7 @@ func (of *OpenFile) Size() int64 {
 
 	size, err := of.sizeMayFailWithoutLock()
 	if err != nil {
-		logger.Warningf(fslog, "Failed to query OpenFile.Size(), but suppressing error: %v", err)
+		zap.S().Warnf("Failed to query OpenFile.Size(), but suppressing error: %v", err)
 		return 0
 	}
 	return size

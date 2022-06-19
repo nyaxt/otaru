@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/nyaxt/otaru/btncrypt"
-	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 const (
@@ -64,7 +64,7 @@ func (h ChunkHeader) WriteTo(w io.Writer, c *btncrypt.Cipher) error {
 	framelen := ChunkHeaderLength - c.FrameOverhead() - SignatureLength - 1
 	paddinglen := framelen - b.Len()
 	if paddinglen < 0 {
-		logger.Panicf(mylog, "SHOULD NOT BE REACHED: Marshaled ChunkHeader size too large")
+		zap.S().Panicf("SHOULD NOT BE REACHED: Marshaled ChunkHeader size too large")
 	}
 
 	bew, err := c.NewWriteCloser(w, framelen)

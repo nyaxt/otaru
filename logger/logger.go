@@ -82,9 +82,3 @@ func Logf(l Logger, lv Level, format string, v ...interface{}) {
 		panic(logstr)
 	}
 }
-
-func Debugf(l Logger, format string, v ...interface{})    { Logf(l, Debug, format, v...) }
-func Infof(l Logger, format string, v ...interface{})     { Logf(l, Info, format, v...) }
-func Warningf(l Logger, format string, v ...interface{})  { Logf(l, Warning, format, v...) }
-func Criticalf(l Logger, format string, v ...interface{}) { Logf(l, Critical, format, v...) }
-func Panicf(l Logger, format string, v ...interface{})    { Logf(l, Panic, format, v...) }

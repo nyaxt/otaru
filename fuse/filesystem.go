@@ -8,6 +8,7 @@ import (
 
 	bfuse "github.com/nyaxt/fuse"
 	bfs "github.com/nyaxt/fuse/fs"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/inodedb"
@@ -18,7 +19,7 @@ var mylog = logger.Registry().Category("fuse")
 var bfuseLogger = logger.Registry().Category("bfuse")
 
 func init() {
-	bfuse.Debug = func(msg interface{}) { logger.Debugf(bfuseLogger, "%v", msg) }
+	bfuse.Debug = func(msg interface{}) { zap.S().Debugf("%v", msg) }
 }
 
 type FileSystem struct {
@@ -76,7 +77,7 @@ func Serve(ctx context.Context, bucketName string, mountpoint string, ofs *files
 		return err
 	}
 
-	logger.Infof(mylog, "Mountpoint \"%s\" should be ready now!", mountpoint)
+	zap.S().Infof("Mountpoint \"%s\" should be ready now!", mountpoint)
 	if ready != nil {
 		close(ready)
 	}
@@ -98,8 +99,8 @@ func Unmount(mountpoint string) {
 	timeoutC := time.After(time.Second * 3)
 	select {
 	case <-doneC:
-		logger.Infof(mylog, "Successfully unmounted: %v", mountpoint)
+		zap.S().Infof("Successfully unmounted: %v", mountpoint)
 	case <-timeoutC:
-		logger.Warningf(mylog, "Timeout reached while trying to unmount: %v", mountpoint)
+		zap.S().Warnf("Timeout reached while trying to unmount: %v", mountpoint)
 	}
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/basicauth"
 	"github.com/nyaxt/otaru/cli"
-	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 type apiproxy struct {
@@ -47,14 +47,14 @@ func (ap *apiproxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			TLSClientConfig: ci.TLSConfig,
 		},
 	}
-	logger.Debugf(mylog, "tc.RootCAs: %+v", ci.TLSConfig.RootCAs)
+	zap.S().Debugf("tc.RootCAs: %+v", ci.TLSConfig.RootCAs)
 	url := &url.URL{
 		Scheme:   "https",
 		Host:     ci.ApiEndpoint,
 		Path:     tgtpath,
 		RawQuery: r.URL.RawQuery,
 	}
-	logger.Debugf(mylog, "URL: %v", url)
+	zap.S().Debugf("URL: %v", url)
 
 	// FIXME: filter tgtpath
 	// FIXME: add forwarded-for
@@ -69,13 +69,13 @@ func (ap *apiproxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	presp, err := hcli.Do(preq)
 	if err != nil {
-		logger.Warningf(mylog, "Failed to issue request: %v", err)
+		zap.S().Warnf("Failed to issue request: %v", err)
 		http.Error(w, "Failed to issue request.", http.StatusInternalServerError)
 		return
 	}
 	defer presp.Body.Close()
 
-	// logger.Debugf(mylog, "resp st: %d", presp.StatusCode)
+	// zap.S().Debugf("resp st: %d", presp.StatusCode)
 
 	copyHeader(w.Header(), presp.Header)
 	w.WriteHeader(presp.StatusCode)

@@ -14,6 +14,7 @@ import (
 	"github.com/nyaxt/otaru/logger"
 	tu "github.com/nyaxt/otaru/testutils"
 	"github.com/nyaxt/otaru/util"
+	"go.uber.org/zap"
 )
 
 var mylog = logger.Registry().Category("otaru-fuzz-filesystem")
@@ -76,7 +77,7 @@ func Fuzz(data []byte) int {
 		}
 		fileidx := int(cmdp.FileIndex) % NumFHs
 		fh := fhs[fileidx]
-		logger.Infof(mylog, "Cmd %d FileIndex %d", n, fileidx)
+		zap.S().Infof("Cmd %d FileIndex %d", n, fileidx)
 		/*
 			for i, _ := range iobuf {
 				iobuf[i] = n
@@ -99,7 +100,7 @@ func Fuzz(data []byte) int {
 			fh, err := fs.OpenFileFullPath(fp, openFlags, 0666)
 			if err != nil {
 				if err == util.ENOENT {
-					logger.Infof(mylog, "fp %v open ENOENT.", fp)
+					zap.S().Infof("fp %v open ENOENT.", fp)
 					break
 				}
 				panic(err)
@@ -108,7 +109,7 @@ func Fuzz(data []byte) int {
 
 		case OpCloseFile:
 			if fh == nil {
-				logger.Infof(mylog, "fhs[%d] nil. No op.", fileidx)
+				zap.S().Infof("fhs[%d] nil. No op.", fileidx)
 				break
 			}
 			fh.Close()
@@ -116,7 +117,7 @@ func Fuzz(data []byte) int {
 
 		case OpWrite:
 			if fh == nil {
-				logger.Infof(mylog, "fhs[%d] nil. No op.", fileidx)
+				zap.S().Infof("fhs[%d] nil. No op.", fileidx)
 				break
 			}
 
@@ -127,7 +128,7 @@ func Fuzz(data []byte) int {
 			opLen := cmdp.OpLen % (AbsoluteMaxLen - offset)
 			if err := fh.PWrite(iobuf[:opLen], int64(offset)); err != nil {
 				if err == util.EBADF {
-					logger.Infof(mylog, "fhs[%d] PWrite EBADF.", fileidx)
+					zap.S().Infof("fhs[%d] PWrite EBADF.", fileidx)
 					break
 				}
 
@@ -136,13 +137,13 @@ func Fuzz(data []byte) int {
 
 		case OpRead:
 			if fh == nil {
-				logger.Infof(mylog, "fhs[%d] nil. No op.", fileidx)
+				zap.S().Infof("fhs[%d] nil. No op.", fileidx)
 				break
 			}
 
 			currLen := fh.Size()
 			if currLen == 0 {
-				logger.Infof(mylog, "fhs[%d] currSize 0.", fileidx)
+				zap.S().Infof("fhs[%d] currSize 0.", fileidx)
 				break
 			}
 			offset := cmdp.Offset % uint32(currLen)
@@ -155,14 +156,14 @@ func Fuzz(data []byte) int {
 
 		case OpTruncate:
 			if fh == nil {
-				logger.Infof(mylog, "fhs[%d] nil. No op.", fileidx)
+				zap.S().Infof("fhs[%d] nil. No op.", fileidx)
 				break
 			}
 
 			opLen := cmdp.OpLen % AbsoluteMaxLen
 			if err := fh.Truncate(int64(opLen)); err != nil {
 				if err == util.EBADF {
-					logger.Infof(mylog, "fhs[%d] Truncate  EBADF.", fileidx)
+					zap.S().Infof("fhs[%d] Truncate  EBADF.", fileidx)
 					break
 				}
 				panic(err)

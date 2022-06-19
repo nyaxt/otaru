@@ -7,9 +7,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/blobstore"
-	"github.com/nyaxt/otaru/logger"
 	oprometheus "github.com/nyaxt/otaru/prometheus"
 	"github.com/nyaxt/otaru/util"
 )
@@ -75,7 +75,7 @@ func (mgr *CachedBlobEntriesManager) Run() {
 
 	for _, be := range mgr.entries {
 		if err := be.Close(writebackIfNeededAndClose); err != nil {
-			logger.Warningf(mylog, "Failed to close entry %v. Err: %v", be, err)
+			zap.S().Warnf("Failed to close entry %v. Err: %v", be, err)
 		}
 	}
 
@@ -330,7 +330,7 @@ func (mgr *CachedBlobEntriesManager) OpenEntry(blobpath string, cbs *CachedBlobS
 
 func (mgr *CachedBlobEntriesManager) tryCloseEntry(be *CachedBlobEntry) {
 	if err := be.Close(writebackAndClose); err != nil {
-		logger.Criticalf(mylog, "Failed to close cache entry \"%s\": %v", be.blobpath, err)
+		zap.S().Errorf("Failed to close cache entry \"%s\": %v", be.blobpath, err)
 		return
 	}
 
@@ -345,7 +345,7 @@ func (mgr *CachedBlobEntriesManager) CloseEntryForTesting(blobpath string) {
 
 		be, ok := mgr.entries[blobpath]
 		if !ok {
-			logger.Warningf(mylog, "CloseEntryForTesting %q couldn't find any entry to close", blobpath)
+			zap.S().Warnf("CloseEntryForTesting %q couldn't find any entry to close", blobpath)
 			return
 		}
 
@@ -362,7 +362,7 @@ func (mgr *CachedBlobEntriesManager) closeOldCacheEntriesIfNeeded() error {
 		return nil
 	}
 
-	logger.Infof(mylog, "closeOldCacheEntriesIfNeeded started")
+	zap.S().Infof("closeOldCacheEntriesIfNeeded started")
 	start := time.Now()
 	threshold := start.Add(-inactiveCloseTimeout)
 
@@ -393,11 +393,11 @@ func (mgr *CachedBlobEntriesManager) closeOldCacheEntriesIfNeeded() error {
 	}
 
 	if len(mgr.entries) > maxEntries {
-		logger.Infof(mylog, "closeOldCacheEntriesIfNeeded giving up. Couldn't reduce to <maxEntries. Took %s.", time.Since(start))
+		zap.S().Infof("closeOldCacheEntriesIfNeeded giving up. Couldn't reduce to <maxEntries. Took %s.", time.Since(start))
 		return util.ENFILE // give up
 	}
 
-	logger.Infof(mylog, "closeOldCacheEntriesIfNeeded finished. Took %s.", time.Since(start))
+	zap.S().Infof("closeOldCacheEntriesIfNeeded finished. Took %s.", time.Since(start))
 	return nil
 }
 

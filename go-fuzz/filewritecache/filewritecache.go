@@ -11,6 +11,7 @@ import (
 	"github.com/nyaxt/otaru/logger"
 	tu "github.com/nyaxt/otaru/testutils"
 	"github.com/nyaxt/otaru/util"
+	"go.uber.org/zap"
 )
 
 var mylog = logger.Registry().Category("otaru-fuzz-filewritecache")
@@ -33,7 +34,7 @@ func (a ReadAtAdaptor) ReadAt(p []byte, offset int64) (int, error) {
 	currLen := a.bh.Size()
 	if offset+int64(len(p)) > currLen {
 		zoff := util.Int64Max(currLen-offset, 0)
-		logger.Debugf(mylog, "offset: %d, len(p): %d, currLen: %d, zoff: %d", offset, len(p), currLen, zoff)
+		zap.S().Debugf("offset: %d, len(p): %d, currLen: %d, zoff: %d", offset, len(p), currLen, zoff)
 		z := p[zoff:]
 		for i, _ := range z {
 			z[i] = 0
@@ -84,7 +85,7 @@ func Fuzz(data []byte) int {
 				return NeutralInput
 			}
 		}
-		logger.Infof(mylog, "Cmd %d %+v", n, cmdp)
+		zap.S().Infof("Cmd %d %+v", n, cmdp)
 
 		isWrite := (cmdp.IsWrite & 1) == 1
 		if isWrite {
@@ -95,12 +96,12 @@ func Fuzz(data []byte) int {
 			for i, _ := range w {
 				w[i] = n
 			}
-			logger.Debugf(mylog, "PWrite offset %d opLen %d currLen %d", offset, opLen, currLen)
+			zap.S().Debugf("PWrite offset %d opLen %d currLen %d", offset, opLen, currLen)
 			if err := wc.PWrite(w[:opLen], int64(offset)); err != nil {
 				panic(err)
 			}
 			if wc.NeedsSync() {
-				logger.Debugf(mylog, "NeedsSync!")
+				zap.S().Debugf("NeedsSync!")
 				if err := wc.Sync(bh); err != nil {
 					panic(err)
 				}
@@ -123,14 +124,14 @@ func Fuzz(data []byte) int {
 
 			r := rbuf[:opLen]
 			adaptor := ReadAtAdaptor{bh}
-			logger.Debugf(mylog, "ReadAtThrough offset %d opLen %d currLen %d", offset, opLen, currLen)
+			zap.S().Debugf("ReadAtThrough offset %d opLen %d currLen %d", offset, opLen, currLen)
 			if _, err := wc.ReadAtThrough(r, int64(offset), adaptor); err != nil {
 				panic(err)
 			}
 			r2 := mirror[offset : offset+opLen]
 			if !bytes.Equal(r, r2) {
-				logger.Warningf(mylog, "mismatch!!! | wc     := %+v", r)
-				logger.Warningf(mylog, "mismatch!!! | mirror := %+v", r2)
+				zap.S().Warnf("mismatch!!! | wc     := %+v", r)
+				zap.S().Warnf("mismatch!!! | mirror := %+v", r2)
 				panic(errors.New("mismatch"))
 			}
 		}
@@ -143,8 +144,8 @@ func Fuzz(data []byte) int {
 		}
 		r2 := mirror[:currLen]
 		if !bytes.Equal(r, r2) {
-			logger.Warningf(mylog, "mismatch!!! | wc     := %+v", r)
-			logger.Warningf(mylog, "mismatch!!! | mirror := %+v", r2)
+			zap.S().Warnf("mismatch!!! | wc     := %+v", r)
+			zap.S().Warnf("mismatch!!! | mirror := %+v", r2)
 			panic(errors.New("mismatch"))
 		}
 	}

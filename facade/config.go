@@ -12,8 +12,8 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/naoina/toml"
+	"go.uber.org/zap"
 
-	"github.com/nyaxt/otaru/logger"
 	loggerconfig "github.com/nyaxt/otaru/logger/config"
 	"github.com/nyaxt/otaru/util"
 	"github.com/nyaxt/otaru/util/readpem"
@@ -159,14 +159,14 @@ func NewConfig(configdir string) (*Config, error) {
 	}
 
 	if cfg.Password != "" {
-		logger.Warningf(mylog, "Storing password directly on config file is not recommended.")
+		zap.S().Warnf("Storing password directly on config file is not recommended.")
 	} else {
 		fi, err := os.Stat(cfg.PasswordFile)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to stat password file \"%s\": %v", cfg.PasswordFile, err)
 		}
 		if fi.Mode()&os.ModePerm != 0400 {
-			logger.Warningf(mylog, "Warning: Password file \"%s\" permission is not 0400", cfg.PasswordFile)
+			zap.S().Warnf("Warning: Password file \"%s\" permission is not 0400", cfg.PasswordFile)
 		}
 
 		cfg.Password, err = util.StringFromFile(cfg.PasswordFile)

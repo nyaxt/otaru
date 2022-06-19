@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go.uber.org/multierr"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 
 	"github.com/nyaxt/otaru/apiserver"
@@ -127,7 +128,7 @@ func Serve(ctx context.Context, cfg *Config) error {
 
 	flags := oflags.O_RDWRCREATE
 	if o.ReadOnly {
-		logger.Infof(mylog, "Otaru in read only mode.")
+		zap.S().Infof("Otaru in read only mode.")
 		flags = oflags.O_RDONLY
 	}
 
@@ -163,9 +164,9 @@ func Serve(ctx context.Context, cfg *Config) error {
 	o.FS = filesystem.NewFileSystem(o.IDBS, o.CBS, o.C)
 
 	if o.ReadOnly {
-		logger.Infof(mylog, "No GC tasks are scheduled in read only mode.")
+		zap.S().Infof("No GC tasks are scheduled in read only mode.")
 	} else if cfg.GCPeriod <= 0 {
-		logger.Infof(mylog, "GCPeriod %d <= 0. No GC tasks are scheduled automatically.", cfg.GCPeriod)
+		zap.S().Infof("GCPeriod %d <= 0. No GC tasks are scheduled automatically.", cfg.GCPeriod)
 	} else {
 		const NoDryRun = false
 		if t := o.GetBlobstoreGCTask(NoDryRun); t != nil {
@@ -188,7 +189,7 @@ func Serve(ctx context.Context, cfg *Config) error {
 	go func() {
 		if err := apiserver.Serve(ctx, apiopts...); err != nil {
 			cancel()
-			logger.Infof(mylog, "Apiserver error: %v", err)
+			zap.S().Infof("Apiserver error: %v", err)
 			apiErr = err
 		}
 	}()
@@ -198,7 +199,7 @@ func Serve(ctx context.Context, cfg *Config) error {
 		go func() {
 			if err := fuse.Serve(ctx, cfg.BucketName, cfg.FuseMountPoint, o.FS, nil); err != nil {
 				cancel()
-				logger.Infof(mylog, "FUSE error: %v", err)
+				zap.S().Infof("FUSE error: %v", err)
 				fuseErr = err
 			}
 		}()
@@ -278,7 +279,7 @@ func (o *Otaru) initBlobStore(cfg *Config, flags int) error {
 		return fmt.Errorf("Failed to init CachedBlobStore: %v", err)
 	}
 	if err := o.CBS.RestoreState(o.C); err != nil {
-		logger.Warningf(mylog, "Attempted to restore cachedblobstore state but failed: %v", err)
+		zap.S().Warnf("Attempted to restore cachedblobstore state but failed: %v", err)
 	}
 
 	if o.R != nil {
@@ -370,7 +371,7 @@ func (o *Otaru) GetINodeDBTxLogGCTask(dryrun bool) scheduler.Task {
 	if ok {
 		return &inodedbtxloggc.Task{o.SIO, logdeleter, dryrun}
 	} else {
-		logger.Infof(mylog, "DBTransactionLogIO backend %s doesn't support log deletion. Not scheduling txlog GC task.", util.TryGetImplName(o.TxIO))
+		zap.S().Infof("DBTransactionLogIO backend %s doesn't support log deletion. Not scheduling txlog GC task.", util.TryGetImplName(o.TxIO))
 		return nil
 	}
 }

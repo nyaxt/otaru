@@ -12,10 +12,10 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
 	opath "github.com/nyaxt/otaru/cli/path"
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/pb"
 	"github.com/nyaxt/otaru/util"
 )
@@ -169,7 +169,7 @@ func Ls(ctx context.Context, w io.Writer, cfg *CliConfig, args []string) error {
 		}
 	}
 	for _, s := range paths {
-		logger.Debugf(Log, "pathstr: %s", s)
+		zap.S().Infof("pathstr: %s", s)
 		p, err := opath.Parse(s)
 		if err != nil {
 			return fmt.Errorf("Failed to parse: \"%s\". err: %v", s, err)

@@ -6,6 +6,7 @@ import (
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
+	"go.uber.org/zap"
 )
 
 // Below may overwritten from tests
@@ -68,7 +69,7 @@ func (wc *FileWriteCache) ReadAtThrough(p []byte, offset int64, r ReadAter) (int
 			fallbackLen := int(fallbackLen64)
 
 			n, err := r.ReadAt(remp[:fallbackLen], remo)
-			logger.Debugf(mylog, "BeforePatch: ReadAt issued offset %d, len %d bytes, read %d bytes", remo, fallbackLen, n)
+			zap.S().Debugf("BeforePatch: ReadAt issued offset %d, len %d bytes, read %d bytes", remo, fallbackLen, n)
 			if err != nil {
 				return nr + n, err
 			}
@@ -99,7 +100,7 @@ func (wc *FileWriteCache) ReadAtThrough(p []byte, offset int64, r ReadAter) (int
 	}
 
 	n, err := r.ReadAt(remp, remo)
-	logger.Debugf(mylog, "Last: ReadAt read %d bytes", n)
+	zap.S().Debugf("Last: ReadAt read %d bytes", n)
 	if err != nil {
 		return nr, err
 	}
@@ -134,7 +135,7 @@ func (wc *FileWriteCache) Sync(bh blobstore.PWriter) error {
 	for _, p := range wc.ps {
 		if p.IsSentinel() || contP == nil || p.Offset != offset+int64(len(contP)) {
 			if len(contP) != 0 {
-				logger.Debugf(mylog, "PWrite offset: %d len(p): %d", offset, len(contP))
+				zap.S().Debugf("PWrite offset: %d len(p): %d", offset, len(contP))
 				if err := bh.PWrite(contP, offset); err != nil {
 					return err
 				}
@@ -145,7 +146,7 @@ func (wc *FileWriteCache) Sync(bh blobstore.PWriter) error {
 			continue
 		}
 
-		logger.Debugf(mylog, "Squash {offset: %d len(p): %d} <- %v", offset, len(contP), p)
+		zap.S().Debugf("Squash {offset: %d len(p): %d} <- %v", offset, len(contP), p)
 		contP = append(contP, p.P...)
 	}
 

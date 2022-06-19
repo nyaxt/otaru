@@ -7,6 +7,7 @@ import (
 	"context"
 
 	"cloud.google.com/go/datastore"
+	"go.uber.org/zap"
 	"google.golang.org/api/iterator"
 
 	oflags "github.com/nyaxt/otaru/flags"
@@ -70,7 +71,7 @@ func (loc *INodeDBSSLocator) tryLocateOnce(history int) (string, int64, error) {
 		return "", 0, err
 	}
 
-	logger.Infof(sslog, "LocateSnapshot(%d) took %s. Found entry: %+v", history, time.Since(start), e)
+	zap.S().Infof("LocateSnapshot(%d) took %s. Found entry: %+v", history, time.Since(start), e)
 	return e.BlobPath, e.TxID, nil
 }
 
@@ -106,7 +107,7 @@ func (loc *INodeDBSSLocator) tryPutOnce(blobpath string, txid int64) error {
 		return err
 	}
 
-	logger.Infof(sslog, "Put(%s, %d) took %s.", blobpath, txid, time.Since(start))
+	zap.S().Infof("Put(%s, %d) took %s.", blobpath, txid, time.Since(start))
 	return nil
 }
 
@@ -182,13 +183,13 @@ func (loc *INodeDBSSLocator) DeleteOld(ctx context.Context, threshold int, dryRu
 		ndel += len(keys)
 
 		if needAnotherTx {
-			logger.Infof(txlog, "DeleteOld(): A tx deleting %d entries took %s. Starting next tx to delete more.", len(keys), time.Since(txStart))
+			zap.S().Infof("DeleteOld(): A tx deleting %d entries took %s. Starting next tx to delete more.", len(keys), time.Since(txStart))
 		} else {
-			logger.Infof(txlog, "DeleteOld(): A tx deleting %d entries took %s.", len(keys), time.Since(txStart))
+			zap.S().Infof("DeleteOld(): A tx deleting %d entries took %s.", len(keys), time.Since(txStart))
 			break
 		}
 	}
-	logger.Infof(sslog, "DeleteOld() deleted %d entries. Took %s", ndel, time.Since(start))
+	zap.S().Infof("DeleteOld() deleted %d entries. Took %s", ndel, time.Since(start))
 	return blobpaths, nil
 }
 

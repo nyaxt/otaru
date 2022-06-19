@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
 	"github.com/nyaxt/otaru/apiserver"
@@ -57,7 +58,7 @@ func InstallApiGatewayProxy(hostmap map[string]*cli.Host) apiserver.Option {
 func BuildApiServerOptions(cfg *cli.CliConfig) ([]apiserver.Option, error) {
 	override := cfg.Fe.WebUIRootPath
 	if override != "" {
-		logger.Infof(mylog, "Overriding embedded WebUI and serving WebUI at %s", override)
+		zap.S().Infof("Overriding embedded WebUI and serving WebUI at %s", override)
 	}
 
 	opts := []apiserver.Option{

@@ -12,6 +12,7 @@ import (
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util/readpem"
+	"go.uber.org/zap"
 )
 
 var mylog = logger.Registry().Category("fe-webdav")
@@ -33,9 +34,9 @@ func Serve(ctx context.Context, cfg *cli.CliConfig) error {
 	}
 
 	if wcfg.BasicAuthPassword == "" {
-		logger.Warningf(mylog, "Basic auth not enabled!")
+		zap.S().Warnf("Basic auth not enabled!")
 	} else {
-		logger.Infof(mylog, "Basic auth enabled.")
+		zap.S().Infof("Basic auth enabled.")
 		handler = &basicauth.Handler{
 			User:     wcfg.BasicAuthUser,
 			Password: wcfg.BasicAuthPassword,

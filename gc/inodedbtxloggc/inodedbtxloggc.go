@@ -9,6 +9,7 @@ import (
 
 	"github.com/nyaxt/otaru/inodedb"
 	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 type UnneededTxIDThresholdFinder interface {
@@ -31,30 +32,30 @@ func GC(ctx context.Context, thresfinder UnneededTxIDThresholdFinder, logdeleter
 	}
 	defer atomic.StoreUint32(&gcRunning, 0)
 
-	logger.Infof(mylog, "GC start. Dryrun: %t. Trying to find UnneededTxIDThreshold.", dryrun)
+	zap.S().Infof("GC start. Dryrun: %t. Trying to find UnneededTxIDThreshold.", dryrun)
 
 	txid, err := thresfinder.FindUnneededTxIDThreshold()
 	if err != nil {
 		return fmt.Errorf("Failed to find UnneededTxIDThreshold: %v", err)
 	}
 	if txid == inodedb.AnyVersion {
-		logger.Infof(mylog, "UnneededTxIDThreshold was AnyVersion. No TxID log to be deleted")
+		zap.S().Infof("UnneededTxIDThreshold was AnyVersion. No TxID log to be deleted")
 		return nil
 	}
-	logger.Infof(mylog, "Found UnneededTxIDThreshold: %v", txid)
+	zap.S().Infof("Found UnneededTxIDThreshold: %v", txid)
 
 	if err := ctx.Err(); err != nil {
-		logger.Infof(mylog, "Detected cancel. Bailing out.")
+		zap.S().Infof("Detected cancel. Bailing out.")
 		return err
 	}
 
 	if dryrun {
-		logger.Infof(mylog, "Dry run. Not actually deleting txlog.")
+		zap.S().Infof("Dry run. Not actually deleting txlog.")
 	} else {
 		if err := logdeleter.DeleteTransactions(txid); err != nil {
 			return err
 		}
 	}
-	logger.Infof(mylog, "GC success. Dryrun: %t. The whole GC took %v.", dryrun, time.Since(start))
+	zap.S().Infof("GC success. Dryrun: %t. The whole GC took %v.", dryrun, time.Since(start))
 	return nil
 }

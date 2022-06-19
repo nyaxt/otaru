@@ -7,12 +7,12 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/version"
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/flags"
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/metadata"
 	"github.com/nyaxt/otaru/metadata/statesnapshot"
 	oprometheus "github.com/nyaxt/otaru/prometheus"
@@ -79,7 +79,7 @@ func (cbv *CachedBackendVersion) Query(blobpath string) (version.Version, error)
 
 	if ver, ok := cbv.cache[blobpath]; ok {
 		queryHitCounter.Inc()
-		logger.Debugf(mylog, "return cached ver for \"%s\" -> %d", blobpath, ver)
+		zap.S().Debugf("return cached ver for \"%s\" -> %d", blobpath, ver)
 		return ver, nil
 	}
 
@@ -93,7 +93,7 @@ func (cbv *CachedBackendVersion) Query(blobpath string) (version.Version, error)
 	}
 	defer func() {
 		if err := r.Close(); err != nil {
-			logger.Criticalf(mylog, "Failed to close backend blob handle for querying version: %v", err)
+			zap.S().Errorf("Failed to close backend blob handle for querying version: %v", err)
 		}
 	}()
 	ver, err := cbv.queryVersion(r)

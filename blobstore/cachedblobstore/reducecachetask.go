@@ -8,9 +8,9 @@ import (
 	"context"
 
 	"github.com/dustin/go-humanize"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/blobstore"
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/scheduler"
 	"github.com/nyaxt/otaru/util"
 )
@@ -46,7 +46,7 @@ func (t AutoReduceCacheTask) main(ctx context.Context) error {
 	}
 
 	if currentSize <= t.HighWatermark {
-		logger.Infof(mylog, "AutoReduceCacheTask: Current size %s < high watermark %s. No-op.",
+		zap.S().Infof("AutoReduceCacheTask: Current size %s < high watermark %s. No-op.",
 			humanize.Bytes(uint64(currentSize)),
 			humanize.Bytes(uint64(t.HighWatermark)))
 		return nil
@@ -67,11 +67,11 @@ func (t AutoReduceCacheTask) String() string {
 
 func SetupAutoReduceCache(cbs *CachedBlobStore, r *scheduler.RepetitiveJobRunner, highwm, lowwm int64) scheduler.ID {
 	if highwm == math.MaxInt64 || lowwm == math.MaxInt64 || lowwm > highwm {
-		logger.Infof(mylog, "No automatic cache discards due to bad watermarks")
+		zap.S().Infof("No automatic cache discards due to bad watermarks")
 		return 0
 	}
 
-	logger.Infof(mylog, "Setting up automatic cache discards. high/low watermark: %s/%s",
+	zap.S().Infof("Setting up automatic cache discards. high/low watermark: %s/%s",
 		humanize.Bytes(uint64(highwm)), humanize.Bytes(uint64(lowwm)))
 
 	return r.RunEveryPeriod(AutoReduceCacheTask{cbs, highwm, lowwm}, autoReduceCachePeriod)

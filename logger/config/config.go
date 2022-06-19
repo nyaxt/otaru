@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -47,7 +48,7 @@ func Apply(l logger.Logger, c Config) error {
 		}
 		c := r.CategoryIfExist(k)
 		if c == nil {
-			logger.Warningf(l, "Log category \"%s\" does not exist.", k)
+			zap.S().Warnf("Log category \"%s\" does not exist.", k)
 			continue
 		}
 		lv, err := Str2Level(v)

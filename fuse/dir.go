@@ -7,7 +7,7 @@ import (
 
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/inodedb"
-	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 
 	"context"
 
@@ -46,7 +46,7 @@ func (d DirNode) Getattr(ctx context.Context, req *bfuse.GetattrRequest, resp *b
 }
 
 func (d DirNode) Setattr(ctx context.Context, req *bfuse.SetattrRequest, resp *bfuse.SetattrResponse) error {
-	logger.Debugf(mylog, "Setattr mode %o", req.Mode)
+	zap.S().Debugf("Setattr mode %o", req.Mode)
 
 	if err := otaruSetattr(d.fs, d.id, req); err != nil {
 		return err
@@ -67,7 +67,7 @@ func (d DirNode) Lookup(ctx context.Context, name string) (bfs.Node, error) {
 	if id, ok := entries[name]; ok {
 		isdir, err := d.fs.IsDir(id)
 		if err != nil {
-			logger.Warningf(mylog, "Stale inode in dir? Failed IsDir: %v", err)
+			zap.S().Warnf("Stale inode in dir? Failed IsDir: %v", err)
 			return nil, err
 		}
 		if isdir {
@@ -117,7 +117,7 @@ func (d DirNode) ReadDirAll(ctx context.Context) ([]bfuse.Dirent, error) {
 	for name, id := range entries {
 		isdir, err := d.fs.IsDir(id)
 		if err != nil {
-			logger.Warningf(mylog, "Error while querying IsDir for id %d: %v", id, err)
+			zap.S().Warnf("Error while querying IsDir for id %d: %v", id, err)
 		}
 
 		var t bfuse.DirentType

@@ -3,15 +3,15 @@ package facade
 import (
 	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/assets/webui"
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/otaruapiserver"
 	"github.com/nyaxt/otaru/pb/json"
+	"go.uber.org/zap"
 )
 
 func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) ([]apiserver.Option, error) {
 	override := cfg.WebUIRootPath
 	if override != "" {
-		logger.Infof(mylog, "Overriding embedded WebUI and serving WebUI at %s", override)
+		zap.S().Infof("Overriding embedded WebUI and serving WebUI at %s", override)
 	}
 
 	options := []apiserver.Option{

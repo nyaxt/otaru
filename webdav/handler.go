@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
 	"github.com/nyaxt/otaru/cli"
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/pb"
 )
 
@@ -45,7 +45,7 @@ func (h *Handler) VhostListing() Listing {
 func (h *Handler) EntryForPath(ctx context.Context, conn *grpc.ClientConn, p string) (*Entry, error) {
 	fsc := pb.NewFileSystemServiceClient(conn)
 
-	logger.Debugf(mylog, "path: %q", p)
+	zap.S().Debugf("path: %q", p)
 	fnresp, err := fsc.FindNodeFullPath(ctx, &pb.FindNodeFullPathRequest{Path: p})
 	if err != nil {
 		return nil, ErrorFromGrpc(err, "FindNodeFullPath")

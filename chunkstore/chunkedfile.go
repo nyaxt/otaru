@@ -4,12 +4,12 @@ import (
 	"fmt"
 
 	"go.uber.org/multierr"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
 
@@ -87,7 +87,7 @@ func NewChunkedFileIO(bs blobstore.RandomAccessBlobStore, c *btncrypt.Cipher, ca
 	cs, err := cfio.caio.Read()
 	if err != nil {
 		// FIXME!
-		logger.Criticalf(mylog, "Failed to read cs array: %v", err)
+		zap.S().Errorf("Failed to read cs array: %v", err)
 		return nil
 	}
 	cfio.cs = cs
@@ -107,7 +107,7 @@ func (cfio *ChunkedFileIO) newFileChunk(newo int64) (inodedb.FileChunk, error) {
 		return inodedb.FileChunk{}, fmt.Errorf("Failed to generate new blobpath: %v", err)
 	}
 	fc := inodedb.FileChunk{Offset: newo, Length: 0, BlobPath: bpath}
-	logger.Debugf(mylog, "new chunk %+v", fc)
+	zap.S().Debugf("new chunk %+v", fc)
 	return fc, nil
 }
 
@@ -143,11 +143,11 @@ func (cfio *ChunkedFileIO) closeCachedChunkIO() error {
 func (cfio *ChunkedFileIO) openChunkIO(blobpath string, isNewChunk bool, offset int64) (blobstore.BlobHandle, error) {
 	if blobpath == cfio.cachedCioBlobpath {
 		if isNewChunk {
-			logger.Panicf(mylog, "isNewChunk specified, but cache hit! blobpath: %v", blobpath)
+			zap.S().Panicf("isNewChunk specified, but cache hit! blobpath: %v", blobpath)
 		}
 
 		if cfio.cachedCio == nil {
-			logger.Panicf(mylog, "blobpath match, but cachedCio nil! blobpath: %v", blobpath)
+			zap.S().Panicf("blobpath match, but cachedCio nil! blobpath: %v", blobpath)
 		}
 		return cfio.cachedCio, nil
 	}
@@ -174,7 +174,7 @@ func (cfio *ChunkedFileIO) openChunkIO(blobpath string, isNewChunk bool, offset 
 	cfio.cachedCioBlobpath = blobpath
 
 	if cfio.cachedCio == nil {
-		logger.Panicf(mylog, "newChunkIO result nil! blobpath: %v", blobpath)
+		zap.S().Panicf("newChunkIO result nil! blobpath: %v", blobpath)
 	}
 	return cfio.cachedCio, nil
 }
@@ -182,17 +182,17 @@ func (cfio *ChunkedFileIO) openChunkIO(blobpath string, isNewChunk bool, offset 
 func (cfio *ChunkedFileIO) writeToChunk(c *inodedb.FileChunk, isNewChunk bool, maxChunkLen int64, p []byte, offset int64) (int, ChunkLenUpdatedType) {
 	cio, err := cfio.openChunkIO(c.BlobPath, isNewChunk, c.Left())
 	if err != nil {
-		logger.Criticalf(mylog, "Failed to openChunkIO: %v", err)
+		zap.S().Errorf("Failed to openChunkIO: %v", err)
 		return 0, ChunkLenNotUpdated
 	}
 
 	coff := offset - c.Left()
 	n := util.IntMin(len(p), int(maxChunkLen-coff))
 	if n < 0 {
-		logger.Panicf(mylog, "Attempt to write negative len = %d. len(p) = %d, maxChunkLen = %d, offset = %d", n, len(p), maxChunkLen, offset)
+		zap.S().Panicf("Attempt to write negative len = %d. len(p) = %d, maxChunkLen = %d, offset = %d", n, len(p), maxChunkLen, offset)
 	}
 	if err := cio.PWrite(p[:n], coff); err != nil {
-		logger.Criticalf(mylog, "cio PWrite failed: %v", err)
+		zap.S().Errorf("cio PWrite failed: %v", err)
 		return 0, ChunkLenNotUpdated
 	}
 	oldLength := c.Length
@@ -202,7 +202,7 @@ func (cfio *ChunkedFileIO) writeToChunk(c *inodedb.FileChunk, isNewChunk bool, m
 }
 
 func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
-	logger.Debugf(mylog, "PWrite: offset=%d, len=%d", offset, len(p))
+	zap.S().Debugf("PWrite: offset=%d, len=%d", offset, len(p))
 
 	if !fl.IsReadWriteAllowed(cfio.bs.Flags()) {
 		return util.EACCES
@@ -305,7 +305,7 @@ func (cfio *ChunkedFileIO) PWrite(p []byte, offset int64) error {
 
 	if needCSUpdate {
 		if err := cfio.caio.Write(cfio.cs); err != nil {
-			logger.Criticalf(mylog, "Failed to write updated cs array: %v", err)
+			zap.S().Errorf("Failed to write updated cs array: %v", err)
 		}
 	}
 	return nil
@@ -317,7 +317,7 @@ func (cfio *ChunkedFileIO) readFromChunk(c inodedb.FileChunk, p []byte, coff int
 		return 0, err
 	}
 
-	//logger.Debugf(mylog, "cio: %p, len(p) = %d, c.Length = %d, coff = %d", cio, len(p), c.Length, coff)
+	//zap.S().Debugf("cio: %p, len(p) = %d, c.Length = %d, coff = %d", cio, len(p), c.Length, coff)
 	n := util.Int64Min(int64(len(p)), c.Length-coff)
 	if err := cio.PRead(p[:n], coff); err != nil {
 		return 0, fmt.Errorf("cio PRead failed: %v", err)
@@ -338,7 +338,7 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 		return 0, util.EACCES
 	}
 
-	// logger.Debugf(mylog, "cs: %v\n", cs)
+	// zap.S().Debugf("cs: %v\n", cs)
 	for i := 0; i < len(cfio.cs) && len(remp) > 0; i++ {
 		c := cfio.cs[i]
 		if c.Left() > remo+int64(len(remp)) {
@@ -371,7 +371,7 @@ func (cfio *ChunkedFileIO) ReadAt(p []byte, offset int64) (int, error) {
 		remp = remp[n:]
 	}
 
-	// logger.Debugf(mylog, "cfio.cs: %+v", cfio.cs)
+	// zap.S().Debugf("cfio.cs: %+v", cfio.cs)
 	return int(remo - offset), nil
 }
 

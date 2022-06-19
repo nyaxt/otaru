@@ -4,11 +4,11 @@ import (
 	"os"
 
 	bfuse "github.com/nyaxt/fuse"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/filesystem"
 	oflags "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
-	"github.com/nyaxt/otaru/logger"
 )
 
 func otaruSetattr(fs *filesystem.FileSystem, id inodedb.ID, req *bfuse.SetattrRequest) error {
@@ -66,7 +66,7 @@ func Bazil2OtaruFlags(bf bfuse.OpenFlags) int {
 		ret |= oflags.O_EXCL
 	}
 	if bf&bfuse.OpenSync != 0 {
-		logger.Criticalf(mylog, "FIXME: OpenSync not supported yet !!!!!!!!!!!")
+		zap.S().Errorf("FIXME: OpenSync not supported yet !!!!!!!!!!!")
 	}
 	if bf&bfuse.OpenTruncate != 0 {
 		ret |= oflags.O_TRUNCATE

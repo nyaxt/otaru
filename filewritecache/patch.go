@@ -86,29 +86,29 @@ func (ps Patches) FindLRIndex(newp Patch) (int, int) {
 func (ps Patches) Replace(lefti, righti int, newps Patches) Patches {
 	// Do NOT return deleted patches to poolPatchP as they may be partially reused
 
-	// logger.Debugf(mylog, "before: %v", ps)
-	// logger.Debugf(mylog, "(%d, %d) newps: %v", lefti, righti, newps)
+	// zap.S().Debugf("before: %v", ps)
+	// zap.S().Debugf("(%d, %d) newps: %v", lefti, righti, newps)
 
 	ndel := util.IntMax(righti-lefti+1, 0)
 	nexp := util.IntMax(0, len(newps)-ndel)
 	for i := 0; i < nexp; i++ {
 		ps = append(ps, PatchSentinel)
 	}
-	// logger.Debugf(mylog, "ndel: %d, nexp: %d", ndel, nexp)
+	// zap.S().Debugf("ndel: %d, nexp: %d", ndel, nexp)
 
 	newr := len(ps) - nexp + len(newps) - ndel
-	// logger.Debugf(mylog, "[%d:%d], [%d:]", lefti+len(newps), newr, righti+1)
+	// zap.S().Debugf("[%d:%d], [%d:]", lefti+len(newps), newr, righti+1)
 	copy(ps[lefti+len(newps):newr], ps[righti+1:])
 	copy(ps[lefti:lefti+len(newps)], newps)
 	ps = ps[:newr]
-	// logger.Debugf(mylog, "after : %v", ps)
+	// zap.S().Debugf("after : %v", ps)
 	return ps
 }
 
 func (ps Patches) Merge(newp Patch) Patches {
 	lefti, righti := ps.FindLRIndex(newp)
-	// logger.Debugf(mylog, "ps: %v", ps)
-	// logger.Debugf(mylog, "newp: %v li, ri (%d, %d)", newp, lefti, righti)
+	// zap.S().Debugf("ps: %v", ps)
+	// zap.S().Debugf("newp: %v li, ri (%d, %d)", newp, lefti, righti)
 
 	newps := []Patch{newp}
 
@@ -117,7 +117,7 @@ func (ps Patches) Merge(newp Patch) Patches {
 		if newp.Left() > psl.Left() {
 			//    [<---lefti--->] ...
 			//               [<------newp---...
-			// logger.Debugf(mylog, "Trim L !!!")
+			// zap.S().Debugf("Trim L !!!")
 
 			// Trim L: ps[lefti]
 			psl.P = psl.P[:newp.Left()-psl.Left()]
@@ -130,7 +130,7 @@ func (ps Patches) Merge(newp Patch) Patches {
 	if righti >= 0 {
 		psr := ps[righti]
 		if psr.Right() > newp.Right() {
-			// logger.Debugf(mylog, "Trim R !!!")
+			// zap.S().Debugf("Trim R !!!")
 			//            ... [righti]
 			//         ---newp--->]
 

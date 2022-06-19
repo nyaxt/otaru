@@ -10,6 +10,7 @@ import (
 	"context"
 
 	"cloud.google.com/go/datastore"
+	"go.uber.org/zap"
 	"google.golang.org/api/iterator"
 
 	"github.com/nyaxt/otaru/btncrypt"
@@ -82,7 +83,7 @@ func (txio *DBTransactionLogIO) encodeBatch(txs []inodedb.DBTransaction) (*datas
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to encrypt TxsJSON: %v", err)
 	}
-	logger.Debugf(txlog, "len(TxsJSON): %d", len(env))
+	zap.S().Debugf("len(TxsJSON): %d", len(env))
 
 	key := txio.encodeKey(id)
 	return key, &storedbtx{TxsJSON: env}, nil
@@ -191,7 +192,7 @@ func (txio *DBTransactionLogIO) Sync() error {
 	txio.committing = []inodedb.DBTransaction{}
 	txio.mu.Unlock()
 
-	logger.Infof(txlog, "Sync() took %s. Committed %d txs. Last committed txid: %v", time.Since(start), len(batch), batch[len(batch)-1].TxID)
+	zap.S().Infof("Sync() took %s. Committed %d txs. Last committed txid: %v", time.Since(start), len(batch), batch[len(batch)-1].TxID)
 	return nil
 }
 
@@ -287,7 +288,7 @@ func (txio *DBTransactionLogIO) queryTransactionsOnce(minID inodedb.TxID) ([]ino
 		prevId = tx.TxID
 	}
 
-	logger.Infof(txlog, "QueryTransactions(%v) took %s", minID, time.Since(start))
+	zap.S().Infof("QueryTransactions(%v) took %s", minID, time.Since(start))
 	return uniqed, nil
 }
 
@@ -358,13 +359,13 @@ func (txio *DBTransactionLogIO) DeleteTransactions(smallerThanID inodedb.TxID) e
 		ndel += len(keys)
 
 		if needAnotherTx {
-			logger.Infof(txlog, "DeleteTransactions(%v): A tx deleting %d entries took %s. Starting next tx to delete more.", smallerThanID, len(keys), time.Since(txStart))
+			zap.S().Infof("DeleteTransactions(%v): A tx deleting %d entries took %s. Starting next tx to delete more.", smallerThanID, len(keys), time.Since(txStart))
 		} else {
-			logger.Infof(txlog, "DeleteTransactions(%v): A tx deleting %d entries took %s.", smallerThanID, len(keys), time.Since(txStart))
+			zap.S().Infof("DeleteTransactions(%v): A tx deleting %d entries took %s.", smallerThanID, len(keys), time.Since(txStart))
 			break
 		}
 	}
-	logger.Infof(txlog, "DeleteTransactions(%v) deleted %d entries. tx took %s", smallerThanID, ndel, time.Since(start))
+	zap.S().Infof("DeleteTransactions(%v) deleted %d entries. tx took %s", smallerThanID, ndel, time.Since(start))
 	return nil
 }
 

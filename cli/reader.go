@@ -9,10 +9,10 @@ import (
 	"os"
 	"strconv"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
 	opath "github.com/nyaxt/otaru/cli/path"
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/pb"
 )
 
@@ -42,7 +42,7 @@ func newReaderHttp(cinfo *ConnectionInfo, id uint64) (Reader, error) {
 		Host:   cinfo.ApiEndpoint,
 		Path:   fmt.Sprintf("/file/%d/bin", id),
 	}
-	logger.Debugf(Log, "requrl %v", url.String())
+	zap.S().Infof("requrl %v", url.String())
 	req := &http.Request{
 		Method: "GET",
 		Header: map[string][]string{
@@ -133,7 +133,7 @@ func (r *grpcReader) Read(p []byte) (int, error) {
 	}
 
 	nr := len(resp.Body)
-	// logger.Debugf(Log, "ReadFile(id=%d, offset=%d, len=%d) -> len=%d", id, offset, n, nr)
+	// zap.S().Infof("ReadFile(id=%d, offset=%d, len=%d) -> len=%d", id, offset, n, nr)
 	if nr == 0 {
 		return 0, nil
 	}
@@ -205,7 +205,7 @@ func NewReader(pathstr string, options ...Option) (Reader, error) {
 		return nil, fmt.Errorf("FindNodeFullPath failed: %v", err)
 	}
 	id := resp.Id
-	logger.Infof(Log, "Got id %d for path \"%s\"", id, p.FsPath)
+	zap.S().Infof("Got id %d for path \"%s\"", id, p.FsPath)
 
 	if opts.forceGrpc {
 		respA, err := fsc.Attr(opts.ctx, &pb.AttrRequest{Id: resp.Id})

@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/urfave/cli/v2"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/logger"
@@ -39,12 +40,12 @@ var Command = &cli.Command{
 		signal.Notify(sigC, syscall.SIGTERM)
 		go func() {
 			for s := range sigC {
-				logger.Warningf(mylog, "Received signal: %v", s)
+				zap.S().Warnf("Received signal: %v", s)
 				cancel()
 			}
 		}()
 		logger.Registry().AddOutput(logger.HandleCritical(func() {
-			logger.Warningf(mylog, "Starting shutdown due to critical event.")
+			zap.S().Warnf("Starting shutdown due to critical event.")
 			cancel()
 		}))
 

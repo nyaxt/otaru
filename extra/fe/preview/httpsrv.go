@@ -11,6 +11,7 @@ import (
 	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 const MaxArchiveSize = 512 * 1024 * 1024 // 512MiB
@@ -43,14 +44,14 @@ func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch ext {
 	case ".zip":
 		if err := s.zp.Serve(ctx, opath, idx, w); err != nil {
-			logger.Warningf(mylog, "zip preview failed: %v", err)
+			zap.S().Warnf("zip preview failed: %v", err)
 			http.Error(w, "zip preview failed", http.StatusInternalServerError)
 			return
 		}
 
 	case ".txt", ".json", ".c", ".h", ".md":
 		if err := s.dumpAsText(ctx, opath, w); err != nil {
-			logger.Warningf(mylog, "text preview failed: %v", err)
+			zap.S().Warnf("text preview failed: %v", err)
 			http.Error(w, "text preview failed", http.StatusInternalServerError)
 			return
 		}

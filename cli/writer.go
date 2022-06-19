@@ -10,10 +10,10 @@ import (
 	"os"
 	"time"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
 	opath "github.com/nyaxt/otaru/cli/path"
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/pb"
 )
 
@@ -44,7 +44,7 @@ func newWriterHttp(cinfo *ConnectionInfo, id uint64) (io.WriteCloser, error) {
 			Host:   cinfo.ApiEndpoint,
 			Path:   fmt.Sprintf("/file/%d/bin", id),
 		}
-		logger.Debugf(Log, "requrl %v", url.String())
+		zap.S().Infof("requrl %v", url.String())
 		req := &http.Request{
 			Method: "PUT",
 			Header: map[string][]string{
@@ -170,13 +170,13 @@ func NewWriter(pathstr string, ofs ...Option) (io.WriteCloser, error) {
 	}
 
 	id := resp.Id
-	logger.Infof(Log, "Target file \"%s\" inode id: %v", p.FsPath, id)
+	zap.S().Infof("Target file \"%s\" inode id: %v", p.FsPath, id)
 	if !resp.IsNew {
 		if !opts.allowOverwrite {
 			return nil, fmt.Errorf("Target file already exists and overwriting is prohivited.")
 		}
 
-		logger.Infof(Log, "Target file \"%s\" already exists. Overwriting.", p.FsPath)
+		zap.S().Infof("Target file \"%s\" already exists. Overwriting.", p.FsPath)
 	}
 
 	if opts.forceGrpc {

@@ -12,6 +12,7 @@ import (
 	"github.com/nyaxt/otaru/logger"
 	tu "github.com/nyaxt/otaru/testutils"
 	"github.com/nyaxt/otaru/util"
+	"go.uber.org/zap"
 )
 
 func init() {
@@ -43,10 +44,10 @@ func (s *syncable) Sync() error {
 		}
 		muConcurrency.Unlock()
 	}
-	logger.Debugf(mylog, "Start sync %d currConcurrency %d", s.id, currConcurrency)
+	zap.S().Debugf("Start sync %d currConcurrency %d", s.id, currConcurrency)
 	time.Sleep(s.syncDelay)
 	s.isSynced = true
-	logger.Debugf(mylog, "End sync %d", s.id)
+	zap.S().Debugf("End sync %d", s.id)
 	{
 		muConcurrency.Lock()
 		currConcurrency--
@@ -109,7 +110,7 @@ WaitLoop:
 		}
 		break WaitLoop
 	}
-	logger.Debugf(mylog, "all syncable synced")
+	zap.S().Debugf("all syncable synced")
 	cs.Quit()
 
 	if maxConcurrency < 2 {

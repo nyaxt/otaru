@@ -4,7 +4,7 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 func (s *DBState) EncodeToGob(enc *gob.Encoder) error {
@@ -14,7 +14,7 @@ func (s *DBState) EncodeToGob(enc *gob.Encoder) error {
 	}
 	for id, node := range s.nodes {
 		if id != node.GetID() {
-			logger.Panicf(mylog, "nodes map key (%d) != node.GetID() result (%d)", id, node.GetID())
+			zap.S().Panicf("nodes map key (%d) != node.GetID() result (%d)", id, node.GetID())
 		}
 
 		if err := node.EncodeToGob(enc); err != nil {

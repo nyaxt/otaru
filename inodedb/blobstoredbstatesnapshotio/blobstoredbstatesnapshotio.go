@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go.uber.org/multierr"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/btncrypt"
@@ -45,9 +46,9 @@ func (sio *DBStateSnapshotIO) SaveSnapshot(s *inodedb.DBState) <-chan error {
 
 	currVer := s.Version()
 	if sio.snapshotVer > currVer {
-		logger.Warningf(mylog, "SaveSnapshot: ASSERT fail: snapshot version %d newer than current ver %d", sio.snapshotVer, currVer)
+		zap.S().Warnf("SaveSnapshot: ASSERT fail: snapshot version %d newer than current ver %d", sio.snapshotVer, currVer)
 	} else if sio.snapshotVer == currVer {
-		logger.Debugf(mylog, "SaveSnapshot: Current ver %d is already snapshotted. No-op.", sio.snapshotVer)
+		zap.S().Debugf("SaveSnapshot: Current ver %d is already snapshotted. No-op.", sio.snapshotVer)
 		close(errC)
 		return errC
 	}
@@ -93,9 +94,9 @@ func (sio *DBStateSnapshotIO) restoreNthSnapshot(i int) (*inodedb.DBState, error
 	}
 
 	if i == 0 {
-		logger.Debugf(mylog, "Attempting to restore latest state snapshot \"%s\"", ssbp)
+		zap.S().Debugf("Attempting to restore latest state snapshot \"%s\"", ssbp)
 	} else {
-		logger.Infof(mylog, "Retrying state snapshot restore with an older state snapshot \"%s\"", ssbp)
+		zap.S().Infof("Retrying state snapshot restore with an older state snapshot \"%s\"", ssbp)
 	}
 
 	var state *inodedb.DBState
@@ -118,7 +119,7 @@ func (sio *DBStateSnapshotIO) restoreNthSnapshot(i int) (*inodedb.DBState, error
 	rc.Close()
 
 	if inodedb.TxID(txid) != state.Version() {
-		logger.Warningf(mylog, "SSLocator TxID mismatch. SSLocator %v != Actual SS %v", inodedb.TxID(txid), state.Version())
+		zap.S().Warnf("SSLocator TxID mismatch. SSLocator %v != Actual SS %v", inodedb.TxID(txid), state.Version())
 	}
 	sio.snapshotVer = state.Version()
 	return state, nil
@@ -132,7 +133,7 @@ func (sio *DBStateSnapshotIO) RestoreSnapshot() (*inodedb.DBState, error) {
 		if err == nil {
 			return state, nil
 		} else {
-			logger.Warningf(mylog, "Failed to recover state snapshot: %v", err)
+			zap.S().Warnf("Failed to recover state snapshot: %v", err)
 		}
 	}
 	return nil, fmt.Errorf("Failed to restore %d snapshots. Aborted.", maxhist)
@@ -148,7 +149,7 @@ func (sio *DBStateSnapshotIO) FindUnneededTxIDThreshold() (inodedb.TxID, error) 
 }
 
 func (sio *DBStateSnapshotIO) DeleteOldSnapshots(ctx context.Context, dryRun bool) error {
-	logger.Infof(mylog, "DeleteOldSnapshots(dryRun: %t) start", dryRun)
+	zap.S().Infof("DeleteOldSnapshots(dryRun: %t) start", dryRun)
 	start := time.Now()
 
 	bdeleter, ok := sio.bs.(blobstore.BlobRemover)
@@ -159,7 +160,7 @@ func (sio *DBStateSnapshotIO) DeleteOldSnapshots(ctx context.Context, dryRun boo
 	if _, err := sio.RestoreSnapshot(); err != nil {
 		return fmt.Errorf("DeleteOldSnapshots. RestoreSnapshot() sanity check failed: %v", err)
 	}
-	logger.Infof(mylog, "Asserted that RestoreSnapshot() works.")
+	zap.S().Infof("Asserted that RestoreSnapshot() works.")
 
 	bps, err := sio.loc.DeleteOld(ctx, maxhist, dryRun)
 	if err != nil {
@@ -169,19 +170,19 @@ func (sio *DBStateSnapshotIO) DeleteOldSnapshots(ctx context.Context, dryRun boo
 	var me error
 	if dryRun {
 		for _, bp := range bps {
-			logger.Infof(mylog, "Not actually deleting snapshot blob \"%s\" in dry run.", bp)
+			zap.S().Infof("Not actually deleting snapshot blob \"%s\" in dry run.", bp)
 		}
 	} else {
 		for _, bp := range bps {
-			logger.Infof(mylog, "Deleting snapshot blob \"%s\".", bp)
+			zap.S().Infof("Deleting snapshot blob \"%s\".", bp)
 			if err := bdeleter.RemoveBlob(bp); err != nil {
-				logger.Warningf(mylog, "Error removing blob \"%s\": %v", bp, err)
+				zap.S().Warnf("Error removing blob \"%s\": %v", bp, err)
 				me = multierr.Append(me, err)
 			}
 		}
 	}
 
-	logger.Infof(mylog, "DeleteOldSnapshots(dryRun: %t) took %v", dryRun, time.Since(start))
+	zap.S().Infof("DeleteOldSnapshots(dryRun: %t) took %v", dryRun, time.Since(start))
 	return err
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
+	"go.uber.org/zap"
 )
 
 var mylog = logger.Registry().Category("otaru-dumpblob")
@@ -42,7 +43,7 @@ func main() {
 
 	f, err := os.Open(filepath)
 	if err != nil {
-		logger.Infof(mylog, "Failed to read file: %s", filepath)
+		zap.S().Infof("Failed to read file: %s", filepath)
 	}
 	defer f.Close()
 
@@ -50,19 +51,19 @@ func main() {
 	key := btncrypt.KeyFromPassword(password)
 	c, err := btncrypt.NewCipher(key)
 	if err != nil {
-		logger.Infof(mylog, "Failed to init Cipher: %v", err)
+		zap.S().Infof("Failed to init Cipher: %v", err)
 		return
 	}
 
 	cr, err := chunkstore.NewChunkReader(f, c)
 	if err != nil {
-		logger.Infof(mylog, "Failed to init ChunkReader: %v", err)
+		zap.S().Infof("Failed to init ChunkReader: %v", err)
 		return
 	}
 	defer cr.Close()
 
 	if *flagHeader {
-		logger.Infof(mylog, "Header: %+v", cr.Header())
+		zap.S().Infof("Header: %+v", cr.Header())
 	}
 	io.Copy(os.Stdout, cr)
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
+	"go.uber.org/zap"
 )
 
 var mylog = logger.Registry().Category("scheduler")
@@ -263,7 +264,7 @@ func (s *Scheduler) Abort(id ID) {
 }
 
 func (s *Scheduler) stop() {
-	logger.Infof(mylog, "scheduler stop start")
+	zap.S().Infof("scheduler stop start")
 	close(s.scheduleC)
 	close(s.queryC)
 	close(s.abortC)
@@ -273,7 +274,7 @@ func (s *Scheduler) stop() {
 		<-s.joinRunnerC
 	}
 	close(s.forceGCC)
-	logger.Infof(mylog, "scheduler stop done")
+	zap.S().Infof("scheduler stop done")
 }
 
 func (s *Scheduler) RunAllAndStop() { s.stop() }
@@ -326,7 +327,7 @@ func (s *Scheduler) schedulerMain() {
 
 	gcTickC := time.Tick(gcPeriod)
 	doGC := func() {
-		logger.Debugf(mylog, "JobGC start.")
+		zap.S().Debugf("JobGC start.")
 		gcstart := time.Now()
 		threshold := gcstart.Add(-s.ZombiePeriod)
 
@@ -335,7 +336,7 @@ func (s *Scheduler) schedulerMain() {
 			j.mu.Lock()
 			if j.State == JobAborted || j.State == JobFinished {
 				if j.FinishedAt.Before(threshold) {
-					logger.Debugf(mylog, "GC-ing job %v: %v since aborted/finished.", j, gcstart.Sub(j.FinishedAt))
+					zap.S().Debugf("GC-ing job %v: %v since aborted/finished.", j, gcstart.Sub(j.FinishedAt))
 					oldJobIDs = append(oldJobIDs, id)
 				}
 			}
@@ -345,7 +346,7 @@ func (s *Scheduler) schedulerMain() {
 			delete(jobs, id)
 		}
 
-		logger.Debugf(mylog, "JobGC end. Took %v. Deleted %d entries", time.Since(gcstart), len(oldJobIDs))
+		zap.S().Debugf("JobGC end. Took %v. Deleted %d entries", time.Since(gcstart), len(oldJobIDs))
 	}
 
 	defer func() {
@@ -372,7 +373,7 @@ func (s *Scheduler) schedulerMain() {
 			}
 
 			if _, ok := jobs[j.ID]; ok {
-				logger.Criticalf(mylog, "job ID %v is already taken. received duplicate: %v", j.ID, j)
+				zap.S().Errorf("job ID %v is already taken. received duplicate: %v", j.ID, j)
 				if j.scheduledC != nil {
 					close(j.scheduledC)
 				}
@@ -433,7 +434,7 @@ func (s *Scheduler) schedulerMain() {
 
 			j, ok := jobs[req.ID]
 			if !ok {
-				logger.Warningf(mylog, "Abort target job ID %d doesn't exist.", req.ID)
+				zap.S().Warnf("Abort target job ID %d doesn't exist.", req.ID)
 				req.doneC <- struct{}{}
 				continue
 			}
@@ -480,7 +481,7 @@ func (s *Scheduler) runnerMain() {
 			continue
 		}
 		if j.State != JobScheduled {
-			logger.Infof(mylog, "Skipping job not in scheduled state: %v", j)
+			zap.S().Infof("Skipping job not in scheduled state: %v", j)
 
 			j.mu.Unlock()
 			continue
@@ -493,11 +494,11 @@ func (s *Scheduler) runnerMain() {
 		j.State = JobStarted
 
 		j.mu.Unlock()
-		logger.Debugf(mylog, "About to run job %v", j)
+		zap.S().Debugf("About to run job %v", j)
 		result := task.Run(ctx)
 		if result != nil {
 			if err := result.Err(); err != nil {
-				logger.Warningf(mylog, "Job %v failed with error: %v", j, err)
+				zap.S().Warnf("Job %v failed with error: %v", j, err)
 			}
 		}
 		finishedAt := time.Now()

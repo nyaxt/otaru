@@ -8,6 +8,7 @@ import (
 	"io"
 
 	"go.uber.org/multierr"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/btncrypt"
 	"github.com/nyaxt/otaru/chunkstore"
@@ -76,12 +77,12 @@ func Restore(r io.Reader, c *btncrypt.Cipher, cb DecodeCallback) error {
 	}
 	defer cr.Close()
 
-	logger.Debugf(mylog, "serialized blob size: %d", cr.Length())
+	zap.S().Debugf("serialized blob size: %d", cr.Length())
 	zr, err := zlib.NewReader(&io.LimitedReader{cr, int64(cr.Length())})
 	if err != nil {
 		return err
 	}
-	logger.Debugf(mylog, "statesnapshot.Restore: zlib init success!")
+	zap.S().Debugf("statesnapshot.Restore: zlib init success!")
 	dec := gob.NewDecoder(zr)
 
 	var me error

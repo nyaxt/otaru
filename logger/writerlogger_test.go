@@ -6,12 +6,13 @@ import (
 	"testing"
 
 	"github.com/nyaxt/otaru/logger"
+	"go.uber.org/zap"
 )
 
 func TestWriterLogger(t *testing.T) {
 	var b bytes.Buffer
 	l := logger.WriterLogger{&b}
-	logger.Debugf(l, "foobar")
+	zap.S().Debugf("foobar")
 
 	expre := regexp.MustCompile("writerlogger_test.go:\\d+: foobar\n")
 	if !expre.Match(b.Bytes()) {

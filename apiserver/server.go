@@ -17,6 +17,7 @@ import (
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
@@ -185,10 +186,10 @@ func Serve(ctx context.Context, opt ...Option) error {
 
 	var clientAuthEnabled bool
 	if opts.clientCACert != nil {
-		logger.Infof(mylog, "Client certificate authentication is enabled.")
+		zap.S().Infof("Client certificate authentication is enabled.")
 		clientAuthEnabled = true
 	} else {
-		logger.Infof(mylog, "Client certificate authentication is disabled. Any request to the server will treated as if it were from role \"admin\".")
+		zap.S().Infof("Client certificate authentication is disabled. Any request to the server will treated as if it were from role \"admin\".")
 		clientAuthEnabled = false
 	}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/blobstore/version"
@@ -292,10 +293,10 @@ func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, 
 
 	needsReduce := totalSizeBefore - desiredSize
 	if needsReduce < 0 {
-		logger.Infof(mylog, "ReduceCache: No need to reduce cache as its already under desired size! No-op.")
+		zap.S().Infof("ReduceCache: No need to reduce cache as its already under desired size! No-op.")
 		return nil
 	}
-	logger.Infof(mylog, "ReduceCache: Current cache bs total size: %s. Desired size: %s. Needs to reduce %s.",
+	zap.S().Infof("ReduceCache: Current cache bs total size: %s. Desired size: %s. Needs to reduce %s.",
 		humanize.IBytes(uint64(totalSizeBefore)), humanize.IBytes(uint64(desiredSize)), humanize.IBytes(uint64(needsReduce)))
 
 	bps := cbs.usagestats.FindLeastUsed()
@@ -303,13 +304,13 @@ func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, 
 		size, err := blobsizer.BlobSize(bp)
 		if err != nil {
 			if util.IsNotExist(err) {
-				logger.Infof(mylog, "Attempted to drop blob cache \"%s\", but not found. Maybe it's already removed.", bp)
+				zap.S().Infof("Attempted to drop blob cache \"%s\", but not found. Maybe it's already removed.", bp)
 				continue
 			}
 			return fmt.Errorf("Failed to query size for cache blob \"%s\": %v", bp, err)
 		}
 
-		logger.Infof(mylog, "ReduceCache: Drop entry \"%s\" to release %s", bp, humanize.IBytes(uint64(size)))
+		zap.S().Infof("ReduceCache: Drop entry \"%s\" to release %s", bp, humanize.IBytes(uint64(size)))
 
 		if !dryrun {
 			if err := cbs.entriesmgr.DropCacheEntry(bp, cbs, blobremover); err != nil {
@@ -328,7 +329,7 @@ func (cbs *CachedBlobStore) ReduceCache(ctx context.Context, desiredSize int64, 
 		return fmt.Errorf("Failed to query current total cache size: %v", err)
 	}
 
-	logger.Infof(mylog, "ReduceCache done. Cache bs total size: %s -> %s. Dryrun: %t. Took: %s",
+	zap.S().Infof("ReduceCache done. Cache bs total size: %s -> %s. Dryrun: %t. Took: %s",
 		humanize.IBytes(uint64(totalSizeBefore)), humanize.IBytes(uint64(totalSizeAfter)),
 		dryrun, time.Since(start))
 	return nil
