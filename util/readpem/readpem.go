@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+
+	"go.uber.org/zap"
 )
 
 func ReadCertificatesFile(configkey, path string, pcerts *[]*x509.Certificate) error {
@@ -51,6 +53,7 @@ func ReadCertificatesFile(configkey, path string, pcerts *[]*x509.Certificate) e
 		return fmt.Errorf("Failed to find any certificate on %sFile %q", configkey, path)
 	}
 
+	zap.S().Infof("Successfully parsed %sFile %q", configkey, path)
 	*pcerts = cs
 	return nil
 }
@@ -107,6 +110,7 @@ func ReadKeyFile(configkey, path string, pkey *crypto.PrivateKey) error {
 		return fmt.Errorf("Failed to parse %sFile %q as EC nor PKCS1 private key", configkey, path)
 	}
 
+	zap.S().Infof("Successfully parsed %sFile %q", configkey, path)
 	*pkey = k
 	return nil
 }

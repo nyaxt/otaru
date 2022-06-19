@@ -85,15 +85,19 @@ func NewConfig(configdir string) (*CliConfig, error) {
 	if util.IsRegular(possibleCertsFile) != nil {
 		possibleCertsFile = ""
 	}
+	possibleKeyFile := path.Join(configdir, "cert-key.pem")
+	if util.IsRegular(possibleKeyFile) != nil {
+		possibleKeyFile = ""
+	}
 	cfg := CliConfig{
 		Fe: FeConfig{
 			ListenAddr: ":10247",
 			CertsFile:  possibleCertsFile,
-			KeyFile:    path.Join(configdir, "cert-key.pem"),
+			KeyFile:    possibleKeyFile,
 		},
 		Webdav: WebdavConfig{
 			CertsFile:     possibleCertsFile,
-			KeyFile:       path.Join(configdir, "cert-key.pem"),
+			KeyFile:       possibleKeyFile,
 			BasicAuthUser: "readonly",
 		},
 	}
@@ -104,13 +108,13 @@ func NewConfig(configdir string) (*CliConfig, error) {
 		h.ApiEndpoint = os.ExpandEnv(h.ApiEndpoint)
 		h.ExpectedCertFile = os.ExpandEnv(h.ExpectedCertFile)
 		h.OverrideServerName = os.ExpandEnv(h.OverrideServerName)
-		if err := readpem.ReadCertificateFile("CACert", h.CACertFile, &h.CACert); err != nil {
+		if err := readpem.ReadCertificateFile(fmt.Sprintf("host.%s.CACert", vhost), h.CACertFile, &h.CACert); err != nil {
 			return nil, fmt.Errorf("vhost %q: %w", vhost, err)
 		}
-		if err := readpem.ReadCertificatesFile("Certs", h.CertsFile, &h.Certs); err != nil {
+		if err := readpem.ReadCertificatesFile(fmt.Sprintf("host.%s.Certs", vhost), h.CertsFile, &h.Certs); err != nil {
 			return nil, fmt.Errorf("vhost %q: %w", vhost, err)
 		}
-		if err := readpem.ReadKeyFile("Key", h.KeyFile, &h.Key); err != nil {
+		if err := readpem.ReadKeyFile(fmt.Sprintf("host.%s.Key", vhost), h.KeyFile, &h.Key); err != nil {
 			return nil, fmt.Errorf("vhost %q: %w", vhost, err)
 		}
 	}
