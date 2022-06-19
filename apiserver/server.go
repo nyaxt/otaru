@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -22,7 +23,6 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"github.com/nyaxt/otaru/apiserver/clientauth"
-	apiserver_logger "github.com/nyaxt/otaru/apiserver/logger"
 	"github.com/nyaxt/otaru/assets/swaggerui"
 	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/logger"
@@ -199,7 +199,7 @@ func Serve(ctx context.Context, opt ...Option) error {
 		grpc_ctxtags.UnaryServerInterceptor(
 			grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.TagBasedRequestFieldExtractor("log_fields")),
 		),
-		apiserver_logger.UnaryServerInterceptor(),
+		grpc_zap.UnaryServerInterceptor(l.Named("grpc")),
 	}
 	grpcServer := grpc.NewServer(
 		grpc.Creds(grpcCredentials),
