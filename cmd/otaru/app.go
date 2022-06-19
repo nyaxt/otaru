@@ -17,6 +17,7 @@ import (
 	"github.com/nyaxt/otaru/cmd/otaru/fe"
 	"github.com/nyaxt/otaru/cmd/otaru/fscli"
 	"github.com/nyaxt/otaru/cmd/otaru/globallock"
+	"github.com/nyaxt/otaru/cmd/otaru/mkfs"
 	"github.com/nyaxt/otaru/cmd/otaru/serve"
 	"github.com/nyaxt/otaru/cmd/otaru/webdav"
 	"github.com/nyaxt/otaru/facade"
@@ -63,6 +64,7 @@ func NewApp() *cli.App {
 		dumpblob.Command,
 		fe.Command,
 		globallock.Command,
+		mkfs.Command,
 		serve.Command,
 		webdav.Command,
 	}
