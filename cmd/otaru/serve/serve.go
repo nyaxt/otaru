@@ -1,13 +1,7 @@
 package serve
 
 import (
-	"context"
-	"os"
-	"os/signal"
-	"syscall"
-
 	"github.com/urfave/cli/v2"
-	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/facade"
 	"github.com/nyaxt/otaru/logger"
@@ -33,23 +27,7 @@ var Command = &cli.Command{
 			cfg.ReadOnly = true
 		}
 
-		ctx, cancel := context.WithCancel(c.Context)
-
-		sigC := make(chan os.Signal, 1)
-		signal.Notify(sigC, os.Interrupt)
-		signal.Notify(sigC, syscall.SIGTERM)
-		go func() {
-			for s := range sigC {
-				zap.S().Warnf("Received signal: %v", s)
-				cancel()
-			}
-		}()
-		logger.Registry().AddOutput(logger.HandleCritical(func() {
-			zap.S().Warnf("Starting shutdown due to critical event.")
-			cancel()
-		}))
-
-		if err := facade.Serve(ctx, cfg); err != nil {
+		if err := facade.Serve(c.Context, cfg); err != nil {
 			return err
 		}
 

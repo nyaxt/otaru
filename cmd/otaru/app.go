@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
 	"io"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/urfave/cli/v2"
@@ -17,6 +21,16 @@ import (
 
 func simpleTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString(t.Format("15:04:05.999"))
+}
+
+type cancelContextHook struct {
+	cancel context.CancelFunc
+}
+
+var _ zapcore.CheckWriteHook = cancelContextHook{}
+
+func (h cancelContextHook) OnWrite(*zapcore.CheckedEntry, []zap.Field) {
+	h.cancel()
 }
 
 func NewApp() *cli.App {
@@ -45,7 +59,11 @@ func NewApp() *cli.App {
 		webdav.Command,
 	}
 	app.Commands = append(app.Commands, fscli.Commands...)
+
 	BeforeImpl := func(c *cli.Context) error {
+		newContext, cancel := context.WithCancel(c.Context)
+		c.Context = newContext
+
 		facade.BootstrapLogger()
 
 		var logger *zap.Logger
@@ -63,12 +81,23 @@ func NewApp() *cli.App {
 
 			var err error
 			logger, err = cfg.Build(
-				zap.AddStacktrace(zap.NewAtomicLevelAt(zap.DPanicLevel)))
+				zap.AddStacktrace(zap.NewAtomicLevelAt(zap.DPanicLevel)),
+				zap.WithFatalHook(cancelContextHook{cancel: cancel}))
 			if err != nil {
 				return err
 			}
 		}
 		zap.ReplaceGlobals(logger)
+
+		sigC := make(chan os.Signal, 1)
+		signal.Notify(sigC, os.Interrupt)
+		signal.Notify(sigC, syscall.SIGTERM)
+		go func() {
+			for s := range sigC {
+				logger.Warn("Received signal", zap.String("signal", s.String()))
+				cancel()
+			}
+		}()
 
 		return nil
 	}
@@ -85,7 +114,7 @@ func NewApp() *cli.App {
 		return nil
 	}
 	app.After = func(c *cli.Context) error {
-		zap.L().Sync()
+		_ = zap.L().Sync()
 		return nil
 	}
 
