@@ -4,13 +4,14 @@ import (
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
-	tu "github.com/nyaxt/otaru/testutils"
+	"github.com/nyaxt/otaru/testutils"
+	"go.uber.org/zap"
 
 	"bytes"
 	"testing"
 )
 
-func init() { tu.EnsureLogger() }
+func init() { testutils.EnsureLogger() }
 
 func TestFileWriteRead(t *testing.T) {
 	snapshotio := inodedb.NewSimpleDBStateSnapshotIO()
@@ -21,8 +22,8 @@ func TestFileWriteRead(t *testing.T) {
 		return
 	}
 
-	bs := tu.TestFileBlobStore()
-	fs := filesystem.NewFileSystem(idb, bs, tu.TestCipher())
+	bs := testutils.TestFileBlobStore()
+	fs := filesystem.NewFileSystem(idb, bs, testutils.TestCipher(), zap.L())
 	h, err := fs.OpenFileFullPath("/hello.txt", flags.O_RDWRCREATE, 0666)
 	if err != nil {
 		t.Errorf("OpenFileFullPath failed: %v", err)
@@ -30,7 +31,7 @@ func TestFileWriteRead(t *testing.T) {
 	}
 	defer h.Close()
 
-	err = h.PWrite(tu.HelloWorld, 0)
+	err = h.PWrite(testutils.HelloWorld, 0)
 	if err != nil {
 		t.Errorf("PWrite failed: %v", err)
 	}
@@ -41,10 +42,10 @@ func TestFileWriteRead(t *testing.T) {
 		t.Errorf("PRead failed: %v", err)
 	}
 	buf = buf[:n]
-	if n != len(tu.HelloWorld) {
+	if n != len(testutils.HelloWorld) {
 		t.Errorf("n: %d", n)
 	}
-	if !bytes.Equal(tu.HelloWorld, buf) {
+	if !bytes.Equal(testutils.HelloWorld, buf) {
 		t.Errorf("PRead content != PWrite content: %v", buf)
 	}
 }
@@ -58,15 +59,15 @@ func TestFile_CloseOpenFile(t *testing.T) {
 		return
 	}
 
-	bs := tu.TestFileBlobStore()
-	fs := filesystem.NewFileSystem(idb, bs, tu.TestCipher())
+	bs := testutils.TestFileBlobStore()
+	fs := filesystem.NewFileSystem(idb, bs, testutils.TestCipher(), zap.L())
 	h, err := fs.OpenFileFullPath("/hello.txt", flags.O_CREATE|flags.O_RDWR, 0666)
 	if err != nil {
 		t.Errorf("OpenFileFullPath failed: %v", err)
 		return
 	}
 
-	if err = h.PWrite(tu.HelloWorld, 0); err != nil {
+	if err = h.PWrite(testutils.HelloWorld, 0); err != nil {
 		t.Errorf("PWrite failed: %v", err)
 		return
 	}

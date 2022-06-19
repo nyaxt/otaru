@@ -57,7 +57,7 @@ func Fuzz(data []byte) int {
 	}
 
 	bs := blobstore.NewMemBlobStore()
-	fs := filesystem.NewFileSystem(idb, bs, tu.TestCipher())
+	fs := filesystem.NewFileSystem(idb, bs, tu.TestCipher(), zap.L())
 
 	const NumFs = 2
 	const NumFHs = NumFs * 2

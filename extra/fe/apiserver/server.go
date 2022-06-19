@@ -26,7 +26,6 @@ var serviceHandlers = []registerServiceHandlerFunc{
 	pb.RegisterBlobstoreServiceHandler,
 	pb.RegisterFileSystemServiceHandler,
 	pb.RegisterINodeDBServiceHandler,
-	pb.RegisterLoggerServiceHandler,
 	pb.RegisterSystemInfoServiceHandler,
 }
 

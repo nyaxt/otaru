@@ -15,6 +15,7 @@ import (
 	"time"
 
 	bfuse "github.com/nyaxt/fuse"
+	"go.uber.org/zap"
 
 	"github.com/nyaxt/otaru/blobstore"
 	"github.com/nyaxt/otaru/filesystem"
@@ -52,7 +53,7 @@ func (tfs *testenv) NewFS() *filesystem.FileSystem {
 		log.Fatalf("NewEmptyDB failed: %v", err)
 	}
 
-	return filesystem.NewFileSystem(idb, tfs.bs, tu.TestCipher())
+	return filesystem.NewFileSystem(idb, tfs.bs, tu.TestCipher(), zap.L())
 }
 
 func (tfs *testenv) ReadOnlyFS() *filesystem.FileSystem {
@@ -64,7 +65,7 @@ func (tfs *testenv) ReadOnlyFS() *filesystem.FileSystem {
 		log.Fatalf("NewDB failed: %v", err)
 	}
 
-	return filesystem.NewFileSystem(idb, tfs.bs, tu.TestCipher())
+	return filesystem.NewFileSystem(idb, tfs.bs, tu.TestCipher(), zap.L())
 }
 
 func fusetestFileSystem() *filesystem.FileSystem {

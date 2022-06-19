@@ -3,6 +3,8 @@ package testutils
 import (
 	"log"
 
+	"go.uber.org/zap"
+
 	"github.com/nyaxt/otaru/filesystem"
 	"github.com/nyaxt/otaru/inodedb"
 )
@@ -19,7 +21,9 @@ func TestINodeDB() inodedb.DBHandler {
 }
 
 func TestFileSystem() *filesystem.FileSystem {
+	EnsureLogger()
+
 	idb := TestINodeDB()
 	bs := TestFileBlobStore()
-	return filesystem.NewFileSystem(idb, bs, TestCipher())
+	return filesystem.NewFileSystem(idb, bs, TestCipher(), zap.L())
 }

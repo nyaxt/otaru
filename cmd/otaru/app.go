@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"github.com/nyaxt/otaru/cmd/otaru/deleteallblobs"
 	"github.com/nyaxt/otaru/cmd/otaru/fscli"
 	"github.com/nyaxt/otaru/cmd/otaru/serve"
 	"github.com/nyaxt/otaru/cmd/otaru/webdav"
@@ -57,6 +58,7 @@ func NewApp() *cli.App {
 	app.Commands = []*cli.Command{
 		serve.Command,
 		webdav.Command,
+		deleteallblobs.Command,
 	}
 	app.Commands = append(app.Commands, fscli.Commands...)
 
