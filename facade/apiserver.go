@@ -25,7 +25,6 @@ func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) ([]apiserver.Option,
 		otaruapiserver.InstallFileHandler(o.FS),
 		otaruapiserver.InstallFileSystemService(o.FS),
 		otaruapiserver.InstallINodeDBService(o.IDBS),
-		otaruapiserver.InstallLoggerService(),
 		otaruapiserver.InstallSystemService(),
 	}
 
