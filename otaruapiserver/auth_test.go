@@ -269,7 +269,7 @@ func TestAuth_ValidReadOnlyToken(t *testing.T) {
 	cfg := testCliConfig(&cli.Host{
 		ApiEndpoint: testListenAddr,
 		CACert:      testca.CACert,
-		Cert:        testca.ClientAuthReadOnlyCert,
+		Certs:       testca.ClientAuthReadOnlyCerts,
 		Key:         testca.ClientAuthReadOnlyKey.Parsed,
 	})
 

@@ -27,7 +27,7 @@ func init() {
 			"default": {
 				ApiEndpoint: testListenAddr,
 				CACert:      testca.CACert,
-				Cert:        testca.ClientAuthAdminCert,
+				Certs:       testca.ClientAuthAdminCerts,
 				Key:         testca.ClientAuthAdminKey.Parsed,
 			},
 		},

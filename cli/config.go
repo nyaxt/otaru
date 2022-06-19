@@ -37,8 +37,8 @@ type Host struct {
 
 	CACert     *x509.Certificate
 	CACertFile string `toml:"ca_cert_file"`
-	Cert       *x509.Certificate
-	CertFile   string
+	Certs      []*x509.Certificate
+	CertsFile  string
 	Key        crypto.PrivateKey
 	KeyFile    string
 }
@@ -107,7 +107,7 @@ func NewConfig(configdir string) (*CliConfig, error) {
 		if err := readpem.ReadCertificateFile("CACert", h.CACertFile, &h.CACert); err != nil {
 			return nil, fmt.Errorf("vhost %q: %w", vhost, err)
 		}
-		if err := readpem.ReadCertificateFile("Cert", h.CertFile, &h.Cert); err != nil {
+		if err := readpem.ReadCertificatesFile("Certs", h.CertsFile, &h.Certs); err != nil {
 			return nil, fmt.Errorf("vhost %q: %w", vhost, err)
 		}
 		if err := readpem.ReadKeyFile("Key", h.KeyFile, &h.Key); err != nil {

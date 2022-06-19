@@ -33,6 +33,7 @@ var (
 	//go:embed clientauth_admin.pem
 	ClientAuthAdminCertPEM []byte
 	ClientAuthAdminCert    *x509.Certificate
+	ClientAuthAdminCerts   []*x509.Certificate
 
 	//go:embed clientauth_admin-key.pem
 	ClientAuthAdminKeyPEM []byte
@@ -41,6 +42,7 @@ var (
 	//go:embed clientauth_readonly.pem
 	ClientAuthReadOnlyCertPEM []byte
 	ClientAuthReadOnlyCert    *x509.Certificate
+	ClientAuthReadOnlyCerts   []*x509.Certificate
 
 	//go:embed clientauth_readonly-key.pem
 	ClientAuthReadOnlyKeyPEM []byte
@@ -86,8 +88,17 @@ func init() {
 	}
 	CACert = c
 
+	Certs = []*x509.Certificate{Cert, CACert}
+
 	CertPool := x509.NewCertPool()
 	CertPool.AddCert(CACert)
+
+	block, _ = pem.Decode(ClientAuthCACertPEM)
+	c, err = x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		panic(err)
+	}
+	ClientAuthCACert = c
 
 	block, _ = pem.Decode(ClientAuthAdminCertPEM)
 	c, err = x509.ParseCertificate(block.Bytes)
@@ -95,6 +106,8 @@ func init() {
 		panic(err)
 	}
 	ClientAuthAdminCert = c
+	ClientAuthAdminCerts = []*x509.Certificate{
+		ClientAuthAdminCert, ClientAuthCACert}
 
 	block, _ = pem.Decode(ClientAuthAdminKeyPEM)
 	key, err = x509.ParseECPrivateKey(block.Bytes)
@@ -124,6 +137,8 @@ func init() {
 		panic(err)
 	}
 	ClientAuthReadOnlyCert = c
+	ClientAuthReadOnlyCerts = []*x509.Certificate{
+		ClientAuthReadOnlyCert, ClientAuthCACert}
 
 	block, _ = pem.Decode(ClientAuthReadOnlyKeyPEM)
 	key, err = x509.ParseECPrivateKey(block.Bytes)
@@ -151,13 +166,4 @@ func init() {
 		DER:    block.Bytes,
 		Parsed: key,
 	}
-
-	block, _ = pem.Decode(ClientAuthCACertPEM)
-	c, err = x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		panic(err)
-	}
-	ClientAuthCACert = c
-
-	Certs = []*x509.Certificate{Cert, CACert}
 }

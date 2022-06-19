@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nyaxt/otaru/util/readpem"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -38,12 +39,10 @@ func ConnectionInfoFromHost(h *Host) *ConnectionInfo {
 
 		tc.RootCAs = cp
 	}
-	if h.Cert != nil {
-		zap.S().Infof("Configuring client cert: cn=%s", h.Cert.Subject.CommonName)
-		tc.Certificates = []tls.Certificate{{
-			Certificate: [][]byte{h.Cert.Raw},
-			PrivateKey:  h.Key,
-		}}
+	if len(h.Certs) != 0 {
+		zap.S().Infof("Configuring client cert: cn=%s", h.Certs[0].Subject.CommonName)
+		tlscert := readpem.TLSCertificate(h.Certs, h.Key)
+		tc.Certificates = []tls.Certificate{tlscert}
 	}
 	if h.OverrideServerName != "" {
 		tc.ServerName = h.OverrideServerName
