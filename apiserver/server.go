@@ -265,8 +265,7 @@ func Serve(ctx context.Context, opt ...Option) error {
 		httpServer.Close()
 		lis.Close()
 	}()
-	err = httpServer.Serve(tls.NewListener(lis, httpServer.TLSConfig))
-	if !errors.Is(err, http.ErrServerClosed) {
+	if err = httpServer.Serve(tls.NewListener(lis, httpServer.TLSConfig)); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil

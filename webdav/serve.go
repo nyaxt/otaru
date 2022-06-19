@@ -73,7 +73,7 @@ func Serve(ctx context.Context, cfg *cli.CliConfig) error {
 		lis.Close()
 	}()
 
-	if err := httpsrv.Serve(tlis); err != nil {
+	if err := httpsrv.Serve(tlis); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
