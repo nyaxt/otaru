@@ -13,7 +13,6 @@ import (
 	"github.com/dustin/go-humanize"
 
 	"github.com/nyaxt/otaru/btncrypt"
-	"github.com/nyaxt/otaru/logger"
 )
 
 var (
@@ -28,8 +27,6 @@ func Usage() {
 
 func main() {
 	panic("migrate to urfave/cli")
-
-	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
 
 	flag.Usage = Usage
 	flag.Parse()

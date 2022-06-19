@@ -14,6 +14,7 @@ import (
 
 	"github.com/nyaxt/otaru/cmd/otaru/deleteallblobs"
 	"github.com/nyaxt/otaru/cmd/otaru/dumpblob"
+	"github.com/nyaxt/otaru/cmd/otaru/fe"
 	"github.com/nyaxt/otaru/cmd/otaru/fscli"
 	"github.com/nyaxt/otaru/cmd/otaru/globallock"
 	"github.com/nyaxt/otaru/cmd/otaru/serve"
@@ -58,11 +59,12 @@ func NewApp() *cli.App {
 		},
 	}
 	app.Commands = []*cli.Command{
-		serve.Command,
-		webdav.Command,
 		deleteallblobs.Command,
 		dumpblob.Command,
+		fe.Command,
 		globallock.Command,
+		serve.Command,
+		webdav.Command,
 	}
 	app.Commands = append(app.Commands, fscli.Commands...)
 

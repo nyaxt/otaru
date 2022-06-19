@@ -4,10 +4,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/nyaxt/otaru/facade"
-	"github.com/nyaxt/otaru/logger"
 )
-
-var mylog = logger.Registry().Category("otaru-server")
 
 var Command = &cli.Command{
 	Name:  "serve",
