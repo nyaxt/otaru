@@ -14,7 +14,6 @@ import (
 	"github.com/naoina/toml"
 	"go.uber.org/zap"
 
-	loggerconfig "github.com/nyaxt/otaru/logger/config"
 	"github.com/nyaxt/otaru/util"
 	"github.com/nyaxt/otaru/util/readpem"
 )
@@ -45,7 +44,7 @@ type Config struct {
 	// Run GC every "GCPeriod" seconds.
 	GCPeriod int64 `toml:"gc_period"`
 
-	Logger    loggerconfig.Config
+	Logger    *zap.Logger
 	ApiServer ApiServerConfig
 }
 
@@ -126,6 +125,12 @@ func NewConfig(configdir string) (*Config, error) {
 	if err := toml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("Failed to parse config file: %v", err)
 	}
+	if cfg.Logger == nil {
+		cfg.Logger = zap.L()
+	}
+
+	s := cfg.Logger.Named("NewConfig").Sugar()
+
 	if cfg.CredentialsFilePath == "" {
 		cfg.CredentialsFilePath = FindGCPServiceAccountJSON(configdir)
 		if cfg.CredentialsFilePath == "" {
@@ -159,14 +164,14 @@ func NewConfig(configdir string) (*Config, error) {
 	}
 
 	if cfg.Password != "" {
-		zap.S().Warnf("Storing password directly on config file is not recommended.")
+		s.Warnf("Storing password directly on config file is not recommended.")
 	} else {
 		fi, err := os.Stat(cfg.PasswordFile)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to stat password file \"%s\": %v", cfg.PasswordFile, err)
 		}
 		if fi.Mode()&os.ModePerm != 0400 {
-			zap.S().Warnf("Warning: Password file \"%s\" permission is not 0400", cfg.PasswordFile)
+			s.Warnf("Warning: Password file \"%s\" permission is not 0400", cfg.PasswordFile)
 		}
 
 		cfg.Password, err = util.StringFromFile(cfg.PasswordFile)
@@ -212,10 +217,6 @@ func NewConfig(configdir string) (*Config, error) {
 		cfg.ApiServer.ClientCACertFile,
 		&cfg.ApiServer.ClientCACert,
 	); err != nil {
-		return nil, err
-	}
-
-	if err := loggerconfig.Apply(mylog, cfg.Logger); err != nil {
 		return nil, err
 	}
 

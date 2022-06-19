@@ -15,11 +15,8 @@ import (
 	"github.com/nyaxt/otaru/filewritecache"
 	fl "github.com/nyaxt/otaru/flags"
 	"github.com/nyaxt/otaru/inodedb"
-	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util"
 )
-
-var fslog = logger.Registry().Category("filesystem")
 
 type FileSystem struct {
 	idb inodedb.DBHandler
@@ -32,9 +29,11 @@ type FileSystem struct {
 
 	muOrigPath sync.Mutex
 	origpath   map[inodedb.ID]string
+
+	logger *zap.Logger
 }
 
-func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c *btncrypt.Cipher) *FileSystem {
+func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c *btncrypt.Cipher, logger *zap.Logger) *FileSystem {
 	fs := &FileSystem{
 		idb: idb,
 		bs:  bs,
@@ -42,6 +41,8 @@ func NewFileSystem(idb inodedb.DBHandler, bs blobstore.RandomAccessBlobStore, c 
 
 		openFiles: make(map[inodedb.ID]*OpenFile),
 		origpath:  make(map[inodedb.ID]string),
+
+		logger: logger.Named("filesystem"),
 	}
 	fs.setOrigPathForId(inodedb.RootDirID, "/")
 
@@ -71,10 +72,10 @@ func (fs *FileSystem) tryGetOrigPath(id inodedb.ID) string {
 
 	origpath, ok := fs.origpath[id]
 	if !ok {
-		zap.S().Warnf("Failed to lookup orig path for ID %d", id)
+		fs.logger.Sugar().Warnf("Failed to lookup orig path for ID %d", id)
 		return "<unknown>"
 	}
-	// zap.S().Warnf("Orig path for ID %d is \"%s\"", id, origpath)
+	// fs.logger.Sugar().Warnf("Orig path for ID %d is \"%s\"", id, origpath)
 	return origpath
 }
 
@@ -194,7 +195,7 @@ func (fs *FileSystem) createNode(dirID inodedb.ID, name string, typ inodedb.Type
 	}
 	defer func() {
 		if err := fs.idb.UnlockNode(nlock); err != nil {
-			zap.S().Warnf("Failed to unlock node when creating file: %v", err)
+			fs.logger.Sugar().Warnf("Failed to unlock node when creating file: %v", err)
 		}
 	}()
 
@@ -292,7 +293,7 @@ func (valid ValidAttrFields) String() string {
 }
 
 func (fs *FileSystem) SetAttr(id inodedb.ID, a Attr, valid ValidAttrFields) error {
-	zap.S().Infof("SetAttr id: %d, a: %+v, valid: %s", id, a, valid)
+	fs.logger.Sugar().Infof("SetAttr id: %d, a: %+v, valid: %s", id, a, valid)
 
 	ops := make([]inodedb.DBOperation, 0, 4)
 	if valid&UidValid != 0 {
@@ -339,6 +340,8 @@ type OpenFile struct {
 	handles []*FileHandle
 
 	mu sync.Mutex
+
+	logger *zap.Logger
 }
 
 func (fs *FileSystem) getOrCreateOpenFile(id inodedb.ID) *OpenFile {
@@ -354,13 +357,16 @@ func (fs *FileSystem) getOrCreateOpenFile(id inodedb.ID) *OpenFile {
 		wc: filewritecache.New(),
 
 		handles: make([]*FileHandle, 0, 1),
+
+		logger: fs.logger.Named("OpenFile").With(zap.Uint64("id", uint64(id))),
 	}
 	fs.openFiles[id] = of
 	return of
 }
 
 func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
-	zap.S().Infof("OpenFile(id: %v, flags rok: %t wok: %t)", id, fl.IsReadAllowed(flags), fl.IsWriteAllowed(flags))
+	s := fs.logger.Sugar()
+	s.Infof("OpenFile(id: %v, flags rok: %t wok: %t)", id, fl.IsReadAllowed(flags), fl.IsWriteAllowed(flags))
 
 	tryLock := fl.IsWriteAllowed(flags)
 	if tryLock && !fl.IsWriteAllowed(fs.bs.Flags()) {
@@ -375,7 +381,7 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	ofIsInitialized := of.nlock.ID != 0
 	if ofIsInitialized && (of.nlock.HasTicket() || !tryLock) {
 		// No need to upgrade lock. Just use cached filehandle.
-		zap.S().Infof("Using cached of for inode id: %v", id)
+		s.Infof("Using cached of for inode id: %v", id)
 		return of.OpenHandleWithoutLock(flags), nil
 	}
 
@@ -386,7 +392,7 @@ func (fs *FileSystem) OpenFile(id inodedb.ID, flags int) (*FileHandle, error) {
 	}
 	if v.GetType() != inodedb.FileNodeT {
 		if err := fs.idb.UnlockNode(nlock); err != nil {
-			zap.S().Warnf("Unlock node failed for non-file node: %v", err)
+			s.Warnf("Unlock node failed for non-file node: %v", err)
 		}
 
 		if v.GetType() == inodedb.DirNodeT {
@@ -449,12 +455,13 @@ func (of *OpenFile) OpenHandleWithoutLock(flags int) *FileHandle {
 }
 
 func (of *OpenFile) CloseHandle(tgt *FileHandle) {
+	s := of.logger.Sugar()
 	if tgt.of == nil {
-		zap.S().Warnf("Detected FileHandle double close!")
+		s.Warnf("Detected FileHandle double close!")
 		return
 	}
 	if tgt.of != of {
-		zap.S().Errorf("Attempt to close handle for other OpenFile. tgt fh: %+v, of: %+v", tgt, of)
+		s.Errorf("Attempt to close handle for other OpenFile. tgt fh: %+v, of: %+v", tgt, of)
 		return
 	}
 
@@ -482,7 +489,7 @@ func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 	wasLastWriteHandle := wasWriteHandle && !ofHasOtherWriteHandle
 	if wasLastWriteHandle {
 		if err := of.wc.Sync(of.cfio); err != nil {
-			zap.S().Errorf("FileWriteCache sync failed: %v", err)
+			s.Errorf("FileWriteCache sync failed: %v", err)
 		}
 
 		// Note: if len(of.handles) == 0, below will create cfio just to be closed immediately below
@@ -492,7 +499,7 @@ func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 
 	if len(of.handles) == 0 {
 		if err := of.cfio.Close(); err != nil {
-			zap.S().Warnf("Closing ChunkedFileIO when all handles closed failed: %v", err)
+			s.Warnf("Closing ChunkedFileIO when all handles closed failed: %v", err)
 		}
 
 		id := of.nlock.ID
@@ -503,21 +510,23 @@ func (of *OpenFile) CloseHandle(tgt *FileHandle) {
 }
 
 func (of *OpenFile) downgradeToReadLock() {
-	zap.S().Infof("Downgrade %v to read lock.", of)
+	s := of.logger.Sugar()
+
+	s.Infof("Downgrade %v to read lock.", of)
 	// Note: assumes of.mu is Lock()-ed
 
 	if !of.nlock.HasTicket() {
-		zap.S().Warnf("Attempt to downgrade node lock, but no excl lock found. of: %v", of)
+		s.Warnf("Attempt to downgrade node lock, but no excl lock found. of: %v", of)
 		return
 	}
 
 	if err := of.fs.idb.UnlockNode(of.nlock); err != nil {
-		zap.S().Warnf("Unlocking node to downgrade to read lock failed: %v", err)
+		s.Warnf("Unlocking node to downgrade to read lock failed: %v", err)
 	}
 	of.nlock.Ticket = inodedb.NoTicket
 
 	if err := of.cfio.Close(); err != nil {
-		zap.S().Warnf("Closing ChunkedFileIO when downgrading to read lock failed: %v", err)
+		s.Warnf("Closing ChunkedFileIO when downgrading to read lock failed: %v", err)
 	}
 
 	caio := NewINodeDBChunksArrayIO(of.fs.idb, of.nlock)
@@ -640,7 +649,7 @@ func (of *OpenFile) Size() int64 {
 
 	size, err := of.sizeMayFailWithoutLock()
 	if err != nil {
-		zap.S().Warnf("Failed to query OpenFile.Size(), but suppressing error: %v", err)
+		of.logger.Sugar().Warnf("Failed to query OpenFile.Size(), but suppressing error: %v", err)
 		return 0
 	}
 	return size

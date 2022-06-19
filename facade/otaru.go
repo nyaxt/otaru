@@ -161,7 +161,7 @@ func Serve(ctx context.Context, cfg *Config) error {
 		o.IDBSyncJob = o.R.RunEveryPeriod(inodedbsyncer.NewSyncTask(o.IDBS), 30*time.Second)
 	}
 
-	o.FS = filesystem.NewFileSystem(o.IDBS, o.CBS, o.C)
+	o.FS = filesystem.NewFileSystem(o.IDBS, o.CBS, o.C, cfg.Logger)
 
 	if o.ReadOnly {
 		zap.S().Infof("No GC tasks are scheduled in read only mode.")
