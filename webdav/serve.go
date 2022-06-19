@@ -15,9 +15,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var mylog = logger.Registry().Category("fe-webdav")
-var accesslog = logger.Registry().Category("http-webdav")
-
 func Serve(ctx context.Context, cfg *cli.CliConfig) error {
 	s := zap.S().Named("webdav.Serve")
 
@@ -49,7 +46,7 @@ func Serve(ctx context.Context, cfg *cli.CliConfig) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte("ok\n"))
+		_, _ = w.Write([]byte("ok\n"))
 	})
 	mux.Handle("/", handler)
 
