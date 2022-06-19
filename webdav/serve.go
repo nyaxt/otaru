@@ -19,6 +19,8 @@ var mylog = logger.Registry().Category("fe-webdav")
 var accesslog = logger.Registry().Category("http-webdav")
 
 func Serve(ctx context.Context, cfg *cli.CliConfig) error {
+	s := zap.S().Named("webdav.Serve")
+
 	wcfg := cfg.Webdav
 
 	var handler http.Handler
@@ -34,9 +36,9 @@ func Serve(ctx context.Context, cfg *cli.CliConfig) error {
 	}
 
 	if wcfg.BasicAuthPassword == "" {
-		zap.S().Warnf("Basic auth not enabled!")
+		s.Warnf("Basic auth not enabled!")
 	} else {
-		zap.S().Infof("Basic auth enabled.")
+		s.Infof("Basic auth enabled.")
 		handler = &basicauth.Handler{
 			User:     wcfg.BasicAuthUser,
 			Password: wcfg.BasicAuthPassword,
@@ -51,7 +53,7 @@ func Serve(ctx context.Context, cfg *cli.CliConfig) error {
 	})
 	mux.Handle("/", handler)
 
-	loghandler := logger.HttpHandler(accesslog, logger.Info, mux)
+	loghandler := logger.HttpHandler(s.Desugar(), mux)
 
 	// Note: This doesn't enable h2. Reconsider this if there is a webdav client w/ h2 support.
 	tc := readpem.TLSCertificate(wcfg.Certs, wcfg.Key)

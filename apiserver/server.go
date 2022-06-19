@@ -176,6 +176,8 @@ func serveApiGateway(ctx context.Context, mux *http.ServeMux, opts *options) err
 }
 
 func Serve(ctx context.Context, opt ...Option) error {
+	s := zap.S().Named("apiserver.Serve")
+
 	opts := defaultOptions
 	for _, o := range opt {
 		o(&opts)
@@ -186,10 +188,10 @@ func Serve(ctx context.Context, opt ...Option) error {
 
 	var clientAuthEnabled bool
 	if opts.clientCACert != nil {
-		zap.S().Infof("Client certificate authentication is enabled.")
+		s.Infof("Client certificate authentication is enabled.")
 		clientAuthEnabled = true
 	} else {
-		zap.S().Infof("Client certificate authentication is disabled. Any request to the server will treated as if it were from role \"admin\".")
+		s.Infof("Client certificate authentication is disabled. Any request to the server will treated as if it were from role \"admin\".")
 		clientAuthEnabled = false
 	}
 
@@ -234,7 +236,7 @@ func Serve(ctx context.Context, opt ...Option) error {
 		return fmt.Errorf("Failed to listen %q: %v", opts.listenAddr, err)
 	}
 
-	httpHandler := logger.HttpHandler(opts.accesslogger, logger.Info, c.Handler(mux))
+	httpHandler := logger.HttpHandler(s.Desugar(), c.Handler(mux))
 	cliauthtype := tls.NoClientCert
 	var clicp *x509.CertPool
 	if clientAuthEnabled {

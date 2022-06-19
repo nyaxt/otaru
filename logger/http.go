@@ -1,27 +1,21 @@
 package logger
 
 import (
-	"fmt"
 	"net/http"
-	"time"
+
+	"go.uber.org/zap"
 )
 
-func HttpHandler(logger Logger, level Level, h http.Handler) http.Handler {
+func HttpHandler(l *zap.Logger, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if logger.WillAccept(level) {
-			uri := r.URL.RequestURI()
-			logstr := fmt.Sprintf("%s %s %s", r.RemoteAddr, r.Method, uri)
-			logger.Log(level, map[string]interface{}{
-				"log":         logstr,
-				"time":        time.Now(),
-				"location":    "httplogger.go:1",
-				"remote_addr": r.RemoteAddr,
-				"method":      r.Method,
-				"uri":         uri,
-				"referer":     r.Referer(),
-				"user_agent":  r.UserAgent(),
-			})
-		}
+		l.Info(
+			"http request",
+			zap.String("uri", r.URL.RequestURI()),
+			zap.String("remote_addr", r.RemoteAddr),
+			zap.String("method", r.Method),
+			zap.String("referer", r.Referer()),
+			zap.String("user_agent", r.UserAgent()),
+		)
 
 		h.ServeHTTP(w, r)
 	})
