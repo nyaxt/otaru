@@ -32,8 +32,7 @@ func Usage() {
 }
 
 func main() {
-	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
-	logger.Registry().AddOutput(logger.HandleCritical(func() { os.Exit(1) }))
+	panic("migrate to urfave/cli")
 
 	flag.Usage = Usage
 	flag.Parse()

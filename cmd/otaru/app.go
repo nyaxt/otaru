@@ -13,7 +13,9 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/nyaxt/otaru/cmd/otaru/deleteallblobs"
+	"github.com/nyaxt/otaru/cmd/otaru/dumpblob"
 	"github.com/nyaxt/otaru/cmd/otaru/fscli"
+	"github.com/nyaxt/otaru/cmd/otaru/globallock"
 	"github.com/nyaxt/otaru/cmd/otaru/serve"
 	"github.com/nyaxt/otaru/cmd/otaru/webdav"
 	"github.com/nyaxt/otaru/facade"
@@ -59,6 +61,8 @@ func NewApp() *cli.App {
 		serve.Command,
 		webdav.Command,
 		deleteallblobs.Command,
+		dumpblob.Command,
+		globallock.Command,
 	}
 	app.Commands = append(app.Commands, fscli.Commands...)
 

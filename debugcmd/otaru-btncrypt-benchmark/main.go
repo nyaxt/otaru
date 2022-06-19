@@ -16,8 +16,6 @@ import (
 	"github.com/nyaxt/otaru/logger"
 )
 
-var mylog = logger.Registry().Category("otaru-btncrypt-benchmark")
-
 var (
 	flagSize = flag.String("size", "100MB", "Test target blob size")
 )
@@ -29,8 +27,9 @@ func Usage() {
 }
 
 func main() {
+	panic("migrate to urfave/cli")
+
 	logger.Registry().AddOutput(logger.WriterLogger{os.Stderr})
-	logger.Registry().AddOutput(logger.HandleCritical(func() { os.Exit(1) }))
 
 	flag.Usage = Usage
 	flag.Parse()
