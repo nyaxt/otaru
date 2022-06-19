@@ -87,7 +87,7 @@ func TestCachedBlobStore_WritebackDirty(t *testing.T) {
 	cachedblobstore.DisableAutoSyncForTesting = true
 	defer func() { cachedblobstore.DisableAutoSyncForTesting = false }()
 
-	tu.ObservedCriticalLog = false
+	tu.ObservedFatalLog = false
 
 	backendbs := tu.TestFileBlobStoreOfName("backend")
 	cachebs := tu.TestFileBlobStoreOfName("cache")
@@ -109,8 +109,8 @@ func TestCachedBlobStore_WritebackDirty(t *testing.T) {
 		return
 	}
 
-	if tu.ObservedCriticalLog {
-		t.Errorf("ObservedCriticalLog should be false")
+	if tu.ObservedFatalLog {
+		t.Errorf("ObservedFatalLog should be false")
 		return
 	}
 }
