@@ -59,6 +59,7 @@ type FeConfig struct {
 type WebdavConfig struct {
 	ListenAddr string
 
+	NoTls     bool
 	Certs     []*x509.Certificate
 	CertsFile string
 	Key       crypto.PrivateKey
@@ -124,11 +125,13 @@ func NewConfig(configdir string) (*CliConfig, error) {
 	if err := readpem.ReadKeyFile("Fe.Key", cfg.Fe.KeyFile, &cfg.Fe.Key); err != nil {
 		return nil, err
 	}
-	if err := readpem.ReadCertificatesFile("Webdav.Cert", cfg.Webdav.CertsFile, &cfg.Webdav.Certs); err != nil {
-		return nil, err
-	}
-	if err := readpem.ReadKeyFile("Webdav.Key", cfg.Webdav.KeyFile, &cfg.Webdav.Key); err != nil {
-		return nil, err
+	if !cfg.Webdav.NoTls {
+		if err := readpem.ReadCertificatesFile("Webdav.Cert", cfg.Webdav.CertsFile, &cfg.Webdav.Certs); err != nil {
+			return nil, err
+		}
+		if err := readpem.ReadKeyFile("Webdav.Key", cfg.Webdav.KeyFile, &cfg.Webdav.Key); err != nil {
+			return nil, err
+		}
 	}
 
 	cfg.LocalRootPath = os.ExpandEnv(cfg.LocalRootPath)

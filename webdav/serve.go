@@ -52,17 +52,19 @@ func Serve(ctx context.Context, cfg *cli.CliConfig) error {
 
 	loghandler := logger.HttpHandler(s.Desugar(), mux)
 
-	// Note: This doesn't enable h2. Reconsider this if there is a webdav client w/ h2 support.
-	tc := readpem.TLSCertificate(wcfg.Certs, wcfg.Key)
 	httpsrv := http.Server{
 		Addr:    wcfg.ListenAddr,
 		Handler: loghandler,
-		TLSConfig: &tls.Config{
+	}
+	if !wcfg.NoTls {
+		// Note: This doesn't enable h2. Reconsider this if there is a webdav client w/ h2 support.
+		tc := readpem.TLSCertificate(wcfg.Certs, wcfg.Key)
+		httpsrv.TLSConfig = &tls.Config{
 			Certificates: []tls.Certificate{tc},
 			NextProtos:   []string{"http/1.1"},
-		},
+		}
+		lis = tls.NewListener(lis, httpsrv.TLSConfig)
 	}
-	tlis := tls.NewListener(lis, httpsrv.TLSConfig)
 
 	go func() {
 		<-ctx.Done()
@@ -70,7 +72,7 @@ func Serve(ctx context.Context, cfg *cli.CliConfig) error {
 		lis.Close()
 	}()
 
-	if err := httpsrv.Serve(tlis); !errors.Is(err, http.ErrServerClosed) {
+	if err := httpsrv.Serve(lis); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
