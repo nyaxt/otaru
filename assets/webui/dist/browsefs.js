@@ -2,6 +2,7 @@ import {$, $$, removeAllChildNodes} from './domhelper.js';
 import {kCopy, kMove, rpc, downloadFile, parseOtaruPath, fsLs, fsMoveOrCopy, fsMkdir, fsRm} from './api.js';
 import {formatBlobSize, formatTimestamp} from './format.js';
 import {findLongestCommonSubStr} from './commonsubstr.js';
+import {SIFT} from './sift.js';
 import {preview} from './preview.js';
 
 const debugwait = () => {
@@ -17,6 +18,8 @@ const kModalClass = 'modal';
 const kDisabledClass = 'disabled';
 const kFilteredClass = 'filtered';
 const kPromptActiveClass = 'promptactive';
+const kQueryActiveClass = 'queryactive';
+const kMapdirActiveClass = 'mapdiractive';
 const kConfirmActiveClass = 'confirmactive';
 const kConfirmProcessingClass = 'confirmprocessing';
 const kCursorClass = 'content__entry--cursor';
@@ -131,6 +134,10 @@ class BrowseFS extends HTMLElement {
     return this.classList.contains(kFocusClass);
   }
 
+  get mapdirActive() {
+    return this.classList.contains(kMapdirActiveClass);
+  }
+
   set hasFocus(val) {
     if (val)
       this.classList.add(kFocusClass);
@@ -205,11 +212,11 @@ class BrowseFS extends HTMLElement {
     this.query_ = val;
     window.setTimeout(() => {
       if (this.query_ === null) {
-        this.classList.remove(kFilteredClass);
+        this.classList.remove(kFilteredClass, kQueryActiveClass);
         return;
       }
 
-      this.classList.add(kFilteredClass);
+      this.classList.add(kFilteredClass, kQueryActiveClass);
       this.queryInput_.value = val;
       this.queryInput_.focus();
 
@@ -327,6 +334,9 @@ class BrowseFS extends HTMLElement {
     });
     this.promptInput_.addEventListener('keyup', (e) => {
       if (e.key === 'Escape') {
+        this.classList.remove(kFilteredClass, kQueryActiveClass, kMapdirActiveClass);
+        this.cursorIndex = 0;
+
         if (this.onExitDialog_) {
           this.onExitDialog_(false);
         }
@@ -399,6 +409,8 @@ class BrowseFS extends HTMLElement {
       this.openMkdirPrompt();
     } else if (e.key === 'm') {
       this.moveSelection();
+    } else if (e.key === 'M') {
+      this.mapdirSelection();
     } else if (e.key === 'c') {
       this.copySelection();
     } else if (e.key === 'p') {
@@ -437,6 +449,8 @@ class BrowseFS extends HTMLElement {
   async onKeyUp_(e) {
     if (e.key === 'Escape') {
       if (this.onExitDialog_) this.onExitDialog_(false);
+    } else if (e.key === 'Delete') {
+      this.deleteSelection();
     }
   }
 
@@ -597,8 +611,12 @@ class BrowseFS extends HTMLElement {
     }
   }
 
+  getAllRows_() {
+    return this.listTBody_.querySelectorAll("tr");
+  }
+
   getVisibleRows_(extrasel = '') {
-    if (this.query_ !== null) {
+    if (this.classList.contains(kFilteredClass)) {
       return this.listTBody_.querySelectorAll(`tr.${kMatchClass}${extrasel}`);
     }
     return this.listTBody_.querySelectorAll(`tr${extrasel}`);
@@ -661,7 +679,7 @@ class BrowseFS extends HTMLElement {
       query = '.';
     const filterRe = new RegExp(query, 'i');
 
-    for (let tr of this.listTBody_.querySelectorAll("tr")) {
+    for (let tr of this.getAllRows_()) {
       const match = tr.data.name.match(filterRe);
       if (!match) {
         tr.classList.remove(kMatchClass);
@@ -676,17 +694,22 @@ class BrowseFS extends HTMLElement {
     return this.getVisibleRows_(`.${kSelectedClass}`);
   }
 
-  async openRenamePrompt() {
+  ensureAtLeastOneSelectedRows() {
     let selectedRows = this.getSelectedRows_();
+
     if (selectedRows.length == 0) {
       if (!this.cursorRow) {
-        console.log("tried to open rename dialog, but no row selected.");
-        return;
+        throw "no cursor";
       }
       this.cursorRow.toggleSelection();
       selectedRows = this.getSelectedRows_();
     }
 
+    return selectedRows;
+  }
+
+  async openRenamePrompt() {
+    let selectedRows = this.ensureAtLeastOneSelectedRows();
     if (selectedRows.length == 1) {
       this.renameBefore_ = selectedRows[0].data.name;
     } else {
@@ -925,7 +948,6 @@ class BrowseFS extends HTMLElement {
     try {
       if (!this.counterpart) {
         throw "No counterpart to move/copy to.";
-        return;
       }
 
       let selectedRows = this.getSelectedRows_();
@@ -963,7 +985,78 @@ class BrowseFS extends HTMLElement {
       this.closeConfirm_();
     }
   }
+
+  async mapdirSelection() {
+    if (!this.counterpart) {
+      throw "No counterpart to map to.";
+    }
+    if (this.mapdirActive) {
+      // workaround recursion
+      return;
+    }
+
+    const selectedRows = this.ensureAtLeastOneSelectedRows();
+    let rname = '';
+    if (selectedRows.length == 1) {
+      rname = selectedRows[0].data.name;
+    } else {
+      const names = Array.from(selectedRows).map(r => r.data.name);
+      rname = findLongestCommonSubStr(names);
+    }
+    if (rname.length == 0) {
+      throw "Failed to find an representativeName";
+    }
+    rname = rname.replace(/\d*\.\w{3,}$/, "");
+    if (rname.length > 4) {
+      // try removing str after _
+      rname = rname.replace(/_.*$/, "");
+    }
+
+    console.log(`representativeName: ${rname}`);
+
+    this.hasFocus = false;
+    this.counterpart.hasFocus = true;
+    this.counterpart.mapdir(rname);
+  }
+
+  async mapdir(representativeName) {
+    let candidates = [];
+
+    for (let tr of this.getAllRows_()) {
+      tr.classList.remove(kMatchClass);
+
+      const data = tr.data;
+
+      if (data.type !== "DIR")
+        continue;
+
+      const name = data.name;
+      const score = SIFT(name, representativeName);
+
+      if (score > name.length-1) {
+        // [skip] basically you are replacing (almost) all chars of `name`.
+        continue;
+      }
+      if (score > 5 && score/name.length > 0.3) {
+        // [skip] substantial edit required relative to `name.length`.
+        continue;
+      }
+
+      candidates.push({tr, score});
+    }
+    candidates.sort(({score: sa}, {score: sb}) => sa - sb);
+    candidates = candidates.slice(0, 5);
+
+    for (let c of candidates) {
+      console.log(`match ${c.score} ${c.tr.data.name}`)
+      c.tr.classList.add(kMatchClass);
+    }
+    this.classList.add(kMapdirActiveClass, kFilteredClass);
+
+    this.cursorIndex = 0;
+  }
 }
+
 window.customElements.define("browse-fs", BrowseFS);
 
 let staticHostList = null;

@@ -24,7 +24,6 @@ import (
 
 	"github.com/nyaxt/otaru/apiserver/clientauth"
 	"github.com/nyaxt/otaru/assets/swaggerui"
-	"github.com/nyaxt/otaru/cli"
 	"github.com/nyaxt/otaru/logger"
 	"github.com/nyaxt/otaru/util/readpem"
 )
@@ -141,14 +140,13 @@ func serveSwagger(mux *http.ServeMux) {
 func serveApiGateway(ctx context.Context, mux *http.ServeMux, opts *options) error {
 	c := opts.certs[0]
 
-	tc, err := cli.TLSConfigFromCert(c)
-	if err != nil {
-		return err
+	tc := &tls.Config{
+		InsecureSkipVerify: true,
+		Certificates: []tls.Certificate{{
+			Certificate: [][]byte{c.Raw},
+			PrivateKey:  opts.key,
+		}},
 	}
-	tc.Certificates = []tls.Certificate{{
-		Certificate: [][]byte{c.Raw},
-		PrivateKey:  opts.key,
-	}}
 
 	cred := credentials.NewTLS(tc)
 	gwdialopts := []grpc.DialOption{grpc.WithTransportCredentials(cred)}

@@ -69,7 +69,7 @@ body {
   height: var(--nav-height);
   flex-shrink: 0;
 
-  display: flex; 
+  display: flex;
   color: var(--main-fg-color);
   background-color: var(--dark-bg-color);
 }
@@ -235,7 +235,7 @@ body {
 }
 
 .kvview__item {
-  display: flex; 
+  display: flex;
   font-size: 14px;
   height: 20px;
   padding: 5px 0;
@@ -247,7 +247,7 @@ body {
 }
 
 .kvview__label {
-  width: 300px; 
+  width: 300px;
 }
 
 .kvview__value {
@@ -273,7 +273,7 @@ body {
 }
 
 .infobar__button {
-  background-color: var(--darklight-fg-color); 
+  background-color: var(--darklight-fg-color);
 }
 
 browse-fs {
@@ -297,7 +297,7 @@ browse-fs.hasfocus {
   display: none;
 }
 
-browse-fs.filtered .browsefs__header--query {
+browse-fs.queryactive .browsefs__header--query {
   display: flex;
   background-color: var(--comp-dark-color);
 }
@@ -529,12 +529,12 @@ browse-fs.filtered .browsefs__entry--match {
   flex: none;
 }
 
-.logview__cell--category::before { 
+.logview__cell--category::before {
   content: "[";
   font-weight: bold;
   color: var(--dark-bg-color);
 }
-.logview__cell--category::after { 
+.logview__cell--category::after {
   content: "]";
   font-weight: bold;
   color: var(--dark-bg-color);

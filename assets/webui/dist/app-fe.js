@@ -52,9 +52,8 @@ splitbar.addEventListener('mousedown', md => {
 });
 
 window.addEventListener('DOMContentLoaded', () => {
-  let focusfs = leftfs;
-  focusfs.cursorIndex = 0;
-  focusfs.hasFocus = true;
+  leftfs.cursorIndex = 0;
+  leftfs.hasFocus = true;
 
   document.addEventListener('keydown', e => {
     console.log(`keydown ${e.key}`);
@@ -78,13 +77,11 @@ window.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'l') {
       rightfs.cursorIndex = leftfs.cursorIndex;
       leftfs.clearCursor();
-      focusfs = rightfs;
       leftfs.hasFocus = false;
       rightfs.hasFocus = true;
     } else if (e.key === 'h') {
       leftfs.cursorIndex = rightfs.cursorIndex;
       rightfs.clearCursor();
-      focusfs = leftfs;
       rightfs.hasFocus = false;
       leftfs.hasFocus = true;
     } else {
