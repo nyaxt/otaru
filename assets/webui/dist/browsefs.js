@@ -19,7 +19,7 @@ const kDisabledClass = 'disabled';
 const kFilteredClass = 'filtered';
 const kPromptActiveClass = 'promptactive';
 const kQueryActiveClass = 'queryactive';
-const kMapdirActiveClass = 'mapdiractive';
+const kMapdirActiveClass = 'mapactive';
 const kConfirmActiveClass = 'confirmactive';
 const kConfirmProcessingClass = 'confirmprocessing';
 const kCursorClass = 'content__entry--cursor';
@@ -93,6 +93,10 @@ const innerHTMLSource =
     <label class="browsefs__label" for="browsefs-query">Query: </label>
     <input class="browsefs__text browsefs__query" type="text" id="browsefs-query" tabindex="1">
   </div>
+  <div class="section__header browsefs__header browsefs__header--map">
+    <label class="browsefs__label" for="browsefs-map">Map: </label>
+    <input class="browsefs__text browsefs__map" type="text" disabled id="browsefs-map" tabindex="1">
+  </div>
   <div class="section__header browsefs__header browsefs__confirm">
     <div class="browsefs__confirm--title"></div>
     <div class="browsefs__confirm--detail"></div>
@@ -134,7 +138,7 @@ class BrowseFS extends HTMLElement {
     return this.classList.contains(kFocusClass);
   }
 
-  get mapdirActive() {
+  get mapActive() {
     return this.classList.contains(kMapdirActiveClass);
   }
 
@@ -157,6 +161,8 @@ class BrowseFS extends HTMLElement {
     if (this.path_ == val)
       return;
 
+    this.cancel();
+
     val = val.trim();
     if (val.length < 2) {
       val = "//";
@@ -170,10 +176,6 @@ class BrowseFS extends HTMLElement {
     e.newPath = val;
 
     this.path_ = val;
-    this.query = null;
-    if (this.cursorIndex_ >= 0) {
-      this.cursorIndex_ = 0;
-    }
 
     this.dispatchEvent(e);
     this.triggerUpdate();
@@ -224,6 +226,17 @@ class BrowseFS extends HTMLElement {
     }, 0);
   }
 
+  cancel() {
+    if (this.onExitDialog_) {
+      this.onExitDialog_(false);
+    }
+
+    this.query = null;
+    this.mapInput_.value = "";
+    this.classList.remove(kFilteredClass, kQueryActiveClass, kMapdirActiveClass);
+    this.cursorIndex = 0;
+  }
+
   navigateParent() {
     if (this.cursorIndex_ > 0)
       this.cursorIndex_ = 0;
@@ -243,6 +256,7 @@ class BrowseFS extends HTMLElement {
     this.listTBody_ = this.querySelector('.browsefs__list').lastChild;
     this.upload_ = this.querySelector('.browsefs__upload');
     this.queryInput_ = this.querySelector('.browsefs__query');
+    this.mapInput_ = this.querySelector('.browsefs__map');
     this.promptLabel_ = this.querySelector('.browsefs__promptlabel');
     this.promptInput_ = this.querySelector('.browsefs__prompt');
     this.confirmTitle_ = this.querySelector('.browsefs__confirm--title');
@@ -301,7 +315,7 @@ class BrowseFS extends HTMLElement {
         return false;
       }
       if (e.key === 'Escape') {
-        this.query = null;
+        this.cancel();
         return true;
       }
 
@@ -334,12 +348,7 @@ class BrowseFS extends HTMLElement {
     });
     this.promptInput_.addEventListener('keyup', (e) => {
       if (e.key === 'Escape') {
-        this.classList.remove(kFilteredClass, kQueryActiveClass, kMapdirActiveClass);
-        this.cursorIndex = 0;
-
-        if (this.onExitDialog_) {
-          this.onExitDialog_(false);
-        }
+        this.cancel();
         return false;
       }
       return true;
@@ -379,7 +388,7 @@ class BrowseFS extends HTMLElement {
     } else if (e.key === 'PageUp') {
       this.cursorIndex = Math.max(this.cursorIndex - this.numVisibleRows, 0);
     } else if (e.key === 'Escape') {
-      this.query = null;
+      this.cancel();
     } else {
       unhandled = true;
     }
@@ -763,7 +772,9 @@ class BrowseFS extends HTMLElement {
 
   async openMkdirPrompt() {
     try {
-      const dirname = await this.openPrompt_("Mkdir: ", "");
+      let suggestion = this.mapInput_.value;
+
+      const dirname = await this.openPrompt_("Mkdir: ", suggestion);
       const mkdirpath = this.path + dirname;
 
       const result = await fsMkdir(mkdirpath);
@@ -990,7 +1001,7 @@ class BrowseFS extends HTMLElement {
     if (!this.counterpart) {
       throw "No counterpart to map to.";
     }
-    if (this.mapdirActive) {
+    if (this.mapActive) {
       // workaround recursion
       return;
     }
@@ -1020,6 +1031,8 @@ class BrowseFS extends HTMLElement {
   }
 
   async mapdir(representativeName) {
+    this.mapInput_.value = representativeName;
+
     let candidates = [];
 
     for (let tr of this.getAllRows_()) {

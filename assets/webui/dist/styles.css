@@ -302,6 +302,15 @@ browse-fs.queryactive .browsefs__header--query {
   background-color: var(--comp-dark-color);
 }
 
+.browsefs__header--map {
+  display: none;
+}
+
+browse-fs.mapactive .browsefs__header--map {
+  display: flex;
+  background-color: var(--comp-dark-color);
+}
+
 .browsefs__confirm {
   display: none;
   flex-direction: column;
