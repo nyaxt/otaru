@@ -11,6 +11,15 @@ const debugwait = () => {
   });
 }
 
+function preprocessName(name) {
+  name = name.replace(/\d*\w?\.\w{3,}$/, "");
+  if (name.length > 4) {
+    // try removing str after _
+    name = name.replace(/[\-_].*$/, "");
+  }
+  return name;
+}
+
 const kDialogCancelled = 'modal dialog cancelled.';
 
 const kFocusClass = 'hasfocus';
@@ -19,7 +28,7 @@ const kDisabledClass = 'disabled';
 const kFilteredClass = 'filtered';
 const kPromptActiveClass = 'promptactive';
 const kQueryActiveClass = 'queryactive';
-const kMapdirActiveClass = 'mapactive';
+const kMapActiveClass = 'mapactive';
 const kConfirmActiveClass = 'confirmactive';
 const kConfirmProcessingClass = 'confirmprocessing';
 const kCursorClass = 'content__entry--cursor';
@@ -139,7 +148,7 @@ class BrowseFS extends HTMLElement {
   }
 
   get mapActive() {
-    return this.classList.contains(kMapdirActiveClass);
+    return this.classList.contains(kMapActiveClass);
   }
 
   set hasFocus(val) {
@@ -161,7 +170,7 @@ class BrowseFS extends HTMLElement {
     if (this.path_ == val)
       return;
 
-    this.cancel();
+    this.resetFilter();
 
     val = val.trim();
     if (val.length < 2) {
@@ -207,34 +216,57 @@ class BrowseFS extends HTMLElement {
   }
 
   get query() {
-    return query_;
+    return this.query_;
   }
 
   set query(val) {
     this.query_ = val;
-    window.setTimeout(() => {
-      if (this.query_ === null) {
-        this.classList.remove(kFilteredClass, kQueryActiveClass);
-        return;
-      }
+    if (this.query_ === null) {
+      this.classList.remove(kFilteredClass, kQueryActiveClass);
+      this.cursorIndex = 0;
+      return;
+    }
 
-      this.classList.add(kFilteredClass, kQueryActiveClass);
-      this.queryInput_.value = val;
-      this.queryInput_.focus();
+    this.classList.add(kFilteredClass, kQueryActiveClass);
+    this.queryInput_.value = val;
+    this.queryInput_.focus();
 
-      this.restartFilterTimer_();
-    }, 0);
+    this.restartFilterTimer_();
   }
 
-  cancel() {
+  resetFilter() {
+    if (this.query !== null) {
+      this.query = null;
+      return true;
+    }
+
+    if (this.mapActive) {
+      this.mapInput_.value = "";
+      this.classList.remove(kFilteredClass, kMapActiveClass);
+      this.cursorIndex = 0;
+      return true;
+    }
+
+    return false;
+  }
+
+  handleEscapeAction(recurse = true) {
     if (this.onExitDialog_) {
       this.onExitDialog_(false);
     }
 
-    this.query = null;
-    this.mapInput_.value = "";
-    this.classList.remove(kFilteredClass, kQueryActiveClass, kMapdirActiveClass);
-    this.cursorIndex = 0;
+    if (this.resetFilter()) {
+      return;
+    }
+
+    if (this.getSelectedRows_().length > 0) {
+      this.resetSelection();
+      return;
+    }
+
+    if (recurse && this.counterpart) {
+      this.counterpart.handleEscapeAction(false);
+    }
   }
 
   navigateParent() {
@@ -315,7 +347,7 @@ class BrowseFS extends HTMLElement {
         return false;
       }
       if (e.key === 'Escape') {
-        this.cancel();
+        this.handleEscapeAction();
         return true;
       }
 
@@ -348,7 +380,7 @@ class BrowseFS extends HTMLElement {
     });
     this.promptInput_.addEventListener('keyup', (e) => {
       if (e.key === 'Escape') {
-        this.cancel();
+        this.handleEscapeAction();
         return false;
       }
       return true;
@@ -388,7 +420,7 @@ class BrowseFS extends HTMLElement {
     } else if (e.key === 'PageUp') {
       this.cursorIndex = Math.max(this.cursorIndex - this.numVisibleRows, 0);
     } else if (e.key === 'Escape') {
-      this.cancel();
+      this.handleEscapeAction();
     } else {
       unhandled = true;
     }
@@ -419,7 +451,7 @@ class BrowseFS extends HTMLElement {
     } else if (e.key === 'm') {
       this.moveSelection();
     } else if (e.key === 'M') {
-      this.mapdirSelection();
+      this.mapSelection();
     } else if (e.key === 'c') {
       this.copySelection();
     } else if (e.key === 'p') {
@@ -445,8 +477,19 @@ class BrowseFS extends HTMLElement {
         cr.triggerAction();
     } else if (e.key === 'u') {
       this.navigateParent();
+    } else if (e.key === 'U') {
+      if (this.counterpart)
+        this.counterpart.navigateParent();
     } else if (e.key === '?') {
-      this.query = '';
+      e.preventDefault();
+      let initialQueryStr = '';
+      if (this.counterpart) {
+        const sel = this.counterpart.getSelectedRows_();
+        if (sel.length > 0) {
+          initialQueryStr = sel[0].data.name;
+        }
+      }
+      this.query = initialQueryStr;
     } else {
       unhandled = true;
     }
@@ -456,6 +499,9 @@ class BrowseFS extends HTMLElement {
   }
 
   async onKeyUp_(e) {
+    if (preview.isOpen || !this.hasFocus || document.activeElement.tagName === "INPUT")
+      return;
+
     if (e.key === 'Escape') {
       if (this.onExitDialog_) this.onExitDialog_(false);
     } else if (e.key === 'Delete') {
@@ -483,6 +529,9 @@ class BrowseFS extends HTMLElement {
     }
     this.updateFilterLocked_();
     this.updateCursor();
+    if (this.mapActive) {
+      this.map(this.mapInput_.value);
+    }
     this.inflightUpdate_ = false;
   }
 
@@ -701,6 +750,12 @@ class BrowseFS extends HTMLElement {
 
   getSelectedRows_() {
     return this.getVisibleRows_(`.${kSelectedClass}`);
+  }
+
+  resetSelection() {
+    for (let tr of this.getSelectedRows_()) {
+      tr.classList.remove(kSelectedClass);
+    }
   }
 
   ensureAtLeastOneSelectedRows() {
@@ -997,7 +1052,7 @@ class BrowseFS extends HTMLElement {
     }
   }
 
-  async mapdirSelection() {
+  async mapSelection() {
     if (!this.counterpart) {
       throw "No counterpart to map to.";
     }
@@ -1014,24 +1069,21 @@ class BrowseFS extends HTMLElement {
       const names = Array.from(selectedRows).map(r => r.data.name);
       rname = findLongestCommonSubStr(names);
     }
+
     if (rname.length == 0) {
       throw "Failed to find an representativeName";
-    }
-    rname = rname.replace(/\d*\.\w{3,}$/, "");
-    if (rname.length > 4) {
-      // try removing str after _
-      rname = rname.replace(/_.*$/, "");
     }
 
     console.log(`representativeName: ${rname}`);
 
-    this.hasFocus = false;
-    this.counterpart.hasFocus = true;
-    this.counterpart.mapdir(rname);
+    rname = preprocessName(rname);
+    this.counterpart.map(rname, 'DIR');
+    this.map(rname);
   }
 
-  async mapdir(representativeName) {
-    this.mapInput_.value = representativeName;
+  async map(rname) {
+    console.log(`map: ${rname}`)
+    this.mapInput_.value = rname;
 
     let candidates = [];
 
@@ -1040,11 +1092,8 @@ class BrowseFS extends HTMLElement {
 
       const data = tr.data;
 
-      if (data.type !== "DIR")
-        continue;
-
-      const name = data.name;
-      const score = SIFT(name, representativeName);
+      const name = preprocessName(data.name);
+      const score = SIFT(name, rname);
 
       if (score > name.length-1) {
         // [skip] basically you are replacing (almost) all chars of `name`.
@@ -1058,13 +1107,22 @@ class BrowseFS extends HTMLElement {
       candidates.push({tr, score});
     }
     candidates.sort(({score: sa}, {score: sb}) => sa - sb);
-    candidates = candidates.slice(0, 5);
+    if (candidates.length > 4) {
+      let i = 4;
+      for (; i < candidates.length; i++) {
+        let diff = candidates[i].score - candidates[i-1].score;
+        if (diff > 0.1)
+          break;
+      }
+      candidates = candidates.slice(0, i+1);
+    }
 
+    console.log(`${candidates.length} candidates`);
     for (let c of candidates) {
       console.log(`match ${c.score} ${c.tr.data.name}`)
       c.tr.classList.add(kMatchClass);
     }
-    this.classList.add(kMapdirActiveClass, kFilteredClass);
+    this.classList.add(kMapActiveClass, kFilteredClass);
 
     this.cursorIndex = 0;
   }

@@ -11,7 +11,7 @@ require (
 	github.com/naoina/toml v0.1.1
 	github.com/nyaxt/fuse v0.0.0-20171213112031-b89602e08173
 	github.com/prometheus/client_golang v1.12.1
-	github.com/rs/cors v1.8.2
+	github.com/rs/cors v1.9.0
 	github.com/urfave/cli/v2 v2.8.1
 	go.uber.org/multierr v1.8.0
 	go.uber.org/zap v1.21.1-0.20220617042904-2e615d88d0eb
