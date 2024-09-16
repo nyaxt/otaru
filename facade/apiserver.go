@@ -4,7 +4,6 @@ import (
 	"github.com/nyaxt/otaru/apiserver"
 	"github.com/nyaxt/otaru/assets/webui"
 	"github.com/nyaxt/otaru/otaruapiserver"
-	"github.com/nyaxt/otaru/pb/json"
 	"go.uber.org/zap"
 )
 
@@ -20,7 +19,6 @@ func (o *Otaru) buildApiServerOptions(cfg *ApiServerConfig) ([]apiserver.Option,
 		apiserver.ClientCACert(cfg.ClientCACert),
 		apiserver.CORSAllowedOrigins(cfg.CORSAllowedOrigins),
 		apiserver.SetDefaultHandler(webui.WebUIHandler(override, "/index.otaru-server.html")),
-		apiserver.SetSwaggerJson(json.Assets, "/otaru.swagger.json"),
 		otaruapiserver.InstallBlobstoreService(o.S, o.DefaultBS, o.CBS),
 		otaruapiserver.InstallFileHandler(o.FS),
 		otaruapiserver.InstallFileSystemService(o.FS),

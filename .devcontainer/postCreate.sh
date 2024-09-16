@@ -1,5 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+PREFIX="/usr/local" && \
+VERSION="1.41.0" && \
+curl -sSL \
+"https://github.com/bufbuild/buf/releases/download/v${VERSION}/buf-$(uname -s)-$(uname -m).tar.gz" | \
+sudo tar -xvzf - -C "${PREFIX}" --strip-components 1

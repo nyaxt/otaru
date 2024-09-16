@@ -3,22 +3,6 @@ package pb;
 option go_package = "github.com/nyaxt/otaru/pb";
 
 import "google/api/annotations.proto";
-import "protoc-gen-openapiv2/options/annotations.proto";
-
-option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
-  info: {
-    title: "Otaru API";
-    version: "1.0";
-    contact: {
-      name: "Otaru project";
-      url: "https://github.com/nyaxt/otaru";
-      email: "ueno@nyaxtstep.com";
-    };
-  };
-  schemes: HTTPS;
-  consumes: "application/json";
-  produces: "application/json";
-};
 
 message ListDirRequest {
   // If |len(id)| == 0, then query path.
